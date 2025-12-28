@@ -117,6 +117,9 @@ def main():
         # 写入一个仅包含 n 的 DataFrame 到指定单元起始位置
         out_df = pd.DataFrame([n])
         out_df.to_excel(writer, sheet_name=outcrop_name, index=False, header=False, startrow=0, startcol=0)
+        # 追加写出计算得到的端点坐标表（X1, Y1, X2, Y2），方便检查
+        xy_df = pd.DataFrame(XY, columns=["X1", "Y1", "X2", "Y2"])
+        xy_df.to_excel(writer, sheet_name=outcrop_name, index=False, startrow=2, startcol=0)
 
     # 导出图片 PNG
     imagename = f"{outcrop_name}({n}).png"

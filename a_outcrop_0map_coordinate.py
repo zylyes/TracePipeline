@@ -1,4 +1,4 @@
-import os
+import os  # 操作系统接口
 import math
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ def _to_strike_from_dip_direction(dd: float) -> float:
 
 
 def main():
-    # 路径设置（尽量兼容原工程路径，不存在则使用当前工作目录）
+    # 路径设置
     path1 = r"D:\作业\毕业论文\周咏霖"
     path3 = r"D:\作业\毕业论文\周咏霖"
     path2 = os.getcwd()

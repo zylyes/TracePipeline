@@ -5,7 +5,6 @@ from typing import Tuple
 def coordinate(ang0: float, r1: float, r2: float, ang: float, r3: float, r4: float, r5: float, r6: float) -> Tuple[float, float, float, float]:
     """
     Python 版 Coordinate：根据测线走向、窗口位置、节理倾向/走向与左右/相交迹长，计算节理起点与终点坐标。
-    入参与 MATLAB Coordinate.m 一致：
       - ang0: 测线走向角度（度）
       - r1: 测线起点到节理交点的距离
       - r2: 测线到节理的垂距（左/右模式都使用）

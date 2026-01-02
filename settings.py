@@ -1,28 +1,35 @@
 """集中管理脚本运行所需的默认路径与参数配置。"""
-from dataclasses import dataclass
+import json
+from pathlib import Path
+from typing import Any, Dict
+
+CONFIG_PATH = Path(__file__).with_name("config.json")
+
+# 默认配置，供缺失字段回退。
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "input_dir": r"D:\作业\毕业论文\周咏霖\input", # 输入目录
+    "output_dir": r"D:\作业\毕业论文\周咏霖\output", # 输出目录
+    "file_name": "Outcrop", # 测点名称
+    "excel_base": "O76_process", # 迹线表基础名称
+    "outcrop_name": "O76", # 测点名称
+    "process_all": True, # 是否处理输入目录下所有发现的迹线表
+}
 
 
-@dataclass
-class RunConfig:
-    """脚本运行时的统一配置。
+def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
+    """从 JSON 配置文件读取运行参数，缺失字段使用默认值。"""
 
-    Attributes:
-        input_dir: 源 Excel 文件所在目录。
-        output_dir: 导出图片和表格的目录。
-        file_name: 导出 Excel 的基础文件名。
-        excel_base: 输入目录中待读取的 Excel 文件名（不含扩展名）。
-        outcrop_name: 工作表名称，同时用于图件标签。
-        process_all: 发现多个相同命名规则的表时，是否批量处理全部。
-    """
+    path = Path(config_path) if config_path else CONFIG_PATH
 
-    input_dir: str = r"D:\作业\毕业论文\周咏霖\input"
-    output_dir: str = r"D:\作业\毕业论文\周咏霖\output"
-    file_name: str = "Outcrop"
-    excel_base: str = "O76_process"
-    outcrop_name: str = "O76"
-    process_all: bool = True
+    if not path.exists():
+        return DEFAULT_CONFIG.copy()
 
+    with path.open("r", encoding="utf-8") as fp:
+        data = json.load(fp)
 
-def default_config() -> RunConfig:
-    """返回两个脚本共用的默认配置。"""
-    return RunConfig()
+    if not isinstance(data, dict):
+        raise ValueError(f"Config file {path} must contain a JSON object")
+
+    merged = DEFAULT_CONFIG.copy()
+    merged.update({k: v for k, v in data.items() if k in merged})
+    return merged

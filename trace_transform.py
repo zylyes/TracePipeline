@@ -11,7 +11,7 @@ def rotate_vector(x: float, y: float, rad: float) -> Tuple[float, float]:
     return x * cos_a - y * sin_a, x * sin_a + y * cos_a
 
 
-def rotate_angle_from_strike(ang0: float) -> float:
+def strike_to_rotation_rad(ang0: float) -> float:
     """根据走向角得到旋转弧度，保持与 MATLAB 分段逻辑一致。"""
     if ang0 > 270:
         return -(360 - ang0) * math.pi / 180.0
@@ -22,7 +22,7 @@ def rotate_angle_from_strike(ang0: float) -> float:
     return ang0 * math.pi / 180.0
 
 
-def shift_lines_positive(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
+def shift_lines_to_positive(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
     """将所有坐标平移到正半轴，贴近原 MATLAB 行为。"""
     min_x = abs(np.round(np.min([XY[:, 0].min(), XY[:, 2].min()]))) + padding
     min_y = abs(np.round(np.min([XY[:, 1].min(), XY[:, 3].min()]))) + padding
@@ -34,9 +34,9 @@ def shift_lines_positive(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
     ])
 
 
-def rotate_and_shift(lines: np.ndarray, ang0: float) -> np.ndarray:
+def rotate_lines_and_shift(lines: np.ndarray, ang0: float) -> np.ndarray:
     """按走向旋转线段端点后，再次平移到正半轴。"""
-    rotate_angle = rotate_angle_from_strike(ang0)
+    rotate_angle = strike_to_rotation_rad(ang0)
     rot_lines = np.zeros_like(lines)
     for i in range(lines.shape[0]):
         rot_lines[i, 0:2] = rotate_vector(lines[i, 0], lines[i, 1], rotate_angle)
@@ -52,7 +52,7 @@ def rotate_and_shift(lines: np.ndarray, ang0: float) -> np.ndarray:
     ])
 
 
-def rotate_lines(XY: np.ndarray, ang0: float, padding: float = 1.0) -> np.ndarray:
+def normalize_and_rotate_lines(XY: np.ndarray, ang0: float, padding: float = 1.0) -> np.ndarray:
     """先归一化到正半轴，再旋转并回到正半轴，便于后续绘制。"""
-    shifted = shift_lines_positive(XY, padding=padding)
-    return rotate_and_shift(shifted, ang0)
+    shifted = shift_lines_to_positive(XY, padding=padding)
+    return rotate_lines_and_shift(shifted, ang0)

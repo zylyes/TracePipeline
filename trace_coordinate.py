@@ -3,9 +3,9 @@ import math
 from typing import Tuple
 
 
-def coordinate(ang0: float, r1: float, r2: float, ang: float, r3: float, r4: float, r5: float, r6: float) -> Tuple[float, float, float, float]:
+def compute_joint_endpoints(ang0: float, r1: float, r2: float, ang: float, r3: float, r4: float, r5: float, r6: float) -> Tuple[float, float, float, float]:
     """
-    根据测线走向、窗口位置、节理倾向/走向与左右/相交迹长，计算节理起点与终点坐标。
+    依据测线走向、窗口位置、节理倾向/走向与左右/相交迹长，求出节理线段两端点坐标。
       - ang0: 测线走向角度（度）
       - r1: 测线起点到节理交点的距离
       - r2: 测线到节理的垂距（左/右模式都使用）
@@ -18,20 +18,20 @@ def coordinate(ang0: float, r1: float, r2: float, ang: float, r3: float, r4: flo
     返回:
       a1, b1, a2, b2: 节理线段两端点坐标 (x1, y1, x2, y2)
     """
-    # 测线方向角换算
+    # 将测线方向角转换为计算角（维持与原 MATLAB 逻辑一致）
     if ang0 < 90:
         ang_0 = 90 - ang0
     else:
         ang_0 = 450 - ang0
     rad_0 = math.radians(ang_0)
 
-    # 节理角换算（走向 → 计算角）
+    # 节理走向角转换为计算角，便于后续向量叠加
     if ang < 270:
         ang1 = 360 - (ang + 90)
     else:
         ang1 = 720 - (90 + ang)
 
-    # 根据左右/相交迹长情况，确定 rada / rade
+    # 根据左右/相交迹长情况，分别确定左、右侧的旋转弧度
     rada = None
     rade = None
     if (r4 != 0) and (r6 == 0):
@@ -74,7 +74,7 @@ def coordinate(ang0: float, r1: float, r2: float, ang: float, r3: float, r4: flo
                 rada = math.radians(ang1)
                 rade = math.radians(ang1 + 180)
 
-    # 复数向量叠加
+    # 复数向量叠加，先得到交点再延伸到两端点
     z1 = complex(r1 * math.cos(rad_0), r1 * math.sin(rad_0))
 
     if (r4 != 0) and (r6 == 0):

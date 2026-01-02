@@ -6,8 +6,8 @@ from typing import Sequence, Tuple
 import pandas as pd
 import numpy as np
 from matplotlib.figure import Figure
-from settings import RunConfig
-from trace_utils import resolve_paths, read_trace_table, parse_trace_geometry
+from trace_io import ensure_io_paths, load_trace_table
+from trace_geometry import parse_trace_table
 
 
 @dataclass
@@ -41,12 +41,12 @@ def working_directory(path: str):
         os.chdir(prev)
 
 
-def load_trace_data(cfg: RunConfig) -> tuple[TraceData, PathContext]:
+def load_trace_data(cfg: dict) -> tuple[TraceData, PathContext]:
     """读取 Excel 表并封装成 TraceData，同时返回路径上下文。"""
-    input_dir, output_dir, cwd = resolve_paths(cfg.input_dir, cfg.output_dir)
+    input_dir, output_dir, cwd = ensure_io_paths(cfg["input_dir"], cfg["output_dir"])
     with working_directory(input_dir):
-        df = read_trace_table(input_dir, cfg.excel_base, cfg.outcrop_name)
-        ang0, n, XY, trace_lengths, trace_angles = parse_trace_geometry(df)
+        df = load_trace_table(input_dir, cfg["excel_base"], cfg["outcrop_name"])
+        ang0, n, XY, trace_lengths, trace_angles = parse_trace_table(df)
 
     trace = TraceData(
         strike_deg=ang0,

@@ -1,9 +1,9 @@
 # 功能：读取迹线数据，绘制原始与旋转后的迹线图，并在一次运行中导出 Excel 与 PNG 结果。
 import os
-import pandas as pd
+from dataclasses import replace
 import matplotlib.pyplot as plt
 from settings import RunConfig, default_config
-from trace_utils import build_polyline_arrays, style_trace_axes
+from trace_utils import build_polyline_arrays, style_trace_axes, discover_trace_tables, resolve_paths
 from rotation import rotate_lines
 from trace_pipeline import (
     build_excel_sections,
@@ -26,23 +26,40 @@ def _render_trace_plot(X_plot, Y_plot, title: str, output_dir: str, filename: st
 
 def main(cfg: RunConfig | None = None):
     cfg = cfg or default_config()
-    trace, paths = load_trace_data(cfg)
 
-    rotated = rotate_lines(trace.xy, trace.strike_deg)
-    X_raw, Y_raw = build_polyline_arrays(trace.xy)
-    X_rot, Y_rot = build_polyline_arrays(rotated)
+    input_dir, output_dir, _ = resolve_paths(cfg.input_dir, cfg.output_dir)
+    discovered = discover_trace_tables(input_dir)
+    targets = discovered if (cfg.process_all and discovered) else [(cfg.excel_base, cfg.outcrop_name)]
 
-    excel_out = os.path.join(paths.output_dir, f"{cfg.file_name}_traces.xlsx")
-    sections = build_excel_sections(trace, rotated)
-    write_excel_sections(excel_out, cfg.outcrop_name, sections)
+    for excel_base, outcrop_name in targets:
+        run_cfg = replace(
+            cfg,
+            input_dir=input_dir,
+            output_dir=output_dir,
+            file_name=outcrop_name,
+            excel_base=excel_base,
+            outcrop_name=outcrop_name,
+        )
 
-    raw_title = f"Trace length map (number={trace.trace_count})"
-    raw_name = f"{cfg.outcrop_name}_raw(n={trace.trace_count}).png"
-    _render_trace_plot(X_raw, Y_raw, raw_title, paths.output_dir, raw_name, dpi=300)
+        trace, paths = load_trace_data(run_cfg)
 
-    rot_title = f"Trace length map (number={trace.trace_count})\nScaline (strike={trace.strike_deg})"
-    rot_name = f"{cfg.outcrop_name}_rotated(strike={trace.strike_deg}).png"
-    _render_trace_plot(X_rot, Y_rot, rot_title, paths.output_dir, rot_name, dpi=600)
+        rotated = rotate_lines(trace.xy, trace.strike_deg)
+        X_raw, Y_raw = build_polyline_arrays(trace.xy)
+        X_rot, Y_rot = build_polyline_arrays(rotated)
+
+        excel_out = os.path.join(paths.output_dir, f"{run_cfg.file_name}_traces.xlsx")
+        sections = build_excel_sections(trace, rotated)
+        write_excel_sections(excel_out, run_cfg.outcrop_name, sections)
+
+        raw_title = f"Trace length map (number={trace.trace_count})"
+        raw_name = f"{run_cfg.outcrop_name}_raw(n={trace.trace_count}).png"
+        _render_trace_plot(X_raw, Y_raw, raw_title, paths.output_dir, raw_name, dpi=300)
+
+        rot_title = f"Trace length map (number={trace.trace_count})\nScaline (strike={trace.strike_deg})"
+        rot_name = f"{run_cfg.outcrop_name}_rotated(strike={trace.strike_deg}).png"
+        _render_trace_plot(X_rot, Y_rot, rot_title, paths.output_dir, rot_name, dpi=600)
+
+        print(f"Processed {excel_base} -> {excel_out} and figures in {paths.output_dir}")
 
 
 if __name__ == "__main__":

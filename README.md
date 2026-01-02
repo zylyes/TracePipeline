@@ -12,8 +12,8 @@
 - 依赖：pandas、numpy、matplotlib、openpyxl（读写 xlsx）、xlrd（可选，读 xls）
 
 ## 数据要求
-- 默认 Excel 文件：`O76_process.xlsx`（同目录下），若缺失则回退 `O76_process.xls`。
-- 默认工作表名：`O76`，若不存在则自动使用首个工作表。
+- 默认会批量处理输入目录下命名类似 `*_process.xlsx`（或 `.xls`）的表格；若找不到则回退到配置中的 `excel_base` / `outcrop_name`。
+- 若某个文件没有对应的工作表名，自动使用首个工作表。
 - 数据格式（与 MATLAB 一致，行列为 1 基描述）：
   - 第 1 行第 8 列：测线走向角度 `ang0`。
   - 第 1 行第 9 列：节理条目数 `n`。
@@ -27,17 +27,17 @@
   - 否则 $strike = dd + 90$。
 
 ## 输出
-- Excel：`Outcrop.xlsx`，在工作表 `O76` 的 A1 写入节理数量 `n`。
-- 图片：`O76(n).png`，裂缝示意图，白底、300 dpi。
-- 输出目录：优先 `D:\作业\毕业论文\周咏霖`，若不存在则使用当前工作目录。
+- Excel：`{outcrop}_traces.xlsx`，工作表 `{outcrop}`，含基本信息+原始/旋转坐标。
+- 图片：`{outcrop}_raw(n=...).png` 与 `{outcrop}_rotated(strike=...).png`，白底。
+- 输出目录：优先 `D:\作业\毕业论文\周咏霖\output`，若不存在则使用当前工作目录。
 
 ## 运行步骤
-1. 将 `O76_process.xlsx`（或 `.xls`）放在工作目录，确保含有表 `O76` 且数据格式符合要求。
+1. 将命名类似 `O76_process.xlsx` 的表放在 `input/` 目录（可放多个）。
 2. 打开终端进入工作目录，执行：
    ```bash
-   python a_outcrop_0map_coordinate.py
+   python plot_traces.py
    ```
-3. 完成后在同目录查看 `Outcrop.xlsx` 和 `O76(n).png`。
+3. 完成后在 `output/` 目录查看各区块对应的 Excel 与图片。
 
 ## 可配置项
 - 更改工作表或文件前缀：修改 `outcrop_name`、`excel_base`。

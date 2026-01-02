@@ -1,4 +1,4 @@
-# 功能：集中管理脚本运行所需的默认路径与参数配置。
+"""集中管理脚本运行所需的默认路径与参数配置。"""
 from dataclasses import dataclass
 
 
@@ -12,6 +12,7 @@ class RunConfig:
         file_name: 导出 Excel 的基础文件名。
         excel_base: 输入目录中待读取的 Excel 文件名（不含扩展名）。
         outcrop_name: 工作表名称，同时用于图件标签。
+        process_all: 发现多个相同命名规则的表时，是否批量处理全部。
     """
 
     input_dir: str = r"D:\作业\毕业论文\周咏霖\input"
@@ -19,6 +20,7 @@ class RunConfig:
     file_name: str = "Outcrop"
     excel_base: str = "O76_process"
     outcrop_name: str = "O76"
+    process_all: bool = True
 
 
 def default_config() -> RunConfig:

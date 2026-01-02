@@ -3,7 +3,7 @@ import os # 操作系统接口模块
 import numpy as np # 数值计算模块
 import pandas as pd # 数据处理模块
 import matplotlib.pyplot as plt # 绘图库
-from typing import Tuple # 类型提示模块
+from typing import Tuple, List # 类型提示模块
 from coordinate_math import coordinate # 导入坐标转换函数
 
 
@@ -13,6 +13,39 @@ def resolve_paths(input_dir: str, output_dir: str) -> Tuple[str, str, str]:
     in_dir = input_dir if os.path.isdir(input_dir) else cwd # 输入目录
     out_dir = output_dir if os.path.isdir(output_dir) else cwd # 输出目录
     return in_dir, out_dir, cwd # 返回路径元组
+
+
+def discover_trace_tables(input_dir: str, suffix: str = "_process", extensions: Tuple[str, ...] = (".xlsx", ".xls")) -> List[Tuple[str, str]]:
+    """在输入目录中查找符合命名规则的迹线表，返回 (excel_base, outcrop_name) 列表。
+
+    - suffix: 例如 "_process"，用于从文件名提取区名。
+    - extensions: 优先顺序，默认优先使用 .xlsx，其次 .xls。
+    """
+
+    if not os.path.isdir(input_dir):
+        return []
+
+    matched: dict[str, Tuple[str, str]] = {}
+    files = sorted(os.listdir(input_dir))
+
+    for ext in extensions:
+        for name in files:
+            if not name.lower().endswith(ext):
+                continue
+
+            base, _ = os.path.splitext(name)
+            if not base.endswith(suffix):
+                continue
+
+            # 使用 lower 作为键，避免同名 xlsx/xls 重复。
+            key = base.lower()
+            if key in matched:
+                continue
+
+            outcrop_name = base[: -len(suffix)] if suffix and base.endswith(suffix) else base
+            matched[key] = (base, outcrop_name)
+
+    return list(matched.values())
 
 def dip_to_strike(dd: float) -> float:
     """将倾向角转换为走向角，遵循原 MATLAB 规则。"""

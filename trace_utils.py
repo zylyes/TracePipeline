@@ -1,51 +1,51 @@
-import os
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from typing import Tuple
-
-from coordinate import coordinate
+# 功能：提供路径解析、迹线表读取与几何计算工具函数。
+import os # 操作系统接口模块
+import numpy as np # 数值计算模块
+import pandas as pd # 数据处理模块
+import matplotlib.pyplot as plt # 绘图库
+from typing import Tuple # 类型提示模块
+from coordinate_math import coordinate # 导入坐标转换函数
 
 
 def resolve_paths(input_dir: str, output_dir: str) -> Tuple[str, str, str]:
-    """Return usable input/output directories and the cwd fallback."""
-    cwd = os.getcwd()
-    in_dir = input_dir if os.path.isdir(input_dir) else cwd
-    out_dir = output_dir if os.path.isdir(output_dir) else cwd
-    return in_dir, out_dir, cwd
+    """返回可用的输入输出目录以及当前工作目录作为兜底。"""
+    cwd = os.getcwd() # 当前工作目录
+    in_dir = input_dir if os.path.isdir(input_dir) else cwd # 输入目录
+    out_dir = output_dir if os.path.isdir(output_dir) else cwd # 输出目录
+    return in_dir, out_dir, cwd # 返回路径元组
 
-
-def to_strike_from_dip_direction(dd: float) -> float:
-    """Convert dip direction to strike, matching the original MATLAB rules."""
-    if dd >= 270:
+def dip_to_strike(dd: float) -> float:
+    """将倾向角转换为走向角，遵循原 MATLAB 规则。"""
+    if dd >= 270: # 倾向角大于等于 270 度，转换为走向角
         return dd + 90 - 360
-    if dd >= 180:
+    if dd >= 180: # 倾向角大于等于 180 度，转换为走向角
         return dd - 90
-    if dd >= 90:
+    if dd >= 90: # 倾向角大于等于 90 度，转换为走向角
         return dd - 90
     return dd + 90
 
 
 def read_trace_table(base_path: str, excel_base: str, sheet: str) -> pd.DataFrame:
-    """Load the input table, preferring .xlsx and falling back to .xls."""
-    excel_path_xlsx = os.path.join(base_path, excel_base + ".xlsx")
-    excel_path_xls = os.path.join(base_path, excel_base + ".xls")
+    """读取断层迹线表，优先尝试 .xlsx，失败再回退到 .xls。"""
+    excel_path_xlsx = os.path.join(base_path, excel_base + ".xlsx") # .xlsx 文件路径
+    excel_path_xls = os.path.join(base_path, excel_base + ".xls") # .xls 文件路径
 
-    def _read(path: str, engine: str) -> pd.DataFrame:
+    def read(path: str, engine: str) -> pd.DataFrame:
+        # 部分文件工作表命名不一致，先按指定名读，失败则退回第一个工作表
         try:
             return pd.read_excel(path, engine=engine, sheet_name=sheet, header=None)
         except ValueError:
             return pd.read_excel(path, engine=engine, sheet_name=0, header=None)
 
     if os.path.exists(excel_path_xlsx):
-        return _read(excel_path_xlsx, engine="openpyxl")
+        return read(excel_path_xlsx, engine="openpyxl")
     if os.path.exists(excel_path_xls):
-        return _read(excel_path_xls, engine="xlrd")
+        return read(excel_path_xls, engine="xlrd")
     raise FileNotFoundError(f"未找到 {excel_base}.xlsx 或 {excel_base}.xls 在路径: {base_path}")
 
 
 def parse_trace_geometry(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndarray, np.ndarray]:
-    """Extract ang0, n, and computed coordinates/angles from the raw table."""
+    """从原始表格提取起始方位、迹线数量，并计算端点坐标与角度。"""
     ang0 = float(df.iloc[0, 7])
     n_raw = df.iloc[0, 8]
     n_num = pd.to_numeric([n_raw], errors="coerce")[0]
@@ -55,7 +55,7 @@ def parse_trace_geometry(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.n
 
     M = df.iloc[:, 0:7].to_numpy(dtype=float)
     dd = df.iloc[:, 2].to_numpy(dtype=float)
-    strike_angles = np.array([to_strike_from_dip_direction(x) for x in dd])
+    strike_angles = np.array([dip_to_strike(x) for x in dd])
     M[:, 2] = strike_angles[: M.shape[0]]
 
     XY = np.zeros((n, 4), dtype=float)
@@ -65,6 +65,7 @@ def parse_trace_geometry(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.n
     for m in range(n):
         trace_lengths[m] = M[m, 4] + M[m, 6]
         trace_angles[m] = M[m, 2]
+        # coordinate 返回迹线两端点在平面直角坐标系下的坐标
         X1, Y1, X2, Y2 = coordinate(
             ang0,
             M[m, 0], M[m, 1], M[m, 2], M[m, 3], M[m, 4], M[m, 5], M[m, 6],
@@ -75,7 +76,7 @@ def parse_trace_geometry(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.n
 
 
 def build_polyline_arrays(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Create NaN-separated coordinate arrays for plotting segments."""
+    """生成包含 NaN 间隔的坐标数组，便于用单条折线绘制多段。"""
     n = XY.shape[0]
     X_plot = np.column_stack([XY[:, 0], XY[:, 2], np.full((n,), np.nan)]).ravel()
     Y_plot = np.column_stack([XY[:, 1], XY[:, 3], np.full((n,), np.nan)]).ravel()
@@ -83,7 +84,7 @@ def build_polyline_arrays(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def style_trace_axes(ax: plt.Axes) -> plt.Axes:
-    """Apply consistent styling for trace plots."""
+    """为迹线图设置统一的坐标轴样式。"""
     plt.axis("equal")
     ax.set_xticks([])
     ax.set_yticks([])

@@ -1,3 +1,4 @@
+# 功能：根据测线与节理参数计算节理线段两端点的平面坐标。
 import math
 from typing import Tuple
 

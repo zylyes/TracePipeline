@@ -4,15 +4,15 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List
 
 # 默认配置与配置文件位置
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config.json"
 
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "input_dir": r"D:\作业\毕业论文\周咏霖\input",
-    "output_dir": r"D:\作业\毕业论文\周咏霖\output",
+    "input_dir": str(PROJECT_ROOT / "input"),
+    "output_dir": str(PROJECT_ROOT / "output"),
     "file_name": "Outcrop",
     "excel_base": "O76_process",
     "outcrop_name": "O76",
@@ -41,27 +41,42 @@ def ensure_io_paths(input_dir: str, output_dir: str) -> Tuple[str, str]:
     """返回可用的输入/输出目录。"""
 
     # 路径不存在则回退到当前工作目录，避免崩溃
-    cwd = os.getcwd()
-    in_dir = input_dir if os.path.isdir(input_dir) else cwd
-    out_dir = output_dir if os.path.isdir(output_dir) else cwd
-    return in_dir, out_dir
+    cwd = Path.cwd()
+    
+    in_path = Path(input_dir)
+    out_path = Path(output_dir)
+    
+    final_in = str(in_path) if in_path.is_dir() else str(cwd)
+    final_out = str(out_path) if out_path.is_dir() else str(cwd)
+    
+    return final_in, final_out
 
 
 def find_trace_tables(
     input_dir: str,
     suffix: str = "_process",
     extensions: Tuple[str, ...] = (".xlsx", ".xls"),
-) -> list[Tuple[str, str]]:
+) -> List[Tuple[str, str]]:
     """在目录中查找符合命名规则的迹线表，返回 (excel_base, outcrop_name)。"""
 
-    if not os.path.isdir(input_dir):
+    path = Path(input_dir)
+    if not path.is_dir():
         return []
 
-    matched: dict[str, Tuple[str, str]] = {}
-    for name in sorted(os.listdir(input_dir)):
-        base, ext = os.path.splitext(name)
-        if ext.lower() not in extensions or not base.endswith(suffix):
+    matched: Dict[str, Tuple[str, str]] = {}
+    
+    # 使用 pathlib 遍历
+    for file_path in path.iterdir():
+        if not file_path.is_file():
             continue
+            
+        if file_path.suffix.lower() not in extensions:
+            continue
+            
+        base = file_path.stem
+        if not base.endswith(suffix):
+            continue
+            
         # 使用不区分大小写的 key 防止重复
         key = base.lower()
         if key not in matched:

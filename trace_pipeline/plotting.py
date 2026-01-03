@@ -16,6 +16,7 @@ plt.rcParams["axes.unicode_minus"] = False
 
 
 def build_nan_lines(XY: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # 每条线段后拼接 NaN 以断开折线，便于 matplotlib 分段绘制
     n = XY.shape[0]
     X_plot = np.column_stack([XY[:, 0], XY[:, 2], np.full((n,), np.nan)]).ravel()
     Y_plot = np.column_stack([XY[:, 1], XY[:, 3], np.full((n,), np.nan)]).ravel()
@@ -37,6 +38,7 @@ def style_trace_axes(ax: plt.Axes) -> plt.Axes:
 def export_figure(fig, output_dir: str, filename: str, dpi: int = 300) -> str:
     """导出图片到输出目录并返回完整路径。"""
 
+    # 确保目录存在再导出，返回实际保存位置
     os.makedirs(output_dir, exist_ok=True)
     full_path = os.path.join(output_dir, filename)
     fig.tight_layout()

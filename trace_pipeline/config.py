@@ -40,6 +40,7 @@ def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
 def ensure_io_paths(input_dir: str, output_dir: str) -> Tuple[str, str]:
     """返回可用的输入/输出目录。"""
 
+    # 路径不存在则回退到当前工作目录，避免崩溃
     cwd = os.getcwd()
     in_dir = input_dir if os.path.isdir(input_dir) else cwd
     out_dir = output_dir if os.path.isdir(output_dir) else cwd
@@ -61,6 +62,7 @@ def find_trace_tables(
         base, ext = os.path.splitext(name)
         if ext.lower() not in extensions or not base.endswith(suffix):
             continue
+        # 使用不区分大小写的 key 防止重复
         key = base.lower()
         if key not in matched:
             outcrop_name = base[: -len(suffix)]

@@ -6,6 +6,7 @@ import numpy as np
 
 
 def strike_to_rad(ang0: float) -> float:
+    # 将走向角转换为弧度，按象限修正方向
     if ang0 > 270:
         return -(360 - ang0) * math.pi / 180.0
     if ang0 > 180:
@@ -16,12 +17,14 @@ def strike_to_rad(ang0: float) -> float:
 
 
 def shift_lines_pos(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
+    # 统一平移到正坐标系并预留少量空白
     min_x = abs(np.round(np.min(XY[:, [0, 2]]))) + padding
     min_y = abs(np.round(np.min(XY[:, [1, 3]]))) + padding
     return XY + np.array([min_x, min_y, min_x, min_y])
 
 
 def rotate_shift_lines(lines: np.ndarray, ang0: float) -> np.ndarray:
+    # 先旋转，再平移使坐标非负，便于后续绘图
     angle = strike_to_rad(ang0)
     rot_mat = np.array([
         [math.cos(angle), -math.sin(angle)],
@@ -35,5 +38,6 @@ def rotate_shift_lines(lines: np.ndarray, ang0: float) -> np.ndarray:
 
 
 def norm_rotate_lines(XY: np.ndarray, ang0: float, padding: float = 1.0) -> np.ndarray:
+    # 标准化流程：平移到正象限后按走向旋转
     shifted = shift_lines_pos(XY, padding=padding)
     return rotate_shift_lines(shifted, ang0)

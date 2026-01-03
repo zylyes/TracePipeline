@@ -3,3 +3,5 @@ numpy
 matplotlib
 openpyxl
 xlrd
+
+pytest

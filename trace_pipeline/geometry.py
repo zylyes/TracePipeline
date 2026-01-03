@@ -7,144 +7,72 @@ import numpy as np
 import pandas as pd
 
 
-def _get_adjusted_angle(base_angle: float, target_angle: float, invert: bool = False) -> float:
+def _get_adjusted_angle_vec(base_angle: float, target_angles: np.ndarray, invert: bool = False) -> np.ndarray:
     """
-    根据基准角度调整目标角度，用于确定迹线延伸方向。
+    根据基准角度调整目标角度（向量化版本）。
     
     Args:
         base_angle: 基准角度（通常为测线走向转换后的角度）
-        target_angle: 目标角度（通常为节理走向转换后的角度）
+        target_angles: 目标角度数组（通常为节理走向转换后的角度）
         invert: 是否反转逻辑（用于区分左右侧）
         
     Returns:
-        调整后的角度（弧度制）
+        调整后的角度数组（弧度制）
     """
+    targets = np.asarray(target_angles)
+    
     if base_angle <= 180:
-        cond = (base_angle < target_angle) and (target_angle < (180 + base_angle))
-        # rada (invert=False): cond -> target, else -> target+180
-        # rade (invert=True):  cond -> target+180, else -> target
+        cond = (base_angle < targets) & (targets < (180 + base_angle))
         if not invert:
-            res = target_angle if cond else target_angle + 180
+            # rada (invert=False): cond -> target, else -> target+180
+            res = np.where(cond, targets, targets + 180)
         else:
-            res = target_angle + 180 if cond else target_angle
+            # rade (invert=True):  cond -> target+180, else -> target
+            res = np.where(cond, targets + 180, targets)
     else:
-        cond = ((base_angle - 180) < target_angle) and (target_angle < base_angle)
-        # rada (invert=False): cond -> target+180, else -> target
-        # rade (invert=True):  cond -> target, else -> target+180
+        cond = ((base_angle - 180) < targets) & (targets < base_angle)
         if not invert:
-            res = target_angle + 180 if cond else target_angle
+            # rada (invert=False): cond -> target+180, else -> target
+            res = np.where(cond, targets + 180, targets)
         else:
-            res = target_angle if cond else target_angle + 180
+            # rade (invert=True):  cond -> target, else -> target+180
+            res = np.where(cond, targets, targets + 180)
             
-    return math.radians(res)
+    return np.radians(res)
 
 
-def calc_joint_pts(
-    ang0: float,
-    r1: float,
-    r2: float,
-    ang: float,
-    r3: float,
-    r4: float,
-    r5: float,
-    r6: float,
-) -> Tuple[float, float, float, float]:
+def dip_to_strike_vec(dd: np.ndarray) -> np.ndarray:
     """
-    依据测线走向与左右/相交迹长计算节理端点坐标。
+    倾向转走向（向量化）。
     
-    Args:
-        ang0: 测线走向
-        r1: 沿测线距离
-        r2: 垂直测线偏移
-        ang: 节理走向
-        r3, r4: 左侧迹长参数
-        r5, r6: 右侧迹长参数
-        
-    Returns:
-        (x1, y1, x2, y2): 迹线两端点坐标
+    逻辑:
+    >= 270: dd - 270
+    90 <= dd < 270: dd - 90
+    < 90: dd + 90
     """
-
-    # 1. 角度预处理
-    ang_0 = (90 - ang0) if ang0 < 90 else (450 - ang0)
-    rad_0 = math.radians(ang_0)
-
-    ang1 = (360 - (ang + 90)) if ang < 270 else (720 - (90 + ang))
-
-    # 2. 确定左右侧逻辑
-    has_left = (r4 != 0)
-    has_right = (r6 != 0)
+    res = np.zeros_like(dd)
+    mask1 = dd >= 270
+    mask2 = (dd >= 90) & (dd < 270)
+    mask3 = dd < 90
     
-    rada = 0.0
-    rade = 0.0
-
-    if has_left:
-        rada = _get_adjusted_angle(ang_0, ang1, invert=False)
-    if has_right:
-        rade = _get_adjusted_angle(ang_0, ang1, invert=True)
-
-    # 3. 向量计算
-    # z1: 沿测线位移
-    z1 = complex(r1 * math.cos(rad_0), r1 * math.sin(rad_0))
-    
-    # 垂直方向单位向量
-    vec_perp_left = complex(math.cos(rad_0 + math.pi/2), math.sin(rad_0 + math.pi/2))
-    vec_perp_right = complex(math.cos(rad_0 - math.pi/2), math.sin(rad_0 - math.pi/2))
-    
-    # 倾斜方向单位向量
-    vec_skew_a = complex(math.cos(rada), math.sin(rada))
-    vec_skew_e = complex(math.cos(rade), math.sin(rade))
-
-    # 4. 坐标合成
-    if has_left and not has_right:
-        # 仅左侧
-        z2 = r2 * vec_perp_left
-        z3 = r3 * vec_skew_a
-        z4 = r4 * vec_skew_a
-        s1 = z1 + z2 + z3
-        s2 = s1 + z4
-        return s1.real, s1.imag, s2.real, s2.imag
-        
-    elif not has_left and has_right:
-        # 仅右侧
-        z2 = r2 * vec_perp_right
-        z3 = r5 * vec_skew_e
-        z4 = r6 * vec_skew_e
-        s1 = z1 + z2 + z3
-        s2 = s1 + z4
-        return s1.real, s1.imag, s2.real, s2.imag
-        
-    else:
-        # 两侧都有（或都无，视为穿越？）
-        # 左侧端点
-        y2 = r2 * vec_perp_left
-        y3 = r3 * vec_skew_a
-        y4 = r4 * vec_skew_a
-        s_left = z1 + y2 + y3 + y4
-        
-        # 右侧端点
-        y5 = r2 * vec_perp_right
-        y6 = r5 * vec_skew_e
-        y7 = r6 * vec_skew_e
-        s_right = z1 + y5 + y6 + y7
-        
-        return s_left.real, s_left.imag, s_right.real, s_right.imag
-
-
-def dip_to_strike(dd: float) -> float:
-    """倾向转走向。"""
-    if dd >= 270:
-        return dd + 90 - 360
-    if dd >= 180:
-        return dd - 90
-    if dd >= 90:
-        return dd - 90
-    return dd + 90
+    res[mask1] = dd[mask1] - 270
+    res[mask2] = dd[mask2] - 90
+    res[mask3] = dd[mask3] + 90
+    return res
 
 
 def parse_trace_table(df: pd.DataFrame) -> Tuple[float, int, np.ndarray]:
-    """从原始表格解析走向、条数与端点坐标。"""
+    """
+    从原始表格解析走向、条数与端点坐标（向量化）。
+    
+    Args:
+        df: 包含迹线数据的 DataFrame
+        
+    Returns:
+        (ang0, n, XY): 测线走向, 迹线数量, 坐标数组 (N, 4)
+    """
 
-    # 表头：走向在 (1,8)，条数在 (1,9) -> iloc[0, 7], iloc[0, 8]
+    # 1. 解析表头信息
     try:
         ang0 = float(df.iloc[0, 7])
         n_raw = df.iloc[0, 8]
@@ -152,24 +80,112 @@ def parse_trace_table(df: pd.DataFrame) -> Tuple[float, int, np.ndarray]:
     except (ValueError, IndexError) as e:
         raise ValueError(f"Failed to parse header info (strike/count) from Excel: {e}")
 
-    # 提取数据矩阵
-    # 假设前7列是参数: r1, r2, ang(dip), r3, r4, r5, r6
-    # 注意：原始代码中 M[:, 2] 被替换为 strike
-    M = df.iloc[:, 0:7].to_numpy(dtype=float)
+    # 2. 提取数据矩阵
+    # 列索引映射: 0:r1, 1:r2, 2:ang(dip), 3:r3, 4:r4, 5:r5, 6:r6
+    # 确保只取前 n 行（如果 DataFrame 有多余行）
+    M = df.iloc[:n, 0:7].to_numpy(dtype=float)
     
-    # 倾向转走向
-    dd = df.iloc[:, 2].to_numpy(dtype=float)
-    strike_angles = np.array([dip_to_strike(x) for x in dd])
-    M[:, 2] = strike_angles[: M.shape[0]]
+    # 3. 倾向转走向
+    dd = M[:, 2]
+    M[:, 2] = dip_to_strike_vec(dd)
 
-    # 计算坐标
-    XY = np.zeros((n, 4), dtype=float)
+    # 提取各列参数
+    r1 = M[:, 0]
+    r2 = M[:, 1]
+    ang = M[:, 2]
+    r3 = M[:, 3]
+    r4 = M[:, 4]
+    r5 = M[:, 5]
+    r6 = M[:, 6]
+
+    # 4. 角度预处理
+    ang_0 = (90 - ang0) if ang0 < 90 else (450 - ang0)
+    rad_0 = math.radians(ang_0)
+
+    # ang1 calculation: (270 - ang) % 360
+    ang1 = np.where(ang < 270, 360 - (ang + 90), 720 - (90 + ang))
+
+    # 5. 确定左右侧逻辑
+    has_left = (r4 != 0)
+    has_right = (r6 != 0)
     
-    # 这里未来可以考虑向量化优化，但目前保持循环以确保逻辑正确
-    for m in range(n):
-        # 参数映射: r1=0, r2=1, ang=2, r3=3, r4=4, r5=5, r6=6
-        args = M[m, :]
-        X1, Y1, X2, Y2 = calc_joint_pts(ang0, *args)
-        XY[m, :] = [X1, Y1, X2, Y2]
+    # 计算 rada, rade
+    rada = _get_adjusted_angle_vec(ang_0, ang1, invert=False)
+    rade = _get_adjusted_angle_vec(ang_0, ang1, invert=True)
 
+    # 6. 向量计算
+    # z1: 沿测线位移 (复数表示)
+    z1 = r1 * np.exp(1j * rad_0)
+    
+    # 垂直方向单位向量
+    vec_perp_left = np.exp(1j * (rad_0 + math.pi/2))
+    vec_perp_right = np.exp(1j * (rad_0 - math.pi/2))
+    
+    # 倾斜方向单位向量
+    vec_skew_a = np.exp(1j * rada)
+    vec_skew_e = np.exp(1j * rade)
+
+    # 初始化结果数组
+    X1, Y1, X2, Y2 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
+
+    # Case 1: Left Only (has_left & !has_right)
+    mask_l = has_left & (~has_right)
+    if np.any(mask_l):
+        # s1 = z1 + r2*L_perp + r3*L_skew
+        # s2 = s1 + r4*L_skew
+        _z1 = z1[mask_l]
+        _r2 = r2[mask_l]
+        _r3 = r3[mask_l]
+        _r4 = r4[mask_l]
+        _v_skew = vec_skew_a[mask_l]
+        
+        s1 = _z1 + _r2 * vec_perp_left + _r3 * _v_skew
+        s2 = s1 + _r4 * _v_skew
+        
+        X1[mask_l] = s1.real
+        Y1[mask_l] = s1.imag
+        X2[mask_l] = s2.real
+        Y2[mask_l] = s2.imag
+
+    # Case 2: Right Only (!has_left & has_right)
+    mask_r = (~has_left) & has_right
+    if np.any(mask_r):
+        # s1 = z1 + r2*R_perp + r5*R_skew
+        # s2 = s1 + r6*R_skew
+        _z1 = z1[mask_r]
+        _r2 = r2[mask_r]
+        _r5 = r5[mask_r]
+        _r6 = r6[mask_r]
+        _v_skew = vec_skew_e[mask_r]
+        
+        s1 = _z1 + _r2 * vec_perp_right + _r5 * _v_skew
+        s2 = s1 + _r6 * _v_skew
+        
+        X1[mask_r] = s1.real
+        Y1[mask_r] = s1.imag
+        X2[mask_r] = s2.real
+        Y2[mask_r] = s2.imag
+
+    # Case 3: Both (has_left & has_right)
+    mask_b = has_left & has_right
+    if np.any(mask_b):
+        # s_left = z1 + r2*L_perp + (r3+r4)*L_skew
+        # s_right = z1 + r2*R_perp + (r5+r6)*R_skew
+        _z1 = z1[mask_b]
+        _r2 = r2[mask_b]
+        _r3 = r3[mask_b]
+        _r4 = r4[mask_b]
+        _r5 = r5[mask_b]
+        _r6 = r6[mask_b]
+        
+        s_left = _z1 + _r2 * vec_perp_left + (_r3 + _r4) * vec_skew_a[mask_b]
+        s_right = _z1 + _r2 * vec_perp_right + (_r5 + _r6) * vec_skew_e[mask_b]
+        
+        X1[mask_b] = s_left.real
+        Y1[mask_b] = s_left.imag
+        X2[mask_b] = s_right.real
+        Y2[mask_b] = s_right.imag
+
+    # 组合结果
+    XY = np.column_stack((X1, Y1, X2, Y2))
     return ang0, n, XY

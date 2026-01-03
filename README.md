@@ -27,7 +27,7 @@
   - 否则 $strike = dd + 90$。
 
 ## 输出
-- Excel：`{outcrop}_traces.xlsx`，工作表 `{outcrop}`，含基本信息+原始/旋转坐标。
+- Excel：`{outcrop}_traces.xlsx`，工作表 `{outcrop}`，含基本信息+原始/旋转坐标，列名已改为中文：测线走向(°)、迹线数量、起点/终点坐标与旋转后起点/终点坐标。
 - 图片：`{outcrop}_raw(n=...).png` 与 `{outcrop}_rotated(strike=...).png`，白底。
 - 输出目录：优先 `D:\作业\毕业论文\周咏霖\output`，若不存在则使用当前工作目录。
 

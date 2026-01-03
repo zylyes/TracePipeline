@@ -9,6 +9,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# 允许图形与控制台输出展示中文
+plt.rcParams["font.sans-serif"] = [
+    "SimHei",
+    "Microsoft YaHei",
+    "Arial Unicode MS",
+]
+plt.rcParams["axes.unicode_minus"] = False
+
 
 # ------------------------ 配置与路径 ------------------------
 CONFIG_PATH = Path(__file__).with_name("config.json")
@@ -60,19 +68,13 @@ def find_trace_tables(
         return []
 
     matched: dict[str, Tuple[str, str]] = {}
-    files = sorted(os.listdir(input_dir))
-
-    for ext in extensions:
-        for name in files:
-            if not name.lower().endswith(ext):
-                continue
-            base, _ = os.path.splitext(name)
-            if not base.endswith(suffix):
-                continue
-            key = base.lower()
-            if key in matched:
-                continue
-            outcrop_name = base[: -len(suffix)] if suffix and base.endswith(suffix) else base
+    for name in sorted(os.listdir(input_dir)):
+        base, ext = os.path.splitext(name)
+        if ext.lower() not in extensions or not base.endswith(suffix):
+            continue
+        key = base.lower()
+        if key not in matched:
+            outcrop_name = base[: -len(suffix)]
             matched[key] = (base, outcrop_name)
 
     return list(matched.values())
@@ -260,9 +262,9 @@ def write_excel_sections(
 def build_excel_sections(trace: TraceData, rotated_xy: np.ndarray) -> Sequence[Tuple[pd.DataFrame, int, int, bool]]:
     """组装 Excel 写入所需的分块信息。"""
 
-    base_info = pd.DataFrame({"strike_deg": [trace.strike_deg], "trace_count": [trace.trace_count]})
-    raw_df = pd.DataFrame(trace.xy, columns=["X1", "Y1", "X2", "Y2"])
-    rot_df = pd.DataFrame(rotated_xy, columns=["RX1", "RY1", "RX2", "RY2"])
+    base_info = pd.DataFrame({"测线走向(°)": [trace.strike_deg], "迹线数量": [trace.trace_count]})
+    raw_df = pd.DataFrame(trace.xy, columns=["起点X", "起点Y", "终点X", "终点Y"])
+    rot_df = pd.DataFrame(rotated_xy, columns=["旋转后起点X", "旋转后起点Y", "旋转后终点X", "旋转后终点Y"])
     return [
         (base_info, 0, 0, True),
         (raw_df, 3, 0, True),
@@ -281,12 +283,6 @@ def export_figure(fig, output_dir: str, filename: str, dpi: int = 300) -> str:
 
 
 # ------------------------ 坐标平移与旋转 ------------------------
-def rotate_vector(x: float, y: float, rad: float) -> Tuple[float, float]:
-    cos_a = math.cos(rad)
-    sin_a = math.sin(rad)
-    return x * cos_a - y * sin_a, x * sin_a + y * cos_a
-
-
 def strike_to_rotation_rad(ang0: float) -> float:
     if ang0 > 270:
         return -(360 - ang0) * math.pi / 180.0
@@ -298,31 +294,22 @@ def strike_to_rotation_rad(ang0: float) -> float:
 
 
 def shift_lines_to_positive(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
-    min_x = abs(np.round(np.min([XY[:, 0].min(), XY[:, 2].min()]))) + padding
-    min_y = abs(np.round(np.min([XY[:, 1].min(), XY[:, 3].min()]))) + padding
-    return np.column_stack([
-        XY[:, 0] + min_x,
-        XY[:, 1] + min_y,
-        XY[:, 2] + min_x,
-        XY[:, 3] + min_y,
-    ])
+    min_x = abs(np.round(np.min(XY[:, [0, 2]]))) + padding
+    min_y = abs(np.round(np.min(XY[:, [1, 3]]))) + padding
+    return XY + np.array([min_x, min_y, min_x, min_y])
 
 
 def rotate_lines_and_shift(lines: np.ndarray, ang0: float) -> np.ndarray:
-    rotate_angle = strike_to_rotation_rad(ang0)
-    rot_lines = np.zeros_like(lines)
-    for i in range(lines.shape[0]):
-        rot_lines[i, 0:2] = rotate_vector(lines[i, 0], lines[i, 1], rotate_angle)
-        rot_lines[i, 2:4] = rotate_vector(lines[i, 2], lines[i, 3], rotate_angle)
-
-    min_rot_x = abs(np.round(np.min([rot_lines[:, 0].min(), rot_lines[:, 2].min()])))
-    min_rot_y = abs(np.round(np.min([rot_lines[:, 1].min(), rot_lines[:, 3].min()])))
-    return np.column_stack([
-        rot_lines[:, 0] + min_rot_x,
-        rot_lines[:, 1] + min_rot_y,
-        rot_lines[:, 2] + min_rot_x,
-        rot_lines[:, 3] + min_rot_y,
+    angle = strike_to_rotation_rad(ang0)
+    rot_mat = np.array([
+        [math.cos(angle), -math.sin(angle)],
+        [math.sin(angle), math.cos(angle)],
     ])
+    rot_lines = (lines.reshape(-1, 2) @ rot_mat.T).reshape(lines.shape)
+
+    min_rot_x = abs(np.round(np.min(rot_lines[:, [0, 2]])))
+    min_rot_y = abs(np.round(np.min(rot_lines[:, [1, 3]])))
+    return rot_lines + np.array([min_rot_x, min_rot_y, min_rot_x, min_rot_y])
 
 
 def normalize_and_rotate_lines(XY: np.ndarray, ang0: float, padding: float = 1.0) -> np.ndarray:
@@ -339,30 +326,24 @@ def build_nan_separated_lines(XY: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def style_trace_axes(ax: plt.Axes) -> plt.Axes:
-    plt.axis("equal")
+    ax.set_aspect("equal")
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_linewidth(1)
     ax.tick_params(labelsize=14)
-    try:
-        ax.set_fontname("Times New Roman")
-    except Exception:
-        pass
     ax.set_facecolor("white")
-    fig = ax.get_figure()
-    fig.patch.set_facecolor("white")
+    ax.get_figure().patch.set_facecolor("white")
     return ax
 
 
 def render_trace_plot(X_plot, Y_plot, title: str, output_dir: str, filename: str, dpi: int = 300):
     """绘制单张迹线图并导出到指定目录。"""
 
-    fig = plt.figure(figsize=(24 / 2.54, 12 / 2.54), dpi=dpi)
-    ax = fig.gca()
+    fig, ax = plt.subplots(figsize=(24 / 2.54, 12 / 2.54), dpi=dpi)
     ax.plot(X_plot, Y_plot, "-", color=(0, 0, 0), linewidth=1)
-    ax = style_trace_axes(ax)
-    ax.set_title(title, fontsize=12, fontname="Times New Roman")
+    style_trace_axes(ax)
+    ax.set_title(title, fontsize=12)
     export_figure(fig, output_dir, filename, dpi=dpi)
     plt.close(fig)
 
@@ -374,6 +355,8 @@ def main(cfg: dict | None = None):
     input_dir, output_dir = ensure_io_paths(cfg["input_dir"], cfg["output_dir"])
     discovered = find_trace_tables(input_dir)
     targets = discovered if (cfg.get("process_all") and discovered) else [(cfg["excel_base"], cfg["outcrop_name"])]
+
+    run_summaries: list[dict] = []
 
     for excel_base, outcrop_name in targets:
         run_cfg = {
@@ -395,15 +378,44 @@ def main(cfg: dict | None = None):
         sections = build_excel_sections(trace, rotated)
         write_excel_sections(excel_out, run_cfg["outcrop_name"], sections)
 
-        raw_title = f"Trace length map (number={trace.trace_count})"
+        raw_title = f"迹线长度图（数量={trace.trace_count}）"
         raw_name = f"{run_cfg['outcrop_name']}_raw(n={trace.trace_count}).png"
         render_trace_plot(X_raw, Y_raw, raw_title, output_dir, raw_name, dpi=300)
 
-        rot_title = f"Trace length map (number={trace.trace_count})\nScaline (strike={trace.strike_deg})"
+        rot_title = f"迹线长度图（数量={trace.trace_count}）\n标尺（走向={trace.strike_deg}）"
         rot_name = f"{run_cfg['outcrop_name']}_rotated(strike={trace.strike_deg}).png"
         render_trace_plot(X_rot, Y_rot, rot_title, output_dir, rot_name, dpi=600)
 
-        print(f"Processed {excel_base} -> {excel_out} and figures in {output_dir}")
+        run_summaries.append(
+            {
+                "excel_base": excel_base,
+                "excel_out": excel_out,
+                "trace_count": trace.trace_count,
+            }
+        )
+
+    print_run_summary(input_dir, output_dir, run_summaries)
+
+
+def print_run_summary(input_dir: str, output_dir: str, runs: Sequence[dict]):
+    """打印精简后的处理摘要，避免重复输出相同内容。"""
+
+    if not runs:
+        print(f"未找到可处理的文件，请检查输入目录：{input_dir}")
+        return
+
+    lines = [
+        f"输入目录：{input_dir}",
+        f"输出目录：{output_dir}",
+        f"处理文件数：{len(runs)}",
+    ]
+
+    for run in runs:
+        lines.append(
+            f"- {run['excel_base']} -> {run['excel_out']} (迹线数={run['trace_count']})"
+        )
+
+    print("\n".join(lines))
 
 
 if __name__ == "__main__":

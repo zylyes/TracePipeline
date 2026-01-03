@@ -1,5 +1,30 @@
-/input
-/output
-/matlab参考
-/杂项
-/__pycache__
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Project specific
+input/
+output/
+matlab参考
+logs/
+杂项/

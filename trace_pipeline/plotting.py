@@ -7,12 +7,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # 允许图形与控制台输出展示中文
-plt.rcParams["font.sans-serif"] = [
-    "SimHei",
-    "Microsoft YaHei",
-    "Arial Unicode MS",
-]
-plt.rcParams["axes.unicode_minus"] = False
+def configure_plotting_style():
+    """配置 matplotlib 绘图样式（字体等）。"""
+    plt.rcParams["font.sans-serif"] = [
+        "SimHei",
+        "Microsoft YaHei",
+        "Arial Unicode MS",
+        "sans-serif",
+    ]
+    plt.rcParams["axes.unicode_minus"] = False
 
 
 def build_nan_lines(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

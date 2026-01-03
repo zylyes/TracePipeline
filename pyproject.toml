@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trace_pipeline"
+version = "0.1.0"
+description = "岩体节理测线坐标计算与绘图工具"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "openpyxl",
+    "xlrd"
+]
+
+[project.scripts]
+trace-pipeline = "run_trace_pipeline:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"

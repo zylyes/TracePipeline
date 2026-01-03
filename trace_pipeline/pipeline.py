@@ -1,4 +1,4 @@
-"""Pipeline processing logic."""
+"""迹线处理流水线：读取数据、生成 Excel 与图片。"""
 from __future__ import annotations
 
 import logging

@@ -356,9 +356,13 @@ def main(cfg: dict | None = None):
     discovered = find_trace_tables(input_dir)
     targets = discovered if (cfg.get("process_all") and discovered) else [(cfg["excel_base"], cfg["outcrop_name"])]
 
+    print(f"输入目录：{input_dir}", flush=True)
+    print(f"输出目录：{output_dir}", flush=True)
+    print(f"待处理文件数：{len(targets)}", flush=True)
+
     run_summaries: list[dict] = []
 
-    for excel_base, outcrop_name in targets:
+    for idx, (excel_base, outcrop_name) in enumerate(targets, start=1):
         run_cfg = {
             **cfg,
             "input_dir": input_dir,
@@ -394,29 +398,18 @@ def main(cfg: dict | None = None):
             }
         )
 
-    print_run_summary(input_dir, output_dir, run_summaries)
-
-
-def print_run_summary(input_dir: str, output_dir: str, runs: Sequence[dict]):
-    """打印精简后的处理摘要，避免重复输出相同内容。"""
-
-    if not runs:
-        print(f"未找到可处理的文件，请检查输入目录：{input_dir}")
-        return
-
-    lines = [
-        f"输入目录：{input_dir}",
-        f"输出目录：{output_dir}",
-        f"处理文件数：{len(runs)}",
-    ]
-
-    for run in runs:
-        lines.append(
-            f"- {run['excel_base']} -> {run['excel_out']} (迹线数={run['trace_count']})"
+        print(
+            f"[{idx}/{len(targets)}] 已处理 {excel_base} -> {excel_out} (迹线数={trace.trace_count})",
+            flush=True,
         )
 
-    print("\n".join(lines))
+    if not run_summaries:
+        print(f"未找到可处理的文件，请检查输入目录：{input_dir}", flush=True)
+        return
 
+    lines = [f"处理完成，文件数：{len(run_summaries)}"]
 
+    print("\n".join(lines), flush=True) #输出总结
+    
 if __name__ == "__main__":
     main()

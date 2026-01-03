@@ -1,4 +1,8 @@
-"""迹线 Excel 读取与数据封装。"""
+"""迹线 Excel 读取与数据封装。
+
+该模块负责从输入目录读取原始 Excel 表格并将其解析为内部数据结构
+ParsedTraceData，包含测线走向（角度）、迹线数量和端点坐标数组（Nx4）。
+"""
 from __future__ import annotations
 
 import os
@@ -23,7 +27,8 @@ def load_trace_table(base_path: str, excel_base: str, sheet: str) -> pd.DataFram
     excel_path_xls = os.path.join(base_path, excel_base + ".xls")
 
     def read(path: str, engine: str) -> pd.DataFrame:
-        # sheet 名找不到时退回到首个 sheet，适配不一致的 Excel 命名
+        # 读取指定 sheet；若指定的 sheet 名在文件中不存在，则退回到第一个 sheet
+        # header=None 保持原始表格的行列结构以便后续自定义解析
         try:
             return pd.read_excel(path, engine=engine, sheet_name=sheet, header=None)
         except ValueError:

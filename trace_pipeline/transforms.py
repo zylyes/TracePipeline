@@ -1,4 +1,12 @@
-"""迹线坐标平移与旋转。"""
+"""迹线坐标平移与旋转工具。
+
+该模块提供一组函数用于：
+- 将走向角转换为绘图所需的弧度（含象限修正）
+- 将线段平移到正坐标系并加入边距
+- 将线段按走向旋转并再次平移以保证坐标非负
+
+这些操作用于在绘图时能够统一尺度并避免坐标为负导致显示异常。
+"""
 from __future__ import annotations
 
 import math
@@ -23,6 +31,7 @@ def strike_to_rad(ang0: float) -> float:
     Returns:
         修正后的弧度值
     """
+    # 根据走向角按象限折叠到 [-90, 90] 范围并转换为弧度，保证旋转后方向符合预期视觉效果
     if ang0 > 270:
         return -(360 - ang0) * math.pi / 180.0
     if ang0 > 180:
@@ -43,6 +52,8 @@ def shift_lines_pos(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
     Returns:
         平移后的坐标数组
     """
+    # 计算所有 x 的最小值和所有 y 的最小值，并向上取整后加上 padding
+    # 这样可以将所有坐标整体平移到正坐标系中并预留边距
     min_x = abs(np.round(np.min(XY[:, [0, 2]]))) + padding
     min_y = abs(np.round(np.min(XY[:, [1, 3]]))) + padding
     return XY + np.array([min_x, min_y, min_x, min_y])
@@ -59,13 +70,16 @@ def rotate_shift_lines(lines: np.ndarray, ang0: float) -> np.ndarray:
     Returns:
         旋转并平移后的坐标数组
     """
+    # 将走向角转换为弧度，再构造 2x2 旋转矩阵对坐标进行旋转
     angle = strike_to_rad(ang0)
     rot_mat = np.array([
         [math.cos(angle), -math.sin(angle)],
         [math.sin(angle), math.cos(angle)],
     ])
+    # 将每个线段的两个端点按二维向量批量旋转
     rot_lines = (lines.reshape(-1, 2) @ rot_mat.T).reshape(lines.shape)
 
+    # 旋转后再计算最小值并平移至非负区域
     min_rot_x = abs(np.round(np.min(rot_lines[:, [0, 2]])))
     min_rot_y = abs(np.round(np.min(rot_lines[:, [1, 3]])))
     return rot_lines + np.array([min_rot_x, min_rot_y, min_rot_x, min_rot_y])
@@ -83,5 +97,7 @@ def norm_rotate_lines(XY: np.ndarray, ang0: float, padding: float = 1.0) -> np.n
     Returns:
         处理后的坐标数组
     """
+    # 先将坐标平移到正象限以避免旋转时被裁剪或产生大负值，
+    # 然后按走向角旋转并再次平移保证最终坐标仍为非负
     shifted = shift_lines_pos(XY, padding=padding)
     return rotate_shift_lines(shifted, ang0)

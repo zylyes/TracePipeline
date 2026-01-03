@@ -19,6 +19,7 @@ def calc_joint_pts(
 ) -> Tuple[float, float, float, float]:
     """依据测线走向与左右/相交迹长计算节理端点坐标。"""
 
+    # 将走向转为与三角函数匹配的角度体系
     if ang0 < 90:
         ang_0 = 90 - ang0
     else:
@@ -30,6 +31,7 @@ def calc_joint_pts(
     else:
         ang1 = 720 - (90 + ang)
 
+    # 根据左右侧/交叉情况确定旋转角
     rada = None
     rade = None
     if (r4 != 0) and (r6 == 0):
@@ -50,6 +52,7 @@ def calc_joint_pts(
             rada = math.radians(ang1 + 180 if ((ang_0 - 180) < ang1) and (ang1 < ang_0) else ang1)
             rade = math.radians(ang1 if ((ang_0 - 180) < ang1) and (ang1 < ang_0) else ang1 + 180)
 
+    # 依次把各段向量相加，得到两端点坐标
     z1 = complex(r1 * math.cos(rad_0), r1 * math.sin(rad_0))
 
     if (r4 != 0) and (r6 == 0):
@@ -102,6 +105,7 @@ def dip_to_strike(dd: float) -> float:
 def parse_trace_table(df: pd.DataFrame) -> Tuple[float, int, np.ndarray]:
     """从原始表格解析走向、条数与端点坐标。"""
 
+    # 表头：走向在 (1,8)，条数在 (1,9)
     ang0 = float(df.iloc[0, 7])
     n_raw = df.iloc[0, 8]
     n_num = pd.to_numeric([n_raw], errors="coerce")[0]
@@ -114,6 +118,7 @@ def parse_trace_table(df: pd.DataFrame) -> Tuple[float, int, np.ndarray]:
     strike_angles = np.array([dip_to_strike(x) for x in dd])
     M[:, 2] = strike_angles[: M.shape[0]]
 
+    # 按行计算每条迹线的两端点
     XY = np.zeros((n, 4), dtype=float)
 
     for m in range(n):

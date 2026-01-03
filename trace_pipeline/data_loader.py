@@ -23,6 +23,7 @@ def load_trace_table(base_path: str, excel_base: str, sheet: str) -> pd.DataFram
     excel_path_xls = os.path.join(base_path, excel_base + ".xls")
 
     def read(path: str, engine: str) -> pd.DataFrame:
+        # sheet 名找不到时退回到首个 sheet，适配不一致的 Excel 命名
         try:
             return pd.read_excel(path, engine=engine, sheet_name=sheet, header=None)
         except ValueError:
@@ -38,6 +39,7 @@ def load_trace_table(base_path: str, excel_base: str, sheet: str) -> pd.DataFram
 def load_trace_data(cfg: dict) -> ParsedTraceData:
     """读取 Excel 表并封装 ParsedTraceData。"""
 
+    # 依配置读取原始表并解析出走向、数量和端点坐标
     df = load_trace_table(cfg["input_dir"], cfg["excel_base"], cfg["outcrop_name"])
     ang0, n, XY = parse_trace_table(df)
 

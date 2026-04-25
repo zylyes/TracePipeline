@@ -3,38 +3,98 @@
 本模块封装 matplotlib 的样式配置与两类图片的导出：
 - 迹线长度图（原始/旋转后）
 - 节理走向玫瑰花瓣图
+
+全局样式通过 configure_plotting_style() 配置，应在程序入口调用一次。
+所有图片导出函数均为无副作用：创建新 Figure → 绘制 → 保存 → 关闭。
 """
 from __future__ import annotations
 
+import logging
 import os
-from typing import Tuple
+from typing import List, Tuple
 
 import matplotlib
+import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
-# 全局样式
+# 全局样式常量
 # ---------------------------------------------------------------------------
 
-# 中文字体候选列表（按优先级）
-_CJK_FONT_CANDIDATES = [
+# 中文字体候选列表（按优先级排列）
+_CJK_FONT_CANDIDATES: List[str] = [
     "SimHei",
     "Microsoft YaHei",
     "Arial Unicode MS",
     "WenQuanYi Micro Hei",
     "Noto Sans CJK SC",
+    "Source Han Sans SC",
     "sans-serif",
 ]
+
+# 图片尺寸（厘米）
+_TRACE_FIGSIZE_CM: Tuple[float, float] = (24, 12)
+_ROSE_FIGSIZE_CM: Tuple[float, float] = (16, 16)
+
+# 默认 DPI
+_DEFAULT_TRACE_DPI = 300
+_DEFAULT_ROSE_DPI = 400
+
+# 玫瑰图网格线样式
+_ROSE_GRID_COLOR = "#aab7b8"
+_ROSE_BAR_COLOR = "#4472c4"
+_ROSE_BAR_EDGE = "#1f1f1f"
+
+# 迹线图线条样式
+_TRACE_LINE_COLOR = (0, 0, 0)
+_TRACE_LINE_WIDTH = 1.0
+
+__all__ = [
+    "build_nan_lines",
+    "configure_plotting_style",
+    "render_rose_plot",
+    "render_trace_plot",
+]
+
+
+# ---------------------------------------------------------------------------
+# 运行时字体检测
+# ---------------------------------------------------------------------------
+
+
+def _get_available_cjk_fonts() -> List[str]:
+    """扫描系统已安装的 CJK 字体，返回可用字体名列表。"""
+    available = {f.name for f in fm.fontManager.ttflist}
+    return [f for f in _CJK_FONT_CANDIDATES if f in available]
 
 
 def configure_plotting_style() -> None:
     """配置 matplotlib 全局样式以支持中文显示。
 
+    策略:
+    1. 扫描系统安装的 CJK 字体，优先使用已安装的。
+    2. 若未找到任何 CJK 字体，回退到 sans-serif 并发出警告。
+    3. 强制清空 font.sans-serif 后再设置，避免旧配置残留。
+
     注意：此函数修改全局 rcParams，应在程序启动时调用一次。
     """
-    matplotlib.rcParams["font.sans-serif"] = _CJK_FONT_CANDIDATES
+    available_cjk = _get_available_cjk_fonts()
+
+    if available_cjk:
+        # 可用字体 + 通用回退
+        font_list = available_cjk + ["sans-serif"]
+        logger.info("检测到 CJK 字体: %s", ", ".join(available_cjk[:3]))
+    else:
+        font_list = ["sans-serif"]
+        logger.warning("未检测到 CJK 字体，中文标题可能无法正常显示。"
+                       "建议安装 SimHei / Microsoft YaHei 等中文字体。")
+
+    matplotlib.rcParams["font.sans-serif"] = font_list
     matplotlib.rcParams["axes.unicode_minus"] = False
+    logger.debug("matplotlib 全局样式已配置")
 
 
 # ---------------------------------------------------------------------------
@@ -43,8 +103,16 @@ def configure_plotting_style() -> None:
 
 
 def build_nan_lines(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """将 (N,4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。"""
+    """将 (N,4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
+
+    NaN 作为线段间的分隔符，使 matplotlib 的 line plot 自动断开。
+    """
+    if XY.ndim != 2 or XY.shape[1] != 4:
+        raise ValueError(f"XY 必须为 (N,4) 形状，当前 {XY.shape}")
     n = XY.shape[0]
+    if n == 0:
+        return np.array([]), np.array([])
+
     X_plot = np.column_stack([XY[:, 0], XY[:, 2], np.full((n,), np.nan)]).ravel()
     Y_plot = np.column_stack([XY[:, 1], XY[:, 3], np.full((n,), np.nan)]).ravel()
     return X_plot, Y_plot
@@ -58,6 +126,7 @@ def build_nan_lines(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 def _fold_strike_angles(strike_deg: np.ndarray) -> np.ndarray:
     """将走向角折叠到 [0, 180)。"""
     folded = np.mod(np.asarray(strike_deg, dtype=float), 180.0)
+    # 将恰好等于 180° 的值归为 0°（因为 0° 与 180° 等同方向）
     folded[np.isclose(folded, 180.0)] = 0.0
     return folded
 
@@ -66,7 +135,18 @@ def _compute_rose_histogram(
     strike_deg: np.ndarray,
     bin_width: float = 10.0,
 ) -> Tuple[np.ndarray, np.ndarray, float]:
-    """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。"""
+    """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。
+
+    Args:
+        strike_deg: 节理走向数组（度），任意大小。
+        bin_width: 分箱宽度（度），必须 ∈ (0, 180]。
+
+    Returns:
+        (theta, radii, width_rad):
+        - theta: 各柱体的角度（弧度），长度 = 2 × bin_count
+        - radii: 各柱体的频数，长度 = 2 × bin_count
+        - width_rad: 柱宽（弧度）
+    """
     if not (0 < bin_width <= 180):
         raise ValueError("rose bin_width 必须在 (0, 180] 范围内")
 
@@ -79,6 +159,7 @@ def _compute_rose_histogram(
     counts, _ = np.histogram(folded, bins=edges)
     centers = (edges[:-1] + edges[1:]) / 2.0
 
+    # 玫瑰图需要对称复制（上半圆 + 下半圆）
     theta = np.deg2rad(np.concatenate([centers, centers + 180.0]))
     radii = np.concatenate([counts, counts])
     width = np.deg2rad(edges[1] - edges[0])
@@ -92,7 +173,7 @@ def _compute_rose_histogram(
 
 def _style_trace_axes(ax: plt.Axes) -> None:
     """设置迹线图坐标轴：等比例、无刻度、白色背景。"""
-    ax.set_aspect("equal")
+    ax.set_aspect("equal", adjustable="box")
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
@@ -107,12 +188,18 @@ def _export_figure(
     filename: str,
     dpi: int = 300,
 ) -> str:
-    """保存并关闭图形，返回完整输出路径。"""
+    """保存并关闭图形，返回完整输出路径。
+
+    Raises:
+        OSError: 若目录创建或文件写入失败。
+    """
     os.makedirs(output_dir, exist_ok=True)
     full_path = os.path.join(output_dir, filename)
-    fig.tight_layout()
-    fig.savefig(full_path, dpi=dpi, facecolor="white")
-    plt.close(fig)
+    try:
+        fig.tight_layout(pad=1.0)
+        fig.savefig(full_path, dpi=dpi, facecolor="white", bbox_inches="tight")
+    finally:
+        plt.close(fig)
     return full_path
 
 
@@ -123,7 +210,11 @@ def _new_figure(
 ) -> Tuple[plt.Figure, plt.Axes]:
     """创建指定厘米尺寸的图形并返回 (fig, ax)。"""
     w_inch, h_inch = figsize_cm[0] / 2.54, figsize_cm[1] / 2.54
-    fig, ax = plt.subplots(figsize=(w_inch, h_inch), dpi=dpi, subplot_kw=subplot_kw or {})
+    fig, ax = plt.subplots(
+        figsize=(w_inch, h_inch),
+        dpi=dpi,
+        subplot_kw=subplot_kw or {},
+    )
     fig.patch.set_facecolor("white")
     return fig, ax
 
@@ -139,14 +230,18 @@ def render_trace_plot(
     title: str,
     output_dir: str,
     filename: str,
-    dpi: int = 300,
-) -> None:
-    """绘制并保存单张迹线长度图。"""
-    fig, ax = _new_figure((24, 12), dpi=dpi)
-    ax.plot(X_plot, Y_plot, "-", color=(0, 0, 0), linewidth=1)
+    dpi: int = _DEFAULT_TRACE_DPI,
+) -> str:
+    """绘制并保存单张迹线长度图。
+
+    Returns:
+        输出文件的完整路径。
+    """
+    fig, ax = _new_figure(_TRACE_FIGSIZE_CM, dpi=dpi)
+    ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
     _style_trace_axes(ax)
     ax.set_title(title, fontsize=12)
-    _export_figure(fig, output_dir, filename, dpi=dpi)
+    return _export_figure(fig, output_dir, filename, dpi=dpi)
 
 
 # ---------------------------------------------------------------------------
@@ -160,23 +255,33 @@ def render_rose_plot(
     output_dir: str,
     filename: str,
     bin_width: float = 10.0,
-    dpi: int = 300,
-) -> None:
-    """绘制并保存节理走向玫瑰花瓣图。"""
+    dpi: int = _DEFAULT_ROSE_DPI,
+) -> str:
+    """绘制并保存节理走向玫瑰花瓣图。
+
+    Returns:
+        输出文件的完整路径。
+    """
     theta, radii, width = _compute_rose_histogram(strike_deg, bin_width=bin_width)
 
-    fig, ax = _new_figure((16, 16), dpi=dpi, subplot_kw={"projection": "polar"})
+    fig, ax = _new_figure(
+        _ROSE_FIGSIZE_CM, dpi=dpi,
+        subplot_kw={"projection": "polar"},
+    )
     ax.set_facecolor("white")
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
     ax.set_thetagrids(np.arange(0, 360, 30))
-    ax.grid(color="#aab7b8", alpha=0.7, linewidth=0.8)
+    ax.grid(
+        color=_ROSE_GRID_COLOR, alpha=0.7,
+        linewidth=0.8, linestyle="-",
+    )
 
     if radii.size:
         ax.bar(
             theta, radii,
             width=width, bottom=0.0,
-            color="#4472c4", edgecolor="#1f1f1f",
+            color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
             linewidth=0.8, alpha=0.85, align="center",
         )
         ax.set_ylim(0, max(1, int(radii.max())))
@@ -184,4 +289,4 @@ def render_rose_plot(
         ax.set_ylim(0, 1)
 
     ax.set_title(title, fontsize=12, pad=18)
-    _export_figure(fig, output_dir, filename, dpi=dpi)
+    return _export_figure(fig, output_dir, filename, dpi=dpi)

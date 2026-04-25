@@ -14,14 +14,14 @@
   python run_trace_pipeline.py -i ./data -o ./results
   python run_trace_pipeline.py -s -c my_config.json
 """
-from __future__ import annotations
+from __future__ import annotations # Python 3.7+，允许前向引用类型提示
 
-import argparse
-import logging
-import os
-import sys
-from datetime import datetime #
-from typing import Any, Dict, List, Tuple
+import argparse # 命令行参数解析
+import logging # 日志记录
+import os # 文件系统操作
+import sys # 系统相关功能
+from datetime import datetime # 时间戳生成
+from typing import Any, Dict, List, Tuple # 类型提示
 
 from trace_pipeline import (
     configure_plotting_style,
@@ -30,85 +30,88 @@ from trace_pipeline import (
     load_config,
     resolve_config_base_dir,
     validate_config,
-)
-from trace_pipeline.pipeline import process_target
+) # 配置和工具函数
+from trace_pipeline.pipeline import process_target # 迹线处理核心函数
 
 
 # ---------------------------------------------------------------------------
 # 日志
 # ---------------------------------------------------------------------------
 
+# 日志级别：DEBUG < INFO < WARNING < ERROR < CRITICAL
 def setup_logging(log_dir: str = "logs") -> logging.Logger:
     """双通道日志：控制台 INFO+，文件 DEBUG+。"""
-    os.makedirs(log_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_dir, f"pipeline_{timestamp}.log")
+    os.makedirs(log_dir, exist_ok=True) # 确保日志目录存在
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S") # 生成时间戳
+    log_file = os.path.join(log_dir, f"pipeline_{timestamp}.log") # 日志文件路径
 
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    root.handlers.clear()
+    root = logging.getLogger() # 获取根日志记录器
+    root.setLevel(logging.DEBUG) # 设置最低日志级别为 DEBUG
+    root.handlers.clear() # 清除默认处理器，避免重复日志输出
 
     # 控制台
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-    root.addHandler(ch)
+    ch = logging.StreamHandler(sys.stdout) # 输出到标准输出
+    ch.setLevel(logging.INFO) # 设置控制台日志级别为 INFO
+    ch.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")) # 设置日志格式
+    root.addHandler(ch) # 添加控制台处理器
 
     # 文件
-    fh = logging.FileHandler(log_file, encoding="utf-8")
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-    root.addHandler(fh)
+    fh = logging.FileHandler(log_file, encoding="utf-8") # 输出到文件
+    fh.setLevel(logging.DEBUG) # 设置文件日志级别为 DEBUG
+    fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")) # 设置日志格式
+    root.addHandler(fh) # 添加文件处理器
 
-    return logging.getLogger(__name__)
+    return logging.getLogger(__name__) # 返回当前模块的日志记录器
 
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
+# 配置加载与覆盖
 def parse_args() -> argparse.Namespace:
     """解析命令行参数。"""
     parser = argparse.ArgumentParser(
         description="岩体节理测线坐标计算与绘图工具",
-    )
-    parser.add_argument("--input", "-i", help="输入目录（覆盖配置文件）")
-    parser.add_argument("--output", "-o", help="输出目录（覆盖配置文件）")
-    parser.add_argument("--config", "-c", help="JSON 配置文件路径")
+    ) # 创建参数解析器
+    parser.add_argument("--input", "-i", help="输入目录（覆盖配置文件）") # 输入目录参数
+    parser.add_argument("--output", "-o", help="输出目录（覆盖配置文件）") # 输出目录参数
+    parser.add_argument("--config", "-c", help="JSON 配置文件路径") # 配置文件参数
     parser.add_argument("--single", "-s", action="store_true",
-                        help="单文件模式：仅处理配置中指定的文件")
+                        help="单文件模式：仅处理配置中指定的文件") # 单文件模式参数
     parser.add_argument("--rose-bin", type=float, default=None,
-                        help="玫瑰图分箱宽度（度），覆盖配置文件")
+                        help="玫瑰图分箱宽度（度），覆盖配置文件") # 玫瑰图分箱宽度参数
     parser.add_argument("--rose-dpi", type=int, default=None,
-                        help="玫瑰图 DPI，覆盖配置文件")
+                        help="玫瑰图 DPI，覆盖配置文件") # 玫瑰图 DPI 参数
     parser.add_argument("--no-rose", action="store_true",
-                        help="跳过玫瑰图导出")
-    return parser.parse_args()
+                        help="跳过玫瑰图导出") # 跳过玫瑰图参数
+    return parser.parse_args() # 返回解析结果
 
 
+# 配置加载与验证
 def apply_cli_overrides(
     cfg: Dict[str, Any],
     args: argparse.Namespace,
 ) -> Dict[str, Any]:
     """将 CLI 参数合并到配置中。"""
-    overrides: Dict[str, Any] = {}
-    if args.input:
-        overrides["input_dir"] = args.input
-    if args.output:
-        overrides["output_dir"] = args.output
-    if args.single:
-        overrides["process_all"] = False
-    if args.rose_bin is not None:
-        overrides["rose_bin_width"] = args.rose_bin
-    if args.rose_dpi is not None:
-        overrides["rose_dpi"] = args.rose_dpi
-    if args.no_rose:
-        overrides["export_rose_plot"] = False
+    overrides: Dict[str, Any] = {} # 临时存储覆盖项
+    if args.input: # 如果指定了输入目录，覆盖配置中的输入目录
+        overrides["input_dir"] = args.input # 覆盖输入目录
+    if args.output: # 如果指定了输出目录，覆盖配置中的输出目录
+        overrides["output_dir"] = args.output # 覆盖输出目录
+    if args.single: # 如果指定了单文件模式，覆盖配置中的处理模式
+        overrides["process_all"] = False # 设置为单文件模式
+    if args.rose_bin is not None: # 如果指定了玫瑰图分箱宽度，覆盖配置中的分箱宽度
+        overrides["rose_bin_width"] = args.rose_bin # 覆盖玫瑰图分箱宽度
+    if args.rose_dpi is not None: # 如果指定了玫瑰图 DPI，覆盖配置中的 DPI
+        overrides["rose_dpi"] = args.rose_dpi # 覆盖玫瑰图 DPI
+    if args.no_rose: # 如果指定了跳过玫瑰图，覆盖配置中的导出选项
+        overrides["export_rose_plot"] = False # 设置不导出玫瑰图
 
-    if overrides:
-        cfg = {**cfg, **overrides}
-        cfg = validate_config(cfg)
-    return cfg
+    if overrides: # 如果有任何覆盖项，合并到配置中并重新验证
+        cfg = {**cfg, **overrides} # 合并覆盖项到配置
+        cfg = validate_config(cfg) # 校验新的配置，确保覆盖项合法
+    return cfg # 返回最终配置
 
 
 # ---------------------------------------------------------------------------

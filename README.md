@@ -27,8 +27,8 @@
   - 否则 $strike = dd + 90$。
 
 ## 输出
-- Excel：`{outcrop}_traces.xlsx`，工作表 `{outcrop}`，含基本信息+原始/旋转坐标，列名已改为中文：测线走向(°)、迹线数量、起点/终点坐标与旋转后起点/终点坐标。
-- 图片：`{outcrop}_raw(n=...).png` 与 `{outcrop}_rotated(strike=...).png`，白底。
+- Excel：`{outcrop}_traces.xlsx`，工作表 `{outcrop}`，含基本信息、原始/旋转坐标，以及每条迹线的节理走向与迹线长度。
+- 图片：`{outcrop}_raw(n=...).png`、`{outcrop}_rotated(strike=...).png`，以及自动生成的 `{outcrop}_rose(bin=...).png` 产状玫瑰花瓣图，白底。
 - 输出目录：优先 `D:\作业\毕业论文\周咏霖\output`，若不存在则使用当前工作目录。
 
 ## 运行步骤
@@ -43,6 +43,7 @@
 - 更改工作表或文件前缀：修改 `outcrop_name`、`excel_base`。
 - 调整输入/输出目录：修改 `path1`、`path3`，脚本会在目录不存在时退回当前工作目录。
 - 绘图样式：在绘图段调整颜色、线宽、图幅尺寸、dpi。
+- 玫瑰图参数：可通过 `config.json` 中的 `export_rose_plot`、`rose_bin_width`、`rose_dpi` 控制是否输出、分箱角度和分辨率。
 
 ## 测试建议
 - 使用小型测试 Excel（n=3~5）验证：

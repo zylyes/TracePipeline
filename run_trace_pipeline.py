@@ -118,21 +118,23 @@ def apply_cli_overrides(
 # 目标决策
 # ---------------------------------------------------------------------------
 
+# 决策逻辑：如果批量模式且发现文件，则处理所有；否则处理单文件
 def decide_targets(
     cfg: Dict[str, Any],
     discovered: List[Tuple[str, str]],
     logger: logging.Logger,
 ) -> List[Tuple[str, str]]:
     """批量/单文件模式决策。"""
-    if cfg.get("process_all", True):
-        if discovered:
-            logger.info("模式：批量处理（发现 %d 个文件）", len(discovered))
-            return discovered
-        logger.warning("批量模式下未发现匹配文件，回退为单文件处理")
-    logger.info("模式：单文件处理（%s）", cfg["excel_base"])
-    return [(cfg["excel_base"], cfg["outcrop_name"])]
+    if cfg.get("process_all", True): # 优先批量模式
+        if discovered: # 如果发现了匹配文件，使用批量模式处理
+            logger.info("模式：批量处理（发现 %d 个文件）", len(discovered)) # 记录批量模式和发现的文件数量
+            return discovered # 返回所有发现的文件作为处理目标
+        logger.warning("批量模式下未发现匹配文件，回退为单文件处理") # 如果批量模式但没有发现文件，记录警告并回退到单文件模式
+    logger.info("模式：单文件处理（%s）", cfg["excel_base"]) # 记录单文件模式和目标文件
+    return [(cfg["excel_base"], cfg["outcrop_name"])] # 返回单文件作为处理目标
 
 
+# 运行配置构造
 def build_run_config(
     cfg: Dict[str, Any],
     input_dir: str,
@@ -155,59 +157,63 @@ def build_run_config(
 # 主流程
 # ---------------------------------------------------------------------------
 
+# 主流程：加载配置 → 决策目标 → 逐目标处理 → 汇总结果
 def main() -> None:
     """CLI 入口。"""
-    args = parse_args()
-    logger = setup_logging()
+    args = parse_args() # 解析命令行参数
+    logger = setup_logging() # 设置日志记录器
 
     # ---- 配置 ----
     try:
-        cfg = load_config(args.config)
-        cfg = apply_cli_overrides(cfg, args)
+        cfg = load_config(args.config) # 加载配置文件（如果指定）
+        cfg = apply_cli_overrides(cfg, args) # 将 CLI 参数覆盖到配置中
     except Exception as exc:
-        logger.critical("配置加载失败: %s", exc)
-        sys.exit(1)
+        logger.critical("配置加载失败: %s", exc) # 配置加载或验证失败，记录致命错误并退出
+        sys.exit(1) # 退出程序
 
-    configure_plotting_style()
+    configure_plotting_style() # 配置绘图样式（全局设置）
 
-    base_dir = resolve_config_base_dir(args.config)
+    base_dir = resolve_config_base_dir(args.config) # 确定配置文件的基准目录，用于解析相对路径
     input_dir, output_dir = ensure_io_paths(
         cfg["input_dir"], cfg["output_dir"], base_dir=base_dir,
-    )
+    ) # 确保输入输出路径存在，返回绝对路径
 
-    logger.info("输入目录：%s", input_dir)
-    logger.info("输出目录：%s", output_dir)
+    logger.info("输入目录：%s", input_dir) # 记录输入目录
+    logger.info("输出目录：%s", output_dir) # 记录输出目录
 
-    discovered = find_trace_tables(input_dir)
-    targets = decide_targets(cfg, discovered, logger)
+    discovered = find_trace_tables(input_dir) # 扫描输入目录，发现所有符合命名规范的 Excel 文件，返回列表
+    targets = decide_targets(cfg, discovered, logger) # 根据配置和发现的文件，决策处理目标列表（批量或单文件）
 
     if not targets:
         logger.warning("没有可处理的目标，退出。")
-        return
+        return # 没有目标可处理，记录警告并退出
 
     # ---- 逐目标处理 ----
-    summaries: List[Dict[str, Any]] = []
+    summaries: List[Dict[str, Any]] = [] # 存储每个目标的处理结果摘要
+    # 逐个处理目标，构造运行配置，调用处理函数，并收集结果摘要
     for idx, (excel_base, outcrop_name) in enumerate(targets, start=1):
-        run_cfg = build_run_config(cfg, input_dir, output_dir, excel_base, outcrop_name)
-        summary = process_target(run_cfg)
-        summaries.append(summary)
+        run_cfg = build_run_config(cfg, input_dir, output_dir, excel_base, outcrop_name) # 构造当前目标的运行配置字典
+        summary = process_target(run_cfg) # 处理单个目标，返回结果摘要字典
+        summaries.append(summary) # 收集结果摘要
 
+        # 根据处理结果记录日志：成功则记录完成信息，失败则记录错误信息
         if summary["status"] == "success":
             logger.info(
-                "[%d/%d] 完成 %s → %s（迹线数=%d）",
-                idx, len(targets), excel_base,
-                summary.get("excel_out", "?"),
-                summary.get("trace_count", 0),
-            )
+                "[%d/%d] 完成 %s → %s（迹线数=%d）", # 日志格式：当前索引/总数 输入文件 → 输出文件（迹线数量）
+                idx, len(targets), excel_base, # 当前索引、总数、输入文件名
+                summary.get("excel_out", "?"), # 输出文件名
+                summary.get("trace_count", 0), # 迹线数量
+            ) # 记录成功处理的信息，包括输入文件、输出文件和迹线数量
         else:
             logger.warning(
-                "[%d/%d] 失败 %s: %s",
-                idx, len(targets), excel_base, summary.get("error", "未知错误"),
-            )
+                "[%d/%d] 失败 %s: %s", # 日志格式：当前索引/总数 输入文件: 错误详情
+                idx, len(targets), excel_base, summary.get("error", "未知错误"), # 当前索引、总数、输入文件名和错误详情
+            ) # 记录处理失败的信息，包括输入文件和错误详情
 
-    success_count = sum(1 for s in summaries if s["status"] == "success")
-    logger.info("处理完成：成功 %d/%d", success_count, len(summaries))
+    success_count = sum(1 for s in summaries if s["status"] == "success") # 统计成功处理的目标数量
+    logger.info("处理完成：成功 %d/%d", success_count, len(summaries)) # 记录处理完成的总结信息，包括成功数量和总数量
 
 
+# 入口点
 if __name__ == "__main__":
     main()

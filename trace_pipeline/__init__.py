@@ -1,27 +1,41 @@
-"""包导出接口：汇总常用函数以便上层脚本导入。
+"""trace_pipeline — 岩体节理测线坐标计算与绘图工具包。"""
+from __future__ import annotations
 
-在包的顶层导入这些符号可以简化主脚本的导入逻辑，例如
-from trace_pipeline import load_config, process_target 等。
-"""
-
-from .config import ensure_io_paths, find_trace_tables, load_config
+from .config import (
+    CONFIG_PATH,
+    DEFAULT_CONFIG,
+    PROJECT_ROOT,
+    ensure_io_paths,
+    find_trace_tables,
+    load_config,
+    resolve_config_base_dir,
+    validate_config,
+)
 from .data_loader import ParsedTraceData, load_trace_data
-from .excel_export import build_excel_sections, write_excel_sections
 from .geometry import parse_trace_table
-from .plotting import build_nan_lines, render_trace_plot, configure_plotting_style
-from .transforms import norm_rotate_lines
+from .plotting import configure_plotting_style
+from .transforms import norm_rotate_lines, rotate_shift_lines, shift_lines_pos, strike_to_rad
 
 __all__ = [
+    # config
+    "CONFIG_PATH",
+    "DEFAULT_CONFIG",
+    "PROJECT_ROOT",
     "ensure_io_paths",
     "find_trace_tables",
     "load_config",
+    "resolve_config_base_dir",
+    "validate_config",
+    # data
     "ParsedTraceData",
     "load_trace_data",
-    "build_excel_sections",
-    "write_excel_sections",
+    # geometry
     "parse_trace_table",
-    "build_nan_lines",
-    "render_trace_plot",
-    "configure_plotting_style",
+    # transforms
     "norm_rotate_lines",
+    "rotate_shift_lines",
+    "shift_lines_pos",
+    "strike_to_rad",
+    # plotting
+    "configure_plotting_style",
 ]

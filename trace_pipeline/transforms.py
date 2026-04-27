@@ -1,13 +1,11 @@
-"""迹线坐标平移与旋转工具。
+"""迹线坐标平移与旋转 — 纯函数式变换流水线。
 
-提供线段数组的规范化流水线：
-1. 平移到正象限（留白边距）
-2. 按走向角旋转
-3. 再次平移到非负区域
+流水线顺序:
+  1. shift_to_positive  → 平移到正象限（留白边距）
+  2. rotate_shift_lines → 按走向角旋转后平移到非负区域
 
-以及走向角 → 绘图弧度的转换。
-
-所有变换函数均为纯函数：接受 ndarray，返回新 ndarray，不修改入参。
+以及走向角 → 绘图弧度的辅助转换。
+所有函数均接受 ndarray，返回新 ndarray，不修改入参。
 """
 from __future__ import annotations
 
@@ -18,7 +16,7 @@ import numpy as np
 __all__ = [
     "norm_rotate_lines",
     "rotate_shift_lines",
-    "shift_lines_pos",
+    "shift_to_positive",
     "strike_to_rad",
 ]
 
@@ -81,20 +79,17 @@ def strike_to_rad(strike_deg: float) -> float:
 # ---------------------------------------------------------------------------
 
 
-def shift_lines_pos(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
-    """向正方向平移，使所有坐标 ≥ padding。
+def shift_to_positive(XY: np.ndarray, padding: float = 1.0) -> np.ndarray:
+    """平移线段数组使所有坐标 ≥ padding。
 
-    只平移不小于 padding 的必要量，如果所有坐标已满足则不做平移。
+    仅平移必要量；若已满足条件则不做平移。
 
     Args:
         XY: (N,4) 线段数组 [x1, y1, x2, y2]。
-        padding: 正象限留白边距，默认 1.0。
+        padding: 正象限最小边距，默认 1.0。
 
     Returns:
         平移后的 (N,4) 数组。
-
-    Raises:
-        ValueError: padding 为负值或 XY 格式无效。
     """
     if padding < 0:
         raise ValueError("padding 必须 ≥ 0")
@@ -143,19 +138,19 @@ def rotate_shift_lines(lines: np.ndarray, strike_deg: float) -> np.ndarray:
 
 
 def norm_rotate_lines(XY: np.ndarray, strike_deg: float, padding: float = 1.0) -> np.ndarray:
-    """规范化流水线：正象限平移 → 走向旋转 → 再次非负平移。
+    """规范化流水线：正象限平移 → 走向旋转 → 非负平移。
 
-    两步平移的必要性说明:
-      第一步确保所有点在正象限（≥padding）；第二步确保旋转后
-      仍在非负区域，因为旋转可能将原本在正象限的点带到负坐标。
+    两步平移说明:
+      第一步确保旋转前所有点在正象限；
+      第二步补偿旋转可能引入的负坐标。
 
     Args:
         XY: (N,4) 线段数组 [x1, y1, x2, y2]。
         strike_deg: 走向角（度）。
-        padding: 初始平移留白边距，默认 1.0。
+        padding: 初始平移边距，默认 1.0。
 
     Returns:
         规范化后的 (N,4) 数组。
     """
-    shifted = shift_lines_pos(XY, padding=padding)
+    shifted = shift_to_positive(XY, padding=padding)
     return rotate_shift_lines(shifted, strike_deg)

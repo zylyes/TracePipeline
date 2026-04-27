@@ -1,11 +1,11 @@
-"""迹线绘图与玫瑰花瓣图。
+"""迹线图与玫瑰花瓣图绘制。
 
-本模块封装 matplotlib 的样式配置与两类图片的导出：
-- 迹线长度图（原始/旋转后）
-- 节理走向玫瑰花瓣图
+封装 matplotlib 样式配置与两类图片导出:
+  - 迹线长度图（原始 / 旋转后）
+  - 节理走向玫瑰花瓣图
 
-全局样式通过 configure_plotting_style() 配置，应在程序入口调用一次。
-所有图片导出函数均为无副作用：创建新 Figure → 绘制 → 保存 → 关闭。
+全局样式通过 configure_plotting_style() 配置，程序启动时调用一次。
+所有绘图函数无副作用：创建新 Figure → 绘制 → 保存 → 关闭。
 """
 from __future__ import annotations
 
@@ -53,8 +53,8 @@ _TRACE_LINE_COLOR = (0, 0, 0)
 _TRACE_LINE_WIDTH = 1.0
 
 __all__ = [
-    "build_nan_lines",
     "configure_plotting_style",
+    "lines_to_plot_xy",
     "render_rose_plot",
     "render_trace_plot",
 ]
@@ -102,10 +102,10 @@ def configure_plotting_style() -> None:
 # ---------------------------------------------------------------------------
 
 
-def build_nan_lines(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def lines_to_plot_xy(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """将 (N,4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
 
-    NaN 作为线段间的分隔符，使 matplotlib 的 line plot 自动断开。
+    NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
     """
     if XY.ndim != 2 or XY.shape[1] != 4:
         raise ValueError(f"XY 必须为 (N,4) 形状，当前 {XY.shape}")

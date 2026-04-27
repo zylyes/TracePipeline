@@ -20,7 +20,7 @@ from typing import List, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from trace_pipeline.data_loader import ParsedTraceData
+from .data_loader import ParsedTraceData
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,10 @@
-"""配置加载与路径解析工具。
+"""配置加载、校验、路径解析与文件发现。
 
 职责：
-- 提供默认配置与 JSON 合并语义
-- 校验配置字段的合法性
-- 解析输入/输出路径（相对路径以配置文件或项目根为基准）
-- 在输入目录中扫描符合命名规则的迹线表
+  - 提供默认配置并支持 JSON 文件覆盖
+  - 校验配置字段的类型与取值范围
+  - 解析相对路径为绝对路径
+  - 扫描输入目录发现迹线表文件
 """
 from __future__ import annotations
 
@@ -22,13 +22,11 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config.json"
 
-# 合法的 Excel 后缀
 _EXCEL_EXTENSIONS: Tuple[str, ...] = (".xlsx", ".xls")
-# 迹线表文件名后缀标记
 _TRACE_SUFFIX = "_process"
 
 # ---------------------------------------------------------------------------
-# 配置键名常量（避免字符串散落）
+# 配置键名
 # ---------------------------------------------------------------------------
 
 _KEY_INPUT_DIR = "input_dir"
@@ -59,10 +57,10 @@ __all__ = [
     "CONFIG_PATH",
     "DEFAULT_CONFIG",
     "PROJECT_ROOT",
-    "ensure_io_paths",
     "find_trace_tables",
     "load_config",
     "resolve_config_base_dir",
+    "resolve_io_paths",
     "validate_config",
 ]
 
@@ -71,41 +69,35 @@ __all__ = [
 # 校验
 # ---------------------------------------------------------------------------
 
+def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
+    """校验并返回规范化配置字典（仅保留已知键，缺失项用默认值填充）。"""
+    # 合并：默认值为基础，用户配置覆盖
+    merged = dict(DEFAULT_CONFIG)
+    merged.update({k: v for k, v in cfg.items() if k in merged})
 
-def _validate_required(cfg: Mapping[str, Any]) -> None:
-    missing = [k for k in _REQUIRED_KEYS if str(cfg.get(k, "")).strip() == ""]
+    # 必填项检查
+    missing = [k for k in _REQUIRED_KEYS if str(merged.get(k, "")).strip() == ""]
     if missing:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 
-
-def _validate_numeric(cfg: Dict[str, Any]) -> None:
-    """就地校验并规范化数值型配置项。"""
+    # 数值型校验
     try:
-        cfg[_KEY_ROSE_BIN_WIDTH] = float(cfg.get(_KEY_ROSE_BIN_WIDTH, DEFAULT_CONFIG[_KEY_ROSE_BIN_WIDTH]))
+        merged[_KEY_ROSE_BIN_WIDTH] = float(merged[_KEY_ROSE_BIN_WIDTH])
     except (TypeError, ValueError) as exc:
         raise ValueError("rose_bin_width 必须为数值") from exc
-    if not (0 < cfg[_KEY_ROSE_BIN_WIDTH] <= 180):
+    if not (0 < merged[_KEY_ROSE_BIN_WIDTH] <= 180):
         raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
 
     try:
-        cfg[_KEY_ROSE_DPI] = int(cfg.get(_KEY_ROSE_DPI, DEFAULT_CONFIG[_KEY_ROSE_DPI]))
+        merged[_KEY_ROSE_DPI] = int(merged[_KEY_ROSE_DPI])
     except (TypeError, ValueError) as exc:
         raise ValueError("rose_dpi 必须为整数") from exc
-    if cfg[_KEY_ROSE_DPI] <= 0:
+    if merged[_KEY_ROSE_DPI] <= 0:
         raise ValueError("rose_dpi 必须为正整数")
 
-
-def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
-    """校验并返回规范化的配置字典（仅包含已知键）。"""
-    merged = {k: v for k, v in DEFAULT_CONFIG.items()}
-    merged.update({k: v for k, v in cfg.items() if k in merged})
-
-    _validate_required(merged)
-    _validate_numeric(merged)
-
-    merged[_KEY_PROCESS_ALL] = bool(merged.get(_KEY_PROCESS_ALL, True))
-    merged[_KEY_EXPORT_ROSE] = bool(merged.get(_KEY_EXPORT_ROSE, True))
-
+    # 布尔型与字符串型规范化
+    merged[_KEY_PROCESS_ALL] = bool(merged[_KEY_PROCESS_ALL])
+    merged[_KEY_EXPORT_ROSE] = bool(merged[_KEY_EXPORT_ROSE])
     for key in _REQUIRED_KEYS + (_KEY_FILE_NAME,):
         merged[key] = str(merged[key]).strip()
 
@@ -116,36 +108,33 @@ def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
 # 加载
 # ---------------------------------------------------------------------------
 
-
 def resolve_config_base_dir(config_path: str | Path | None = None) -> Path:
-    """返回用于解析相对路径的基准目录。
+    """返回解析相对路径用的基准目录。
 
     优先级:
-    1. 若提供了 config_path 且对应文件存在 → 配置文件所在目录
-    2. 若提供了 config_path 但文件不存在 → 配置路径的父目录（若存在）
-    3. 以上均不满足 → PROJECT_ROOT
+      1. config_path 指向存在的文件 → 文件所在目录
+      2. config_path 的父目录存在 → 父目录
+      3. 回退 → PROJECT_ROOT
     """
     if not config_path:
         return PROJECT_ROOT
+
     candidate = Path(config_path).expanduser().resolve()
     if candidate.is_file():
         return candidate.parent
     if candidate.parent.is_dir():
         logger.debug("配置文件 %s 不存在，使用其父目录作为基准", candidate)
         return candidate.parent
+
     logger.warning("配置路径 %s 无效，回退到项目根目录", candidate)
     return PROJECT_ROOT
 
 
 def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
-    """加载 JSON 配置，缺失时回退到默认值。
-
-    Args:
-        config_path: 配置文件路径。若为 None，使用默认 CONFIG_PATH。
+    """加载 JSON 配置文件，缺失则使用默认配置。
 
     Returns:
         校验后的配置字典。
-
     Raises:
         ValueError: JSON 格式无效或配置项不合法。
         OSError: 文件读取失败。
@@ -170,46 +159,31 @@ def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# 路径工具
+# 路径解析
 # ---------------------------------------------------------------------------
 
-
-def _resolve_path(path_value: str, base_dir: Path) -> Path:
-    """将路径解析为绝对路径。
-
-    - 若为绝对路径 → 直接返回
-    - 若为相对路径 → 以 base_dir 为基准解析
-    """
+def _to_absolute(path_value: str, base_dir: Path) -> Path:
+    """将路径转为绝对路径：绝对路径直接返回，相对路径以 base_dir 为基准。"""
     candidate = Path(path_value).expanduser()
-    if candidate.is_absolute():
-        return candidate.resolve()
-    return (base_dir / candidate).resolve()
+    return candidate.resolve() if candidate.is_absolute() else (base_dir / candidate).resolve()
 
 
-def ensure_io_paths(
+def resolve_io_paths(
     input_dir: str,
     output_dir: str,
     base_dir: str | Path | None = None,
 ) -> Tuple[str, str]:
-    """解析并确保输入/输出目录存在，返回绝对路径字符串。
-
-    Args:
-        input_dir: 输入目录路径（绝对或相对）。
-        output_dir: 输出目录路径（绝对或相对）。
-        base_dir: 相对路径的基准目录，默认为 PROJECT_ROOT。
+    """将输入/输出目录解析为绝对路径并确保目录存在。
 
     Returns:
-        (input_abs, output_abs) 绝对路径字符串元组。
-
+        (input_abs, output_abs) 绝对路径字符串。
     Raises:
-        OSError: 目录创建失败时。
+        OSError: 目录创建失败。
     """
-    resolved_base = (
-        Path(base_dir).expanduser().resolve() if base_dir else PROJECT_ROOT
-    )
+    resolved_base = Path(base_dir).expanduser().resolve() if base_dir else PROJECT_ROOT
 
-    in_path = _resolve_path(input_dir, resolved_base)
-    out_path = _resolve_path(output_dir, resolved_base)
+    in_path = _to_absolute(input_dir, resolved_base)
+    out_path = _to_absolute(output_dir, resolved_base)
 
     try:
         in_path.mkdir(parents=True, exist_ok=True)
@@ -227,25 +201,20 @@ def ensure_io_paths(
 # 文件发现
 # ---------------------------------------------------------------------------
 
-
 def find_trace_tables(
     input_dir: str,
     suffix: str = _TRACE_SUFFIX,
     extensions: Tuple[str, ...] = _EXCEL_EXTENSIONS,
 ) -> List[Tuple[str, str]]:
-    """在输入目录中查找迹线表，返回 [(excel_base, outcrop_name), ...]。
+    """扫描输入目录，返回匹配的迹线表列表 [(excel_base, outcrop_name), ...]。
 
-    匹配规则：文件名以 `suffix` 结尾（不含扩展名），扩展名在 `extensions` 中。
-    同名文件（不同扩展名）按首次发现原则去重（大小写不敏感）。
-
-    Args:
-        input_dir: 输入目录路径。
-        suffix: 迹线表文件名后缀标记，默认 "_process"。
-        extensions: 合法的 Excel 扩展名。
+    匹配规则：
+      - 文件名以 suffix 结尾（不含扩展名）
+      - 扩展名在 extensions 集合中
+      - 同名文件（不同扩展名）按首次发现去重（大小写不敏感）
 
     Returns:
-        按 outcrop_name 字母序排列的 (excel_base, outcrop_name) 列表。
-        若目录不存在或无匹配文件，返回空列表。
+        按 outcrop_name 排序的列表；目录不存在或无匹配时返回空列表。
     """
     path = Path(input_dir)
     if not path.is_dir():
@@ -263,8 +232,7 @@ def find_trace_tables(
 
     result = [matched[k] for k in sorted(matched)]
     if result:
-        logger.info("发现 %d 个迹线表: %s", len(result),
-                     ", ".join(b for b, _ in result))
+        logger.info("发现 %d 个迹线表: %s", len(result), ", ".join(b for b, _ in result))
     else:
         logger.warning("在 %s 中未发现匹配的迹线表（后缀=%s）", input_dir, suffix)
     return result

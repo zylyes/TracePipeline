@@ -40,14 +40,16 @@ from typing import Any, Dict, List, Sequence, Tuple
 from tqdm import tqdm
 
 from trace_pipeline import (
-    configure_plotting_style,
+    apply_cli_overrides,
+    configure_style,
     find_trace_tables,
     load_config,
+    print_pipeline_results,
     resolve_config_base_dir,
     resolve_io_paths,
-    validate_config,
 )
-from trace_pipeline.pipeline import process_target
+from trace_pipeline.models import RunResult
+from trace_pipeline.pipeline import run_pipeline
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +116,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", "-o", help="输出目录（覆盖配置文件）")
     parser.add_argument("--config", "-c", help="JSON 配置文件路径")
     parser.add_argument("--single", "-s", action="store_true",
-                        help="单文件模式：仅处理配置中 excel_base 指定的文件")
+                        help="单文件模式：仅处理配置中 table_stem 指定的文件")
     parser.add_argument("--rose-bin", type=float, default=None,
                         help="玫瑰图分箱宽度（度），覆盖配置文件")
     parser.add_argument("--rose-dpi", type=int, default=None,
@@ -133,37 +135,6 @@ def parse_args() -> argparse.Namespace:
 
 
 # ---------------------------------------------------------------------------
-# 配置合并
-# ---------------------------------------------------------------------------
-
-def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any]:
-    """将 CLI 参数覆盖到配置字典中，覆盖后重新校验。
-
-    返回新字典，不修改入参 cfg。
-    """
-    overrides: Dict[str, Any] = {}
-
-    if args.input:
-        overrides["input_dir"] = args.input
-    if args.output:
-        overrides["output_dir"] = args.output
-    if args.single:
-        overrides["process_all"] = False
-    if args.rose_bin is not None:
-        overrides["rose_bin_width"] = args.rose_bin
-    if args.rose_dpi is not None:
-        overrides["rose_dpi"] = args.rose_dpi
-    if args.no_rose:
-        overrides["export_rose_plot"] = False
-
-    if not overrides:
-        return cfg
-
-    merged = {**cfg, **overrides}
-    return validate_config(merged)
-
-
-# ---------------------------------------------------------------------------
 # 目标决策
 # ---------------------------------------------------------------------------
 
@@ -176,7 +147,7 @@ def decide_targets(
 
     - 批量模式且有匹配文件 → 返回全部 discovered
     - 批量模式但无匹配 → 回退单文件模式
-    - 单文件模式 → 返回 [(excel_base, outcrop_name)]
+    - 单文件模式 → 返回 [(table_stem, outcrop)]
     """
     if cfg.get("process_all", True):
         if discovered:
@@ -184,8 +155,10 @@ def decide_targets(
             return discovered
         logger.warning("批量模式下未发现匹配文件，回退为单文件处理")
 
-    logger.info("模式：单文件处理（%s）", cfg["excel_base"])
-    return [(cfg["excel_base"], cfg["outcrop_name"])]
+    table_stem = cfg.get("table_stem", cfg.get("excel_base", ""))
+    outcrop = cfg.get("outcrop", cfg.get("outcrop_name", ""))
+    logger.info("模式：单文件处理（%s）", table_stem)
+    return [(table_stem, outcrop)]
 
 
 # ---------------------------------------------------------------------------
@@ -250,8 +223,8 @@ def select_targets_interactive(
         return []
 
     print(f"\n发现 {len(discovered)} 个迹线表文件:\n")
-    for i, (excel_base, outcrop_name) in enumerate(discovered, start=1):
-        print(f"  [{i:>3}]  {excel_base}  (露头: {outcrop_name})")
+    for i, (table_stem, outcrop) in enumerate(discovered, start=1):
+        print(f"  [{i:>3}]  {table_stem}  (露头: {outcrop})")
 
     print("\n输入要处理的编号（支持: all / 1,3,5 / 1-5 / 1,3-5,7）")
     while True:
@@ -280,12 +253,27 @@ def main() -> None:
     # ---- 1. 加载与校验配置 ----
     try:
         cfg = load_config(args.config)
-        cfg = apply_cli_overrides(cfg, args)
+        # CLI 参数覆盖
+        cli_overrides: Dict[str, Any] = {}
+        if args.input:
+            cli_overrides["input_dir"] = args.input
+        if args.output:
+            cli_overrides["output_dir"] = args.output
+        if args.single:
+            cli_overrides["process_all"] = False
+        if args.rose_bin is not None:
+            cli_overrides["rose_bin_width"] = args.rose_bin
+        if args.rose_dpi is not None:
+            cli_overrides["rose_dpi"] = args.rose_dpi
+        if args.no_rose:
+            cli_overrides["export_rose_plot"] = False
+        if cli_overrides:
+            cfg = apply_cli_overrides(cfg, **cli_overrides)
     except Exception as exc:
         logger.critical("配置加载失败: %s", exc)
         sys.exit(1)
 
-    configure_plotting_style()
+    configure_style()
 
     # ---- 2. 路径解析与文件发现 ----
     base_dir = resolve_config_base_dir(args.config)
@@ -300,8 +288,8 @@ def main() -> None:
     if args.list:
         if discovered:
             print(f"\n在 {input_dir} 中发现 {len(discovered)} 个迹线表文件:\n")
-            for i, (excel_base, outcrop_name) in enumerate(discovered, start=1):
-                print(f"  [{i:>3}]  {excel_base}  (露头: {outcrop_name})")
+            for i, (table_stem, outcrop) in enumerate(discovered, start=1):
+                print(f"  [{i:>3}]  {table_stem}  (露头: {outcrop})")
         else:
             print(f"\n在 {input_dir} 中未发现匹配的迹线表文件。")
         return
@@ -321,8 +309,8 @@ def main() -> None:
     # ---- 5. --dry-run 模式：打印计划后退出 ----
     if args.dry_run:
         print(f"\n[试运行] 将处理 {len(targets)} 个目标:\n")
-        for i, (excel_base, outcrop_name) in enumerate(targets, start=1):
-            print(f"  [{i:>3}]  {excel_base}  →  输出: {outcrop_name}_traces.xlsx")
+        for i, (table_stem, outcrop) in enumerate(targets, start=1):
+            print(f"  [{i:>3}]  {table_stem}  →  输出: {outcrop}_traces.xlsx")
         print(f"\n输入目录:  {input_dir}")
         print(f"输出目录:  {output_dir}")
         print(f"玫瑰图:    {'是' if cfg.get('export_rose_plot', True) else '否'}")
@@ -331,7 +319,7 @@ def main() -> None:
 
     # ---- 6. 逐目标处理（支持并行） ----
     total = len(targets)
-    summaries: List[Dict[str, Any]] = []
+    results: List[RunResult] = []
     workers = args.parallel if args.parallel > 1 else 0
 
     if workers:
@@ -339,68 +327,64 @@ def main() -> None:
         logger.info("启用并行处理：%d 线程", workers)
         pbar = tqdm(total=total, desc="处理迹线表", unit="个", ncols=100)
 
-        def _process_one(index: int, excel_base: str, outcrop_name: str) -> Dict[str, Any]:
+        def _process_one(table_stem: str, outcrop: str) -> RunResult:
             run_cfg = {
                 **cfg,
                 "input_dir": input_dir,
                 "output_dir": output_dir,
-                "file_name": outcrop_name,
-                "excel_base": excel_base,
-                "outcrop_name": outcrop_name,
+                "output_prefix": outcrop,
+                "table_stem": table_stem,
+                "outcrop": outcrop,
             }
-            return process_target(run_cfg)
+            return run_pipeline(run_cfg)
 
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = {
-                executor.submit(_process_one, idx, excel_base, outcrop_name): (idx, excel_base)
-                for idx, (excel_base, outcrop_name) in enumerate(targets, start=1)
+                executor.submit(_process_one, table_stem, outcrop): table_stem
+                for table_stem, outcrop in targets
             }
             for future in as_completed(futures):
-                idx, excel_base = futures[future]
+                table_stem = futures[future]
                 try:
-                    summary = future.result()
+                    result = future.result()
                 except Exception as exc:
-                    summary = {"excel_base": excel_base, "status": "error", "error": str(exc)}
-                summaries.append(summary)
-                pbar.set_postfix_str(f"完成: {excel_base}")
+                    result = RunResult.failure(table_stem, str(exc))
+                results.append(result)
+                pbar.set_postfix_str(f"完成: {table_stem}")
                 pbar.update(1)
         pbar.close()
     else:
-        # 串行模式（保持原有 tqdm 行为）
+        # 串行模式
         pbar = tqdm(targets, desc="处理迹线表", unit="个", ncols=100)
-        for idx, (excel_base, outcrop_name) in enumerate(pbar, start=1):
-            pbar.set_postfix_str(f"当前: {excel_base}")
+        for table_stem, outcrop in pbar:
+            pbar.set_postfix_str(f"当前: {table_stem}")
 
             run_cfg = {
                 **cfg,
                 "input_dir": input_dir,
                 "output_dir": output_dir,
-                "file_name": outcrop_name,
-                "excel_base": excel_base,
-                "outcrop_name": outcrop_name,
+                "output_prefix": outcrop,
+                "table_stem": table_stem,
+                "outcrop": outcrop,
             }
 
-            summary = process_target(run_cfg)
-            summaries.append(summary)
+            result = run_pipeline(run_cfg)
+            results.append(result)
 
-            if summary["status"] == "success":
+            if result.status == "success":
                 logger.info(
-                    "[%d/%d] 完成 %s → %s（迹线数=%d）",
-                    idx, total, excel_base,
-                    summary.get("excel_out", "?"),
-                    summary.get("trace_count", 0),
+                    "完成 %s → %s（迹线数=%d）",
+                    table_stem, result.excel_path, result.trace_count,
                 )
             else:
-                logger.warning(
-                    "[%d/%d] 失败 %s: %s",
-                    idx, total, excel_base,
-                    summary.get("error", "未知错误"),
-                )
+                logger.warning("失败 %s: %s", table_stem, result.error)
 
         pbar.close()
 
     # ---- 7. 汇总 ----
-    success_count = sum(1 for s in summaries if s["status"] == "success")
+    print_pipeline_results(results)
+
+    success_count = sum(1 for r in results if r.status == "success")
     logger.info("处理完成：成功 %d/%d", success_count, total)
 
 

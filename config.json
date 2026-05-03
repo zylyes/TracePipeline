@@ -1,8 +1,4 @@
 {
-  "_comment": "岩体节理测线坐标计算与绘图工具 — 配置文件",
-  "_usage": "命令行可通过 --input/-i、--output/-o、--rose-bin、--rose-dpi、--no-rose 覆盖以下选项",
-  "_note": "v2.0 键名更新: excel_base→table_stem, outcrop_name→outcrop, file_name→output_prefix",
-
   "input_dir": "input",
   "output_dir": "output",
 

@@ -24,7 +24,6 @@
 """
 from __future__ import annotations
 
-# ⚠️ 必须在任何 matplotlib 导入之前设置后端，否则多线程绘图会崩溃
 import matplotlib as _mpl
 _mpl.use("Agg")
 
@@ -44,11 +43,10 @@ from trace_pipeline import (
     configure_style,
     find_trace_tables,
     load_config,
-    print_pipeline_results,
     resolve_config_base_dir,
     resolve_io_paths,
 )
-from trace_pipeline.models import RunResult
+from trace_pipeline.types import RunConfig, RunResult
 from trace_pipeline.pipeline import run_pipeline
 
 
@@ -56,31 +54,23 @@ from trace_pipeline.pipeline import run_pipeline
 # 日志初始化
 # ---------------------------------------------------------------------------
 
-# 日志格式常量（避免重复创建 Formatter 对象）
 _CONSOLE_FMT = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 _FILE_FMT = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
 def setup_logging(log_dir: str = "logs") -> logging.Logger:
-    """配置双通道日志：控制台 INFO+，文件 DEBUG+。
-
-    仅在首次调用时添加 handler（幂等），避免覆盖第三方库的日志配置。
-    """
+    """配置双通道日志：控制台 INFO+，文件 DEBUG+（幂等）。"""
     Path(log_dir).mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = Path(log_dir) / f"pipeline_{timestamp}.log"
 
     root = logging.getLogger()
-
-    # 仅在根 logger 尚未配置时设置级别
     if root.level == logging.WARNING and not root.handlers:
         root.setLevel(logging.DEBUG)
 
-    # 使用命名 logger 而非 root，避免干扰其他库
     pkg_logger = logging.getLogger("trace_pipeline")
     pkg_logger.setLevel(logging.DEBUG)
 
-    # 如果已有文件 handler 则复用，否则创建
     has_file = any(
         isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", "") == str(log_file)
         for h in pkg_logger.handlers
@@ -88,7 +78,6 @@ def setup_logging(log_dir: str = "logs") -> logging.Logger:
     if has_file:
         return logging.getLogger(__name__)
 
-    # 控制台 handler（仅在无 console handler 时添加）
     if not any(isinstance(h, logging.StreamHandler) and h.stream is sys.stdout
                for h in pkg_logger.handlers):
         console = logging.StreamHandler(sys.stdout)
@@ -96,7 +85,6 @@ def setup_logging(log_dir: str = "logs") -> logging.Logger:
         console.setFormatter(_CONSOLE_FMT)
         pkg_logger.addHandler(console)
 
-    # 文件 handler
     file_handler = logging.FileHandler(str(log_file), encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(_FILE_FMT)
@@ -143,20 +131,15 @@ def decide_targets(
     discovered: List[Tuple[str, str]],
     logger: logging.Logger,
 ) -> List[Tuple[str, str]]:
-    """根据配置模式与扫描结果，决定处理目标列表。
-
-    - 批量模式且有匹配文件 → 返回全部 discovered
-    - 批量模式但无匹配 → 回退单文件模式
-    - 单文件模式 → 返回 [(table_stem, outcrop)]
-    """
+    """根据配置模式与扫描结果，决定处理目标列表。"""
     if cfg.get("process_all", True):
         if discovered:
             logger.info("模式：批量处理（发现 %d 个文件）", len(discovered))
             return discovered
         logger.warning("批量模式下未发现匹配文件，回退为单文件处理")
 
-    table_stem = cfg.get("table_stem", cfg.get("excel_base", ""))
-    outcrop = cfg.get("outcrop", cfg.get("outcrop_name", ""))
+    table_stem = cfg.get("table_stem", "")
+    outcrop = cfg.get("outcrop", "")
     logger.info("模式：单文件处理（%s）", table_stem)
     return [(table_stem, outcrop)]
 
@@ -166,17 +149,7 @@ def decide_targets(
 # ---------------------------------------------------------------------------
 
 def _parse_selection(raw: str, max_n: int) -> List[int]:
-    """解析用户输入的索引字符串，返回 1-based → 0-based 索引列表。
-
-    支持格式:
-      - "all"           → 全部
-      - "1,3,5"         → 逗号分隔
-      - "1-5"           → 区间（含两端）
-      - "1,3-5,7"       → 混合
-
-    Raises:
-        ValueError: 索引越界或格式无效。
-    """
+    """解析用户输入的索引字符串，返回 0-based 索引列表。"""
     cleaned = raw.strip().lower()
     if cleaned in ("", "all", "a"):
         return list(range(max_n))
@@ -193,9 +166,7 @@ def _parse_selection(raw: str, max_n: int) -> List[int]:
             except ValueError:
                 raise ValueError(f"无效区间: {token}")
             if lo < 1 or hi > max_n or lo > hi:
-                raise ValueError(
-                    f"区间 {lo}-{hi} 超出范围 1-{max_n}"
-                )
+                raise ValueError(f"区间 {lo}-{hi} 超出范围 1-{max_n}")
             selected.extend(range(lo - 1, hi))
         else:
             try:
@@ -214,10 +185,7 @@ def _parse_selection(raw: str, max_n: int) -> List[int]:
 def select_targets_interactive(
     discovered: Sequence[Tuple[str, str]],
 ) -> List[Tuple[str, str]]:
-    """交互式选择处理目标。
-
-    打印编号列表，等待用户输入索引，返回选中子集。
-    """
+    """交互式选择处理目标。"""
     if not discovered:
         print("没有可用的迹线表文件。")
         return []
@@ -253,7 +221,6 @@ def main() -> None:
     # ---- 1. 加载与校验配置 ----
     try:
         cfg = load_config(args.config)
-        # CLI 参数覆盖
         cli_overrides: Dict[str, Any] = {}
         if args.input:
             cli_overrides["input_dir"] = args.input
@@ -284,7 +251,7 @@ def main() -> None:
 
     discovered = find_trace_tables(input_dir)
 
-    # ---- 3. --list 模式：列出文件后退出 ----
+    # ---- 3. --list 模式 ----
     if args.list:
         if discovered:
             print(f"\n在 {input_dir} 中发现 {len(discovered)} 个迹线表文件:\n")
@@ -306,7 +273,7 @@ def main() -> None:
         logger.warning("没有可处理的目标，退出。")
         return
 
-    # ---- 5. --dry-run 模式：打印计划后退出 ----
+    # ---- 5. --dry-run 模式 ----
     if args.dry_run:
         print(f"\n[试运行] 将处理 {len(targets)} 个目标:\n")
         for i, (table_stem, outcrop) in enumerate(targets, start=1):
@@ -322,29 +289,33 @@ def main() -> None:
     results: List[RunResult] = []
     workers = args.parallel if args.parallel > 1 else 0
 
+    def _build_run_config(table_stem: str, outcrop: str) -> RunConfig:
+        return RunConfig.from_mapping({
+            **cfg,
+            "input_dir": input_dir,
+            "output_dir": output_dir,
+            "output_prefix": outcrop,
+            "table_stem": table_stem,
+            "outcrop": outcrop,
+        })
+
     if workers:
-        # 并行模式
         logger.info("启用并行处理：%d 线程", workers)
         pbar = tqdm(total=total, desc="处理迹线表", unit="个", ncols=100)
 
-        def _process_one(table_stem: str, outcrop: str) -> RunResult:
-            run_cfg = {
-                **cfg,
-                "input_dir": input_dir,
-                "output_dir": output_dir,
-                "output_prefix": outcrop,
-                "table_stem": table_stem,
-                "outcrop": outcrop,
-            }
-            return run_pipeline(run_cfg)
-
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {
-                executor.submit(_process_one, table_stem, outcrop): table_stem
-                for table_stem, outcrop in targets
-            }
-            for future in as_completed(futures):
-                table_stem = futures[future]
+            future_map = {}
+            for table_stem, outcrop in targets:
+                try:
+                    run_cfg = _build_run_config(table_stem, outcrop)
+                except Exception as exc:
+                    results.append(RunResult.failure(table_stem, str(exc)))
+                    pbar.update(1)
+                    continue
+                future_map[executor.submit(run_pipeline, run_cfg)] = table_stem
+
+            for future in as_completed(future_map):
+                table_stem = future_map[future]
                 try:
                     result = future.result()
                 except Exception as exc:
@@ -354,19 +325,15 @@ def main() -> None:
                 pbar.update(1)
         pbar.close()
     else:
-        # 串行模式
         pbar = tqdm(targets, desc="处理迹线表", unit="个", ncols=100)
         for table_stem, outcrop in pbar:
             pbar.set_postfix_str(f"当前: {table_stem}")
 
-            run_cfg = {
-                **cfg,
-                "input_dir": input_dir,
-                "output_dir": output_dir,
-                "output_prefix": outcrop,
-                "table_stem": table_stem,
-                "outcrop": outcrop,
-            }
+            try:
+                run_cfg = _build_run_config(table_stem, outcrop)
+            except Exception as exc:
+                results.append(RunResult.failure(table_stem, str(exc)))
+                continue
 
             result = run_pipeline(run_cfg)
             results.append(result)
@@ -378,10 +345,10 @@ def main() -> None:
                 )
             else:
                 logger.warning("失败 %s: %s", table_stem, result.error)
-
         pbar.close()
 
     # ---- 7. 汇总 ----
+    from trace_pipeline.report import print_pipeline_results
     print_pipeline_results(results)
 
     success_count = sum(1 for r in results if r.status == "success")

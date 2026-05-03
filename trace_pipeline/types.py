@@ -1,9 +1,13 @@
-"""迹线处理流水线 — 数据模型。
+"""迹线处理流水线 — 数据模型与校验。
 
 所有不可变数据类集中定义于此：
   - TraceData  : 单张迹线表的完整解析结果
-  - RunConfig  : 单次流水线运行的参数
+  - RunConfig  : 单次流水线运行的参数（含校验）
   - RunResult  : 单次流水线运行的结果
+
+数值校验函数（内部使用）：
+  - _validate_rose_bin_width
+  - _validate_dpi
 """
 from __future__ import annotations
 
@@ -18,6 +22,33 @@ __all__ = [
     "RunResult",
     "TraceData",
 ]
+
+
+# ===========================================================================
+# 内部校验
+# ===========================================================================
+
+
+def _validate_rose_bin_width(value: Any) -> float:
+    """校验 rose_bin_width：必须为数值且在 (0, 180] 范围内。"""
+    try:
+        width = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("rose_bin_width 必须为数值") from exc
+    if not (0 < width <= 180):
+        raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
+    return width
+
+
+def _validate_dpi(value: Any) -> int:
+    """校验 DPI 参数：必须为正整数。"""
+    try:
+        dpi = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("DPI 必须为整数") from exc
+    if dpi <= 0:
+        raise ValueError("DPI 必须为正整数")
+    return dpi
 
 
 # ===========================================================================
@@ -107,43 +138,31 @@ class RunConfig:
     trace_dpi: int = 300
     rotated_trace_dpi: int = 600
 
+    def __post_init__(self) -> None:
+        for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
+            if not str(getattr(self, name)).strip():
+                raise ValueError(f"{name} 不能为空")
+        _validate_rose_bin_width(self.rose_bin_width)
+        _validate_dpi(self.rose_dpi)
+        _validate_dpi(self.trace_dpi)
+        _validate_dpi(self.rotated_trace_dpi)
+
     # ---- 工厂方法 ----
 
     @classmethod
     def from_mapping(cls, cfg: Mapping[str, Any]) -> "RunConfig":
-        """从配置字典构造，执行字段级校验。
-
-        自动兼容旧版键名（excel_base→table_stem, outcrop_name→outcrop,
-        file_name→output_prefix）。
-        """
-        from .config import validate_dpi, validate_rose_bin_width
-
-        # 兼容旧键名
-        normalized = dict(cfg)
-        for old_key, new_key in [
-            ("excel_base", "table_stem"),
-            ("outcrop_name", "outcrop"),
-            ("file_name", "output_prefix"),
-        ]:
-            if old_key in normalized and new_key not in normalized:
-                normalized[new_key] = normalized.pop(old_key)
-
-        required = ("input_dir", "output_dir", "output_prefix", "table_stem", "outcrop")
-        missing = [k for k in required if str(normalized.get(k, "")).strip() == ""]
-        if missing:
-            raise ValueError(f"缺少必要字段: {', '.join(missing)}")
-
+        """从配置字典构造，执行字段级校验。"""
         return cls(
-            input_dir=str(normalized["input_dir"]),
-            output_dir=str(normalized["output_dir"]),
-            output_prefix=str(normalized["output_prefix"]),
-            table_stem=str(normalized["table_stem"]),
-            outcrop=str(normalized["outcrop"]),
-            export_rose=bool(normalized.get("export_rose_plot", True)),
-            rose_bin_width=validate_rose_bin_width(normalized.get("rose_bin_width", 10.0)),
-            rose_dpi=validate_dpi(normalized.get("rose_dpi", 400)),
-            trace_dpi=validate_dpi(normalized.get("trace_dpi", 300)),
-            rotated_trace_dpi=validate_dpi(normalized.get("rotated_trace_dpi", 600)),
+            input_dir=str(cfg["input_dir"]),
+            output_dir=str(cfg["output_dir"]),
+            output_prefix=str(cfg["output_prefix"]),
+            table_stem=str(cfg["table_stem"]),
+            outcrop=str(cfg["outcrop"]),
+            export_rose=bool(cfg.get("export_rose_plot", True)),
+            rose_bin_width=float(cfg.get("rose_bin_width", 10.0)),
+            rose_dpi=int(cfg.get("rose_dpi", 400)),
+            trace_dpi=int(cfg.get("trace_dpi", 300)),
+            rotated_trace_dpi=int(cfg.get("rotated_trace_dpi", 600)),
         )
 
 

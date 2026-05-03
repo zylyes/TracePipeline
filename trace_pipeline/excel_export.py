@@ -71,6 +71,8 @@ def write_excel_sections(
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
+    # 计算最大列号（用于动态列宽调整）
+    max_col = 0
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         for df, startrow, startcol, header in sections:
             df.to_excel(
@@ -81,10 +83,11 @@ def write_excel_sections(
                 startrow=startrow,
                 startcol=startcol,
             )
+            max_col = max(max_col, startcol + df.shape[1])
 
-        # 调整列宽
+        # 动态调整列宽
         ws = writer.sheets[sheet_name]
-        for col_idx in range(14):  # 0-13 列
+        for col_idx in range(max_col):
             col_letter = chr(ord("A") + col_idx)
             ws.column_dimensions[col_letter].width = _COLUMN_WIDTH
 

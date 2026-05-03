@@ -3,5 +3,6 @@ numpy
 matplotlib
 openpyxl
 xlrd
+tqdm
 
 pytest

@@ -20,6 +20,8 @@ from .config import (
     resolve_config_base_dir,
     resolve_io_paths,
     validate_config,
+    validate_rose_bin_width,
+    validate_rose_dpi,
 )
 from .data_loader import ParsedTraceData, load_trace_data, load_trace_table
 from .geometry import (
@@ -51,6 +53,8 @@ __all__ = [
     "resolve_config_base_dir",
     "resolve_io_paths",
     "validate_config",
+    "validate_rose_bin_width",
+    "validate_rose_dpi",
     # data_loader
     "ParsedTraceData",
     "load_trace_data",

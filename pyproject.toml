@@ -13,7 +13,8 @@ dependencies = [
     "numpy",
     "matplotlib",
     "openpyxl",
-    "xlrd"
+    "xlrd",
+    "tqdm"
 ]
 
 [project.scripts]

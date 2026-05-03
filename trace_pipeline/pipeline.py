@@ -14,6 +14,7 @@ from .data_loader import ParsedTraceData, load_trace_data
 from .excel_export import build_excel_sections, write_excel_sections
 from .plotting import lines_to_plot_xy, render_rose_plot, render_trace_plot
 from .transforms import norm_rotate_lines
+from .config import validate_rose_bin_width, validate_rose_dpi
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,8 @@ class PipelineRunConfig:
     export_rose_plot: bool = True
     rose_bin_width: float = 10.0
     rose_dpi: int = 400
+    trace_dpi: int = 300
+    rotated_trace_dpi: int = 600
 
     @classmethod
     def from_mapping(cls, run_cfg: Mapping[str, Any]) -> "PipelineRunConfig":
@@ -60,18 +63,12 @@ class PipelineRunConfig:
             raise ValueError(f"缺少必要流水线字段: {', '.join(missing)}")
 
         try:
-            rose_bin_width = float(run_cfg.get("rose_bin_width", 10.0))
-        except (TypeError, ValueError) as exc:
-            raise ValueError("rose_bin_width 必须为数值") from exc
-        if not (0 < rose_bin_width <= 180):
-            raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
-
-        try:
-            rose_dpi = int(run_cfg.get("rose_dpi", 400))
-        except (TypeError, ValueError) as exc:
-            raise ValueError("rose_dpi 必须为整数") from exc
-        if rose_dpi <= 0:
-            raise ValueError("rose_dpi 必须为正整数")
+            rose_bin_width = validate_rose_bin_width(run_cfg.get("rose_bin_width", 10.0))
+            rose_dpi = validate_rose_dpi(run_cfg.get("rose_dpi", 400))
+            trace_dpi = validate_rose_dpi(run_cfg.get("trace_dpi", 300))
+            rotated_trace_dpi = validate_rose_dpi(run_cfg.get("rotated_trace_dpi", 600))
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
 
         return cls(
             input_dir=str(run_cfg["input_dir"]),
@@ -82,6 +79,8 @@ class PipelineRunConfig:
             export_rose_plot=bool(run_cfg.get("export_rose_plot", True)),
             rose_bin_width=rose_bin_width,
             rose_dpi=rose_dpi,
+            trace_dpi=trace_dpi,
+            rotated_trace_dpi=rotated_trace_dpi,
         )
 
     def to_loader_config(self) -> Dict[str, str]:
@@ -147,7 +146,7 @@ def process_target(run_cfg: Mapping[str, Any] | PipelineRunConfig) -> Dict[str, 
             f"迹线长度图（数量={trace.trace_count}）",
             str(output_dir),
             f"{cfg.outcrop_name}_raw(n={trace.trace_count}).png",
-            dpi=300,
+            dpi=cfg.trace_dpi,
         )
 
         rot_path = render_trace_plot(
@@ -155,7 +154,7 @@ def process_target(run_cfg: Mapping[str, Any] | PipelineRunConfig) -> Dict[str, 
             f"迹线长度图（数量={trace.trace_count}）\n标尺（走向={trace.strike_deg}°）",
             str(output_dir),
             f"{cfg.outcrop_name}_rotated(strike={trace.strike_deg}).png",
-            dpi=600,
+            dpi=cfg.rotated_trace_dpi,
         )
 
         rose_path: str | None = None

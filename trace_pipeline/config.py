@@ -38,6 +38,8 @@ _KEY_PROCESS_ALL = "process_all"
 _KEY_EXPORT_ROSE = "export_rose_plot"
 _KEY_ROSE_BIN_WIDTH = "rose_bin_width"
 _KEY_ROSE_DPI = "rose_dpi"
+_KEY_TRACE_DPI = "trace_dpi"
+_KEY_ROTATED_TRACE_DPI = "rotated_trace_dpi"
 
 _REQUIRED_KEYS = (_KEY_INPUT_DIR, _KEY_OUTPUT_DIR, _KEY_EXCEL_BASE, _KEY_OUTCROP_NAME)
 
@@ -51,7 +53,43 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     _KEY_EXPORT_ROSE: True,
     _KEY_ROSE_BIN_WIDTH: 10,
     _KEY_ROSE_DPI: 400,
+    _KEY_TRACE_DPI: 300,
+    _KEY_ROTATED_TRACE_DPI: 600,
 }
+
+# ---------------------------------------------------------------------------
+# 共享校验工具（供 config.py 与 pipeline.py 共用，避免重复代码）
+# ---------------------------------------------------------------------------
+
+
+def validate_rose_bin_width(value: Any) -> float:
+    """校验并规范化 rose_bin_width 字段。
+
+    Raises:
+        ValueError: 非数值或不在 (0, 180] 范围内。
+    """
+    try:
+        width = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("rose_bin_width 必须为数值") from exc
+    if not (0 < width <= 180):
+        raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
+    return width
+
+
+def validate_rose_dpi(value: Any) -> int:
+    """校验并规范化 rose_dpi 字段。
+
+    Raises:
+        ValueError: 非整数或非正数。
+    """
+    try:
+        dpi = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("rose_dpi 必须为整数") from exc
+    if dpi <= 0:
+        raise ValueError("rose_dpi 必须为正整数")
+    return dpi
 
 __all__ = [
     "CONFIG_PATH",
@@ -62,6 +100,8 @@ __all__ = [
     "resolve_config_base_dir",
     "resolve_io_paths",
     "validate_config",
+    "validate_rose_bin_width",
+    "validate_rose_dpi",
 ]
 
 
@@ -80,20 +120,9 @@ def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
     if missing:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 
-    # 数值型校验
-    try:
-        merged[_KEY_ROSE_BIN_WIDTH] = float(merged[_KEY_ROSE_BIN_WIDTH])
-    except (TypeError, ValueError) as exc:
-        raise ValueError("rose_bin_width 必须为数值") from exc
-    if not (0 < merged[_KEY_ROSE_BIN_WIDTH] <= 180):
-        raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
-
-    try:
-        merged[_KEY_ROSE_DPI] = int(merged[_KEY_ROSE_DPI])
-    except (TypeError, ValueError) as exc:
-        raise ValueError("rose_dpi 必须为整数") from exc
-    if merged[_KEY_ROSE_DPI] <= 0:
-        raise ValueError("rose_dpi 必须为正整数")
+    # 数值型校验（使用共享校验函数）
+    merged[_KEY_ROSE_BIN_WIDTH] = validate_rose_bin_width(merged[_KEY_ROSE_BIN_WIDTH])
+    merged[_KEY_ROSE_DPI] = validate_rose_dpi(merged[_KEY_ROSE_DPI])
 
     # 布尔型与字符串型规范化
     merged[_KEY_PROCESS_ALL] = bool(merged[_KEY_PROCESS_ALL])

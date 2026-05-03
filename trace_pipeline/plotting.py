@@ -76,19 +76,23 @@ def configure_plotting_style() -> None:
 
     策略:
     1. 扫描系统安装的 CJK 字体，优先使用已安装的。
-    2. 若未找到任何 CJK 字体，回退到 sans-serif 并发出警告。
-    3. 强制清空 font.sans-serif 后再设置，避免旧配置残留。
+    2. 将检测到的字体**前插**到现有 font.sans-serif 列表前，不覆盖用户配置。
+    3. 若未找到任何 CJK 字体，回退到 sans-serif 并发出警告。
 
-    注意：此函数修改全局 rcParams，应在程序启动时调用一次。
+    注意：此函数修改全局 rcParams，应在程序启动时调用一次（幂等）。
     """
     available_cjk = _get_available_cjk_fonts()
 
+    # 获取当前 sans-serif 列表（保留用户已有设置）
+    existing = list(matplotlib.rcParams.get("font.sans-serif", ["sans-serif"]))
+    # 移除可能已存在的重复项
+    existing_filtered = [f for f in existing if f not in available_cjk]
+
     if available_cjk:
-        # 可用字体 + 通用回退
-        font_list = available_cjk + ["sans-serif"]
+        font_list = available_cjk + existing_filtered
         logger.info("检测到 CJK 字体: %s", ", ".join(available_cjk[:3]))
     else:
-        font_list = ["sans-serif"]
+        font_list = existing_filtered
         logger.warning("未检测到 CJK 字体，中文标题可能无法正常显示。"
                        "建议安装 SimHei / Microsoft YaHei 等中文字体。")
 
@@ -231,13 +235,14 @@ def render_trace_plot(
     output_dir: str,
     filename: str,
     dpi: int = _DEFAULT_TRACE_DPI,
+    figsize_cm: Tuple[float, float] = _TRACE_FIGSIZE_CM,
 ) -> str:
     """绘制并保存单张迹线长度图。
 
     Returns:
         输出文件的完整路径。
     """
-    fig, ax = _new_figure(_TRACE_FIGSIZE_CM, dpi=dpi)
+    fig, ax = _new_figure(figsize_cm, dpi=dpi)
     ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
     _style_trace_axes(ax)
     ax.set_title(title, fontsize=12)
@@ -256,6 +261,7 @@ def render_rose_plot(
     filename: str,
     bin_width: float = 10.0,
     dpi: int = _DEFAULT_ROSE_DPI,
+    figsize_cm: Tuple[float, float] = _ROSE_FIGSIZE_CM,
 ) -> str:
     """绘制并保存节理走向玫瑰花瓣图。
 
@@ -265,7 +271,7 @@ def render_rose_plot(
     theta, radii, width = _compute_rose_histogram(strike_deg, bin_width=bin_width)
 
     fig, ax = _new_figure(
-        _ROSE_FIGSIZE_CM, dpi=dpi,
+        figsize_cm, dpi=dpi,
         subplot_kw={"projection": "polar"},
     )
     ax.set_facecolor("white")

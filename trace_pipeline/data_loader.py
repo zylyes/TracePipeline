@@ -108,8 +108,14 @@ def load_trace_table(
         try:
             return pd.read_excel(path, engine=engine, sheet_name=sheet or 0, header=None)
         except ValueError:
+            # 工作表名不存在 → 回退到第一个 sheet（仅捕获 sheet_name 相关的 ValueError）
             logger.debug("工作表 '%s' 不存在，回退到第一个 sheet", sheet)
-            return pd.read_excel(path, engine=engine, sheet_name=0, header=None)
+            try:
+                return pd.read_excel(path, engine=engine, sheet_name=0, header=None)
+            except Exception as exc:
+                logger.warning("读取 %s 失败 (%s)，尝试下一格式", path, exc)
+                last_error = exc
+                continue
         except Exception as exc:
             logger.warning("读取 %s 失败 (%s)，尝试下一格式", path, exc)
             last_error = exc

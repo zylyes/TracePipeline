@@ -4,12 +4,13 @@
   1. shift_to_positive  → 平移到正象限（留白边距）
   2. rotate_and_shift   → 按走向角旋转后平移到非负区域
 
-以及走向角 → 绘图弧度的辅助转换。
+以及线段数组到绘图序列的转换与走向角辅助转换。
 所有函数均接受 ndarray，返回新 ndarray，不修改入参。
 """
 from __future__ import annotations
 
 import math
+from typing import Tuple
 
 import numpy as np
 
@@ -18,6 +19,7 @@ from .angles import fold_strike_angle
 __all__ = [
     "normalize_coordinates",
     "rotate_and_shift",
+    "segments_to_xy",
     "shift_to_positive",
 ]
 
@@ -125,3 +127,24 @@ def normalize_coordinates(lines: np.ndarray, azimuth_deg: float, margin: float =
     """
     shifted = shift_to_positive(lines, margin=margin)
     return rotate_and_shift(shifted, azimuth_deg)
+
+
+# ===========================================================================
+# 线段 → 绘图序列
+# ===========================================================================
+
+
+def segments_to_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """将 (N, 4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
+
+    NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
+    """
+    if segments.ndim != 2 or segments.shape[1] != 4:
+        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {segments.shape}")
+    n = segments.shape[0]
+    if n == 0:
+        return np.array([]), np.array([])
+
+    X = np.column_stack([segments[:, 0], segments[:, 2], np.full((n,), np.nan)]).ravel()
+    Y = np.column_stack([segments[:, 1], segments[:, 3], np.full((n,), np.nan)]).ravel()
+    return X, Y

@@ -18,13 +18,15 @@ import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .angles import fold_strikes_to_semicircle
+from .transforms import segments_to_xy
+
 logger = logging.getLogger(__name__)
 
 # ===========================================================================
 # 样式常量
 # ===========================================================================
 
-# 中文字体候选列表（按优先级排列）
 _CJK_FONT_CANDIDATES: List[str] = [
     "SimHei",
     "Microsoft YaHei",
@@ -35,15 +37,12 @@ _CJK_FONT_CANDIDATES: List[str] = [
     "sans-serif",
 ]
 
-# 图片尺寸（厘米）
 _TRACE_FIGSIZE_CM: Tuple[float, float] = (24, 12)
 _ROSE_FIGSIZE_CM: Tuple[float, float] = (16, 16)
 
-# 默认 DPI
 _DEFAULT_TRACE_DPI = 300
 _DEFAULT_ROSE_DPI = 400
 
-# 颜色
 _ROSE_GRID_COLOR = "#aab7b8"
 _ROSE_BAR_COLOR = "#4472c4"
 _ROSE_BAR_EDGE = "#1f1f1f"
@@ -63,16 +62,7 @@ def _detect_cjk_fonts() -> List[str]:
 
 
 def configure_style() -> None:
-    """配置 matplotlib 全局样式以支持中文显示。
-
-    策略：
-    1. 扫描系统安装的 CJK 字体，优先使用已安装的。
-    2. 将检测到的字体前插到 font.sans-serif 列表前。
-    3. 显式设置 font.family 为首个可用 CJK 字体。
-    4. 若未找到任何 CJK 字体，回退到 sans-serif 并发出警告。
-
-    注意：此函数修改全局 rcParams，应在程序启动时调用一次（幂等）。
-    """
+    """配置 matplotlib 全局样式以支持中文显示（幂等）。"""
     available_cjk = _detect_cjk_fonts()
 
     existing = list(matplotlib.rcParams.get("font.sans-serif", ["sans-serif"]))
@@ -95,36 +85,8 @@ def configure_style() -> None:
 
 
 # ===========================================================================
-# 数据转换
-# ===========================================================================
-
-
-def segments_to_plot_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """将 (N, 4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
-
-    NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
-    """
-    if segments.ndim != 2 or segments.shape[1] != 4:
-        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {segments.shape}")
-    n = segments.shape[0]
-    if n == 0:
-        return np.array([]), np.array([])
-
-    X = np.column_stack([segments[:, 0], segments[:, 2], np.full((n,), np.nan)]).ravel()
-    Y = np.column_stack([segments[:, 1], segments[:, 3], np.full((n,), np.nan)]).ravel()
-    return X, Y
-
-
-# ===========================================================================
 # 玫瑰图数据
 # ===========================================================================
-
-
-def _fold_strike_angles(strike_deg: np.ndarray) -> np.ndarray:
-    """将走向角折叠到 [0, 180)。"""
-    folded = np.mod(np.asarray(strike_deg, dtype=float), 180.0)
-    folded[np.isclose(folded, 180.0)] = 0.0
-    return folded
 
 
 def _compute_rose_histogram(
@@ -135,7 +97,7 @@ def _compute_rose_histogram(
     if not (0 < bin_width <= 180):
         raise ValueError("rose bin_width 必须在 (0, 180] 范围内")
 
-    folded = _fold_strike_angles(strike_deg)
+    folded = fold_strikes_to_semicircle(strike_deg)
     if folded.size == 0:
         return np.array([]), np.array([]), np.deg2rad(bin_width)
 
@@ -144,7 +106,6 @@ def _compute_rose_histogram(
     counts, _ = np.histogram(folded, bins=edges)
     centers = (edges[:-1] + edges[1:]) / 2.0
 
-    # 对称复制（上半圆 + 下半圆）
     theta = np.deg2rad(np.concatenate([centers, centers + 180.0]))
     radii = np.concatenate([counts, counts])
     width = np.deg2rad(edges[1] - edges[0])
@@ -201,8 +162,7 @@ def _new_figure(
 
 
 def render_trace_plot(
-    X_plot: np.ndarray,
-    Y_plot: np.ndarray,
+    segments: np.ndarray,
     title: str,
     output_dir: str,
     filename: str,
@@ -211,9 +171,18 @@ def render_trace_plot(
 ) -> str:
     """绘制并保存单张迹线长度图。
 
+    Args:
+        segments: (N, 4) 线段数组 [x1, y1, x2, y2]。
+        title: 图表标题。
+        output_dir: 输出目录。
+        filename: 输出文件名。
+        dpi: 分辨率。
+        figsize_cm: 图表尺寸（厘米）。
+
     Returns:
         输出文件的完整路径。
     """
+    X_plot, Y_plot = segments_to_xy(segments)
     fig, ax = _new_figure(figsize_cm, dpi=dpi)
     ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
     _style_trace_axes(ax)
@@ -274,5 +243,4 @@ __all__ = [
     "configure_style",
     "render_rose_plot",
     "render_trace_plot",
-    "segments_to_plot_xy",
 ]

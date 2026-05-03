@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import List
 
-from .models import RunResult
+from .types import RunResult
 
 
 # ===========================================================================
@@ -52,11 +52,7 @@ def _format_footer(widths: List[int]) -> str:
 
 
 def format_result_detail(result: RunResult) -> str:
-    """格式化单个处理结果的详细信息。
-
-    Returns:
-        多行字符串，包含状态、迹线数、输出路径等。
-    """
+    """格式化单个处理结果的详细信息。"""
     lines = [
         f"露头: {result.table_stem}",
         f"状态: {result.status}",
@@ -76,25 +72,17 @@ def format_result_detail(result: RunResult) -> str:
 
 
 def format_results_table(results: List[RunResult]) -> str:
-    """将批量处理结果格式化为终端表格。
-
-    Returns:
-        Unicode 表格字符串，可直接 print。
-    """
+    """将批量处理结果格式化为终端表格。"""
     if not results:
         return "（无结果）"
 
     widths = list(_COL_WIDTHS)
     lines = []
 
-    # 顶线
     lines.append(_format_header(widths))
-
-    # 表头
     lines.append(_format_row(_COL_HEADERS, widths))
     lines.append(_format_separator(widths, _HEADER_SEP))
 
-    # 数据行
     total_traces = 0
     total_length = 0.0
     has_rose = 0
@@ -116,10 +104,8 @@ def format_results_table(results: List[RunResult]) -> str:
         row = [stem, count, avg_len, azimuth, rose, status]
         lines.append(_format_row(row, widths))
 
-    # 底线
     lines.append(_format_footer(widths))
 
-    # 汇总行
     success = sum(1 for r in results if r.status == "success")
     lines.append(f"\n总计: {len(results)} 个露头 | 成功 {success} 个 | 迹线总数 {total_traces} | 玫瑰图 {has_rose} 张")
 
@@ -127,11 +113,7 @@ def format_results_table(results: List[RunResult]) -> str:
 
 
 def format_summary(results: List[RunResult]) -> str:
-    """生成批量处理的统计摘要。
-
-    Returns:
-        多行摘要字符串。
-    """
+    """生成批量处理的统计摘要。"""
     if not results:
         return "没有可用的处理结果。"
 
@@ -166,10 +148,7 @@ def format_summary(results: List[RunResult]) -> str:
 
 
 def print_pipeline_results(results: List[RunResult]) -> None:
-    """一站式打印：先输出汇总表，再输出摘要。
-
-    这是 CLI 调用的推荐入口。
-    """
+    """一站式打印：先输出汇总表，再输出摘要。"""
     print()
     print(format_results_table(results))
     print()

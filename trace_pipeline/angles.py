@@ -1,9 +1,10 @@
 """地质角度转换 — 纯函数工具集。
 
 提供：
-  - dip_to_strike      倾向 → 走向（向量化）
-  - fold_strike_angle  走向角折叠到 [-90°, 90°] 并转弧度
-  - fold_to_halfplane  将角度折叠到参考基准角所确定的半平面内
+  - dip_to_strike              倾向 → 走向（向量化）
+  - fold_strike_angle          走向角折叠到 [-90°, 90°] 并转弧度
+  - fold_to_halfplane          将角度折叠到参考基准角所确定的半平面内
+  - fold_strikes_to_semicircle 走向角折叠到 [0°, 180°)（向量化，用于玫瑰图）
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ import numpy as np
 __all__ = [
     "dip_to_strike",
     "fold_strike_angle",
+    "fold_strikes_to_semicircle",
     "fold_to_halfplane",
 ]
 
@@ -118,3 +120,24 @@ def fold_to_halfplane(
 
     adjusted = np.where(in_half ^ invert, targets, targets + 180.0)
     return np.radians(np.mod(adjusted, 360.0))
+
+
+# ===========================================================================
+# 走向角半圆折叠（用于玫瑰图）
+# ===========================================================================
+
+
+def fold_strikes_to_semicircle(strike_deg: np.ndarray) -> np.ndarray:
+    """将走向角折叠到 [0°, 180°)（向量化，用于玫瑰图分箱）。
+
+    对称走向（如 NE 与 SW）合并为同一区间。
+
+    Args:
+        strike_deg: 走向角度数组（度），任意形状。
+
+    Returns:
+        折叠后的角度数组，值域 [0, 180)。
+    """
+    folded = np.mod(np.asarray(strike_deg, dtype=float), 180.0)
+    folded[np.isclose(folded, 180.0)] = 0.0
+    return folded

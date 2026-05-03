@@ -7,42 +7,24 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping
 
 from .io import build_excel_sections, parse_trace_file, write_excel_sections
-from .models import RunConfig, RunResult
-from .transforms import normalize_coordinates
-from .plotting import segments_to_plot_xy, render_rose_plot, render_trace_plot
+from .plotting import render_rose_plot, render_trace_plot
+from .transforms import normalize_coordinates, segments_to_xy
+from .types import RunConfig, RunResult
 
 logger = logging.getLogger(__name__)
 
 
-# ===========================================================================
-# 单目标处理
-# ===========================================================================
-
-
-def run_pipeline(run_cfg: Mapping[str, Any] | RunConfig) -> RunResult:
+def run_pipeline(cfg: RunConfig) -> RunResult:
     """处理单个迹线表：加载 → 变换 → 导出 Excel → 绘图。
 
-    支持两种输入：
-      - RunConfig 实例（推荐）
-      - 配置字典（兼容旧代码，自动升级）
+    Args:
+        cfg: 已校验的运行参数。
 
     Returns:
         RunResult — 不可变结果对象，.status 为 "success" 或 "error"。
     """
-    # ---- 配置解析 ----
-    try:
-        if isinstance(run_cfg, RunConfig):
-            cfg = run_cfg
-        else:
-            cfg = RunConfig.from_mapping(run_cfg)
-    except Exception as exc:
-        logger.error("配置校验失败: %s", exc)
-        table_stem = _safe_table_stem(run_cfg)
-        return RunResult.failure(table_stem, str(exc))
-
     try:
         logger.info("开始处理: %s", cfg.outcrop)
 
@@ -55,8 +37,6 @@ def run_pipeline(run_cfg: Mapping[str, Any] | RunConfig) -> RunResult:
 
         # ---- 2. 坐标变换 ----
         rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
-        X_raw, Y_raw = segments_to_plot_xy(trace.endpoints)
-        X_rot, Y_rot = segments_to_plot_xy(rotated)
 
         # ---- 3. 导出 Excel ----
         output_dir = Path(cfg.output_dir)
@@ -68,7 +48,7 @@ def run_pipeline(run_cfg: Mapping[str, Any] | RunConfig) -> RunResult:
 
         # ---- 4. 绘制图片 ----
         raw_plot = render_trace_plot(
-            X_raw, Y_raw,
+            trace.endpoints,
             f"迹线长度图（数量={trace.count}）",
             str(output_dir),
             f"{cfg.outcrop}_raw(n={trace.count}).png",
@@ -76,7 +56,7 @@ def run_pipeline(run_cfg: Mapping[str, Any] | RunConfig) -> RunResult:
         )
 
         rot_plot = render_trace_plot(
-            X_rot, Y_rot,
+            rotated,
             f"迹线长度图（数量={trace.count}）\n标尺（走向={trace.scanline_azimuth}°）",
             str(output_dir),
             f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
@@ -119,23 +99,6 @@ def run_pipeline(run_cfg: Mapping[str, Any] | RunConfig) -> RunResult:
     except Exception as exc:
         logger.error("处理 [%s] 时发生未预期错误: %s", cfg.outcrop, exc, exc_info=True)
         return RunResult.failure(cfg.table_stem, str(exc))
-
-
-# ===========================================================================
-# 辅助
-# ===========================================================================
-
-
-def _safe_table_stem(run_cfg: Mapping[str, Any] | RunConfig | None) -> str:
-    """安全提取 table_stem/excel_base，配置无效时返回空字符串。"""
-    if run_cfg is None:
-        return ""
-    if isinstance(run_cfg, RunConfig):
-        return run_cfg.table_stem
-    try:
-        return str(run_cfg.get("table_stem", run_cfg.get("excel_base", "")))
-    except Exception:
-        return ""
 
 
 __all__ = [

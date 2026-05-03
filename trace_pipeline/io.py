@@ -1,9 +1,10 @@
-"""迹线数据输入输出 — Excel 读取与结果写入。
+"""迹线数据输入输出 — Excel 读取、结果写入与文件发现。
 
-统一管理所有 Excel I/O 操作：
+统一管理所有 Excel I/O 操作和输入文件扫描：
   - read_trace_excel: 读取原始迹线表
   - parse_trace_file: 加载并解析为 TraceData
   - build_excel_sections / write_excel_sections: 四区布局写入
+  - find_trace_tables: 扫描输入目录发现迹线表文件
 """
 from __future__ import annotations
 
@@ -16,9 +17,16 @@ import numpy as np
 import pandas as pd
 from openpyxl.utils import get_column_letter
 
-from .models import TraceData
+from .types import TraceData
 
 logger = logging.getLogger(__name__)
+
+# ===========================================================================
+# 文件发现常量
+# ===========================================================================
+
+EXCEL_EXTENSIONS: Tuple[str, ...] = (".xlsx", ".xls")
+TRACE_SUFFIX = "_process"
 
 # ===========================================================================
 # 布局常量（输出 Excel 四区布局）
@@ -212,8 +220,46 @@ def write_excel_sections(
     logger.debug("Excel 写入完成: %s", excel_path)
 
 
+def find_trace_tables(
+    input_dir: str,
+    suffix: str = TRACE_SUFFIX,
+    extensions: Tuple[str, ...] = EXCEL_EXTENSIONS,
+) -> List[Tuple[str, str]]:
+    """扫描输入目录，返回匹配的迹线表列表 [(table_stem, outcrop), ...]。
+
+    匹配规则：
+      - 文件名以 suffix 结尾（不含扩展名）
+      - 扩展名在 extensions 集合中
+      - 同名文件（不同扩展名）按首次发现去重（大小写不敏感）
+
+    Returns:
+        按 outcrop 排序的列表；目录不存在或无匹配时返回空列表。
+    """
+    path = Path(input_dir)
+    if not path.is_dir():
+        logger.warning("输入目录不存在: %s", input_dir)
+        return []
+
+    matched: dict = {}
+    for ext in extensions:
+        for file_path in sorted(path.glob(f"*{suffix}{ext}")):
+            stem = file_path.stem
+            key = stem.lower()
+            if key not in matched:
+                outcrop = stem[: -len(suffix)] if stem.endswith(suffix) else stem
+                matched[key] = (stem, outcrop)
+
+    result = [matched[k] for k in sorted(matched)]
+    if result:
+        logger.info("发现 %d 个迹线表: %s", len(result), ", ".join(b for b, _ in result))
+    else:
+        logger.warning("在 %s 中未发现匹配的迹线表（后缀=%s）", input_dir, suffix)
+    return result
+
+
 __all__ = [
     "build_excel_sections",
+    "find_trace_tables",
     "parse_trace_file",
     "read_trace_excel",
     "write_excel_sections",

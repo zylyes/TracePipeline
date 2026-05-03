@@ -1,10 +1,10 @@
 """迹线图与玫瑰花瓣图绘制。
 
-封装 matplotlib 样式配置与两类图片导出:
+封装 matplotlib 样式配置与两类图片导出：
   - 迹线长度图（原始 / 旋转后）
   - 节理走向玫瑰花瓣图
 
-全局样式通过 configure_plotting_style() 配置，程序启动时调用一次。
+全局样式通过 configure_style() 配置，程序启动时调用一次。
 所有绘图函数无副作用：创建新 Figure → 绘制 → 保存 → 关闭。
 """
 from __future__ import annotations
@@ -20,9 +20,9 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# 全局样式常量
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# 样式常量
+# ===========================================================================
 
 # 中文字体候选列表（按优先级排列）
 _CJK_FONT_CANDIDATES: List[str] = [
@@ -43,94 +43,86 @@ _ROSE_FIGSIZE_CM: Tuple[float, float] = (16, 16)
 _DEFAULT_TRACE_DPI = 300
 _DEFAULT_ROSE_DPI = 400
 
-# 玫瑰图网格线样式
+# 颜色
 _ROSE_GRID_COLOR = "#aab7b8"
 _ROSE_BAR_COLOR = "#4472c4"
 _ROSE_BAR_EDGE = "#1f1f1f"
-
-# 迹线图线条样式
 _TRACE_LINE_COLOR = (0, 0, 0)
 _TRACE_LINE_WIDTH = 1.0
 
-__all__ = [
-    "configure_plotting_style",
-    "lines_to_plot_xy",
-    "render_rose_plot",
-    "render_trace_plot",
-]
+
+# ===========================================================================
+# 字体配置
+# ===========================================================================
 
 
-# ---------------------------------------------------------------------------
-# 运行时字体检测
-# ---------------------------------------------------------------------------
-
-
-def _get_available_cjk_fonts() -> List[str]:
+def _detect_cjk_fonts() -> List[str]:
     """扫描系统已安装的 CJK 字体，返回可用字体名列表。"""
     available = {f.name for f in fm.fontManager.ttflist}
     return [f for f in _CJK_FONT_CANDIDATES if f in available]
 
 
-def configure_plotting_style() -> None:
+def configure_style() -> None:
     """配置 matplotlib 全局样式以支持中文显示。
 
-    策略:
+    策略：
     1. 扫描系统安装的 CJK 字体，优先使用已安装的。
-    2. 将检测到的字体**前插**到现有 font.sans-serif 列表前，不覆盖用户配置。
-    3. 若未找到任何 CJK 字体，回退到 sans-serif 并发出警告。
+    2. 将检测到的字体前插到 font.sans-serif 列表前。
+    3. 显式设置 font.family 为首个可用 CJK 字体。
+    4. 若未找到任何 CJK 字体，回退到 sans-serif 并发出警告。
 
     注意：此函数修改全局 rcParams，应在程序启动时调用一次（幂等）。
     """
-    available_cjk = _get_available_cjk_fonts()
+    available_cjk = _detect_cjk_fonts()
 
-    # 获取当前 sans-serif 列表（保留用户已有设置）
     existing = list(matplotlib.rcParams.get("font.sans-serif", ["sans-serif"]))
-    # 移除可能已存在的重复项
     existing_filtered = [f for f in existing if f not in available_cjk]
 
     if available_cjk:
         font_list = available_cjk + existing_filtered
+        matplotlib.rcParams["font.family"] = "sans-serif"
+        matplotlib.rcParams["font.sans-serif"] = font_list
         logger.info("检测到 CJK 字体: %s", ", ".join(available_cjk[:3]))
     else:
         font_list = existing_filtered
-        logger.warning("未检测到 CJK 字体，中文标题可能无法正常显示。"
-                       "建议安装 SimHei / Microsoft YaHei 等中文字体。")
+        logger.warning(
+            "未检测到 CJK 字体，中文标题可能无法正常显示。"
+            "建议安装 SimHei / Microsoft YaHei 等中文字体。"
+        )
 
-    matplotlib.rcParams["font.sans-serif"] = font_list
     matplotlib.rcParams["axes.unicode_minus"] = False
     logger.debug("matplotlib 全局样式已配置")
 
 
-# ---------------------------------------------------------------------------
+# ===========================================================================
 # 数据转换
-# ---------------------------------------------------------------------------
+# ===========================================================================
 
 
-def lines_to_plot_xy(XY: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """将 (N,4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
+def segments_to_plot_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """将 (N, 4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
 
     NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
     """
-    if XY.ndim != 2 or XY.shape[1] != 4:
-        raise ValueError(f"XY 必须为 (N,4) 形状，当前 {XY.shape}")
-    n = XY.shape[0]
+    if segments.ndim != 2 or segments.shape[1] != 4:
+        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {segments.shape}")
+    n = segments.shape[0]
     if n == 0:
         return np.array([]), np.array([])
 
-    X_plot = np.column_stack([XY[:, 0], XY[:, 2], np.full((n,), np.nan)]).ravel()
-    Y_plot = np.column_stack([XY[:, 1], XY[:, 3], np.full((n,), np.nan)]).ravel()
-    return X_plot, Y_plot
+    X = np.column_stack([segments[:, 0], segments[:, 2], np.full((n,), np.nan)]).ravel()
+    Y = np.column_stack([segments[:, 1], segments[:, 3], np.full((n,), np.nan)]).ravel()
+    return X, Y
 
 
-# ---------------------------------------------------------------------------
+# ===========================================================================
 # 玫瑰图数据
-# ---------------------------------------------------------------------------
+# ===========================================================================
 
 
 def _fold_strike_angles(strike_deg: np.ndarray) -> np.ndarray:
     """将走向角折叠到 [0, 180)。"""
     folded = np.mod(np.asarray(strike_deg, dtype=float), 180.0)
-    # 将恰好等于 180° 的值归为 0°（因为 0° 与 180° 等同方向）
     folded[np.isclose(folded, 180.0)] = 0.0
     return folded
 
@@ -139,18 +131,7 @@ def _compute_rose_histogram(
     strike_deg: np.ndarray,
     bin_width: float = 10.0,
 ) -> Tuple[np.ndarray, np.ndarray, float]:
-    """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。
-
-    Args:
-        strike_deg: 节理走向数组（度），任意大小。
-        bin_width: 分箱宽度（度），必须 ∈ (0, 180]。
-
-    Returns:
-        (theta, radii, width_rad):
-        - theta: 各柱体的角度（弧度），长度 = 2 × bin_count
-        - radii: 各柱体的频数，长度 = 2 × bin_count
-        - width_rad: 柱宽（弧度）
-    """
+    """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。"""
     if not (0 < bin_width <= 180):
         raise ValueError("rose bin_width 必须在 (0, 180] 范围内")
 
@@ -163,16 +144,16 @@ def _compute_rose_histogram(
     counts, _ = np.histogram(folded, bins=edges)
     centers = (edges[:-1] + edges[1:]) / 2.0
 
-    # 玫瑰图需要对称复制（上半圆 + 下半圆）
+    # 对称复制（上半圆 + 下半圆）
     theta = np.deg2rad(np.concatenate([centers, centers + 180.0]))
     radii = np.concatenate([counts, counts])
     width = np.deg2rad(edges[1] - edges[0])
     return theta, radii, width
 
 
-# ---------------------------------------------------------------------------
-# 公共绘图辅助
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# 绘图辅助
+# ===========================================================================
 
 
 def _style_trace_axes(ax: plt.Axes) -> None:
@@ -186,17 +167,8 @@ def _style_trace_axes(ax: plt.Axes) -> None:
     ax.set_facecolor("white")
 
 
-def _export_figure(
-    fig: plt.Figure,
-    output_dir: str,
-    filename: str,
-    dpi: int = 300,
-) -> str:
-    """保存并关闭图形，返回完整输出路径。
-
-    Raises:
-        OSError: 若目录创建或文件写入失败。
-    """
+def _save_figure(fig: plt.Figure, output_dir: str, filename: str, dpi: int = 300) -> str:
+    """保存并关闭图形，返回完整输出路径。"""
     os.makedirs(output_dir, exist_ok=True)
     full_path = os.path.join(output_dir, filename)
     try:
@@ -223,9 +195,9 @@ def _new_figure(
     return fig, ax
 
 
-# ---------------------------------------------------------------------------
+# ===========================================================================
 # 迹线图
-# ---------------------------------------------------------------------------
+# ===========================================================================
 
 
 def render_trace_plot(
@@ -246,12 +218,12 @@ def render_trace_plot(
     ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
     _style_trace_axes(ax)
     ax.set_title(title, fontsize=12)
-    return _export_figure(fig, output_dir, filename, dpi=dpi)
+    return _save_figure(fig, output_dir, filename, dpi=dpi)
 
 
-# ---------------------------------------------------------------------------
+# ===========================================================================
 # 玫瑰花瓣图
-# ---------------------------------------------------------------------------
+# ===========================================================================
 
 
 def render_rose_plot(
@@ -295,4 +267,12 @@ def render_rose_plot(
         ax.set_ylim(0, 1)
 
     ax.set_title(title, fontsize=12, pad=18)
-    return _export_figure(fig, output_dir, filename, dpi=dpi)
+    return _save_figure(fig, output_dir, filename, dpi=dpi)
+
+
+__all__ = [
+    "configure_style",
+    "render_rose_plot",
+    "render_trace_plot",
+    "segments_to_plot_xy",
+]

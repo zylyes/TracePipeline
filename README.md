@@ -18,14 +18,16 @@
 ├── trace_pipeline/                # 核心包
 │   ├── __init__.py                # 包导出
 │   ├── config.py                  # 配置加载、校验、路径解析、文件发现
-│   ├── data_loader.py             # Excel 读取与 ParsedTraceData 封装
+│   ├── models.py                  # TraceData / RunConfig / RunResult 数据模型
+│   ├── angles.py                  # 地质角度转换（倾向⇄走向、折叠、半平面）
 │   ├── geometry.py                # 迹线端点向量化计算（复数运算）
-│   ├── transforms.py              # 坐标平移与旋转
-│   ├── excel_export.py            # Excel 输出构建与写入
+│   ├── transforms.py              # 坐标平移与旋转变换
+│   ├── io.py                      # Excel 读取与四区布局写入
 │   ├── plotting.py                # 迹线图与玫瑰花瓣图绘制
+│   ├── display.py                 # 结果格式化展示与汇总报告
 │   └── pipeline.py                # 单目标全流程编排
 │
-├── input/                         # 输入目录（存放 *_process.xlsx）
+├── input/                         # 输入目录（存放 *_process.xls*）
 ├── output/                        # 输出目录（Excel + 图片）
 ├── logs/                          # 运行日志
 ├── matlab参考/                     # MATLAB 原版参考代码
@@ -85,15 +87,17 @@ pip install -e .
 
 ```json
 {
-  "input_dir":       "input",       // 输入目录（相对/绝对路径）
-  "output_dir":      "output",      // 输出目录
-  "file_name":       "Outcrop",     // 输出文件命名前缀
-  "excel_base":      "O76_process", // 单文件模式下读取的 Excel 文件名（不含扩展名）
-  "outcrop_name":    "O76",         // 露头名称（也是 Excel 工作表名）
-  "process_all":     true,          // true=批量处理，false=仅处理 excel_base 指定的文件
-  "export_rose_plot": true,         // 是否导出玫瑰花瓣图
-  "rose_bin_width":  10,           // 玫瑰图分箱宽度（度）
-  "rose_dpi":        400           // 玫瑰图分辨率
+  "input_dir":          "input",       // 输入目录（相对/绝对路径）
+  "output_dir":         "output",      // 输出目录
+  "output_prefix":      "Outcrop",     // 输出文件命名前缀
+  "table_stem":         "O76_process", // 单文件模式下读取的 Excel 文件名（不含扩展名）
+  "outcrop":            "O76",         // 露头名称（也是 Excel 工作表名）
+  "process_all":        true,          // true=批量处理，false=仅处理 table_stem 指定的文件
+  "export_rose_plot":    true,         // 是否导出玫瑰花瓣图
+  "rose_bin_width":      10,          // 玫瑰图分箱宽度（度）
+  "rose_dpi":            400,         // 玫瑰图分辨率
+  "trace_dpi":           300,         // 原始迹线图分辨率
+  "rotated_trace_dpi":   600          // 旋转迹线图分辨率
 }
 ```
 
@@ -123,10 +127,14 @@ python run_trace_pipeline.py -i ./data -o ./results
 | `--input` | `-i` | 输入目录（覆盖 `config.json` 中的 `input_dir`） |
 | `--output` | `-o` | 输出目录（覆盖 `config.json` 中的 `output_dir`） |
 | `--config` | `-c` | 自定义 JSON 配置文件路径 |
-| `--single` | `-s` | **单文件模式**：仅处理配置中 `excel_base` 指定的文件（忽略目录扫描） |
+| `--single` | `-s` | **单文件模式**：仅处理配置中 `table_stem` 指定的文件（忽略目录扫描） |
 | `--rose-bin` | — | 玫瑰图分箱宽度（度），如 `--rose-bin 15` |
 | `--rose-dpi` | — | 玫瑰图 DPI，如 `--rose-dpi 600` |
 | `--no-rose` | — | 跳过玫瑰图导出 |
+| `--parallel` | `-p` | 并行处理线程数（默认 0=串行），如 `-p 4` |
+| `--list` | `-l` | 列出发现的迹线表文件后退出 |
+| `--interactive` | `-I` | 交互模式：列出文件后由用户选择处理目标 |
+| `--dry-run` | `-n` | 试运行：打印待处理目标但不实际执行 |
 
 ### 运行模式
 
@@ -165,12 +173,14 @@ python run_trace_pipeline.py -s -c my_conf.json # 使用自定义配置的单文
 
 | 模块 | 职责 |
 |---|---|
-| `config.py` | 加载/校验 JSON 配置；输入目录文件发现（`find_trace_tables`）；路径解析 |
-| `data_loader.py` | 读取 Excel（优先 .xlsx，回退 .xls）；封装 `ParsedTraceData` 数据类 |
-| `geometry.py` | **纯向量化**复数运算计算迹线端点；倾向→走向转换 |
+| `config.py` | 加载/校验 JSON 配置；输入目录文件发现（`find_trace_tables`）；路径解析与 CLI 覆盖合并 |
+| `models.py` | 不可变数据类：`TraceData`（解析结果）、`RunConfig`（运行参数）、`RunResult`（运行结果） |
+| `angles.py` | 纯函数角度工具：倾向→走向转换、走向角折叠、半平面折叠 |
+| `geometry.py` | **纯向量化**复数运算计算迹线端点；表头解析与数值提取 |
 | `transforms.py` | 坐标平移（正象限留白）→ 走向旋转 → 再次平移的规范化流水线 |
-| `excel_export.py` | 将结果拆分为四个区域（基本信息、原始坐标、旋转坐标、走向与长度）写入 Excel |
+| `io.py` | 统一 Excel I/O：读取（优先 .xlsx，回退 .xls）、四区布局写入 |
 | `plotting.py` | matplotlib 绘图：迹线长度图（原始/旋转后）、节理走向玫瑰花瓣图 |
+| `display.py` | 结果格式化展示：单结果详情、批量汇总表、统计摘要 |
 | `pipeline.py` | 单目标全流程编排，异常包装与日志 |
 
 ---
@@ -226,7 +236,7 @@ dd + 90 & dd < 90
 
 ### 1. Excel 文件
 
-`{file_name}_traces.xlsx`，单个工作表，包含四个区域：
+`{output_prefix}_traces.xlsx`，单个工作表，包含四个区域：
 
 | 区域 | 内容 |
 |---|---|
@@ -261,6 +271,18 @@ python run_trace_pipeline.py -i ./field_data -o ./figures --rose-bin 15 --rose-d
 
 # 4. 批量处理但跳过玫瑰图
 python run_trace_pipeline.py --no-rose
+
+# 5. 列出所有可用迹线表
+python run_trace_pipeline.py -l
+
+# 6. 交互式选择处理目标
+python run_trace_pipeline.py -I
+
+# 7. 试运行（不产生输出）
+python run_trace_pipeline.py -n
+
+# 8. 4 线程并行处理
+python run_trace_pipeline.py -p 4
 ```
 
 ---
@@ -273,7 +295,7 @@ python run_trace_pipeline.py --no-rose
 |---|---|
 | `A_outcrop_0map_coordinate.m` | 旧版主流程 → 现由 `pipeline.py` + `run_trace_pipeline.py` 替代 |
 | `A_outcrop_0map_rotate.m` | 坐标旋转 → `transforms.py` |
-| `Coordinate.m` | 几何计算 → `geometry.py` |
+| `Coordinate.m` | 几何计算 → `geometry.py` + `angles.py` |
 
 Python 实现采用向量化复数运算替代 MATLAB 的逐行循环，计算效率更高，且输出结果与原版一致。
 

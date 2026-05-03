@@ -1,16 +1,20 @@
 {
   "_comment": "岩体节理测线坐标计算与绘图工具 — 配置文件",
   "_usage": "命令行可通过 --input/-i、--output/-o、--rose-bin、--rose-dpi、--no-rose 覆盖以下选项",
+  "_note": "v2.0 键名更新: excel_base→table_stem, outcrop_name→outcrop, file_name→output_prefix",
 
   "input_dir": "input",
   "output_dir": "output",
 
-  "file_name": "Outcrop",
-  "excel_base": "O76_process",
-  "outcrop_name": "O76",
+  "output_prefix": "Outcrop",
+  "table_stem": "O76_process",
+  "outcrop": "O76",
 
   "process_all": true,
   "export_rose_plot": true,
   "rose_bin_width": 10,
-  "rose_dpi": 400
+  "rose_dpi": 400,
+
+  "trace_dpi": 300,
+  "rotated_trace_dpi": 600
 }

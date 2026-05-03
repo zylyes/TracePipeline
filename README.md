@@ -56,6 +56,7 @@
 | `matplotlib` | 迹线图与玫瑰图绘制 |
 | `openpyxl` | .xlsx 读写引擎 |
 | `xlrd` | .xls 回退读取引擎 |
+| `tqdm` | 命令行进度条 |
 | `pytest` | 单元测试（开发用） |
 
 ### 快速开始
@@ -144,7 +145,7 @@ python run_trace_pipeline.py -i ./data -o ./results
 python run_trace_pipeline.py                    # 批量处理 input/ 下所有 *_process.xlsx
 ```
 
-**单文件模式**：仅处理 `config.json` 中 `excel_base` 指定的文件。
+**单文件模式**：仅处理 `config.json` 中 `table_stem` 指定的文件。
 
 ```bash
 python run_trace_pipeline.py -s                 # 仅处理 O76_process.xlsx
@@ -159,14 +160,14 @@ python run_trace_pipeline.py -s -c my_conf.json # 使用自定义配置的单文
 
 ```
 加载配置 → 文件发现 → 逐目标处理 →
-  1. 读取 Excel（data_loader）
-  2. 解析表头与数值矩阵（geometry）
-  3. 倾向 → 走向转换（geometry）
+  1. 读取 Excel（io.parse_trace_file）
+  2. 解析表头与数值矩阵（geometry.compute_endpoints）
+  3. 倾向 → 走向转换（angles.dip_to_strike）
   4. 向量化端点坐标计算（geometry）
-  5. 坐标规范化：平移 → 走向旋转 → 再平移（transforms）
-  6. 导出 Excel（excel_export）
-  7. 绘制迹线图（原始 & 旋转后）（plotting）
-  8. 绘制玫瑰花瓣图（plotting）
+  5. 坐标规范化：平移 → 走向旋转 → 再平移（transforms.normalize_coordinates）
+  6. 导出 Excel（io.build_excel_sections + io.write_excel_sections）
+  7. 绘制迹线图（原始 & 旋转后）（plotting.render_trace_plot）
+  8. 绘制玫瑰花瓣图（plotting.render_rose_plot）
 ```
 
 ### 核心模块说明
@@ -205,7 +206,7 @@ python run_trace_pipeline.py -s -c my_conf.json # 使用自定义配置的单文
 
 **重要规则：**
 - 文件名需以 `_process` 结尾（如 `O76_process.xlsx`），批量模式下按此规则发现文件。
-- 工作表名使用 `outcrop_name`（如 `O76`）；若不存在，自动回退到第一个工作表。
+- 工作表名使用 `outcrop`（如 `O76`）；若不存在，自动回退到第一个工作表。
 - 前 `n` 行的前 7 列必须为数值，不可包含空值或文本。
 - 迹线类型由 `r5` 和 `r7` 是否为 0 自动判定：
   - **左迹线**（`r5 ≠ 0, r7 = 0`）：仅左侧有迹长数据
@@ -321,4 +322,4 @@ pytest
 
 ### 扩展
 
-新增模块只需在 `trace_pipeline/` 下创建文件，并在 `__init__.py` 中导出即可。流水线编排在 `pipeline.py` 的 `process_target()` 函数中，可按需插入或替换阶段。
+新增模块只需在 `trace_pipeline/` 下创建文件，并在 `__init__.py` 中导出即可。流水线编排在 `pipeline.py` 的 `run_pipeline()` 函数中，可按需插入或替换阶段。

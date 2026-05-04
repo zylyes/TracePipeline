@@ -11,6 +11,23 @@ Excel 列布局（0-based）:
   2: 倾向（输入，转为走向） 6: 右迹长 2 (r7)
   3: 左迹长 1 (r4)        7: 测线走向 ang0 [首行]
                            8: 迹线条数 n [首行]
+
+MATLAB ↔ Python 变量对照（见 docs/matlab_reference/Coordinate.m）:
+  MATLAB          ┃ Python
+  ─────────────── ┃ ─────────────────────────────
+  ang0            ┃ azimuth
+  dd              ┃ M[:, COL_DIP]（转换前=倾向，转换后=走向）
+  traceAngles     ┃ joint_strike
+  ang_0 / rad_0   ┃ ang_base_deg / rad_base
+  ang1            ┃ ang_joint
+  rada / rade     ┃ fold_to_halfplane(..., invert=False/True) 结果
+  r1..r7          ┃ r1..r7（同名）
+  z1              ┃ z1_base（复数向量）
+  r4≠0,r6=0       ┃ mask_only_left   → _compute_left_only
+  r4=0,r6≠0       ┃ mask_only_right  → _compute_right_only
+  r4≠0,r6≠0       ┃ mask_both        → _compute_bilateral
+
+历史文件名：geometry.py（位于 trace_pipeline 根）。
 """
 from __future__ import annotations
 
@@ -155,17 +172,18 @@ def _compute_bilateral(
 # ===========================================================================
 
 
-def compute_endpoints(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndarray]:
+def compute_endpoints(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndarray, np.ndarray]:
     """从原始表格解析测线走向、迹线条数与端点坐标（纯向量化）。
 
     整合表头解析、数值提取、角度转换与三种情况的端点计算。
 
     Returns:
-        (azimuth, count, endpoints, joint_strikes):
+        (azimuth, count, endpoints, joint_strikes, segment_lengths):
         - azimuth: 测线走向角（度），[0, 360)
         - count: 迹线条数
         - endpoints: 端点坐标 (N, 4), [x1, y1, x2, y2]
         - joint_strikes: 节理走向（度），长度 N
+        - segment_lengths: 沿测段的迹线长度 r5+r7（MATLAB 定义），长度 N
     """
     azimuth, n = _parse_header(df)
     M = _extract_numeric_block(df, n)
@@ -177,6 +195,8 @@ def compute_endpoints(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndar
     r5 = M[:, COL_LEFT_LEN2]
     r6 = M[:, COL_RIGHT_LEN1]
     r7 = M[:, COL_RIGHT_LEN2]
+
+    segment_lengths = r5 + r7
 
     # ---- 基准角 ----
     ang_base_deg = 90.0 - azimuth if azimuth < 90.0 else 450.0 - azimuth
@@ -222,7 +242,7 @@ def compute_endpoints(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndar
         )
 
     endpoints = np.column_stack((X1, Y1, X2, Y2))
-    return azimuth, n, endpoints, joint_strike
+    return azimuth, n, endpoints, joint_strike, segment_lengths
 
 
 __all__ = [

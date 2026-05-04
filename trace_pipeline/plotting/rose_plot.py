@@ -1,0 +1,84 @@
+"""节理走向玫瑰花瓣图绘制。"""
+from __future__ import annotations
+
+from typing import Tuple
+
+import numpy as np
+
+from ..geology.angles import fold_strikes_to_semicircle
+from ._helpers import new_figure, save_figure
+
+__all__ = ["render_rose_plot"]
+
+_ROSE_FIGSIZE_CM: Tuple[float, float] = (16, 16)
+_DEFAULT_ROSE_DPI = 400
+_ROSE_GRID_COLOR = "#aab7b8"
+_ROSE_BAR_COLOR = "#4472c4"
+_ROSE_BAR_EDGE = "#1f1f1f"
+
+
+def _compute_rose_histogram(
+    strike_deg: np.ndarray,
+    bin_width: float = 10.0,
+) -> Tuple[np.ndarray, np.ndarray, float]:
+    """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。"""
+    if not (0 < bin_width <= 180):
+        raise ValueError("rose bin_width 必须在 (0, 180] 范围内")
+
+    folded = fold_strikes_to_semicircle(strike_deg)
+    if folded.size == 0:
+        return np.array([]), np.array([]), np.deg2rad(bin_width)
+
+    bin_count = max(1, int(round(180.0 / bin_width)))
+    edges = np.linspace(0.0, 180.0, num=bin_count + 1)
+    counts, _ = np.histogram(folded, bins=edges)
+    centers = (edges[:-1] + edges[1:]) / 2.0
+
+    theta = np.deg2rad(np.concatenate([centers, centers + 180.0]))
+    radii = np.concatenate([counts, counts])
+    width = np.deg2rad(edges[1] - edges[0])
+    return theta, radii, width
+
+
+def render_rose_plot(
+    strike_deg: np.ndarray,
+    title: str,
+    output_dir: str,
+    filename: str,
+    bin_width: float = 10.0,
+    dpi: int = _DEFAULT_ROSE_DPI,
+    figsize_cm: Tuple[float, float] = _ROSE_FIGSIZE_CM,
+) -> str:
+    """绘制并保存节理走向玫瑰花瓣图。
+
+    Returns:
+        输出文件的完整路径。
+    """
+    theta, radii, width = _compute_rose_histogram(strike_deg, bin_width=bin_width)
+
+    fig, ax = new_figure(
+        figsize_cm, dpi=dpi,
+        subplot_kw={"projection": "polar"},
+    )
+    ax.set_facecolor("white")
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_thetagrids(np.arange(0, 360, 30))
+    ax.grid(
+        color=_ROSE_GRID_COLOR, alpha=0.7,
+        linewidth=0.8, linestyle="-",
+    )
+
+    if radii.size:
+        ax.bar(
+            theta, radii,
+            width=width, bottom=0.0,
+            color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
+            linewidth=0.8, alpha=0.85, align="center",
+        )
+        ax.set_ylim(0, max(1, int(radii.max())))
+    else:
+        ax.set_ylim(0, 1)
+
+    ax.set_title(title, fontsize=12, pad=18)
+    return save_figure(fig, output_dir, filename, dpi=dpi)

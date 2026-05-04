@@ -76,8 +76,11 @@ def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
 
 
 def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
-    """合并默认值、规范化类型并检查必填项。"""
+    """合并默认值、规范化类型并检查必填项；对未知键发出警告。"""
     merged = dict(DEFAULT_CONFIG)
+    unknown = [k for k in cfg.keys() if k not in merged]
+    if unknown:
+        logger.warning("忽略未知配置项: %s", ", ".join(sorted(unknown)))
     merged.update({k: v for k, v in cfg.items() if k in merged})
 
     missing = [k for k in _REQUIRED_KEYS if str(merged.get(k, "")).strip() == ""]

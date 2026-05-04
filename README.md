@@ -20,24 +20,50 @@
 ├── run_trace_pipeline.py          # CLI 入口脚本
 │
 ├── trace_pipeline/                # 核心包
-│   ├── __init__.py                # 包导出
-│   ├── config.py                  # 配置加载、校验、路径解析、文件发现
-│   ├── types.py                   # TraceData / RunConfig / RunResult 数据模型
-│   ├── angles.py                  # 地质角度转换（倾向⇄走向、折叠、半平面）
-│   ├── geometry.py                # 迹线端点向量化计算（复数运算）
-│   ├── transforms.py              # 坐标平移与旋转变换
-│   ├── io.py                      # Excel 读取与四区布局写入
-│   ├── plotting.py                # 迹线图与玫瑰花瓣图绘制
-│   ├── report.py                  # 结果格式化展示与汇总报告
-│   └── pipeline.py                # 单目标全流程编排
+│   ├── __init__.py                # 顶层公开 API（仅导出常用入口）
+│   ├── __main__.py                # 支持 `python -m trace_pipeline`
+│   ├── models.py                  # TraceData / RunConfig / RunResult 数据模型
+│   ├── config.py                  # 配置加载、校验、路径解析
+│   ├── pipeline.py                # 单目标全流程编排 + load_trace_data
+│   ├── reporting.py               # 结果格式化展示与汇总报告
+│   │
+│   ├── geology/                   # 地质/几何算法（纯函数，无 I/O）
+│   │   ├── angles.py              # 倾向⇄走向、折叠、半平面
+│   │   ├── endpoints.py           # 迹线端点向量化计算（复数运算）
+│   │   └── transforms.py          # 坐标平移与旋转变换
+│   │
+│   ├── io/                        # I/O 层
+│   │   ├── excel_reader.py        # Excel 读取
+│   │   ├── excel_writer.py        # 四区布局写入 + ExcelLayout dataclass
+│   │   └── discovery.py           # 输入目录扫描 + TraceFile NamedTuple
+│   │
+│   ├── plotting/                  # 绘图层
+│   │   ├── style.py               # 全局样式 + CJK 字体
+│   │   ├── trace_plot.py          # 迹线图 + segments_to_xy
+│   │   ├── rose_plot.py           # 玫瑰花瓣图
+│   │   └── _helpers.py            # Figure 辅助
+│   │
+│   └── cli/                       # 命令行入口
+│       ├── main.py                # 顶层编排
+│       ├── args.py                # argparse 与覆盖映射
+│       ├── interactive.py         # 交互式选择
+│       ├── dispatcher.py          # 目标决策与串/并执行统一
+│       └── logging_setup.py       # 日志初始化
 │
 ├── input/                         # 输入目录（存放 *_process.xls*）
 ├── output/                        # 输出目录（Excel + 图片）
 ├── logs/                          # 运行日志
-├── matlab参考/                     # MATLAB 原版参考代码
-│   ├── A_outcrop_0map_coordinate.m
-│   ├── A_outcrop_0map_rotate.m
-│   └── Coordinate.m
+├── tests/                         # pytest 单元测试
+│   ├── test_angles.py
+│   ├── test_transforms.py
+│   ├── test_endpoints.py
+│   └── test_discovery.py
+├── docs/
+│   └── matlab_reference/          # MATLAB 原版参考代码（已迁离根目录）
+│       ├── README.md              # MATLAB ↔ Python 对应表 + bug 记录
+│       ├── A_outcrop_0map_coordinate.m
+│       ├── A_outcrop_0map_rotate.m
+│       └── Coordinate.m
 │
 ├── 杂项/                          # 研究资料（毕业设计任务书、现场照片、测线法说明PPT等）
 │   ├── 毕业设计任务流程与预期成果.md  # 论文写作 + 代码完善进度跟踪
@@ -414,3 +440,18 @@ pytest
 ### 扩展
 
 新增模块只需在 `trace_pipeline/` 下创建文件，并在 `__init__.py` 中导出即可。流水线编排在 `pipeline.py` 的 `run_pipeline()` 函数中，可按需插入或替换阶段。
+
+---
+
+## MATLAB �� Python Ǩ�Ʊʼ�
+
+MATLAB ԭ�����λ�� `docs/matlab_reference/`����ϸ���ռ���Ŀ¼�� `README.md`��
+
+��ҪǨ��Ҫ�㣺
+
+- **��������д**�����м��߼�ѭ����Ϊ NumPy mask ��֧���� `geology/endpoints.py`�����Ƕ�ת������ƽ���ж���Ϊ ndarray ��γ��Ρ�
+- **���� MATLAB ��ת�� if �� bug**��`A_outcrop_0map_rotate.m:68-76` �� `if ang0<=360` ��ԶΪ�浼�º�����֧���ɴPython �� `fold_strike_angle` ������ȷ�� [-90��, 90��] �۵����塣
+- **���߳���˫�����**��Excel ͬʱ��� `�˵����`��ŷ�Ͼ��룩�� `��γ���(r5+r7)`��MATLAB ԭ���壩�����������������
+- **��������**������/���д�����õ�廨��ͼ������ѡ�������С���־˫ͨ��������У�顣
+- **���� API ����**������ `trace_pipeline` ������ 15 �����÷��ţ�����Ͳ㺯�������ģ�鵼�루�� `from trace_pipeline.geology.angles import fold_strike_angle`����
+

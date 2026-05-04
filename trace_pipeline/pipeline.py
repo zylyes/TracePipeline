@@ -1,19 +1,45 @@
 """迹线处理流水线 — 单目标全流程编排。
 
 串联「加载 → 计算 → 变换 → 导出 Excel → 绘制图片」五个阶段。
-不包含几何计算或绘图细节，仅做编排与异常包装。
 """
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from .io import build_excel_sections, parse_trace_file, write_excel_sections
-from .plotting import render_rose_plot, render_trace_plot
-from .transforms import normalize_coordinates, segments_to_xy
-from .types import RunConfig, RunResult
+import numpy as np
+
+from .geology.endpoints import compute_endpoints
+from .geology.transforms import normalize_coordinates
+from .io.excel_reader import read_trace_excel
+from .io.excel_writer import build_excel_sections, write_excel_sections
+from .models import RunConfig, RunResult, TraceData
+from .plotting.rose_plot import render_rose_plot
+from .plotting.trace_plot import render_trace_plot
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["load_trace_data", "run_pipeline"]
+
+
+def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
+    """读取迹线 Excel 表并解析为 TraceData。"""
+    logger.info("加载迹线数据: %s/%s", input_dir, table_stem)
+    df = read_trace_excel(input_dir, table_stem, outcrop)
+
+    azimuth, n, endpoints, joint_strikes, segment_lengths = compute_endpoints(df)
+    trace = TraceData(
+        scanline_azimuth=azimuth,
+        count=n,
+        endpoints=endpoints,
+        joint_strikes=joint_strikes,
+        segment_lengths=segment_lengths,
+    )
+    logger.info(
+        "解析完成: %d 条迹线, 走向 %.1f°, 平均端点距离 %.2f",
+        n, azimuth, trace.mean_length,
+    )
+    return trace
 
 
 def run_pipeline(cfg: RunConfig) -> RunResult:
@@ -29,7 +55,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         logger.info("开始处理: %s", cfg.outcrop)
 
         # ---- 1. 加载数据 ----
-        trace = parse_trace_file(cfg.input_dir, cfg.table_stem, cfg.outcrop)
+        trace = load_trace_data(cfg.input_dir, cfg.table_stem, cfg.outcrop)
         logger.info(
             "数据加载完成: %s — %d 条迹线, 走向 %.1f°",
             cfg.outcrop, trace.count, trace.scanline_azimuth,
@@ -54,7 +80,6 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             f"{cfg.outcrop}_raw(n={trace.count}).png",
             dpi=cfg.trace_dpi,
         )
-
         rot_plot = render_trace_plot(
             rotated,
             f"迹线长度图（数量={trace.count}）\n标尺（走向={trace.scanline_azimuth}°）",
@@ -64,7 +89,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         )
 
         rose_plot = ""
-        if cfg.export_rose:
+        if cfg.export_rose_plot:
             rose_plot = render_rose_plot(
                 trace.joint_strikes,
                 f"产状玫瑰花瓣图（数量={trace.count}，分箱={cfg.rose_bin_width}°）",
@@ -87,20 +112,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             rose_plot_path=rose_plot,
         )
 
-    except FileNotFoundError as exc:
-        logger.error("文件未找到 [%s]: %s", cfg.outcrop, exc)
-        return RunResult.failure(cfg.table_stem, str(exc))
-    except ValueError as exc:
-        logger.error("数据校验失败 [%s]: %s", cfg.outcrop, exc)
-        return RunResult.failure(cfg.table_stem, str(exc))
-    except OSError as exc:
-        logger.error("文件写入失败 [%s]: %s", cfg.outcrop, exc)
+    except (FileNotFoundError, ValueError, OSError) as exc:
+        logger.error("处理 [%s] 失败 (%s): %s", cfg.outcrop, type(exc).__name__, exc)
         return RunResult.failure(cfg.table_stem, str(exc))
     except Exception as exc:
         logger.error("处理 [%s] 时发生未预期错误: %s", cfg.outcrop, exc, exc_info=True)
         return RunResult.failure(cfg.table_stem, str(exc))
-
-
-__all__ = [
-    "run_pipeline",
-]

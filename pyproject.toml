@@ -18,7 +18,10 @@ dependencies = [
 ]
 
 [project.scripts]
-trace-pipeline = "run_trace_pipeline:main"
+trace-pipeline = "trace_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["trace_pipeline*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

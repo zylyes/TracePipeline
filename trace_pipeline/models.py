@@ -5,13 +5,11 @@
   - RunConfig  : 单次流水线运行的参数（含校验）
   - RunResult  : 单次流水线运行的结果
 
-数值校验函数（内部使用）：
-  - _validate_rose_bin_width
-  - _validate_dpi
+（历史文件名：types.py）
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Mapping
 
@@ -65,12 +63,14 @@ class TraceData:
         count: 迹线条数，≥ 0。
         endpoints: 端点坐标 (N, 4)，列序 [x1, y1, x2, y2]。
         joint_strikes: 各节理走向角（度），长度 N。
+        segment_lengths: 沿测段的迹线长度 r5+r7（MATLAB 定义），长度 N。
     """
 
     scanline_azimuth: float
     count: int
     endpoints: np.ndarray
     joint_strikes: np.ndarray
+    segment_lengths: np.ndarray
 
     def __post_init__(self) -> None:
         if not np.isfinite(self.scanline_azimuth):
@@ -87,12 +87,17 @@ class TraceData:
                     f"joint_strikes 长度 {len(self.joint_strikes)} "
                     f"与 count={self.count} 不一致"
                 )
+            if len(self.segment_lengths) != self.count:
+                raise ValueError(
+                    f"segment_lengths 长度 {len(self.segment_lengths)} "
+                    f"与 count={self.count} 不一致"
+                )
 
     # ---- 派生属性 ----
 
     @cached_property
     def lengths(self) -> np.ndarray:
-        """迹线二维欧氏长度 (N,)，首次访问后缓存。"""
+        """迹线端点间的二维欧氏距离 (N,)，首次访问后缓存。"""
         if self.count == 0:
             return np.array([], dtype=float)
         dx = self.endpoints[:, 2] - self.endpoints[:, 0]
@@ -101,7 +106,7 @@ class TraceData:
 
     @property
     def mean_length(self) -> float:
-        """平均迹线长度。"""
+        """平均迹线长度（基于端点距离）。"""
         return float(self.lengths.mean()) if self.count else 0.0
 
 
@@ -120,7 +125,7 @@ class RunConfig:
         output_prefix: 输出文件命名前缀。
         table_stem: 迹线表文件名（不含扩展名）。
         outcrop: 露头标识（也是 Excel 工作表名）。
-        export_rose: 是否导出玫瑰花瓣图。
+        export_rose_plot: 是否导出玫瑰花瓣图。
         rose_bin_width: 玫瑰图分箱宽度（度）。
         rose_dpi: 玫瑰图分辨率。
         trace_dpi: 原始迹线图分辨率。
@@ -132,7 +137,7 @@ class RunConfig:
     output_prefix: str
     table_stem: str
     outcrop: str
-    export_rose: bool = True
+    export_rose_plot: bool = True
     rose_bin_width: float = 10.0
     rose_dpi: int = 400
     trace_dpi: int = 300
@@ -158,7 +163,7 @@ class RunConfig:
             output_prefix=str(cfg["output_prefix"]),
             table_stem=str(cfg["table_stem"]),
             outcrop=str(cfg["outcrop"]),
-            export_rose=bool(cfg.get("export_rose_plot", True)),
+            export_rose_plot=bool(cfg.get("export_rose_plot", True)),
             rose_bin_width=float(cfg.get("rose_bin_width", 10.0)),
             rose_dpi=int(cfg.get("rose_dpi", 400)),
             trace_dpi=int(cfg.get("trace_dpi", 300)),

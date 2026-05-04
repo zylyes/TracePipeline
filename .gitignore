@@ -46,3 +46,6 @@ reference/**/*.pptx
 reference/**/*.JPG
 reference/**/*.jpg
 reference/**/*.png
+docs/*
+!docs/matlab_reference/
+!docs/matlab_reference/**

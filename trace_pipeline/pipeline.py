@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from .geology.endpoints import compute_endpoints
+from .geology.angles import fold_strike_angle
 from .geology.transforms import normalize_coordinates
 from .io.excel_reader import read_trace_excel
 from .io.excel_writer import build_excel_sections, write_excel_sections
@@ -63,6 +64,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
         # ---- 2. 坐标变换 ----
         rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
+        rotated_north_angle = 90.0 + float(np.degrees(fold_strike_angle(trace.scanline_azimuth)))
 
         # ---- 3. 导出 Excel ----
         output_dir = Path(cfg.output_dir)
@@ -86,6 +88,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             str(output_dir),
             f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
             dpi=cfg.rotated_trace_dpi,
+            north_angle_deg=rotated_north_angle,
         )
 
         rose_plot = ""

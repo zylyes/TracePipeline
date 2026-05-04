@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -18,6 +19,16 @@ coverage.xml
 *.cover
 *.log
 .pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Build artifacts
+*.egg-info/
+*.egg
+*.whl
+dist/
+build/
 
 # VS Code
 .vscode/
@@ -25,8 +36,14 @@ coverage.xml
 # Project specific
 input/
 output/
-matlab参考
 logs/
-杂项/
 .opencode/
-trace_pipeline/__pycache__/
+
+# 杂项 — ignore large binaries, track important docs
+杂项/*.pptx
+杂项/*.JPG
+杂项/*.jpg
+杂项/*.png
+杂项/测量/*.pptx
+杂项/测量/*.JPG
+杂项/测量/*.jpg

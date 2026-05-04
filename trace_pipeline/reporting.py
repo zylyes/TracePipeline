@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import List
 
-from .types import RunResult
+from .models import RunResult
 
 
 # ===========================================================================
@@ -34,14 +34,8 @@ def _format_separator(widths: List[int], char: str = _SEP) -> str:
     return "+-" + "-+-".join(parts) + "-+"
 
 
-def _format_header(widths: List[int]) -> str:
-    """绘制表头分隔线（双线）。"""
-    parts = [_HEADER_SEP * w for w in widths]
-    return "+=" + "=+=".join(parts) + "=+"
-
-
-def _format_footer(widths: List[int]) -> str:
-    """绘制表尾分隔线。"""
+def _format_double_separator(widths: List[int]) -> str:
+    """绘制双线分隔（表头/表尾）。"""
     parts = [_HEADER_SEP * w for w in widths]
     return "+=" + "=+=".join(parts) + "=+"
 
@@ -79,7 +73,7 @@ def format_results_table(results: List[RunResult]) -> str:
     widths = list(_COL_WIDTHS)
     lines = []
 
-    lines.append(_format_header(widths))
+    lines.append(_format_double_separator(widths))
     lines.append(_format_row(_COL_HEADERS, widths))
     lines.append(_format_separator(widths, _HEADER_SEP))
 
@@ -104,7 +98,7 @@ def format_results_table(results: List[RunResult]) -> str:
         row = [stem, count, avg_len, azimuth, rose, status]
         lines.append(_format_row(row, widths))
 
-    lines.append(_format_footer(widths))
+    lines.append(_format_double_separator(widths))
 
     success = sum(1 for r in results if r.status == "success")
     lines.append(f"\n总计: {len(results)} 个露头 | 成功 {success} 个 | 迹线总数 {total_traces} | 玫瑰图 {has_rose} 张")

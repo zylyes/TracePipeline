@@ -39,7 +39,10 @@ output/
 logs/
 .opencode/
 
-# reference — ignore large binaries
+# reference — ignore binary/reference materials
+reference/**/*.pdf
+reference/**/*.docx
 reference/**/*.pptx
 reference/**/*.JPG
 reference/**/*.jpg
+reference/**/*.png

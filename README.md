@@ -22,10 +22,10 @@
 ├── trace_pipeline/                # 核心包
 │   ├── __init__.py                # 顶层公开 API（仅导出常用入口）
 │   ├── __main__.py                # 支持 `python -m trace_pipeline`
-│   ├── models.py                  # TraceData / RunConfig / RunResult 数据模型
+│   ├── models.py                  # TraceData / RunConfig / RunResult 数据模型（原 types.py）
 │   ├── config.py                  # 配置加载、校验、路径解析
 │   ├── pipeline.py                # 单目标全流程编排 + load_trace_data
-│   ├── reporting.py               # 结果格式化展示与汇总报告
+│   ├── reporting.py               # 结果格式化展示与汇总报告（原 report.py）
 │   │
 │   ├── geology/                   # 地质/几何算法（纯函数，无 I/O）
 │   │   ├── angles.py              # 倾向⇄走向、折叠、半平面
@@ -65,10 +65,12 @@
 │       ├── A_outcrop_0map_rotate.m
 │       └── Coordinate.m
 │
-├── 杂项/                          # 研究资料（毕业设计任务书、现场照片、测线法说明PPT等）
+├── 杂项/                          # 研究资料（毕业设计任务书、现场照片、测量文档等）
 │   ├── 毕业设计任务流程与预期成果.md  # 论文写作 + 代码完善进度跟踪
 │   ├── 25届...任务书_周咏霖.pdf      # 毕业设计任务书
 │   ├── 测线法说明.pptx               # 测线法测量操作流程
+│   ├── 测量原理.docx                 # 综合法测量原理说明
+│   ├── 测量工具.docx                 # 野外仪器与工具清单
 │   ├── IMG_7311.JPG / 30MDJI_0662.JPG # 现场节理露头照片
 │   └── ...
 ```
@@ -238,13 +240,13 @@ python run_trace_pipeline.py -s -c my_conf.json # 使用自定义配置的单文
 | 模块 | 职责 |
 |---|---|
 | `config.py` | 加载/校验 JSON 配置；输入目录文件发现（`find_trace_tables`）；路径解析与 CLI 覆盖合并 |
-| `types.py` | 不可变数据类：`TraceData`（解析结果）、`RunConfig`（运行参数）、`RunResult`（运行结果） |
+| `models.py` | 不可变数据类：`TraceData`（解析结果）、`RunConfig`（运行参数）、`RunResult`（运行结果） |
 | `angles.py` | 纯函数角度工具：倾向→走向转换、走向角折叠、半平面折叠 |
-| `geometry.py` | **纯向量化**复数运算计算迹线端点；表头解析与数值提取 |
+| `endpoints.py` | **纯向量化**复数运算计算迹线端点；表头解析与数值提取（原 `geometry.py`） |
 | `transforms.py` | 坐标平移（正象限留白）→ 走向旋转 → 再次平移的规范化流水线 |
-| `io.py` | 统一 Excel I/O：读取（优先 .xlsx，回退 .xls）、四区布局写入 |
-| `plotting.py` | matplotlib 绘图：迹线长度图（原始/旋转后）、节理走向玫瑰花瓣图 |
-| `report.py` | 结果格式化展示：单结果详情、批量汇总表、统计摘要 |
+| `io/` | 统一 Excel I/O：`excel_reader`（读取）、`excel_writer`（四区布局写入）、`discovery`（文件发现） |
+| `plotting/` | matplotlib 绘图：`trace_plot`（迹线长度图）、`rose_plot`（玫瑰花瓣图）、`style`（全局样式） |
+| `reporting.py` | 结果格式化展示：单结果详情、批量汇总表、统计摘要 |
 | `pipeline.py` | 单目标全流程编排，异常包装与日志 |
 
 ---
@@ -380,13 +382,13 @@ python run_trace_pipeline.py -p 4
 
 ## MATLAB 参考
 
-原版 MATLAB 代码位于 `matlab参考/`：
+原版 MATLAB 代码位于 `docs/matlab_reference/`：
 
 | 文件 | 对应 Python 模块 |
 |---|---|
 | `A_outcrop_0map_coordinate.m` | 旧版主流程 → 现由 `pipeline.py` + `run_trace_pipeline.py` 替代 |
 | `A_outcrop_0map_rotate.m` | 坐标旋转 → `transforms.py` |
-| `Coordinate.m` | **核心几何计算函数** → `geometry.py` + `angles.py` |
+| `Coordinate.m` | **核心几何计算函数** → `endpoints.py` + `angles.py` |
 
 ### MATLAB vs Python 对比
 
@@ -427,11 +429,15 @@ pip install pytest
 pytest
 ```
 
-> ⚠️ **当前状态**：`tests/` 目录尚未编写正式测试文件（仅含 `__pycache__`）。根据毕业设计计划，需补充以下测试模块：
-> - `test_angles.py` — 倾向→走向转换、半平面折叠
-> - `test_geometry.py` — 三种情形端点计算
-> - `test_transforms.py` — 平移、旋转流水线
+> ✅ **当前状态**：`tests/` 已编写 4 个核心测试模块，覆盖地质算法、坐标变换与 I/O 发现：
+> - `test_angles.py` — `dip_to_strike`、`fold_strike_angle`、`fold_to_halfplane`、`fold_strikes_to_semicircle`
+> - `test_endpoints.py` — 左/右/双侧三种情形端点计算、表头与空值校验
+> - `test_transforms.py` — `shift_to_positive`、`rotate_and_shift`、`normalize_coordinates`
+> - `test_discovery.py` — `find_trace_tables` 文件发现与 `TraceFile` 元组解包兼容
+>
+> 待补充：
 > - `test_pipeline_integration.py` — 端到端集成测试（以 O76 真实数据验证）
+> - `test_config.py` — 配置加载、校验与 CLI 覆盖合并
 
 ### 日志
 
@@ -443,15 +449,15 @@ pytest
 
 ---
 
-## MATLAB �� Python Ǩ�Ʊʼ�
+## MATLAB → Python 迁移要点
 
-MATLAB ԭ�����λ�� `docs/matlab_reference/`����ϸ���ռ���Ŀ¼�� `README.md`��
+MATLAB 原版代码位于 `docs/matlab_reference/`，详细对应表与 Bug 记录见该目录 `README.md`。
 
-��ҪǨ��Ҫ�㣺
+主要迁移要点：
 
-- **��������д**�����м��߼�ѭ����Ϊ NumPy mask ��֧���� `geology/endpoints.py`�����Ƕ�ת������ƽ���ж���Ϊ ndarray ��γ��Ρ�
-- **���� MATLAB ��ת�� if �� bug**��`A_outcrop_0map_rotate.m:68-76` �� `if ang0<=360` ��ԶΪ�浼�º�����֧���ɴPython �� `fold_strike_angle` ������ȷ�� [-90��, 90��] �۵����塣
-- **���߳���˫�����**��Excel ͬʱ��� `�˵����`��ŷ�Ͼ��룩�� `��γ���(r5+r7)`��MATLAB ԭ���壩�����������������
-- **��������**������/���д�����õ�廨��ͼ������ѡ�������С���־˫ͨ��������У�顣
-- **���� API ����**������ `trace_pipeline` ������ 15 �����÷��ţ�����Ͳ㺯�������ģ�鵼�루�� `from trace_pipeline.geology.angles import fold_strike_angle`����
+- **向量化改写**：将逐条 `for` 循环改为 NumPy mask 三分支，位于 `geology/endpoints.py`；角度转换与半平面判定改为 ndarray 广播。
+- **修正 MATLAB 旋转角 `if` 链 Bug**：`A_outcrop_0map_rotate.m:68-76` 中 `if ang0<=360` 永远为真，导致后续分支不可达。Python 版 `fold_strike_angle` 能正确折叠到 `[-90°, 90°]` 区间。
+- **迹线长度双定义输出**：Excel 同时输出 `端点距离`（欧氏距离）与 `测段长度(r5+r7)`（MATLAB 原版定义），兼顾两种用途。
+- **自动导出**：原始/旋转迹线图与玫瑰花瓣图均自动导出，支持自定义分箱宽度、DPI 与 CJK 字体回退。
+- **公开 API 封装**：顶层 `trace_pipeline` 包导出 15 个常用入口，底层函数可通过模块直接导入（如 `from trace_pipeline.geology.angles import fold_strike_angle`）。
 

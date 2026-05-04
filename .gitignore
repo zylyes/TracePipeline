@@ -39,11 +39,7 @@ output/
 logs/
 .opencode/
 
-# 杂项 — ignore large binaries, track important docs
-杂项/*.pptx
-杂项/*.JPG
-杂项/*.jpg
-杂项/*.png
-杂项/测量/*.pptx
-杂项/测量/*.JPG
-杂项/测量/*.jpg
+# reference — ignore large binaries
+reference/**/*.pptx
+reference/**/*.JPG
+reference/**/*.jpg

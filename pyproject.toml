@@ -23,6 +23,9 @@ trace-pipeline = "trace_pipeline.cli:main"
 [tool.setuptools.packages.find]
 include = ["trace_pipeline*"]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"

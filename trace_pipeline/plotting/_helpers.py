@@ -25,13 +25,13 @@ def new_figure(
     return fig, ax
 
 
-def save_figure(fig: plt.Figure, output_dir: str, filename: str, dpi: int = 300) -> str:
+def save_figure(fig: plt.Figure, output_dir: str, filename: str, dpi: int = 300, pad_inches: float = 0.08) -> str:
     """保存并关闭图形，返回完整输出路径。"""
     os.makedirs(output_dir, exist_ok=True)
     full_path = os.path.join(output_dir, filename)
     try:
-        fig.tight_layout(pad=1.0)
-        fig.savefig(full_path, dpi=dpi, facecolor="white", bbox_inches="tight")
+        fig.tight_layout(pad=0.6)
+        fig.savefig(full_path, dpi=dpi, facecolor="white", bbox_inches="tight", pad_inches=pad_inches)
     finally:
         plt.close(fig)
     return full_path

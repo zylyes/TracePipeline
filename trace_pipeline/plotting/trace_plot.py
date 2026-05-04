@@ -12,11 +12,11 @@ from ._helpers import new_figure, save_figure
 
 __all__ = ["render_trace_plot", "segments_to_xy"]
 
-_TRACE_FIGSIZE_CM: Tuple[float, float] = (24, 12)
+_TRACE_FIGSIZE_CM: Tuple[float, float] = (20, 14)
 _DEFAULT_TRACE_DPI = 300
 _TRACE_LINE_COLOR = (0, 0, 0)
 _TRACE_LINE_WIDTH = 1.0
-_ANNOTATION_LINE_WIDTH = 1.2
+_ANNOTATION_LINE_WIDTH = 1.0
 _ANNOTATION_ZORDER = 5
 _MIN_DATA_SPAN = 1.0
 
@@ -116,8 +116,8 @@ def _apply_decoration_limits(ax: plt.Axes, layout: _DecorationLayout) -> None:
 def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout) -> None:
     x0 = layout.data_x_min + max(layout.x_span * 0.03, layout.base_span * 0.01)
     x1 = x0 + layout.scale_length
-    y = layout.data_y_min - layout.bottom_pad * 0.40
-    tick = min(layout.bottom_pad * 0.16, layout.base_span * 0.025)
+    y = layout.data_y_min - layout.bottom_pad * 0.42
+    tick = min(layout.bottom_pad * 0.14, layout.base_span * 0.022)
 
     ax.plot(
         [x0, x1],
@@ -146,11 +146,11 @@ def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout) -> None:
     )
     ax.text(
         (x0 + x1) / 2.0,
-        y - tick * 1.35,
+        y - tick * 1.45,
         _format_scale_label(layout.scale_length),
         ha="center",
         va="top",
-        fontsize=9,
+        fontsize=10,
         color="black",
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
@@ -167,11 +167,11 @@ def _add_direction_marker(
 
     angle = math.radians(north_angle_deg)
     dx, dy = math.cos(angle), math.sin(angle)
-    arrow_len = min(layout.left_pad * 0.55, layout.top_pad * 0.55, layout.base_span * 0.10)
-    label_gap = arrow_len * 0.22
+    arrow_len = min(layout.left_pad * 0.50, layout.top_pad * 0.50, layout.base_span * 0.09)
+    label_gap = arrow_len * 0.25
 
-    base_x = layout.data_x_min - layout.left_pad * 0.48
-    base_y = layout.data_y_max + layout.top_pad * 0.28
+    base_x = layout.data_x_min - layout.left_pad * 0.52
+    base_y = layout.data_y_max + layout.top_pad * 0.32
     tip_x = base_x + arrow_len * dx
     tip_y = base_y + arrow_len * dy
     label_x = tip_x + label_gap * dx
@@ -197,24 +197,27 @@ def _add_direction_marker(
     tip_y += shift_y
     label_y += shift_y
 
-    arrow = FancyArrowPatch(
-        (base_x, base_y),
-        (tip_x, tip_y),
-        arrowstyle="-|>",
-        mutation_scale=12,
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        color="black",
+    # 绘制更精致的指北针
+    ax.annotate(
+        "",
+        xy=(tip_x, tip_y),
+        xytext=(base_x, base_y),
+        arrowprops=dict(
+            arrowstyle="->",
+            color="black",
+            lw=1.2,
+            mutation_scale=14,
+        ),
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
     )
-    ax.add_patch(arrow)
     ax.text(
         label_x,
         label_y,
         "N",
         ha="center",
         va="center",
-        fontsize=10,
+        fontsize=11,
         fontweight="bold",
         color="black",
         clip_on=True,
@@ -223,13 +226,14 @@ def _add_direction_marker(
 
 
 def _style_trace_axes(ax: plt.Axes) -> None:
-    """设置迹线图坐标轴：等比例、无刻度、白色背景。"""
+    """设置迹线图坐标轴：等比例、无刻度、白色背景、完整边框。"""
     ax.set_aspect("equal", adjustable="box")
     ax.set_xticks([])
     ax.set_yticks([])
+    # 论文风格：完整四边框
     for spine in ax.spines.values():
-        spine.set_linewidth(1)
-    ax.tick_params(labelsize=14)
+        spine.set_linewidth(0.8)
+        spine.set_color("black")
     ax.set_facecolor("white")
 
 
@@ -255,5 +259,5 @@ def render_trace_plot(
     _apply_decoration_limits(ax, layout)
     _add_direction_marker(ax, layout, north_angle_deg)
     _add_scale_bar(ax, layout)
-    ax.set_title(title, fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=12)
     return save_figure(fig, output_dir, filename, dpi=dpi)

@@ -10,11 +10,11 @@ from ._helpers import new_figure, save_figure
 
 __all__ = ["render_rose_plot"]
 
-_ROSE_FIGSIZE_CM: Tuple[float, float] = (16, 16)
+_ROSE_FIGSIZE_CM: Tuple[float, float] = (14, 14)
 _DEFAULT_ROSE_DPI = 400
-_ROSE_GRID_COLOR = "#aab7b8"
-_ROSE_BAR_COLOR = "#4472c4"
-_ROSE_BAR_EDGE = "#1f1f1f"
+_ROSE_GRID_COLOR = "#d0d0d0"
+_ROSE_BAR_COLOR = "#DC2626"
+_ROSE_BAR_EDGE = "#991B1B"
 
 
 def _compute_rose_histogram(
@@ -63,10 +63,14 @@ def render_rose_plot(
     ax.set_facecolor("white")
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
-    ax.set_thetagrids(np.arange(0, 360, 30))
+
+    # 外圈角度标签：每 30° 一格，字号适中
+    ax.set_thetagrids(np.arange(0, 360, 30), fontsize=10)
+
+    # 径向网格线与标签
     ax.grid(
-        color=_ROSE_GRID_COLOR, alpha=0.7,
-        linewidth=0.8, linestyle="-",
+        color=_ROSE_GRID_COLOR, alpha=0.6,
+        linewidth=0.6, linestyle="-",
     )
 
     if radii.size:
@@ -74,11 +78,22 @@ def render_rose_plot(
             theta, radii,
             width=width, bottom=0.0,
             color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
-            linewidth=0.8, alpha=0.85, align="center",
+            linewidth=0.6, alpha=0.75, align="center",
         )
-        ax.set_ylim(0, max(1, int(radii.max())))
+        rmax = max(1, int(radii.max()))
+        ax.set_ylim(0, rmax)
+        # 设置径向刻度标签
+        rticks = np.arange(0, rmax + 1, max(1, rmax // 5))
+        ax.set_rticks(rticks)
+        ax.set_rlabel_position(45)
+        ax.tick_params(axis="y", labelsize=9)
     else:
         ax.set_ylim(0, 1)
+        ax.set_rticks([0, 1])
 
-    ax.set_title(title, fontsize=12, pad=18)
+    # 极坐标外圈边框
+    ax.spines["polar"].set_linewidth(0.8)
+    ax.spines["polar"].set_color("black")
+
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=20)
     return save_figure(fig, output_dir, filename, dpi=dpi)

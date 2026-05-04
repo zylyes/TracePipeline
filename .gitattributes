@@ -1,0 +1,21 @@
+# Auto-detect text vs binary
+* text=auto
+
+# Python
+*.py text diff=python
+
+# Binary file types
+*.png binary
+*.jpg binary
+*.JPG binary
+*.pdf binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+*.pptx binary
+
+# Shell scripts — always LF
+*.sh text eol=lf
+
+# Batch — always CRLF
+*.bat text eol=crlf

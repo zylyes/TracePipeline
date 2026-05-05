@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import math
-from typing import NamedTuple, Tuple
-
-import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch
-import numpy as np
+from typing import TYPE_CHECKING, NamedTuple, Tuple
 
 from ._helpers import new_figure, save_figure
+
+import numpy as np
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
 
 __all__ = ["render_trace_plot", "segments_to_xy"]
 
@@ -41,14 +42,15 @@ def segments_to_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
     NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
     """
-    if segments.ndim != 2 or segments.shape[1] != 4:
-        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {segments.shape}")
-    n = segments.shape[0]
+    arr = np.asarray(segments, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] != 4:
+        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {arr.shape}")
+    n = arr.shape[0]
     if n == 0:
         return np.array([]), np.array([])
 
-    X = np.column_stack([segments[:, 0], segments[:, 2], np.full((n,), np.nan)]).ravel()
-    Y = np.column_stack([segments[:, 1], segments[:, 3], np.full((n,), np.nan)]).ravel()
+    X = np.column_stack([arr[:, 0], arr[:, 2], np.full((n,), np.nan)]).ravel()
+    Y = np.column_stack([arr[:, 1], arr[:, 3], np.full((n,), np.nan)]).ravel()
     return X, Y
 
 
@@ -251,11 +253,12 @@ def render_trace_plot(
     Returns:
         输出文件的完整路径。
     """
-    X_plot, Y_plot = segments_to_xy(segments)
+    arr = np.asarray(segments, dtype=float)
+    X_plot, Y_plot = segments_to_xy(arr)
+    layout = _build_decoration_layout(arr)
     fig, ax = new_figure(figsize_cm, dpi=dpi)
     ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
     _style_trace_axes(ax)
-    layout = _build_decoration_layout(segments)
     _apply_decoration_limits(ax, layout)
     _add_direction_marker(ax, layout, north_angle_deg)
     _add_scale_bar(ax, layout)

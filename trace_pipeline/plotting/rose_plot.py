@@ -20,24 +20,31 @@ _ROSE_BAR_EDGE = "#991B1B"
 def _compute_rose_histogram(
     strike_deg: np.ndarray,
     bin_width: float = 10.0,
-) -> Tuple[np.ndarray, np.ndarray, float]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。"""
     if not (0 < bin_width <= 180):
         raise ValueError("rose bin_width 必须在 (0, 180] 范围内")
 
     folded = fold_strikes_to_semicircle(strike_deg)
+    if not np.isfinite(folded).all():
+        raise ValueError("strike_deg 包含 NaN 或 inf，无法绘制玫瑰图")
     if folded.size == 0:
-        return np.array([]), np.array([]), np.deg2rad(bin_width)
+        return np.array([]), np.array([]), np.array([])
 
-    bin_count = max(1, int(round(180.0 / bin_width)))
-    edges = np.linspace(0.0, 180.0, num=bin_count + 1)
+    edges = np.arange(0.0, 180.0, bin_width, dtype=float)
+    if edges.size == 0 or not np.isclose(edges[0], 0.0):
+        edges = np.insert(edges, 0, 0.0)
+    if not np.isclose(edges[-1], 180.0):
+        edges = np.append(edges, 180.0)
+
     counts, _ = np.histogram(folded, bins=edges)
     centers = (edges[:-1] + edges[1:]) / 2.0
+    widths = np.deg2rad(np.diff(edges))
 
     theta = np.deg2rad(np.concatenate([centers, centers + 180.0]))
     radii = np.concatenate([counts, counts])
-    width = np.deg2rad(edges[1] - edges[0])
-    return theta, radii, width
+    bar_widths = np.concatenate([widths, widths])
+    return theta, radii, bar_widths
 
 
 def render_rose_plot(

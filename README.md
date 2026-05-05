@@ -180,7 +180,7 @@ pip install -e .[dev]    # 安装 pytest 等开发工具
 |--------|------|--------|------|
 | `input_dir` | string | `"input"` | 输入目录（含 `*_process.xls*` 迹线表），支持相对/绝对路径 |
 | `output_dir` | string | `"output"` | 输出目录（Excel + 图片将写入此目录） |
-| `output_prefix` | string | `"Outcrop"` | 输出 Excel 文件命名前缀 |
+| `output_prefix` | string | `"Outcrop"` | 输出 Excel 文件命名前缀；批量模式按露头名输出，单文件模式下显式改为非默认值时生效 |
 | `table_stem` | string | `"O76_process"` | 单文件模式下读取的 Excel 文件名（不含扩展名） |
 | `outcrop` | string | `"O76"` | 露头名称（也是 Excel 工作表名） |
 | `process_all` | bool | `true` | `true`=批量处理所有 `*_process` 文件；`false`=仅处理 `table_stem` 指定文件 |
@@ -206,6 +206,8 @@ python run_trace_pipeline.py -c my_config.json
 # 指定输入/输出目录
 python run_trace_pipeline.py -i ./data -o ./results
 ```
+
+显式通过 `-c/--config` 指定配置文件时，路径必须存在；默认不传 `-c` 时才会回退到项目根目录的 `config.json` 或内置默认配置。
 
 ### 完整 CLI 选项
 
@@ -368,6 +370,7 @@ output/
 └── O83_rotated(strike=265).png
 ```
 
+为保持旧结果兼容，批量处理和默认单文件处理仍按露头名生成 `{outcrop}_traces.xlsx`；只有在单文件模式中把 `output_prefix` 显式改为非默认值时，Excel 文件才使用该自定义前缀。
 
 ---
 

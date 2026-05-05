@@ -125,10 +125,17 @@ pip install -e .[dev]          # （可选）安装开发依赖
 
 | 配置键 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
+<<<<<<< HEAD
 | `input_dir` | string | `"input"` | 输入目录，支持相对/绝对路径 |
 | `output_dir` | string | `"output"` | 输出目录（Excel + 图片） |
 | `output_prefix` | string | `"Outcrop"` | 输出 Excel 命名前缀；批量模式按露头名输出 |
 | `table_stem` | string | `"O76_process"` | 单文件模式下读取的文件名（不含扩展名） |
+=======
+| `input_dir` | string | `"input"` | 输入目录（含 `*_process.xls*` 迹线表），支持相对/绝对路径 |
+| `output_dir` | string | `"output"` | 输出目录（Excel + 图片将写入此目录） |
+| `output_prefix` | string | `"Outcrop"` | 输出 Excel 文件命名前缀；批量模式按露头名输出，单文件模式下显式改为非默认值时生效 |
+| `table_stem` | string | `"O76_process"` | 单文件模式下读取的 Excel 文件名（不含扩展名） |
+>>>>>>> fd847179077a81e7fb1c1f9d27676cd09957a70a
 | `outcrop` | string | `"O76"` | 露头名称（也是 Excel 工作表名） |
 | `process_all` | bool | `true` | `true`=批量处理；`false`=仅处理 `table_stem` 指定文件 |
 | `export_rose_plot` | bool | `true` | 是否导出玫瑰花瓣图 |
@@ -143,7 +150,26 @@ pip install -e .[dev]          # （可选）安装开发依赖
 
 ## 命令行用法
 
+<<<<<<< HEAD
 ### CLI 选项
+=======
+### 基本运行
+
+```bash
+# 使用 config.json 配置运行
+python run_trace_pipeline.py
+
+# 指定自定义配置文件
+python run_trace_pipeline.py -c my_config.json
+
+# 指定输入/输出目录
+python run_trace_pipeline.py -i ./data -o ./results
+```
+
+显式通过 `-c/--config` 指定配置文件时，路径必须存在；默认不传 `-c` 时才会回退到项目根目录的 `config.json` 或内置默认配置。
+
+### 完整 CLI 选项
+>>>>>>> fd847179077a81e7fb1c1f9d27676cd09957a70a
 
 | 参数 | 简写 | 说明 |
 |---|---|---|
@@ -288,6 +314,11 @@ output/
 └── O83_rotated(strike=265).png
 ```
 
+<<<<<<< HEAD
+=======
+为保持旧结果兼容，批量处理和默认单文件处理仍按露头名生成 `{outcrop}_traces.xlsx`；只有在单文件模式中把 `output_prefix` 显式改为非默认值时，Excel 文件才使用该自定义前缀。
+
+>>>>>>> fd847179077a81e7fb1c1f9d27676cd09957a70a
 ---
 
 ## 使用示例

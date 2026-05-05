@@ -20,6 +20,7 @@ _TRACE_LINE_WIDTH = 1.0
 _ANNOTATION_LINE_WIDTH = 1.0
 _ANNOTATION_ZORDER = 5
 _MIN_DATA_SPAN = 1.0
+_FIXED_SCALE_LENGTH = 5.0
 
 
 class _DecorationLayout(NamedTuple):
@@ -35,6 +36,7 @@ class _DecorationLayout(NamedTuple):
     bottom_pad: float
     top_pad: float
     scale_length: float
+    has_annotation_panel: bool
 
 
 def segments_to_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -66,33 +68,28 @@ def _data_bounds(segments: np.ndarray) -> Tuple[float, float, float, float]:
     return float(xs.min()), float(xs.max()), float(ys.min()), float(ys.max())
 
 
-def _nice_scale_length(target: float) -> float:
-    if not math.isfinite(target) or target <= 0:
-        return 1.0
-
-    magnitude = 10.0 ** math.floor(math.log10(target))
-    normalized = target / magnitude
-    if normalized >= 5.0:
-        nice = 5.0
-    elif normalized >= 2.0:
-        nice = 2.0
-    else:
-        nice = 1.0
-    return nice * magnitude
-
-
 def _format_scale_label(length: float) -> str:
     if length >= 1.0:
         return f"{length:g} m"
     return f"{length * 100:g} cm"
 
 
-def _build_decoration_layout(segments: np.ndarray) -> _DecorationLayout:
+def _build_decoration_layout(
+    segments: np.ndarray,
+    has_annotation_panel: bool = False,
+) -> _DecorationLayout:
     x_min, x_max, y_min, y_max = _data_bounds(segments)
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
     base_span = max(x_span, y_span, _MIN_DATA_SPAN)
-    scale_length = _nice_scale_length(x_span * 0.24)
+    scale_length = _FIXED_SCALE_LENGTH
+    right_pad = max(
+        x_span * 0.04,
+        base_span * 0.04,
+        max(0.0, scale_length - x_span + x_span * 0.05),
+    )
+    if has_annotation_panel:
+        right_pad = max(x_span * 0.68, base_span * 0.54, scale_length * 2.00)
 
     return _DecorationLayout(
         data_x_min=x_min,
@@ -103,10 +100,11 @@ def _build_decoration_layout(segments: np.ndarray) -> _DecorationLayout:
         y_span=y_span,
         base_span=base_span,
         left_pad=max(x_span * 0.14, base_span * 0.08),
-        right_pad=max(x_span * 0.04, base_span * 0.04),
+        right_pad=right_pad,
         bottom_pad=max(y_span * 0.16, base_span * 0.08),
         top_pad=max(y_span * 0.12, base_span * 0.08),
         scale_length=scale_length,
+        has_annotation_panel=has_annotation_panel,
     )
 
 
@@ -150,6 +148,87 @@ def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout) -> None:
         (x0 + x1) / 2.0,
         y - tick * 1.45,
         _format_scale_label(layout.scale_length),
+        ha="center",
+        va="top",
+        fontsize=10,
+        color="black",
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+
+
+def _axis_bounds(layout: _DecorationLayout) -> Tuple[float, float, float, float]:
+    return (
+        layout.data_x_min - layout.left_pad,
+        layout.data_x_max + layout.right_pad,
+        layout.data_y_min - layout.bottom_pad,
+        layout.data_y_max + layout.top_pad,
+    )
+
+
+def _panel_bounds(layout: _DecorationLayout) -> Tuple[float, float, float, float]:
+    x_low, x_high, y_low, y_high = _axis_bounds(layout)
+    return (
+        layout.data_x_max + layout.right_pad * 0.08,
+        x_high - layout.right_pad * 0.08,
+        y_low + (y_high - y_low) * 0.06,
+        y_high - (y_high - y_low) * 0.04,
+    )
+
+
+def _shift_into_bounds(
+    xs: Sequence[float],
+    ys: Sequence[float],
+    x_low: float,
+    x_high: float,
+    y_low: float,
+    y_high: float,
+) -> Tuple[float, float]:
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    shift_x = max(0.0, x_low - min_x) - max(0.0, max_x - x_high)
+    shift_y = max(0.0, y_low - min_y) - max(0.0, max_y - y_high)
+    return shift_x, shift_y
+
+
+def _add_panel_scale_bar(ax: plt.Axes, layout: _DecorationLayout) -> None:
+    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    panel_width = panel_x1 - panel_x0
+    scale_length = layout.scale_length
+    x0 = panel_x0 + (panel_width - scale_length) / 2.0
+    x1 = x0 + scale_length
+    y = panel_y0 + (panel_y1 - panel_y0) * 0.76
+    tick = min(layout.bottom_pad * 0.14, layout.base_span * 0.022)
+
+    ax.plot(
+        [x0, x1],
+        [y, y],
+        color="black",
+        linewidth=_ANNOTATION_LINE_WIDTH,
+        solid_capstyle="butt",
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.plot(
+        [x0, x0],
+        [y - tick, y + tick],
+        color="black",
+        linewidth=_ANNOTATION_LINE_WIDTH,
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.plot(
+        [x1, x1],
+        [y - tick, y + tick],
+        color="black",
+        linewidth=_ANNOTATION_LINE_WIDTH,
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.text(
+        (x0 + x1) / 2.0,
+        y - tick * 1.45,
+        _format_scale_label(scale_length),
         ha="center",
         va="top",
         fontsize=10,
@@ -227,6 +306,75 @@ def _add_direction_marker(
     )
 
 
+def _add_panel_direction_marker(
+    ax: plt.Axes,
+    layout: _DecorationLayout,
+    north_angle_deg: float,
+) -> None:
+    if not math.isfinite(north_angle_deg):
+        north_angle_deg = 90.0
+
+    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    angle = math.radians(north_angle_deg)
+    dx, dy = math.cos(angle), math.sin(angle)
+    arrow_len = min(
+        (panel_x1 - panel_x0) * 0.38,
+        (panel_y1 - panel_y0) * 0.13,
+        layout.base_span * 0.11,
+    )
+    label_gap = arrow_len * 0.25
+    center_x = (panel_x0 + panel_x1) / 2.0
+    center_y = panel_y0 + (panel_y1 - panel_y0) * 0.91
+
+    base_x = center_x - arrow_len * dx * 0.50
+    base_y = center_y - arrow_len * dy * 0.50
+    tip_x = center_x + arrow_len * dx * 0.50
+    tip_y = center_y + arrow_len * dy * 0.50
+    label_x = tip_x + label_gap * dx
+    label_y = tip_y + label_gap * dy
+
+    shift_x, shift_y = _shift_into_bounds(
+        [base_x, tip_x, label_x],
+        [base_y, tip_y, label_y],
+        panel_x0,
+        panel_x1,
+        panel_y0 + (panel_y1 - panel_y0) * 0.82,
+        panel_y0 + (panel_y1 - panel_y0) * 0.98,
+    )
+    base_x += shift_x
+    tip_x += shift_x
+    label_x += shift_x
+    base_y += shift_y
+    tip_y += shift_y
+    label_y += shift_y
+
+    ax.annotate(
+        "",
+        xy=(tip_x, tip_y),
+        xytext=(base_x, base_y),
+        arrowprops=dict(
+            arrowstyle="->",
+            color="black",
+            lw=1.2,
+            mutation_scale=14,
+        ),
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.text(
+        label_x,
+        label_y,
+        "N",
+        ha="center",
+        va="center",
+        fontsize=11,
+        fontweight="bold",
+        color="black",
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+
+
 def _style_trace_axes(ax: plt.Axes) -> None:
     """设置迹线图坐标轴：等比例、无刻度、白色背景、完整边框。"""
     ax.set_aspect("equal", adjustable="box")
@@ -239,27 +387,24 @@ def _style_trace_axes(ax: plt.Axes) -> None:
     ax.set_facecolor("white")
 
 
-def _add_statistics_box(ax: plt.Axes, statistics_lines: Sequence[str] | None) -> None:
+def _add_statistics_box(
+    ax: plt.Axes,
+    layout: _DecorationLayout,
+    statistics_lines: Sequence[str] | None,
+) -> None:
     if not statistics_lines:
         return
+    panel_x0, _panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
     ax.text(
-        0.985,
-        0.985,
+        panel_x0,
+        panel_y0 + (panel_y1 - panel_y0) * 0.66,
         "\n".join(str(line) for line in statistics_lines),
-        transform=ax.transAxes,
-        ha="right",
+        ha="left",
         va="top",
-        fontsize=8.5,
-        linespacing=1.25,
+        fontsize=8.0,
+        linespacing=1.18,
         color="black",
-        bbox=dict(
-            boxstyle="round,pad=0.35",
-            facecolor="white",
-            edgecolor="black",
-            linewidth=0.8,
-            alpha=0.90,
-        ),
-        clip_on=False,
+        clip_on=True,
         zorder=_ANNOTATION_ZORDER + 1,
     )
 
@@ -281,13 +426,18 @@ def render_trace_plot(
     """
     arr = np.asarray(segments, dtype=float)
     X_plot, Y_plot = segments_to_xy(arr)
-    layout = _build_decoration_layout(arr)
+    has_annotation_panel = bool(statistics_lines)
+    layout = _build_decoration_layout(arr, has_annotation_panel=has_annotation_panel)
     fig, ax = new_figure(figsize_cm, dpi=dpi)
     ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
     _style_trace_axes(ax)
     _apply_decoration_limits(ax, layout)
-    _add_direction_marker(ax, layout, north_angle_deg)
-    _add_scale_bar(ax, layout)
-    _add_statistics_box(ax, statistics_lines)
+    if has_annotation_panel:
+        _add_statistics_box(ax, layout, statistics_lines)
+        _add_panel_direction_marker(ax, layout, north_angle_deg)
+        _add_panel_scale_bar(ax, layout)
+    else:
+        _add_direction_marker(ax, layout, north_angle_deg)
+        _add_scale_bar(ax, layout)
     ax.set_title(title, fontsize=14, fontweight="bold", pad=12)
     return save_figure(fig, output_dir, filename, dpi=dpi)

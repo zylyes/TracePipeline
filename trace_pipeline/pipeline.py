@@ -88,7 +88,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         # ---- 4. 绘制图片 ----
         raw_plot = render_trace_plot(
             trace.endpoints,
-            f"迹线长度图（数量={trace.count}）",
+            "迹线长度图",
             str(output_dir),
             f"{cfg.outcrop}_raw(n={trace.count}).png",
             dpi=cfg.trace_dpi,
@@ -96,7 +96,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         )
         rot_plot = render_trace_plot(
             rotated,
-            f"迹线长度图（数量={trace.count}）\n标尺（走向={trace.scanline_azimuth}°）",
+            f"迹线长度图\n标尺（走向={trace.scanline_azimuth}°）",
             str(output_dir),
             f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
             dpi=cfg.rotated_trace_dpi,

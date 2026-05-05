@@ -95,4 +95,6 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
     assert stats.valid_window_count == 0
     assert all(diagnostic.reason for diagnostic in stats.diagnostics)
     assert math.isnan(stats.p20)
-    assert "P20: N/A" in lines
+    assert "I/II/III型数量: 0/0/1" in lines
+    assert "估算测线长度（$L_{\\mathrm{hat}}$）: 0.000 $\\mathrm{m}$" in lines
+    assert "面密度（$P_{20}$）: N/A" in lines

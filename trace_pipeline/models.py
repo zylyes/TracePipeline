@@ -79,6 +79,7 @@ class TraceData:
         endpoints: 端点坐标 (N, 4)，列序 [x1, y1, x2, y2]。
         joint_strikes: 各节理走向角（度），长度 N。
         segment_lengths: 沿测段的迹线长度 r5+r7（MATLAB 定义），长度 N。
+        scanline_positions: 沿测线位移 r1，长度 N。
     """
 
     scanline_azimuth: float
@@ -86,14 +87,17 @@ class TraceData:
     endpoints: np.ndarray
     joint_strikes: np.ndarray
     segment_lengths: np.ndarray
+    scanline_positions: np.ndarray
 
     def __post_init__(self) -> None:
         endpoints = np.asarray(self.endpoints, dtype=float)
         joint_strikes = np.asarray(self.joint_strikes, dtype=float)
         segment_lengths = np.asarray(self.segment_lengths, dtype=float)
+        scanline_positions = np.asarray(self.scanline_positions, dtype=float)
         self.endpoints = endpoints
         self.joint_strikes = joint_strikes
         self.segment_lengths = segment_lengths
+        self.scanline_positions = scanline_positions
 
         if not np.isfinite(self.scanline_azimuth):
             raise ValueError("scanline_azimuth 必须为有限浮点数")
@@ -113,12 +117,19 @@ class TraceData:
                 f"segment_lengths 形状 {segment_lengths.shape} "
                 f"与 count={self.count} 不一致"
             )
+        if scanline_positions.shape != (self.count,):
+            raise ValueError(
+                f"scanline_positions 形状 {scanline_positions.shape} "
+                f"与 count={self.count} 不一致"
+            )
         if not np.isfinite(endpoints).all():
             raise ValueError("endpoints 包含 NaN 或 inf")
         if not np.isfinite(joint_strikes).all():
             raise ValueError("joint_strikes 包含 NaN 或 inf")
         if not np.isfinite(segment_lengths).all():
             raise ValueError("segment_lengths 包含 NaN 或 inf")
+        if not np.isfinite(scanline_positions).all():
+            raise ValueError("scanline_positions 包含 NaN 或 inf")
 
     # ---- 派生属性 ----
 

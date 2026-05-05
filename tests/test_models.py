@@ -12,6 +12,7 @@ def test_trace_data_accepts_empty_with_strict_shapes():
         endpoints=np.zeros((0, 4)),
         joint_strikes=np.array([]),
         segment_lengths=np.array([]),
+        scanline_positions=np.array([]),
     )
 
     assert trace.mean_length == 0.0
@@ -25,6 +26,7 @@ def test_trace_data_rejects_empty_wrong_endpoint_shape():
             endpoints=np.array([]),
             joint_strikes=np.array([]),
             segment_lengths=np.array([]),
+            scanline_positions=np.array([]),
         )
 
 
@@ -36,6 +38,19 @@ def test_trace_data_rejects_nonfinite_values():
             endpoints=np.array([[0.0, 0.0, np.nan, 1.0]]),
             joint_strikes=np.array([10.0]),
             segment_lengths=np.array([1.0]),
+            scanline_positions=np.array([0.0]),
+        )
+
+
+def test_trace_data_rejects_wrong_scanline_position_shape():
+    with pytest.raises(ValueError, match="scanline_positions 形状"):
+        TraceData(
+            scanline_azimuth=0.0,
+            count=1,
+            endpoints=np.array([[0.0, 0.0, 1.0, 1.0]]),
+            joint_strikes=np.array([10.0]),
+            segment_lengths=np.array([1.0]),
+            scanline_positions=np.array([]),
         )
 
 

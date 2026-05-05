@@ -56,10 +56,15 @@ def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
         ValueError: JSON 格式无效或配置项不合法。
         OSError: 文件读取失败。
     """
-    path = Path(config_path).expanduser().resolve() if config_path else DEFAULT_CONFIG_PATH
+    explicit_path = config_path is not None
+    path = Path(config_path).expanduser().resolve() if explicit_path else DEFAULT_CONFIG_PATH
     if not path.exists():
+        if explicit_path:
+            raise FileNotFoundError(f"指定的配置文件不存在: {path}")
         logger.info("配置文件 %s 不存在，使用默认配置", path)
         return validate_config(dict(DEFAULT_CONFIG))
+    if not path.is_file():
+        raise ValueError(f"配置路径 {path} 不是文件")
 
     logger.info("加载配置文件: %s", path)
     try:
@@ -75,6 +80,43 @@ def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
     return validate_config(data)
 
 
+def _coerce_bool(value: Any, name: str) -> bool:
+    """将常见配置布尔写法规范化为 bool。"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+    raise ValueError(f"{name} 必须为布尔值")
+
+
+def _coerce_positive_int(value: Any, name: str) -> int:
+    """将 DPI 等正整数配置规范化为 int。"""
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} 必须为正整数") from exc
+    if number <= 0:
+        raise ValueError(f"{name} 必须为正整数")
+    return number
+
+
+def _coerce_rose_bin_width(value: Any) -> float:
+    """规范化玫瑰图分箱宽度。"""
+    try:
+        width = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("rose_bin_width 必须为数值") from exc
+    if not (0 < width <= 180):
+        raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
+    return width
+
+
 def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
     """合并默认值、规范化类型并检查必填项；对未知键发出警告。"""
     merged = dict(DEFAULT_CONFIG)
@@ -87,8 +129,13 @@ def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
     if missing:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 
-    merged["process_all"] = bool(merged["process_all"])
-    merged["export_rose_plot"] = bool(merged["export_rose_plot"])
+    merged["process_all"] = _coerce_bool(merged["process_all"], "process_all")
+    merged["export_rose_plot"] = _coerce_bool(
+        merged["export_rose_plot"], "export_rose_plot"
+    )
+    merged["rose_bin_width"] = _coerce_rose_bin_width(merged["rose_bin_width"])
+    for key in ("rose_dpi", "trace_dpi", "rotated_trace_dpi"):
+        merged[key] = _coerce_positive_int(merged[key], key)
     for key in _REQUIRED_KEYS + ("output_prefix",):
         if key in merged:
             merged[key] = str(merged[key]).strip()
@@ -127,19 +174,26 @@ def resolve_io_paths(
     input_dir: str,
     output_dir: str,
     base_dir: str | Path | None = None,
+    *,
+    create_dirs: bool = True,
 ) -> Tuple[str, str]:
-    """将输入/输出目录解析为绝对路径并确保目录存在。"""
+    """将输入/输出目录解析为绝对路径，并按需确保目录存在。
+
+    默认 `create_dirs=True` 保持历史兼容；CLI 的 `--list` / `--dry-run`
+    会传入 False，避免只读命令意外创建空目录。
+    """
     resolved_base = Path(base_dir).expanduser().resolve() if base_dir else PROJECT_ROOT
 
     in_path = _to_absolute(input_dir, resolved_base)
     out_path = _to_absolute(output_dir, resolved_base)
 
-    try:
-        in_path.mkdir(parents=True, exist_ok=True)
-        out_path.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        logger.error("无法创建目录: %s", exc)
-        raise
+    if create_dirs:
+        try:
+            in_path.mkdir(parents=True, exist_ok=True)
+            out_path.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            logger.error("无法创建目录: %s", exc)
+            raise
 
     logger.debug("输入目录: %s", in_path)
     logger.debug("输出目录: %s", out_path)

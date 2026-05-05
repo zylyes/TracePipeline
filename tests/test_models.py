@@ -1,0 +1,59 @@
+"""单元测试：数据模型校验。"""
+import numpy as np
+import pytest
+
+from trace_pipeline.models import RunConfig, TraceData
+
+
+def test_trace_data_accepts_empty_with_strict_shapes():
+    trace = TraceData(
+        scanline_azimuth=0.0,
+        count=0,
+        endpoints=np.zeros((0, 4)),
+        joint_strikes=np.array([]),
+        segment_lengths=np.array([]),
+    )
+
+    assert trace.mean_length == 0.0
+
+
+def test_trace_data_rejects_empty_wrong_endpoint_shape():
+    with pytest.raises(ValueError, match="endpoints 形状"):
+        TraceData(
+            scanline_azimuth=0.0,
+            count=0,
+            endpoints=np.array([]),
+            joint_strikes=np.array([]),
+            segment_lengths=np.array([]),
+        )
+
+
+def test_trace_data_rejects_nonfinite_values():
+    with pytest.raises(ValueError, match="endpoints 包含"):
+        TraceData(
+            scanline_azimuth=0.0,
+            count=1,
+            endpoints=np.array([[0.0, 0.0, np.nan, 1.0]]),
+            joint_strikes=np.array([10.0]),
+            segment_lengths=np.array([1.0]),
+        )
+
+
+def test_run_config_normalizes_values():
+    cfg = RunConfig(
+        input_dir=" input ",
+        output_dir=" output ",
+        output_prefix=" O76 ",
+        table_stem=" O76_process ",
+        outcrop=" O76 ",
+        export_rose_plot="false",
+        rose_bin_width="15",
+        rose_dpi="600",
+        trace_dpi="300",
+        rotated_trace_dpi="900",
+    )
+
+    assert cfg.input_dir == "input"
+    assert cfg.export_rose_plot is False
+    assert cfg.rose_bin_width == 15.0
+    assert cfg.rose_dpi == 600

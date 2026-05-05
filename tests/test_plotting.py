@@ -3,7 +3,11 @@ import numpy as np
 import pytest
 
 from trace_pipeline.plotting.rose_plot import _compute_rose_histogram
-from trace_pipeline.plotting.trace_plot import render_trace_plot, segments_to_xy
+from trace_pipeline.plotting.trace_plot import (
+    _build_decoration_layout,
+    render_trace_plot,
+    segments_to_xy,
+)
 
 
 def test_segments_to_xy_accepts_array_like():
@@ -33,11 +37,20 @@ def test_render_trace_plot_accepts_statistics_box(tmp_path):
         "stats",
         str(tmp_path),
         "stats.png",
-        statistics_lines=("count: 1", "P20: N/A"),
+        statistics_lines=("总裂隙数: 1", "面密度（$P_{20}$）: 0.100 $\\mathrm{m}^{-2}$"),
     )
 
     assert out.endswith("stats.png")
     assert (tmp_path / "stats.png").is_file()
+
+
+def test_trace_layout_uses_fixed_five_meter_scale():
+    layout = _build_decoration_layout(
+        np.array([[0.0, 0.0, 1.0, 1.0]]),
+        has_annotation_panel=True,
+    )
+
+    assert layout.scale_length == 5.0
 
 
 def test_rose_histogram_keeps_non_divisible_final_bin_width():

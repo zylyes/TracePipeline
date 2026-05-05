@@ -29,7 +29,13 @@ def new_figure(
     return fig, ax
 
 
-def save_figure(fig: plt.Figure, output_dir: str, filename: str, dpi: int = 300, pad_inches: float = 0.08) -> str:
+def save_figure(
+    fig: plt.Figure,
+    output_dir: str,
+    filename: str,
+    dpi: int = 300,
+    pad_inches: float = 0.08,
+) -> str:
     """保存并关闭图形，返回完整输出路径。"""
     os.makedirs(output_dir, exist_ok=True)
     full_path = os.path.join(output_dir, filename)

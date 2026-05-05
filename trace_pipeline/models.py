@@ -49,6 +49,21 @@ def _validate_dpi(value: Any) -> int:
     return dpi
 
 
+def _validate_bool(value: Any, name: str) -> bool:
+    """校验布尔配置，避免 `bool("false") == True` 这类隐式转换。"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+    raise ValueError(f"{name} 必须为布尔值")
+
+
 # ===========================================================================
 # TraceData — 解析后的迹线数据
 # ===========================================================================
@@ -73,25 +88,37 @@ class TraceData:
     segment_lengths: np.ndarray
 
     def __post_init__(self) -> None:
+        endpoints = np.asarray(self.endpoints, dtype=float)
+        joint_strikes = np.asarray(self.joint_strikes, dtype=float)
+        segment_lengths = np.asarray(self.segment_lengths, dtype=float)
+        self.endpoints = endpoints
+        self.joint_strikes = joint_strikes
+        self.segment_lengths = segment_lengths
+
         if not np.isfinite(self.scanline_azimuth):
             raise ValueError("scanline_azimuth 必须为有限浮点数")
         if self.count < 0:
             raise ValueError(f"count 不能为负数: {self.count}")
-        if self.count > 0:
-            if self.endpoints.shape != (self.count, 4):
-                raise ValueError(
-                    f"endpoints 形状 {self.endpoints.shape} 与 count={self.count} 不一致"
-                )
-            if len(self.joint_strikes) != self.count:
-                raise ValueError(
-                    f"joint_strikes 长度 {len(self.joint_strikes)} "
-                    f"与 count={self.count} 不一致"
-                )
-            if len(self.segment_lengths) != self.count:
-                raise ValueError(
-                    f"segment_lengths 长度 {len(self.segment_lengths)} "
-                    f"与 count={self.count} 不一致"
-                )
+        if endpoints.shape != (self.count, 4):
+            raise ValueError(
+                f"endpoints 形状 {endpoints.shape} 与 count={self.count} 不一致"
+            )
+        if joint_strikes.shape != (self.count,):
+            raise ValueError(
+                f"joint_strikes 形状 {joint_strikes.shape} "
+                f"与 count={self.count} 不一致"
+            )
+        if segment_lengths.shape != (self.count,):
+            raise ValueError(
+                f"segment_lengths 形状 {segment_lengths.shape} "
+                f"与 count={self.count} 不一致"
+            )
+        if not np.isfinite(endpoints).all():
+            raise ValueError("endpoints 包含 NaN 或 inf")
+        if not np.isfinite(joint_strikes).all():
+            raise ValueError("joint_strikes 包含 NaN 或 inf")
+        if not np.isfinite(segment_lengths).all():
+            raise ValueError("segment_lengths 包含 NaN 或 inf")
 
     # ---- 派生属性 ----
 
@@ -145,12 +172,23 @@ class RunConfig:
 
     def __post_init__(self) -> None:
         for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
-            if not str(getattr(self, name)).strip():
+            normalized = str(getattr(self, name)).strip()
+            if not normalized:
                 raise ValueError(f"{name} 不能为空")
-        _validate_rose_bin_width(self.rose_bin_width)
-        _validate_dpi(self.rose_dpi)
-        _validate_dpi(self.trace_dpi)
-        _validate_dpi(self.rotated_trace_dpi)
+            object.__setattr__(self, name, normalized)
+        object.__setattr__(
+            self,
+            "export_rose_plot",
+            _validate_bool(self.export_rose_plot, "export_rose_plot"),
+        )
+        object.__setattr__(
+            self, "rose_bin_width", _validate_rose_bin_width(self.rose_bin_width)
+        )
+        object.__setattr__(self, "rose_dpi", _validate_dpi(self.rose_dpi))
+        object.__setattr__(self, "trace_dpi", _validate_dpi(self.trace_dpi))
+        object.__setattr__(
+            self, "rotated_trace_dpi", _validate_dpi(self.rotated_trace_dpi)
+        )
 
     # ---- 工厂方法 ----
 
@@ -163,11 +201,11 @@ class RunConfig:
             output_prefix=str(cfg["output_prefix"]),
             table_stem=str(cfg["table_stem"]),
             outcrop=str(cfg["outcrop"]),
-            export_rose_plot=bool(cfg.get("export_rose_plot", True)),
-            rose_bin_width=float(cfg.get("rose_bin_width", 10.0)),
-            rose_dpi=int(cfg.get("rose_dpi", 400)),
-            trace_dpi=int(cfg.get("trace_dpi", 300)),
-            rotated_trace_dpi=int(cfg.get("rotated_trace_dpi", 600)),
+            export_rose_plot=cfg.get("export_rose_plot", True),
+            rose_bin_width=cfg.get("rose_bin_width", 10.0),
+            rose_dpi=cfg.get("rose_dpi", 400),
+            trace_dpi=cfg.get("trace_dpi", 300),
+            rotated_trace_dpi=cfg.get("rotated_trace_dpi", 600),
         )
 
 

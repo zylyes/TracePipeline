@@ -6,10 +6,6 @@
 也可等价使用:
     python -m trace_pipeline [options]
 """
-import matplotlib as _mpl
-
-_mpl.use("Agg")
-
 from trace_pipeline.cli import main
 
 if __name__ == "__main__":

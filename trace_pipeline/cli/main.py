@@ -35,7 +35,10 @@ def main() -> None:
     # ---- 2. 路径解析与文件发现 ----
     base_dir = resolve_config_base_dir(args.config)
     input_dir, output_dir = resolve_io_paths(
-        cfg["input_dir"], cfg["output_dir"], base_dir=base_dir,
+        cfg["input_dir"],
+        cfg["output_dir"],
+        base_dir=base_dir,
+        create_dirs=not (args.list or args.dry_run),
     )
     logger.info("输入目录：%s", input_dir)
     logger.info("输出目录：%s", output_dir)

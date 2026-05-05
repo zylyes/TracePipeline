@@ -172,18 +172,21 @@ def _compute_bilateral(
 # ===========================================================================
 
 
-def compute_endpoints(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndarray, np.ndarray]:
+def compute_endpoints(
+    df: pd.DataFrame,
+) -> Tuple[float, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """从原始表格解析测线走向、迹线条数与端点坐标（纯向量化）。
 
     整合表头解析、数值提取、角度转换与三种情况的端点计算。
 
     Returns:
-        (azimuth, count, endpoints, joint_strikes, segment_lengths):
+        (azimuth, count, endpoints, joint_strikes, segment_lengths, scanline_positions):
         - azimuth: 测线走向角（度），[0, 360)
         - count: 迹线条数
         - endpoints: 端点坐标 (N, 4), [x1, y1, x2, y2]
         - joint_strikes: 节理走向（度），长度 N
         - segment_lengths: 沿测段的迹线长度 r5+r7（MATLAB 定义），长度 N
+        - scanline_positions: 沿测线位移 r1，长度 N
     """
     azimuth, n = _parse_header(df)
     M = _extract_numeric_block(df, n)
@@ -242,7 +245,7 @@ def compute_endpoints(df: pd.DataFrame) -> Tuple[float, int, np.ndarray, np.ndar
         )
 
     endpoints = np.column_stack((X1, Y1, X2, Y2))
-    return azimuth, n, endpoints, joint_strike, segment_lengths
+    return azimuth, n, endpoints, joint_strike, segment_lengths, r1.copy()
 
 
 __all__ = [

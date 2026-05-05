@@ -11,6 +11,7 @@ import numpy as np
 
 from .geology.endpoints import compute_endpoints
 from .geology.angles import fold_strike_angle
+from .geology.statistics import compute_trace_statistics, format_statistics_box_lines
 from .geology.transforms import normalize_coordinates
 from .io.excel_reader import read_trace_excel
 from .io.excel_writer import build_excel_sections, write_excel_sections
@@ -28,13 +29,21 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
     logger.info("加载迹线数据: %s/%s", input_dir, table_stem)
     df = read_trace_excel(input_dir, table_stem, outcrop)
 
-    azimuth, n, endpoints, joint_strikes, segment_lengths = compute_endpoints(df)
+    (
+        azimuth,
+        n,
+        endpoints,
+        joint_strikes,
+        segment_lengths,
+        scanline_positions,
+    ) = compute_endpoints(df)
     trace = TraceData(
         scanline_azimuth=azimuth,
         count=n,
         endpoints=endpoints,
         joint_strikes=joint_strikes,
         segment_lengths=segment_lengths,
+        scanline_positions=scanline_positions,
     )
     logger.info(
         "解析完成: %d 条迹线, 走向 %.1f°, 平均端点距离 %.2f",
@@ -65,6 +74,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         # ---- 2. 坐标变换 ----
         rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
         rotated_north_angle = 90.0 + float(np.degrees(fold_strike_angle(trace.scanline_azimuth)))
+        statistics = compute_trace_statistics(trace)
+        statistics_lines = format_statistics_box_lines(statistics)
 
         # ---- 3. 导出 Excel ----
         output_dir = Path(cfg.output_dir)
@@ -81,6 +92,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             str(output_dir),
             f"{cfg.outcrop}_raw(n={trace.count}).png",
             dpi=cfg.trace_dpi,
+            statistics_lines=statistics_lines,
         )
         rot_plot = render_trace_plot(
             rotated,
@@ -89,6 +101,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
             dpi=cfg.rotated_trace_dpi,
             north_angle_deg=rotated_north_angle,
+            statistics_lines=statistics_lines,
         )
 
         rose_plot = ""

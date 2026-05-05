@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, NamedTuple, Tuple
+from typing import TYPE_CHECKING, NamedTuple, Sequence, Tuple
 
 from ._helpers import new_figure, save_figure
 
@@ -239,6 +239,31 @@ def _style_trace_axes(ax: plt.Axes) -> None:
     ax.set_facecolor("white")
 
 
+def _add_statistics_box(ax: plt.Axes, statistics_lines: Sequence[str] | None) -> None:
+    if not statistics_lines:
+        return
+    ax.text(
+        0.985,
+        0.985,
+        "\n".join(str(line) for line in statistics_lines),
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=8.5,
+        linespacing=1.25,
+        color="black",
+        bbox=dict(
+            boxstyle="round,pad=0.35",
+            facecolor="white",
+            edgecolor="black",
+            linewidth=0.8,
+            alpha=0.90,
+        ),
+        clip_on=False,
+        zorder=_ANNOTATION_ZORDER + 1,
+    )
+
+
 def render_trace_plot(
     segments: np.ndarray,
     title: str,
@@ -247,6 +272,7 @@ def render_trace_plot(
     dpi: int = _DEFAULT_TRACE_DPI,
     figsize_cm: Tuple[float, float] = _TRACE_FIGSIZE_CM,
     north_angle_deg: float = 90.0,
+    statistics_lines: Sequence[str] | None = None,
 ) -> str:
     """绘制并保存单张迹线长度图。
 
@@ -262,5 +288,6 @@ def render_trace_plot(
     _apply_decoration_limits(ax, layout)
     _add_direction_marker(ax, layout, north_angle_deg)
     _add_scale_bar(ax, layout)
+    _add_statistics_box(ax, statistics_lines)
     ax.set_title(title, fontsize=14, fontweight="bold", pad=12)
     return save_figure(fig, output_dir, filename, dpi=dpi)

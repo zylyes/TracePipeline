@@ -27,6 +27,19 @@ def test_render_trace_plot_rejects_nonfinite_before_writing(tmp_path):
     assert not (tmp_path / "bad.png").exists()
 
 
+def test_render_trace_plot_accepts_statistics_box(tmp_path):
+    out = render_trace_plot(
+        np.array([[0.0, 0.0, 1.0, 1.0]]),
+        "stats",
+        str(tmp_path),
+        "stats.png",
+        statistics_lines=("count: 1", "P20: N/A"),
+    )
+
+    assert out.endswith("stats.png")
+    assert (tmp_path / "stats.png").is_file()
+
+
 def test_rose_histogram_keeps_non_divisible_final_bin_width():
     theta, radii, widths = _compute_rose_histogram(
         np.array([1.0, 8.0, 179.0]),

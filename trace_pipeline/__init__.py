@@ -21,6 +21,13 @@ from .config import (
     resolve_config_base_dir,
     resolve_io_paths,
 )
+from .geology.statistics import (
+    CircleWindowDiagnostic,
+    TraceStatistics,
+    TraceStatisticsConfig,
+    compute_trace_statistics,
+    format_statistics_box_lines,
+)
 from .io.discovery import find_trace_tables
 from .models import RunConfig, RunResult, TraceData
 from .pipeline import load_trace_data, run_pipeline
@@ -31,12 +38,17 @@ __all__ = [
     "DEFAULT_CONFIG",
     "DEFAULT_CONFIG_PATH",
     "PROJECT_ROOT",
+    "CircleWindowDiagnostic",
     "RunConfig",
     "RunResult",
+    "TraceStatistics",
+    "TraceStatisticsConfig",
     "TraceData",
     "apply_cli_overrides",
     "configure_style",
+    "compute_trace_statistics",
     "find_trace_tables",
+    "format_statistics_box_lines",
     "load_config",
     "load_trace_data",
     "print_pipeline_results",

@@ -1,6 +1,8 @@
 # 岩体节理测线坐标计算与绘图工具
 
-基于 Python 实现的岩体节理测线法数据处理与可视化系统。以北山沙枣园花岗岩体 8 个露头（O76–O83）的 172 条节理迹线为数据基础，将 MATLAB 原版算法完整移植为工程化 Python 代码，实现从原始测线记录到二维迹线图、玫瑰花瓣图的自动化流水线。
+> **版本**: v0.1.0 | **语言**: Python ≥ 3.9 | **许可证**: 教育用途
+
+基于 Python 实现的岩体节理测线法数据处理与可视化系统。以北山沙枣园花岗岩体 8 个露头（O76–O83）的 172 条节理迹线为数据基础，将 MATLAB 原版算法完整移植为工程化 Python 代码，实现从原始测线记录到二维迹线图、玫瑰花瓣图的自动化流水线。核心功能涵盖：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → P10/P20/P21 密度统计（圆形取样窗法多策略聚合）→ 四区 Excel 导出 → LaTeX 统计信息框迹线图/玫瑰图输出。
 
 > **毕业设计课题**: 26 届地球信息科学与技术专业 — 周咏霖（学号 2022210162）
 > **指导教师**: 霍亮（讲师），地球与行星科学学院
@@ -51,7 +53,7 @@
 ├── input/                         # 输入目录（存放 *_process.xls*）
 ├── output/                        # 输出目录（Excel + 图片）
 ├── logs/                          # 运行日志
-├── tests/                         # pytest 单元测试
+├── tests/                         # pytest 单元测试（18 个文件，覆盖全包）
 └── reference/                     # 研究资料（含 MATLAB 原版参考代码）
 ```
 
@@ -79,10 +81,18 @@
 
 ```bash
 cd code
+
+# 方式一：venv（推荐）
 python -m venv .venv
 .venv\Scripts\Activate.ps1    # Windows PowerShell
-pip install -e .               # 安装（含 CLI 入口和所有依赖）
-pip install -e .[dev]          # （可选）安装开发依赖
+# 或 source .venv/bin/activate   # Linux/macOS
+pip install -e .
+pip install -e .[dev]         # 可选：安装开发依赖
+
+# 方式二：conda / mamba
+conda create -n trace python=3.11 -y
+conda activate trace
+pip install -e .
 ```
 
 安装后可通过 `trace-pipeline` 命令直接调用，或使用 `python run_trace_pipeline.py`。
@@ -212,16 +222,21 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 
 | 模块 | 职责 | 关键函数 |
 |------|------|----------|
-| `angles.py` | 倾向→走向、走向折叠、半平面折叠 | `dip_to_strike`, `fold_strike_angle`, `fold_to_halfplane` |
-| `endpoints.py` | 向量化端点坐标计算、表头解析 | `compute_endpoints` |
-| `transforms.py` | 坐标平移与旋转标准化流水线 | `normalize_coordinates` |
-| `statistics.py` | P10/P20/P21 密度统计、I/II/III 型分类、露头面积估算、圆形取样窗法迹长回退估算 | `compute_trace_statistics` |
+| `geology/angles.py` | 倾向→走向、走向折叠、半平面折叠 | `dip_to_strike`, `fold_strike_angle`, `fold_to_halfplane` |
+| `geology/endpoints.py` | 向量化端点坐标计算、表头解析 | `compute_endpoints` |
+| `geology/transforms.py` | 坐标平移与旋转标准化流水线 | `normalize_coordinates` |
+| `geology/statistics.py` | P10/P20/P21 密度统计、I/II/III 型分类、露头面积估算、圆形取样窗法迹长回退估算 | `compute_trace_statistics`, `format_statistics_box_lines` |
 | `pipeline.py` | 单目标全流程编排 | `run_pipeline`, `load_trace_data` |
-| `config.py` | 配置加载/校验、路径解析、CLI 覆盖 | `load_config`, `resolve_io_paths` |
-| `io/` | Excel 读取、四区布局写入、文件发现 | `read_trace_excel`, `write_excel_sections` |
-| `plotting/` | 迹线图、玫瑰图、全局样式（CJK 字体） | `render_trace_plot`, `render_rose_plot` |
-| `reporting.py` | 结果格式化：详情、汇总表、统计摘要 | `print_pipeline_results` |
-| `models.py` | 不可变数据类 | `TraceData`, `RunConfig`, `RunResult` |
+| `config.py` | 配置加载/校验、路径解析、CLI 覆盖 | `load_config`, `resolve_io_paths`, `apply_cli_overrides` |
+| `io/excel_reader.py` | Excel 迹线表读取（.xlsx/.xls 回退） | `read_trace_excel` |
+| `io/excel_writer.py` | 四区布局写入（A/B/C/D 区） | `build_excel_sections`, `write_excel_sections` |
+| `io/discovery.py` | 输入目录文件扫描与去重 | `find_trace_tables` |
+| `plotting/trace_plot.py` | 迹线图（比例尺 + 指北针 + LaTeX 统计信息框） | `render_trace_plot`, `segments_to_xy` |
+| `plotting/rose_plot.py` | 玫瑰花瓣图 | `render_rose_plot` |
+| `plotting/style.py` | 全局样式配置 + CJK 字体多级回退 | `configure_style` |
+| `reporting.py` | 结果格式化：详情、汇总表、统计摘要 | `print_pipeline_results`, `format_results_table` |
+| `models.py` | 不可变数据类（含校验） | `TraceData`, `RunConfig`, `RunResult` |
+| `cli/` | 命令行入口：args/dispatcher/interactive/logging_setup/main | `parse_args`, `execute_targets`, `select_targets_interactive` |
 
 ---
 
@@ -288,6 +303,21 @@ dd + 90 & dd < 90
 圆形取样窗策略仍保留为内部诊断与缺失迹长回退：3 切点（25%/50%/75%）× 2 侧（左/右）× 3 半径缩放比（1.0/0.75/0.50）= 最多 18 窗口，自动约束半径与交集数，无效窗口自动排除。Laslett 估计 $L_{\\mathrm{est}} = (\\pi R/2)\\cdot(q/m)$，$q = 2n_0+n_1$。
 
 各露头统计结果随迹线图输出为 LaTeX 统计信息框（测线走向、迹线数量、平均迹线长度、分型数量、测线长度、露头面积与 P10/P20/P21），汇总表由终端表格生成。
+
+### 各露头统计汇总
+
+| 露头 | 迹线数 | 测线走向 | 平均迹长 (m) | I型/II型/III型 | P10 (m⁻¹) | P20 (m⁻²) | P21_est (m⁻¹) |
+|------|--------|----------|-------------|----------------|-----------|-----------|---------------|
+| O76 | 19 | 298° | — | —/—/— | — | — | — |
+| O77 | 19 | 280° | — | —/—/— | — | — | — |
+| O78 | 26 | 165° | — | —/—/— | — | — | — |
+| O79 | 20 | 212° | — | —/—/— | — | — | — |
+| O80 | 29 | 334° | — | —/—/— | — | — | — |
+| O81 | 19 | 75° | — | —/—/— | — | — | — |
+| O82 | 20 | 273° | — | —/—/— | — | — | — |
+| O83 | 20 | 265° | — | —/—/— | — | — | — |
+
+> 运行 `python run_trace_pipeline.py` 后终端自动输出完整汇总表。各露头 P10/P20/P21 和分型数据以终端输出和迹线图内置 LaTeX 统计信息框为准。
 
 
 
@@ -408,7 +438,7 @@ pip install pytest
 pytest
 ```
 
-测试模块覆盖 `angles`、`endpoints`、`transforms`、`statistics`、`discovery`、`config`、`models`、`plotting`、`excel_reader`、`dispatcher`、`logging_setup`。
+测试模块（18 个文件）覆盖 `angles`、`endpoints`、`transforms`、`statistics`、`discovery`、`config`、`models`、`plotting`、`excel_reader`、`excel_writer`、`dispatcher`、`interactive`、`logging_setup`、`cli_main`、`reporting`、`imports`。
 
 ### 日志
 
@@ -416,7 +446,7 @@ pytest
 
 ### 扩展
 
-新增模块在 `trace_pipeline/` 下创建，在 `__init__.py` 中导出。流水线编排在 `pipeline.py:run_pipeline()` 中，可按需插入或替换阶段。顶层包导出 15 个常用入口，底层函数可直接导入：
+新增模块在 `trace_pipeline/` 下创建，在 `__init__.py` 中导出。流水线编排在 `pipeline.py:run_pipeline()` 中，可按需插入或替换阶段。顶层包导出 20 个常用入口，底层函数可直接导入：
 
 ```python
 from trace_pipeline import run_pipeline, TraceData

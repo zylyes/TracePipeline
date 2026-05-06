@@ -35,10 +35,14 @@ class TraceStatisticsConfig:
     radius_fractions: Sequence[float] = (1.0, 0.75, 0.5)
     min_intersections: int = 5
     terzaghi_correction: bool = False
+    window_strategy: str = "auto"
+    auto_density_threshold: float = 5.0
+    tangent_window_count: int = 3
 
     def __post_init__(self) -> None:
         cut_fractions = tuple(float(v) for v in self.cut_fractions)
         radius_fractions = tuple(float(v) for v in self.radius_fractions)
+        window_strategy = str(self.window_strategy).strip().lower()
         if not cut_fractions:
             raise ValueError("cut_fractions 不能为空")
         if not radius_fractions:
@@ -49,9 +53,20 @@ class TraceStatisticsConfig:
             raise ValueError("radius_fractions 必须为正数")
         if int(self.min_intersections) <= 0:
             raise ValueError("min_intersections 必须为正整数")
+        if window_strategy not in {"auto", "tangent", "hybrid", "concentric"}:
+            raise ValueError("window_strategy 必须为 auto/tangent/hybrid/concentric")
+        auto_density_threshold = float(self.auto_density_threshold)
+        if not math.isfinite(auto_density_threshold) or auto_density_threshold <= 0.0:
+            raise ValueError("auto_density_threshold 必须为正数")
+        tangent_window_count = int(self.tangent_window_count)
+        if tangent_window_count <= 0:
+            raise ValueError("tangent_window_count 必须为正整数")
         object.__setattr__(self, "cut_fractions", cut_fractions)
         object.__setattr__(self, "radius_fractions", radius_fractions)
         object.__setattr__(self, "min_intersections", int(self.min_intersections))
+        object.__setattr__(self, "window_strategy", window_strategy)
+        object.__setattr__(self, "auto_density_threshold", auto_density_threshold)
+        object.__setattr__(self, "tangent_window_count", tangent_window_count)
 
 
 @dataclass(frozen=True)
@@ -70,7 +85,10 @@ class CircleWindowDiagnostic:
     m: int
     q: int
     p20: float
+    p21: float
     l_est: float
+    strategy: str
+    group_key: str
     valid: bool
     reason: str = ""
 
@@ -94,6 +112,9 @@ class TraceStatistics:
     scanline_length_source: str
     outcrop_area_source: str
     trace_length_source: str
+    p20_source: str
+    p21_source: str
+    window_strategy: str
     trace_types: tuple[str, ...]
     diagnostics: tuple[CircleWindowDiagnostic, ...]
 
@@ -137,22 +158,44 @@ def _to_local_segments(trace: TraceData) -> np.ndarray:
     return local_points.reshape(trace.endpoints.shape)
 
 
-def _estimate_outcrop_area(local_segments: np.ndarray, scanline_length: float) -> float:
-    if not math.isfinite(float(scanline_length)) or scanline_length <= _EPS:
-        return math.nan
+def _convex_hull_area(local_segments: np.ndarray) -> float:
+    """返回端点凸包面积；点数不足或共线时返回 NaN。"""
     if local_segments.size == 0:
         return math.nan
 
-    y_values = np.asarray(local_segments[:, [1, 3]].ravel(), dtype=float)
-    if y_values.size == 0 or not np.isfinite(y_values).all():
+    points = np.asarray(local_segments, dtype=float).reshape(-1, 2)
+    if points.shape[0] < 3 or not np.isfinite(points).all():
         return math.nan
 
-    normal_span = float(np.max(y_values) - np.min(y_values))
-    if normal_span <= _EPS:
+    points = np.unique(points, axis=0)
+    if points.shape[0] < 3:
         return math.nan
 
-    area = float(scanline_length) * normal_span
-    return float(area) if math.isfinite(area) and area > _EPS else math.nan
+    order = np.lexsort((points[:, 1], points[:, 0]))
+    points = points[order]
+
+    def build_half(iterable: np.ndarray) -> list[np.ndarray]:
+        half: list[np.ndarray] = []
+        for point in iterable:
+            while len(half) >= 2 and _cross(half[-1] - half[-2], point - half[-1]) <= _EPS:
+                half.pop()
+            half.append(point)
+        return half
+
+    lower = build_half(points)
+    upper = build_half(points[::-1])
+    hull = np.asarray(lower[:-1] + upper[:-1], dtype=float)
+    if hull.shape[0] < 3:
+        return math.nan
+
+    x = hull[:, 0]
+    y = hull[:, 1]
+    area = 0.5 * abs(float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))))
+    return area if math.isfinite(area) and area > _EPS else math.nan
+
+
+def _estimate_outcrop_area(local_segments: np.ndarray, scanline_length: float) -> float:
+    return _convex_hull_area(local_segments)
 
 
 def _effective_outcrop_area(
@@ -162,7 +205,7 @@ def _effective_outcrop_area(
 ) -> tuple[float, str]:
     if trace.measured_outcrop_area is not None:
         return float(trace.measured_outcrop_area), "measured"
-    return _estimate_outcrop_area(local_segments, scanline_length), "estimated"
+    return _estimate_outcrop_area(local_segments, scanline_length), "hull"
 
 
 def _finite_positive_total(values: np.ndarray) -> float:
@@ -177,6 +220,14 @@ def _effective_trace_length_total(
     trace: TraceData,
     estimated_mean_length: float,
 ) -> tuple[float, str]:
+    estimated_mean_length = float(estimated_mean_length)
+    if trace.count > 0 and math.isfinite(estimated_mean_length) and estimated_mean_length >= 0.0:
+        return float(estimated_mean_length * trace.count), "window"
+
+    return _observed_trace_length_total(trace)
+
+
+def _observed_trace_length_total(trace: TraceData) -> tuple[float, str]:
     endpoint_total = _finite_positive_total(trace.lengths)
     if math.isfinite(endpoint_total):
         return endpoint_total, "endpoint"
@@ -184,10 +235,6 @@ def _effective_trace_length_total(
     segment_total = _finite_positive_total(trace.segment_lengths)
     if math.isfinite(segment_total):
         return segment_total, "segment"
-
-    estimated_mean_length = float(estimated_mean_length)
-    if trace.count > 0 and math.isfinite(estimated_mean_length) and estimated_mean_length >= 0.0:
-        return float(estimated_mean_length * trace.count), "window_estimate"
 
     return math.nan, "unavailable"
 
@@ -289,11 +336,12 @@ def _count_circle_window(
     local_segments: np.ndarray,
     cut_position: float,
     side: str,
+    center: np.ndarray,
     radius: float,
     min_intersections: int,
+    strategy: str,
+    group_key: str,
 ) -> CircleWindowDiagnostic:
-    sign = 1.0 if side == "left" else -1.0
-    center = np.array([cut_position, sign * radius], dtype=float)
     n0 = n1 = n2 = intersection_count = 0
 
     for segment in local_segments:
@@ -315,6 +363,7 @@ def _count_circle_window(
     m = n1 + 2 * n2
     q = 2 * n0 + n1
     p20 = math.nan
+    p21 = math.nan
     l_est = math.nan
     reason = ""
     valid = True
@@ -326,6 +375,7 @@ def _count_circle_window(
         reason = "m <= 0"
     else:
         p20 = m / (2.0 * math.pi * radius * radius)
+        p21 = q / (4.0 * radius)
         l_est = (math.pi * radius / 2.0) * (q / m)
 
     return CircleWindowDiagnostic(
@@ -341,19 +391,32 @@ def _count_circle_window(
         m=m,
         q=q,
         p20=float(p20),
+        p21=float(p21),
         l_est=float(l_est),
+        strategy=strategy,
+        group_key=group_key,
         valid=valid,
         reason=reason,
     )
 
 
-def _invalid_window(cut_position: float, side: str, reason: str) -> CircleWindowDiagnostic:
+def _invalid_window(
+    cut_position: float,
+    side: str,
+    reason: str,
+    *,
+    strategy: str,
+    group_key: str,
+    center_x: float | None = None,
+    center_y: float | None = None,
+    radius: float | None = None,
+) -> CircleWindowDiagnostic:
     return CircleWindowDiagnostic(
         cut_position=cut_position,
         side=side,
-        center_x=float(cut_position),
-        center_y=math.nan,
-        radius=math.nan,
+        center_x=float(cut_position if center_x is None else center_x),
+        center_y=float(math.nan if center_y is None else center_y),
+        radius=float(math.nan if radius is None else radius),
         intersection_count=0,
         n0=0,
         n1=0,
@@ -361,7 +424,10 @@ def _invalid_window(cut_position: float, side: str, reason: str) -> CircleWindow
         m=0,
         q=0,
         p20=math.nan,
+        p21=math.nan,
         l_est=math.nan,
+        strategy=strategy,
+        group_key=group_key,
         valid=False,
         reason=reason,
     )
@@ -375,7 +441,50 @@ def _side_height(local_segments: np.ndarray, sign: float) -> float:
     return float(np.max(np.abs(side_values)))
 
 
-def _compute_circle_windows(
+def _max_abs_y(local_segments: np.ndarray) -> float:
+    if local_segments.size == 0:
+        return 0.0
+    y_values = np.asarray(local_segments[:, [1, 3]].ravel(), dtype=float)
+    if y_values.size == 0:
+        return 0.0
+    return float(np.max(np.abs(y_values)))
+
+
+def _tangent_radius(scanline_length: float, config: TraceStatisticsConfig) -> float:
+    if not math.isfinite(float(scanline_length)) or scanline_length <= _EPS:
+        return math.nan
+    return float(scanline_length) / (2.0 * config.tangent_window_count)
+
+
+def _select_window_strategy(
+    local_segments: np.ndarray,
+    scanline_length: float,
+    trace_count: int,
+    config: TraceStatisticsConfig,
+    hull_area: float,
+) -> str:
+    if config.window_strategy != "auto":
+        return config.window_strategy
+
+    rough_density = (
+        trace_count / hull_area
+        if math.isfinite(float(hull_area)) and hull_area > _EPS
+        else math.nan
+    )
+    radius = _tangent_radius(scanline_length, config)
+    expected_intersections = (
+        rough_density * math.pi * radius * radius
+        if math.isfinite(rough_density) and math.isfinite(radius)
+        else 0.0
+    )
+    if expected_intersections < config.min_intersections:
+        return "tangent"
+    if rough_density < config.auto_density_threshold:
+        return "hybrid"
+    return "concentric"
+
+
+def _compute_hybrid_windows(
     local_segments: np.ndarray,
     scanline_length: float,
     config: TraceStatisticsConfig,
@@ -387,35 +496,157 @@ def _compute_circle_windows(
         for side, sign in (("left", 1.0), ("right", -1.0)):
             side_height = _side_height(local_segments, sign)
             radius_max = min(side_height / 2.0, edge_limit)
+            group_key = f"hybrid:{cut_fraction:.12g}:{side}"
             if radius_max <= _EPS:
                 diagnostics.append(
-                    _invalid_window(cut_position, side, "可用侧向高度或端部距离不足")
+                    _invalid_window(
+                        cut_position,
+                        side,
+                        "可用侧向高度或端部距离不足",
+                        strategy="hybrid",
+                        group_key=group_key,
+                    )
                 )
                 continue
             for radius_fraction in config.radius_fractions:
                 radius = radius_max * radius_fraction
+                center = np.array([cut_position, sign * radius], dtype=float)
                 diagnostics.append(
                     _count_circle_window(
                         local_segments,
                         cut_position,
                         side,
+                        center,
                         radius,
                         config.min_intersections,
+                        "hybrid",
+                        group_key,
                     )
                 )
     return tuple(diagnostics)
+
+
+def _compute_tangent_windows(
+    local_segments: np.ndarray,
+    scanline_length: float,
+    config: TraceStatisticsConfig,
+) -> tuple[CircleWindowDiagnostic, ...]:
+    diagnostics = []
+    radius = _tangent_radius(scanline_length, config)
+    for side, sign in (("left", 1.0), ("right", -1.0)):
+        side_height = _side_height(local_segments, sign)
+        for index in range(config.tangent_window_count):
+            group_key = f"tangent:{side}:{index}"
+            cut_position = (
+                radius * (2 * index + 1)
+                if math.isfinite(radius)
+                else math.nan
+            )
+            center_y = sign * radius if math.isfinite(radius) else math.nan
+            if not math.isfinite(radius) or radius <= _EPS:
+                diagnostics.append(
+                    _invalid_window(
+                        0.0,
+                        side,
+                        "测线长度不足",
+                        strategy="tangent",
+                        group_key=group_key,
+                    )
+                )
+                continue
+            if side_height + _EPS < 2.0 * radius:
+                diagnostics.append(
+                    _invalid_window(
+                        cut_position,
+                        side,
+                        "可用侧向高度不足",
+                        strategy="tangent",
+                        group_key=group_key,
+                        center_x=cut_position,
+                        center_y=center_y,
+                        radius=radius,
+                    )
+                )
+                continue
+            center = np.array([cut_position, center_y], dtype=float)
+            diagnostics.append(
+                _count_circle_window(
+                    local_segments,
+                    cut_position,
+                    side,
+                    center,
+                    radius,
+                    config.min_intersections,
+                    "tangent",
+                    group_key,
+                )
+            )
+    return tuple(diagnostics)
+
+
+def _compute_concentric_windows(
+    local_segments: np.ndarray,
+    scanline_length: float,
+    config: TraceStatisticsConfig,
+) -> tuple[CircleWindowDiagnostic, ...]:
+    diagnostics = []
+    cut_position = scanline_length / 2.0 if math.isfinite(float(scanline_length)) else 0.0
+    center = np.array([cut_position, 0.0], dtype=float)
+    radius_max = min(scanline_length / 2.0, _max_abs_y(local_segments))
+    group_key = "concentric:center"
+    if not math.isfinite(float(radius_max)) or radius_max <= _EPS:
+        return (
+            _invalid_window(
+                cut_position,
+                "center",
+                "可用半径不足",
+                strategy="concentric",
+                group_key=group_key,
+                center_x=cut_position,
+                center_y=0.0,
+            ),
+        )
+
+    for radius_fraction in config.radius_fractions:
+        radius = radius_max * radius_fraction
+        diagnostics.append(
+            _count_circle_window(
+                local_segments,
+                cut_position,
+                "center",
+                center,
+                radius,
+                config.min_intersections,
+                "concentric",
+                group_key,
+            )
+        )
+    return tuple(diagnostics)
+
+
+def _compute_circle_windows(
+    local_segments: np.ndarray,
+    scanline_length: float,
+    config: TraceStatisticsConfig,
+    strategy: str,
+) -> tuple[CircleWindowDiagnostic, ...]:
+    if strategy == "tangent":
+        return _compute_tangent_windows(local_segments, scanline_length, config)
+    if strategy == "concentric":
+        return _compute_concentric_windows(local_segments, scanline_length, config)
+    return _compute_hybrid_windows(local_segments, scanline_length, config)
 
 
 def _aggregate_window_metric(
     diagnostics: Sequence[CircleWindowDiagnostic],
     attr: str,
 ) -> float:
-    grouped: Mapping[tuple[float, str], list[float]] = defaultdict(list)
+    grouped: Mapping[str, list[float]] = defaultdict(list)
     for diagnostic in diagnostics:
         if diagnostic.valid:
             value = float(getattr(diagnostic, attr))
             if math.isfinite(value):
-                grouped[(diagnostic.cut_position, diagnostic.side)].append(value)
+                grouped[diagnostic.group_key].append(value)
     if not grouped:
         return math.nan
 
@@ -441,12 +672,27 @@ def compute_trace_statistics(
     )
     local_segments = _to_local_segments(trace)
     trace_types = _classify_trace_types(local_segments, finite_scanline_length)
-    diagnostics = _compute_circle_windows(local_segments, finite_scanline_length, config)
+    hull_area = _estimate_outcrop_area(local_segments, finite_scanline_length)
+    selected_strategy = _select_window_strategy(
+        local_segments,
+        finite_scanline_length,
+        trace.count,
+        config,
+        hull_area,
+    )
+    diagnostics = _compute_circle_windows(
+        local_segments,
+        finite_scanline_length,
+        config,
+        selected_strategy,
+    )
 
     type_i_count = trace_types.count("I")
     type_ii_count = trace_types.count("II")
     type_iii_count = trace_types.count("III")
     estimated_mean_length = _aggregate_window_metric(diagnostics, "l_est")
+    estimated_p20 = _aggregate_window_metric(diagnostics, "p20")
+    estimated_p21 = _aggregate_window_metric(diagnostics, "p21")
     outcrop_area, outcrop_area_source = _effective_outcrop_area(
         trace,
         local_segments,
@@ -463,18 +709,44 @@ def compute_trace_statistics(
     )
 
     p10 = trace.count / scanline_length if scanline_length > _EPS else math.nan
-    p20 = trace.count / outcrop_area if outcrop_area > _EPS else math.nan
-    p21 = (
-        trace_length_total / outcrop_area
-        if math.isfinite(trace_length_total) and outcrop_area > _EPS
-        else math.nan
-    )
+    if trace.measured_outcrop_area is not None:
+        p20 = trace.count / trace.measured_outcrop_area
+        p20_source = "measured"
+    elif math.isfinite(estimated_p20):
+        p20 = estimated_p20
+        p20_source = "window"
+    elif outcrop_area > _EPS:
+        p20 = trace.count / outcrop_area
+        p20_source = "hull"
+    else:
+        p20 = math.nan
+        p20_source = "unavailable"
+
+    observed_total, _observed_source = _observed_trace_length_total(trace)
+    if math.isfinite(estimated_p21):
+        p21 = estimated_p21
+        p21_source = "window"
+    elif (
+        trace.measured_outcrop_area is not None
+        and math.isfinite(observed_total)
+    ):
+        p21 = observed_total / trace.measured_outcrop_area
+        p21_source = "measured"
+    elif math.isfinite(observed_total) and outcrop_area > _EPS:
+        p21 = observed_total / outcrop_area
+        p21_source = "hull"
+    else:
+        p21 = math.nan
+        p21_source = "unavailable"
 
     logger.debug(
-        "统计来源: 测线长度=%s, 露头面积=%s, 迹长总和=%s",
+        "统计来源: 策略=%s, 测线长度=%s, 露头面积=%s, 平均迹长=%s, P20=%s, P21=%s",
+        selected_strategy,
         scanline_length_source,
         outcrop_area_source,
         trace_length_source,
+        p20_source,
+        p21_source,
     )
 
     return TraceStatistics(
@@ -493,6 +765,9 @@ def compute_trace_statistics(
         scanline_length_source=scanline_length_source,
         outcrop_area_source=outcrop_area_source,
         trace_length_source=trace_length_source,
+        p20_source=p20_source,
+        p21_source=p21_source,
+        window_strategy=selected_strategy,
         trace_types=trace_types,
         diagnostics=diagnostics,
     )
@@ -504,16 +779,32 @@ def _format_value(value: float, unit: str = "") -> str:
     return f"{value:.3f}{unit}"
 
 
+_SOURCE_LABELS = {
+    "window": "W",
+    "measured": "M",
+    "endpoint": "M",
+    "hull": "E",
+    "segment": "E",
+    "estimated": "E",
+}
+
+
+def _source_suffix(source: str) -> str:
+    label = _SOURCE_LABELS.get(source)
+    return f"({label})" if label else ""
+
+
 def format_statistics_box_lines(stats: TraceStatistics) -> tuple[str, ...]:
     """格式化迹线统计框文本。"""
     return (
         f"测线走向: {_format_value(stats.scanline_azimuth, '°')}",
         f"迹线数量: {stats.total_count}",
-        f"平均迹线长度: {_format_value(stats.mean_trace_length, ' $\\mathrm{m}$')}",
+        f"平均迹线长度{_source_suffix(stats.trace_length_source)}: {_format_value(stats.mean_trace_length, ' $\\mathrm{m}$')}",
         f"I/II/III型裂隙数: {stats.type_i_count}/{stats.type_ii_count}/{stats.type_iii_count}",
         f"测线长度: {_format_value(stats.scanline_length, ' $\\mathrm{m}$')}",
         f"露头面积: {_format_value(stats.outcrop_area, ' $\\mathrm{m}^{2}$')}",
+        f"圆窗策略: {stats.window_strategy}",
         f"线密度（$P_{{10}}$）: {_format_value(stats.p10, ' $\\mathrm{m}^{-1}$')}",
-        f"面密度（$P_{{20}}$）: {_format_value(stats.p20, ' $\\mathrm{m}^{-2}$')}",
-        f"面累计长度密度（$P_{{21}}$）: {_format_value(stats.p21, ' $\\mathrm{m}^{-1}$')}",
+        f"面密度（$P_{{20}}$）{_source_suffix(stats.p20_source)}: {_format_value(stats.p20, ' $\\mathrm{m}^{-2}$')}",
+        f"面累计长度密度（$P_{{21}}$）{_source_suffix(stats.p21_source)}: {_format_value(stats.p21, ' $\\mathrm{m}^{-1}$')}",
     )

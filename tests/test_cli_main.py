@@ -6,6 +6,7 @@ import logging
 import pytest
 
 from trace_pipeline.config import DEFAULT_CONFIG
+from trace_pipeline.cli.args import build_overrides
 from trace_pipeline.io.discovery import TraceFile
 
 main_module = importlib.import_module("trace_pipeline.cli.main")
@@ -14,6 +15,20 @@ main_module = importlib.import_module("trace_pipeline.cli.main")
 class _NonTty:
     def isatty(self):
         return False
+
+
+def test_build_overrides_includes_window_strategy():
+    args = argparse.Namespace(
+        input=None,
+        output=None,
+        single=False,
+        rose_bin=None,
+        rose_dpi=None,
+        no_rose=False,
+        window_strategy="tangent",
+    )
+
+    assert build_overrides(args) == {"window_strategy": "tangent"}
 
 
 def test_interactive_requires_tty(monkeypatch, tmp_path):

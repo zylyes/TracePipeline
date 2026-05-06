@@ -106,9 +106,15 @@ def test_run_config_normalizes_values():
         rose_dpi="600",
         trace_dpi="300",
         rotated_trace_dpi="900",
+        window_strategy="CONCENTRIC",
+        auto_density_threshold="3.5",
+        tangent_window_count="4",
     )
 
     assert cfg.input_dir == "input"
     assert cfg.export_rose_plot is False
     assert cfg.rose_bin_width == 15.0
     assert cfg.rose_dpi == 600
+    assert cfg.window_strategy == "concentric"
+    assert cfg.auto_density_threshold == 3.5
+    assert cfg.tangent_window_count == 4

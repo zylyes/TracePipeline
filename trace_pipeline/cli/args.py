@@ -21,6 +21,10 @@ def parse_args() -> argparse.Namespace:
                         help="玫瑰图 DPI，覆盖配置文件")
     parser.add_argument("--no-rose", action="store_true",
                         help="跳过玫瑰图导出")
+    parser.add_argument("--window-strategy",
+                        choices=("auto", "tangent", "hybrid", "concentric"),
+                        default=None,
+                        help="圆形取样窗策略，覆盖配置文件")
     parser.add_argument("--parallel", "-p", type=int, default=0, metavar="N",
                         help="并行处理线程数（默认 0=串行，设为 0 或 1 为串行）")
     parser.add_argument("--interactive", "-I", action="store_true",
@@ -47,4 +51,6 @@ def build_overrides(args: argparse.Namespace) -> Dict[str, Any]:
         overrides["rose_dpi"] = args.rose_dpi
     if args.no_rose:
         overrides["export_rose_plot"] = False
+    if args.window_strategy:
+        overrides["window_strategy"] = args.window_strategy
     return overrides

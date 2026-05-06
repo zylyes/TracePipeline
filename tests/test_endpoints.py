@@ -18,7 +18,7 @@ class TestComputeEndpoints:
     def test_left_only(self):
         # 1 条迹线，仅左侧（r5=1, r7=0），azimuth=90, dip=0
         df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
-        az, n, ep, js, seg, r1 = compute_endpoints(df)
+        az, n, ep, js, seg, r1, measured_length, measured_area = compute_endpoints(df)
         assert az == 90.0
         assert n == 1
         assert ep.shape == (1, 4)
@@ -27,20 +27,46 @@ class TestComputeEndpoints:
         assert r1.shape == (1,)
         assert r1[0] == pytest.approx(0.0)
         assert seg[0] == pytest.approx(1.0)  # r5+r7 = 1+0
+        assert measured_length is None
+        assert measured_area is None
 
     def test_right_only(self):
         df = _make_df([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 90.0, 1]])
-        az, n, ep, js, seg, r1 = compute_endpoints(df)
+        az, n, ep, js, seg, r1, measured_length, measured_area = compute_endpoints(df)
         assert n == 1
         assert r1[0] == pytest.approx(0.0)
         assert seg[0] == pytest.approx(2.0)  # r5+r7 = 0+2
+        assert measured_length is None
+        assert measured_area is None
 
     def test_bilateral(self):
         df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.0, 90.0, 1]])
-        az, n, ep, js, seg, r1 = compute_endpoints(df)
+        az, n, ep, js, seg, r1, measured_length, measured_area = compute_endpoints(df)
         assert n == 1
         assert r1[0] == pytest.approx(0.0)
         assert seg[0] == pytest.approx(4.0)  # r5+r7 = 1+3
+        assert measured_length is None
+        assert measured_area is None
+
+    def test_reads_optional_measured_scanline_length_and_outcrop_area(self):
+        df = _make_df([
+            [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1, 999.0, 888.0, 12.5, 34.5]
+        ])
+
+        _az, _n, _ep, _js, _seg, _r1, measured_length, measured_area = compute_endpoints(df)
+
+        assert measured_length == pytest.approx(12.5)
+        assert measured_area == pytest.approx(34.5)
+
+    def test_invalid_optional_measured_values_fall_back_to_none(self):
+        df = _make_df([
+            [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1, 999.0, 888.0, 0.0, -1.0]
+        ])
+
+        _az, _n, _ep, _js, _seg, _r1, measured_length, measured_area = compute_endpoints(df)
+
+        assert measured_length is None
+        assert measured_area is None
 
     def test_empty_df_raises(self):
         with pytest.raises(ValueError):

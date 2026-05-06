@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import math
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Mapping, Sequence
@@ -23,6 +24,7 @@ __all__ = [
 ]
 
 _EPS = 1e-9
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -77,19 +79,21 @@ class CircleWindowDiagnostic:
 class TraceStatistics:
     """迹线图统计结果。"""
 
+    scanline_azimuth: float
     total_count: int
     type_i_count: int
     type_ii_count: int
     type_iii_count: int
-    scanline_length_estimate: float
-    observed_mean_length_all: float
-    observed_mean_length_i: float
-    estimated_mean_trace_length: float
-    p10_i: float
-    p10_all: float
+    scanline_length: float
+    outcrop_area: float
+    mean_trace_length: float
+    trace_length_total: float
+    p10: float
     p20: float
-    p21_est: float
-    p21_obs: float
+    p21: float
+    scanline_length_source: str
+    outcrop_area_source: str
+    trace_length_source: str
     trace_types: tuple[str, ...]
     diagnostics: tuple[CircleWindowDiagnostic, ...]
 
@@ -112,6 +116,12 @@ def _estimate_scanline_length(scanline_positions: np.ndarray) -> float:
     return float(np.max(positions) + 0.5 * spacing)
 
 
+def _effective_scanline_length(trace: TraceData) -> tuple[float, str]:
+    if trace.measured_scanline_length is not None:
+        return float(trace.measured_scanline_length), "measured"
+    return float(_estimate_scanline_length(trace.scanline_positions)), "estimated"
+
+
 def _scanline_angle_rad(azimuth_deg: float) -> float:
     angle_deg = 90.0 - azimuth_deg if azimuth_deg < 90.0 else 450.0 - azimuth_deg
     return math.radians(angle_deg)
@@ -125,6 +135,61 @@ def _to_local_segments(trace: TraceData) -> np.ndarray:
     points = trace.endpoints.reshape(-1, 2)
     local_points = np.column_stack((points @ along, points @ left))
     return local_points.reshape(trace.endpoints.shape)
+
+
+def _estimate_outcrop_area(local_segments: np.ndarray, scanline_length: float) -> float:
+    if not math.isfinite(float(scanline_length)) or scanline_length <= _EPS:
+        return math.nan
+    if local_segments.size == 0:
+        return math.nan
+
+    y_values = np.asarray(local_segments[:, [1, 3]].ravel(), dtype=float)
+    if y_values.size == 0 or not np.isfinite(y_values).all():
+        return math.nan
+
+    normal_span = float(np.max(y_values) - np.min(y_values))
+    if normal_span <= _EPS:
+        return math.nan
+
+    area = float(scanline_length) * normal_span
+    return float(area) if math.isfinite(area) and area > _EPS else math.nan
+
+
+def _effective_outcrop_area(
+    trace: TraceData,
+    local_segments: np.ndarray,
+    scanline_length: float,
+) -> tuple[float, str]:
+    if trace.measured_outcrop_area is not None:
+        return float(trace.measured_outcrop_area), "measured"
+    return _estimate_outcrop_area(local_segments, scanline_length), "estimated"
+
+
+def _finite_positive_total(values: np.ndarray) -> float:
+    array = np.asarray(values, dtype=float)
+    if array.size == 0 or not np.isfinite(array).all():
+        return math.nan
+    total = float(np.sum(array))
+    return total if math.isfinite(total) and total > _EPS else math.nan
+
+
+def _effective_trace_length_total(
+    trace: TraceData,
+    estimated_mean_length: float,
+) -> tuple[float, str]:
+    endpoint_total = _finite_positive_total(trace.lengths)
+    if math.isfinite(endpoint_total):
+        return endpoint_total, "endpoint"
+
+    segment_total = _finite_positive_total(trace.segment_lengths)
+    if math.isfinite(segment_total):
+        return segment_total, "segment"
+
+    estimated_mean_length = float(estimated_mean_length)
+    if trace.count > 0 and math.isfinite(estimated_mean_length) and estimated_mean_length >= 0.0:
+        return float(estimated_mean_length * trace.count), "window_estimate"
+
+    return math.nan, "unavailable"
 
 
 def _cross(a: np.ndarray, b: np.ndarray) -> float:
@@ -368,39 +433,66 @@ def compute_trace_statistics(
     if config.terzaghi_correction:
         raise NotImplementedError("terzaghi_correction 暂未实现")
 
-    scanline_length = _estimate_scanline_length(trace.scanline_positions)
+    scanline_length, scanline_length_source = _effective_scanline_length(trace)
+    finite_scanline_length = (
+        scanline_length
+        if math.isfinite(float(scanline_length)) and scanline_length > _EPS
+        else 0.0
+    )
     local_segments = _to_local_segments(trace)
-    trace_types = _classify_trace_types(local_segments, scanline_length)
-    diagnostics = _compute_circle_windows(local_segments, scanline_length, config)
+    trace_types = _classify_trace_types(local_segments, finite_scanline_length)
+    diagnostics = _compute_circle_windows(local_segments, finite_scanline_length, config)
 
     type_i_count = trace_types.count("I")
     type_ii_count = trace_types.count("II")
     type_iii_count = trace_types.count("III")
-    observed_mean_all = float(trace.lengths.mean()) if trace.count else math.nan
-    i_mask = np.array([label == "I" for label in trace_types], dtype=bool)
-    observed_mean_i = float(trace.lengths[i_mask].mean()) if np.any(i_mask) else math.nan
-
-    p10_i = type_i_count / scanline_length if scanline_length > _EPS else math.nan
-    p10_all = trace.count / scanline_length if scanline_length > _EPS else math.nan
-    p20 = _aggregate_window_metric(diagnostics, "p20")
     estimated_mean_length = _aggregate_window_metric(diagnostics, "l_est")
-    p21_est = p20 * estimated_mean_length if math.isfinite(p20) and math.isfinite(estimated_mean_length) else math.nan
-    p21_obs = p20 * observed_mean_all if math.isfinite(p20) and math.isfinite(observed_mean_all) else math.nan
+    outcrop_area, outcrop_area_source = _effective_outcrop_area(
+        trace,
+        local_segments,
+        scanline_length,
+    )
+    trace_length_total, trace_length_source = _effective_trace_length_total(
+        trace,
+        estimated_mean_length,
+    )
+    mean_trace_length = (
+        trace_length_total / trace.count
+        if trace.count > 0 and math.isfinite(trace_length_total)
+        else math.nan
+    )
+
+    p10 = trace.count / scanline_length if scanline_length > _EPS else math.nan
+    p20 = trace.count / outcrop_area if outcrop_area > _EPS else math.nan
+    p21 = (
+        trace_length_total / outcrop_area
+        if math.isfinite(trace_length_total) and outcrop_area > _EPS
+        else math.nan
+    )
+
+    logger.debug(
+        "统计来源: 测线长度=%s, 露头面积=%s, 迹长总和=%s",
+        scanline_length_source,
+        outcrop_area_source,
+        trace_length_source,
+    )
 
     return TraceStatistics(
+        scanline_azimuth=float(trace.scanline_azimuth),
         total_count=trace.count,
         type_i_count=type_i_count,
         type_ii_count=type_ii_count,
         type_iii_count=type_iii_count,
-        scanline_length_estimate=float(scanline_length),
-        observed_mean_length_all=observed_mean_all,
-        observed_mean_length_i=observed_mean_i,
-        estimated_mean_trace_length=estimated_mean_length,
-        p10_i=float(p10_i),
-        p10_all=float(p10_all),
+        scanline_length=float(scanline_length),
+        outcrop_area=float(outcrop_area),
+        mean_trace_length=float(mean_trace_length),
+        trace_length_total=float(trace_length_total),
+        p10=float(p10),
         p20=float(p20),
-        p21_est=float(p21_est),
-        p21_obs=float(p21_obs),
+        p21=float(p21),
+        scanline_length_source=scanline_length_source,
+        outcrop_area_source=outcrop_area_source,
+        trace_length_source=trace_length_source,
         trace_types=trace_types,
         diagnostics=diagnostics,
     )
@@ -415,15 +507,13 @@ def _format_value(value: float, unit: str = "") -> str:
 def format_statistics_box_lines(stats: TraceStatistics) -> tuple[str, ...]:
     """格式化迹线统计框文本。"""
     return (
-        f"总裂隙数: {stats.total_count}",
-        f"I/II/III型数量: {stats.type_i_count}/{stats.type_ii_count}/{stats.type_iii_count}",
-        f"估算测线长度（$L_{{\\mathrm{{hat}}}}$）: {_format_value(stats.scanline_length_estimate, ' $\\mathrm{m}$')}",
-        f"全部实测平均迹长（$L_{{\\mathrm{{obs,all}}}}$）: {_format_value(stats.observed_mean_length_all, ' $\\mathrm{m}$')}",
-        f"I型实测平均迹长（$L_{{\\mathrm{{obs,I}}}}$）: {_format_value(stats.observed_mean_length_i, ' $\\mathrm{m}$')}",
-        f"估算平均迹长（$L_{{\\mathrm{{est}}}}$）: {_format_value(stats.estimated_mean_trace_length, ' $\\mathrm{m}$')}",
-        f"I型线密度（$P_{{10,I}}$）: {_format_value(stats.p10_i, ' $\\mathrm{m}^{-1}$')}",
-        f"全部线密度（$P_{{10,\\mathrm{{all}}}}$）: {_format_value(stats.p10_all, ' $\\mathrm{m}^{-1}$')}",
+        f"测线走向: {_format_value(stats.scanline_azimuth, '°')}",
+        f"迹线数量: {stats.total_count}",
+        f"平均迹线长度: {_format_value(stats.mean_trace_length, ' $\\mathrm{m}$')}",
+        f"I/II/III型裂隙数: {stats.type_i_count}/{stats.type_ii_count}/{stats.type_iii_count}",
+        f"测线长度: {_format_value(stats.scanline_length, ' $\\mathrm{m}$')}",
+        f"露头面积: {_format_value(stats.outcrop_area, ' $\\mathrm{m}^{2}$')}",
+        f"线密度（$P_{{10}}$）: {_format_value(stats.p10, ' $\\mathrm{m}^{-1}$')}",
         f"面密度（$P_{{20}}$）: {_format_value(stats.p20, ' $\\mathrm{m}^{-2}$')}",
-        f"估算体密度（$P_{{21,\\mathrm{{est}}}}$）: {_format_value(stats.p21_est, ' $\\mathrm{m}^{-1}$')}",
-        f"实测体密度（$P_{{21,\\mathrm{{obs}}}}$）: {_format_value(stats.p21_obs, ' $\\mathrm{m}^{-1}$')}",
+        f"面累计长度密度（$P_{{21}}$）: {_format_value(stats.p21, ' $\\mathrm{m}^{-1}$')}",
     )

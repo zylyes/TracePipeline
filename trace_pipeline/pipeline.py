@@ -36,6 +36,8 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
         joint_strikes,
         segment_lengths,
         scanline_positions,
+        measured_scanline_length,
+        measured_outcrop_area,
     ) = compute_endpoints(df)
     trace = TraceData(
         scanline_azimuth=azimuth,
@@ -44,6 +46,8 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
         joint_strikes=joint_strikes,
         segment_lengths=segment_lengths,
         scanline_positions=scanline_positions,
+        measured_scanline_length=measured_scanline_length,
+        measured_outcrop_area=measured_outcrop_area,
     )
     logger.info(
         "解析完成: %d 条迹线, 走向 %.1f°, 平均端点距离 %.2f",
@@ -82,7 +86,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         output_dir = Path(cfg.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         excel_path = output_dir / f"{cfg.output_prefix}_traces.xlsx"
-        sections = build_excel_sections(trace, rotated)
+        sections = build_excel_sections(trace, rotated, statistics=statistics)
         write_excel_sections(str(excel_path), cfg.outcrop, sections)
         logger.info("Excel 导出至: %s", excel_path)
 
@@ -121,7 +125,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         return RunResult.success(
             table_stem=cfg.table_stem,
             trace_count=trace.count,
-            mean_length=trace.mean_length,
+            mean_length=statistics.mean_trace_length,
             scanline_azimuth=trace.scanline_azimuth,
             excel_path=str(excel_path),
             raw_plot_path=raw_plot,

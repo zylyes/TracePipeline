@@ -4,7 +4,9 @@ import pytest
 
 from trace_pipeline.plotting.rose_plot import _compute_rose_histogram
 from trace_pipeline.plotting.trace_plot import (
+    _add_statistics_box,
     _build_decoration_layout,
+    _panel_bounds,
     render_trace_plot,
     segments_to_xy,
 )
@@ -37,11 +39,35 @@ def test_render_trace_plot_accepts_statistics_box(tmp_path):
         "stats",
         str(tmp_path),
         "stats.png",
-        statistics_lines=("总裂隙数: 1", "面密度（$P_{20}$）: 0.100 $\\mathrm{m}^{-2}$"),
+        statistics_lines=("迹线数量: 1", "面累计长度密度（$P_{21}$）: 0.100 $\\mathrm{m}^{-1}$"),
     )
 
     assert out.endswith("stats.png")
     assert (tmp_path / "stats.png").is_file()
+
+
+def test_statistics_box_is_anchored_to_panel_bottom_right():
+    layout = _build_decoration_layout(
+        np.array([[0.0, 0.0, 1.0, 1.0]]),
+        has_annotation_panel=True,
+    )
+    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    panel_width = panel_x1 - panel_x0
+    panel_height = panel_y1 - panel_y0
+    calls = []
+
+    class AxStub:
+        def text(self, *args, **kwargs):
+            calls.append((args, kwargs))
+
+    _add_statistics_box(AxStub(), layout, ("line 1", "line 2"))
+
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args[0] == pytest.approx(panel_x1 - panel_width * 0.04)
+    assert args[1] == pytest.approx(panel_y0 + panel_height * 0.04)
+    assert kwargs["ha"] == "right"
+    assert kwargs["va"] == "bottom"
 
 
 def test_trace_layout_uses_fixed_five_meter_scale():

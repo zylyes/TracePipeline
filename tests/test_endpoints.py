@@ -54,3 +54,33 @@ class TestComputeEndpoints:
         df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 0]])
         with pytest.raises(ValueError):
             compute_endpoints(df)
+
+    def test_non_integer_n_raises(self):
+        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1.5]])
+        with pytest.raises(ValueError, match="迹线条数必须为整数"):
+            compute_endpoints(df)
+
+    def test_out_of_range_azimuth_raises(self):
+        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 360.0, 1]])
+        with pytest.raises(ValueError, match="走向角度必须位于"):
+            compute_endpoints(df)
+
+    def test_negative_scanline_position_raises_with_row_and_field(self):
+        df = _make_df([[-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
+        with pytest.raises(ValueError, match="第 1 行 r1 不能为负数"):
+            compute_endpoints(df)
+
+    def test_out_of_range_dip_raises_with_row_and_field(self):
+        df = _make_df([[0.0, 0.0, 360.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
+        with pytest.raises(ValueError, match="第 1 行 dip 必须位于"):
+            compute_endpoints(df)
+
+    def test_negative_length_raises_with_row_and_field(self):
+        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -0.5, 90.0, 1]])
+        with pytest.raises(ValueError, match="第 1 行 r7 不能为负数"):
+            compute_endpoints(df)
+
+    def test_zero_left_and_right_trace_lengths_raise(self):
+        df = _make_df([[0.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 90.0, 1]])
+        with pytest.raises(ValueError, match="第 1 行 r5 与 r7 不能同时为 0"):
+            compute_endpoints(df)

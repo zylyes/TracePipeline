@@ -12,6 +12,9 @@
 """
 from __future__ import annotations
 
+from importlib import import_module
+from typing import Any
+
 from .config import (
     DEFAULT_CONFIG,
     DEFAULT_CONFIG_PATH,
@@ -30,9 +33,23 @@ from .geology.statistics import (
 )
 from .io.discovery import find_trace_tables
 from .models import RunConfig, RunResult, TraceData
-from .pipeline import load_trace_data, run_pipeline
-from .plotting.style import configure_style
 from .reporting import print_pipeline_results
+
+_LAZY_EXPORTS = {
+    "configure_style": ("trace_pipeline.plotting.style", "configure_style"),
+    "load_trace_data": ("trace_pipeline.pipeline", "load_trace_data"),
+    "run_pipeline": ("trace_pipeline.pipeline", "run_pipeline"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    """按需加载会触发绘图依赖的公开入口。"""
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = _LAZY_EXPORTS[name]
+    value = getattr(import_module(module_name), attr_name)
+    globals()[name] = value
+    return value
 
 __all__ = [
     "DEFAULT_CONFIG",

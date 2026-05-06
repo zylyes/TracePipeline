@@ -80,7 +80,7 @@ def load_config(config_path: str | Path | None = None) -> Dict[str, Any]:
     return validate_config(data)
 
 
-def _coerce_bool(value: Any, name: str) -> bool:
+def coerce_bool(value: Any, name: str) -> bool:
     """将常见配置布尔写法规范化为 bool。"""
     if isinstance(value, bool):
         return value
@@ -95,7 +95,7 @@ def _coerce_bool(value: Any, name: str) -> bool:
     raise ValueError(f"{name} 必须为布尔值")
 
 
-def _coerce_positive_int(value: Any, name: str) -> int:
+def coerce_positive_int(value: Any, name: str) -> int:
     """将 DPI 等正整数配置规范化为 int。"""
     try:
         number = int(value)
@@ -106,7 +106,7 @@ def _coerce_positive_int(value: Any, name: str) -> int:
     return number
 
 
-def _coerce_rose_bin_width(value: Any) -> float:
+def coerce_rose_bin_width(value: Any) -> float:
     """规范化玫瑰图分箱宽度。"""
     try:
         width = float(value)
@@ -129,13 +129,13 @@ def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
     if missing:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 
-    merged["process_all"] = _coerce_bool(merged["process_all"], "process_all")
-    merged["export_rose_plot"] = _coerce_bool(
+    merged["process_all"] = coerce_bool(merged["process_all"], "process_all")
+    merged["export_rose_plot"] = coerce_bool(
         merged["export_rose_plot"], "export_rose_plot"
     )
-    merged["rose_bin_width"] = _coerce_rose_bin_width(merged["rose_bin_width"])
+    merged["rose_bin_width"] = coerce_rose_bin_width(merged["rose_bin_width"])
     for key in ("rose_dpi", "trace_dpi", "rotated_trace_dpi"):
-        merged[key] = _coerce_positive_int(merged[key], key)
+        merged[key] = coerce_positive_int(merged[key], key)
     for key in _REQUIRED_KEYS + ("output_prefix",):
         if key in merged:
             merged[key] = str(merged[key]).strip()
@@ -220,6 +220,9 @@ __all__ = [
     "DEFAULT_CONFIG_PATH",
     "PROJECT_ROOT",
     "apply_cli_overrides",
+    "coerce_bool",
+    "coerce_positive_int",
+    "coerce_rose_bin_width",
     "load_config",
     "resolve_config_base_dir",
     "resolve_io_paths",

@@ -98,3 +98,10 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
     assert "I/II/III型数量: 0/0/1" in lines
     assert "估算测线长度（$L_{\\mathrm{hat}}$）: 0.000 $\\mathrm{m}$" in lines
     assert "面密度（$P_{20}$）: N/A" in lines
+
+
+def test_terzaghi_correction_true_raises_not_implemented():
+    trace = _trace([[5.0, -1.0, 5.0, 1.0]], [0.0])
+
+    with pytest.raises(NotImplementedError, match="terzaghi_correction 暂未实现"):
+        compute_trace_statistics(trace, TraceStatisticsConfig(terzaghi_correction=True))

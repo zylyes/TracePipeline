@@ -73,6 +73,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
         # ---- 2. 坐标变换 ----
         rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
+        # 坐标按测线走向旋转后，画布中的正北方向也要同步显示该偏移。
         rotated_north_angle = 90.0 + float(np.degrees(fold_strike_angle(trace.scanline_azimuth)))
         statistics = compute_trace_statistics(trace)
         statistics_lines = format_statistics_box_lines(statistics)

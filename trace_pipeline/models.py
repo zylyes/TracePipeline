@@ -15,53 +15,13 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from .config import coerce_bool, coerce_positive_int, coerce_rose_bin_width
+
 __all__ = [
     "RunConfig",
     "RunResult",
     "TraceData",
 ]
-
-
-# ===========================================================================
-# 内部校验
-# ===========================================================================
-
-
-def _validate_rose_bin_width(value: Any) -> float:
-    """校验 rose_bin_width：必须为数值且在 (0, 180] 范围内。"""
-    try:
-        width = float(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("rose_bin_width 必须为数值") from exc
-    if not (0 < width <= 180):
-        raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
-    return width
-
-
-def _validate_dpi(value: Any) -> int:
-    """校验 DPI 参数：必须为正整数。"""
-    try:
-        dpi = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("DPI 必须为整数") from exc
-    if dpi <= 0:
-        raise ValueError("DPI 必须为正整数")
-    return dpi
-
-
-def _validate_bool(value: Any, name: str) -> bool:
-    """校验布尔配置，避免 `bool("false") == True` 这类隐式转换。"""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int) and value in (0, 1):
-        return bool(value)
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"1", "true", "yes", "y", "on"}:
-            return True
-        if normalized in {"0", "false", "no", "n", "off"}:
-            return False
-    raise ValueError(f"{name} 必须为布尔值")
 
 
 # ===========================================================================
@@ -190,15 +150,17 @@ class RunConfig:
         object.__setattr__(
             self,
             "export_rose_plot",
-            _validate_bool(self.export_rose_plot, "export_rose_plot"),
+            coerce_bool(self.export_rose_plot, "export_rose_plot"),
         )
         object.__setattr__(
-            self, "rose_bin_width", _validate_rose_bin_width(self.rose_bin_width)
+            self, "rose_bin_width", coerce_rose_bin_width(self.rose_bin_width)
         )
-        object.__setattr__(self, "rose_dpi", _validate_dpi(self.rose_dpi))
-        object.__setattr__(self, "trace_dpi", _validate_dpi(self.trace_dpi))
+        object.__setattr__(self, "rose_dpi", coerce_positive_int(self.rose_dpi, "rose_dpi"))
+        object.__setattr__(self, "trace_dpi", coerce_positive_int(self.trace_dpi, "trace_dpi"))
         object.__setattr__(
-            self, "rotated_trace_dpi", _validate_dpi(self.rotated_trace_dpi)
+            self,
+            "rotated_trace_dpi",
+            coerce_positive_int(self.rotated_trace_dpi, "rotated_trace_dpi"),
         )
 
     # ---- 工厂方法 ----

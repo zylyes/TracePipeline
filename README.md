@@ -52,8 +52,7 @@
 ├── output/                        # 输出目录（Excel + 图片）
 ├── logs/                          # 运行日志
 ├── tests/                         # pytest 单元测试
-├── docs/matlab_reference/         # MATLAB 原版参考代码
-└── reference/                     # 研究资料（任务书、现场照片、地质文献）
+└── reference/                     # 研究资料（含 MATLAB 原版参考代码）
 ```
 
 ---
@@ -340,7 +339,7 @@ python run_trace_pipeline.py -p 4 --no-rose
 
 ## MATLAB 参考
 
-原版 MATLAB 代码位于 `docs/matlab_reference/`：
+原版 MATLAB 代码位于 `reference/matlab/`：
 
 | 文件 | Python 对应模块 |
 |---|---|

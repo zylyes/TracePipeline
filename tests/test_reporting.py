@@ -15,6 +15,7 @@ def test_format_results_table_mixed_success_and_failure():
             mean_length=3.5,
             scanline_azimuth=90.0,
             rose_plot_path="O76_rose.png",
+            window_strategy="hybrid",
         ),
         RunResult.failure("O77_process", "bad input"),
     ]
@@ -26,6 +27,7 @@ def test_format_results_table_mixed_success_and_failure():
     assert "成功 1 个" in table
     assert "迹线总数 2" in table
     assert "玫瑰图 1 张" in table
+    assert "hybrid" in table
     assert "FAIL" in table
 
 

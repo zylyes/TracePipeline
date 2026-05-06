@@ -15,7 +15,13 @@ from typing import Any, Mapping
 
 import numpy as np
 
-from .config import coerce_bool, coerce_positive_int, coerce_rose_bin_width
+from .config import (
+    coerce_bool,
+    coerce_positive_float,
+    coerce_positive_int,
+    coerce_rose_bin_width,
+    coerce_window_strategy,
+)
 
 __all__ = [
     "RunConfig",
@@ -149,6 +155,9 @@ class RunConfig:
         rose_dpi: 玫瑰图分辨率。
         trace_dpi: 原始迹线图分辨率。
         rotated_trace_dpi: 旋转迹线图分辨率。
+        window_strategy: 圆形取样窗策略。
+        auto_density_threshold: auto 策略的粗估面密度阈值。
+        tangent_window_count: tangent 策略每侧切圆数量。
     """
 
     input_dir: str
@@ -161,6 +170,9 @@ class RunConfig:
     rose_dpi: int = 400
     trace_dpi: int = 300
     rotated_trace_dpi: int = 600
+    window_strategy: str = "auto"
+    auto_density_threshold: float = 5.0
+    tangent_window_count: int = 3
 
     def __post_init__(self) -> None:
         for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
@@ -183,6 +195,21 @@ class RunConfig:
             "rotated_trace_dpi",
             coerce_positive_int(self.rotated_trace_dpi, "rotated_trace_dpi"),
         )
+        object.__setattr__(
+            self,
+            "window_strategy",
+            coerce_window_strategy(self.window_strategy),
+        )
+        object.__setattr__(
+            self,
+            "auto_density_threshold",
+            coerce_positive_float(self.auto_density_threshold, "auto_density_threshold"),
+        )
+        object.__setattr__(
+            self,
+            "tangent_window_count",
+            coerce_positive_int(self.tangent_window_count, "tangent_window_count"),
+        )
 
     # ---- 工厂方法 ----
 
@@ -200,6 +227,9 @@ class RunConfig:
             rose_dpi=cfg.get("rose_dpi", 400),
             trace_dpi=cfg.get("trace_dpi", 300),
             rotated_trace_dpi=cfg.get("rotated_trace_dpi", 600),
+            window_strategy=cfg.get("window_strategy", "auto"),
+            auto_density_threshold=cfg.get("auto_density_threshold", 5.0),
+            tangent_window_count=cfg.get("tangent_window_count", 3),
         )
 
 
@@ -221,6 +251,7 @@ class RunResult:
     raw_plot_path: str = ""
     rotated_plot_path: str = ""
     rose_plot_path: str = ""
+    window_strategy: str = ""
     error: str = ""
 
     @classmethod
@@ -234,6 +265,7 @@ class RunResult:
         raw_plot_path: str = "",
         rotated_plot_path: str = "",
         rose_plot_path: str = "",
+        window_strategy: str = "",
     ) -> "RunResult":
         return cls(
             table_stem=table_stem,
@@ -245,6 +277,7 @@ class RunResult:
             raw_plot_path=raw_plot_path,
             rotated_plot_path=rotated_plot_path,
             rose_plot_path=rose_plot_path,
+            window_strategy=window_strategy,
         )
 
     @classmethod

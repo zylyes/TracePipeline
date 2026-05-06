@@ -11,7 +11,11 @@ import numpy as np
 
 from .geology.endpoints import compute_endpoints
 from .geology.angles import fold_strike_angle
-from .geology.statistics import compute_trace_statistics, format_statistics_box_lines
+from .geology.statistics import (
+    TraceStatisticsConfig,
+    compute_trace_statistics,
+    format_statistics_box_lines,
+)
 from .geology.transforms import normalize_coordinates
 from .io.excel_reader import read_trace_excel
 from .io.excel_writer import build_excel_sections, write_excel_sections
@@ -79,7 +83,12 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
         # 坐标按测线走向旋转后，画布中的正北方向也要同步显示该偏移。
         rotated_north_angle = 90.0 + float(np.degrees(fold_strike_angle(trace.scanline_azimuth)))
-        statistics = compute_trace_statistics(trace)
+        statistics_config = TraceStatisticsConfig(
+            window_strategy=cfg.window_strategy,
+            auto_density_threshold=cfg.auto_density_threshold,
+            tangent_window_count=cfg.tangent_window_count,
+        )
+        statistics = compute_trace_statistics(trace, statistics_config)
         statistics_lines = format_statistics_box_lines(statistics)
 
         # ---- 3. 导出 Excel ----
@@ -131,6 +140,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             raw_plot_path=raw_plot,
             rotated_plot_path=rot_plot,
             rose_plot_path=rose_plot,
+            window_strategy=statistics.window_strategy,
         )
 
     except (FileNotFoundError, ValueError, OSError) as exc:

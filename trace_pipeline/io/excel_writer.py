@@ -27,7 +27,7 @@ __all__ = [
 
 ExcelSection = Tuple[pd.DataFrame, int, int, bool]
 _SECTION_TITLE_KEY = "section_title"
-_SUMMARY_TITLE = "基本信息与统计指标"
+_SUMMARY_TITLES = {"基本信息", "裂隙情况", "计算数据"}
 
 
 @dataclass(frozen=True)
@@ -85,29 +85,78 @@ def _format_value(value, unit: str = "") -> str:
     return f"{text} {unit}".strip()
 
 
-def _build_summary_df(trace: TraceData, statistics: TraceStatistics | None) -> pd.DataFrame:
+def _is_summary_section(df: pd.DataFrame) -> bool:
+    return _section_title(df) in _SUMMARY_TITLES
+
+
+def _one_row_df(items: Sequence[tuple[str, str]]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [[value for _label, value in items]],
+        columns=[label for label, _value in items],
+    )
+
+
+def _build_summary_sections(
+    trace: TraceData,
+    statistics: TraceStatistics | None,
+    layout: ExcelLayout,
+) -> List[ExcelSection]:
     mean_length = statistics.mean_trace_length if statistics is not None else trace.mean_length
-    items = [
+    basic_items = [
         ("测线走向", _format_value(round(trace.scanline_azimuth, 2), "°")),
-        ("迹线数量", _format_value(trace.count)),
-        ("平均迹线长度", _format_value(_round_float(mean_length), "m")),
+        (
+            "测线长度",
+            _format_value(_round_float(statistics.scanline_length), "m")
+            if statistics is not None
+            else "N/A",
+        ),
+        ("平均迹长", _format_value(_round_float(mean_length), "m")),
+        (
+            "露头面积",
+            _format_value(_round_float(statistics.outcrop_area), "m²")
+            if statistics is not None
+            else "N/A",
+        ),
     ]
-    if statistics is not None:
-        items.extend([
-            ("", ""),
-            ("", ""),
-            ("I型裂隙数", _format_value(statistics.type_i_count)),
-            ("II型裂隙数", _format_value(statistics.type_ii_count)),
-            ("III型裂隙数", _format_value(statistics.type_iii_count)),
-            ("测线长度", _format_value(_round_float(statistics.scanline_length), "m")),
-            ("露头面积", _format_value(_round_float(statistics.outcrop_area), "m²")),
-            ("", ""),
-            ("", ""),
-            ("线密度(P₁₀)", _format_value(_round_float(statistics.p10), "m⁻¹")),
-            ("面密度(P₂₀)", _format_value(_round_float(statistics.p20), "m⁻²")),
-            ("面累计长度密度(P₂₁)", _format_value(_round_float(statistics.p21), "m⁻¹")),
-        ])
-    return pd.DataFrame([[value for _label, value in items]], columns=[label for label, _value in items])
+    sections: List[ExcelSection] = [
+        (
+            _with_title(_one_row_df(basic_items), "基本信息"),
+            layout.base_info_row,
+            layout.raw_col_start,
+            True,
+        ),
+    ]
+
+    if statistics is None:
+        return sections
+
+    fracture_items = [
+        ("迹线数量", _format_value(statistics.total_count)),
+        ("I型裂隙数", _format_value(statistics.type_i_count)),
+        ("II型裂隙数", _format_value(statistics.type_ii_count)),
+        ("III型裂隙数", _format_value(statistics.type_iii_count)),
+    ]
+    calculation_items = [
+        ("线密度(P₁₀)", _format_value(_round_float(statistics.p10), "m⁻¹")),
+        ("面密度(P₂₀)", _format_value(_round_float(statistics.p20), "m⁻²")),
+        ("面累计长度密度(P₂₁)", _format_value(_round_float(statistics.p21), "m⁻¹")),
+        ("有效取样窗数量", _format_value(statistics.valid_window_count)),
+    ]
+    sections.extend([
+        (
+            _with_title(_one_row_df(fracture_items), "裂隙情况"),
+            layout.base_info_row,
+            layout.rot_col_start,
+            True,
+        ),
+        (
+            _with_title(_one_row_df(calculation_items), "计算数据"),
+            layout.base_info_row,
+            layout.orient_col_start,
+            True,
+        ),
+    ])
+    return sections
 
 
 def _section_row_count(df: pd.DataFrame, header: bool) -> int:
@@ -128,7 +177,7 @@ def build_excel_sections(
     if not np.isfinite(rotated_xy).all():
         raise ValueError("旋转坐标包含 NaN 或 inf")
 
-    summary_df = _with_title(_build_summary_df(trace, statistics), _SUMMARY_TITLE)
+    summary_sections = _build_summary_sections(trace, statistics, layout)
 
     raw_df = pd.DataFrame(
         trace.endpoints,
@@ -152,9 +201,13 @@ def build_excel_sections(
             )
         orient_df["迹线类型"] = list(statistics.trace_types)
 
-    data_row = layout.base_info_row + _section_row_count(summary_df, True) + layout.data_gap
+    summary_rows = max(
+        _section_row_count(df, header)
+        for df, _startrow, _startcol, header in summary_sections
+    )
+    data_row = layout.base_info_row + summary_rows + layout.data_gap
     return [
-        (summary_df, layout.base_info_row, layout.raw_col_start, True),
+        *summary_sections,
         (_with_title(raw_df, "原始端点坐标"), data_row, layout.raw_col_start, True),
         (_with_title(rot_df, "旋转后端点坐标"), data_row, layout.rot_col_start, True),
         (_with_title(orient_df, "走向与长度"), data_row, layout.orient_col_start, True),
@@ -196,7 +249,7 @@ def _style_section(ws, df: pd.DataFrame, startrow: int, startcol: int, header: b
                 cell.fill = PatternFill("solid", fgColor="D9EAF7")
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 cell.border = border
-        ws.row_dimensions[header_row].height = 36 if _section_title(df) == _SUMMARY_TITLE else 28
+        ws.row_dimensions[header_row].height = 36 if _is_summary_section(df) else 28
 
     for row in ws.iter_rows(min_row=first_data_row, max_row=last_row, min_col=first_col, max_col=last_col):
         for cell in row:
@@ -206,7 +259,7 @@ def _style_section(ws, df: pd.DataFrame, startrow: int, startcol: int, header: b
                 cell.number_format = "0"
             elif isinstance(cell.value, numbers.Real):
                 cell.number_format = "0.0000"
-    if _section_title(df) == _SUMMARY_TITLE and first_data_row <= last_row:
+    if _is_summary_section(df) and first_data_row <= last_row:
         ws.row_dimensions[first_data_row].height = 22
 
 
@@ -224,16 +277,11 @@ def _bounded_content_width(ws, col_idx: int, min_width: int, max_width: int) -> 
     return min(max_width, max(min_width, max_width_seen * 1.1 + 2))
 
 
-def _summary_column_count(sections: Sequence[ExcelSection]) -> int:
-    for df, _startrow, _startcol, header in sections:
-        if header and _section_title(df) == _SUMMARY_TITLE:
-            return df.shape[1]
-    return 0
-
-
 def _summary_column_has_label(ws, col_idx: int, sections: Sequence[ExcelSection]) -> bool:
-    for df, startrow, _startcol, header in sections:
-        if header and _section_title(df) == _SUMMARY_TITLE and col_idx <= df.shape[1]:
+    for df, startrow, startcol, header in sections:
+        first_col = startcol + 1
+        last_col = startcol + df.shape[1]
+        if header and _is_summary_section(df) and first_col <= col_idx <= last_col:
             header_row = startrow + (1 if _section_title(df) else 0) + 1
             value = ws.cell(row=header_row, column=col_idx).value
             return bool(value)
@@ -241,11 +289,10 @@ def _summary_column_has_label(ws, col_idx: int, sections: Sequence[ExcelSection]
 
 
 def _apply_column_widths(ws, sections: Sequence[ExcelSection], max_col: int, layout: ExcelLayout) -> None:
-    summary_cols = _summary_column_count(sections)
     for col_idx in range(1, max_col + 1):
         zero_based = col_idx - 1
         summary_width = None
-        if col_idx <= summary_cols and _summary_column_has_label(ws, col_idx, sections):
+        if _summary_column_has_label(ws, col_idx, sections):
             summary_width = _bounded_content_width(
                 ws,
                 col_idx,
@@ -282,7 +329,7 @@ def _freeze_pane_for_sections(sections: Sequence[ExcelSection]) -> str:
     data_starts = [
         startrow
         for df, startrow, _startcol, header in sections
-        if header and _section_title(df) != _SUMMARY_TITLE
+        if header and not _is_summary_section(df)
     ]
     if not data_starts:
         return "A1"

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from pathlib import Path
 from typing import Any, Dict, Mapping, Tuple
 
@@ -37,6 +38,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "rose_dpi": 400,
     "trace_dpi": 300,
     "rotated_trace_dpi": 600,
+    "window_strategy": "auto",
+    "auto_density_threshold": 5.0,
+    "tangent_window_count": 3,
 }
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "table_stem", "outcrop")
@@ -106,6 +110,25 @@ def coerce_positive_int(value: Any, name: str) -> int:
     return number
 
 
+def coerce_positive_float(value: Any, name: str) -> float:
+    """将正浮点配置规范化为 float。"""
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} 必须为正数") from exc
+    if not math.isfinite(number) or number <= 0:
+        raise ValueError(f"{name} 必须为正数")
+    return number
+
+
+def coerce_window_strategy(value: Any) -> str:
+    """规范化圆窗策略配置。"""
+    strategy = str(value).strip().lower()
+    if strategy not in {"auto", "tangent", "hybrid", "concentric"}:
+        raise ValueError("window_strategy 必须为 auto/tangent/hybrid/concentric")
+    return strategy
+
+
 def coerce_rose_bin_width(value: Any) -> float:
     """规范化玫瑰图分箱宽度。"""
     try:
@@ -136,6 +159,15 @@ def validate_config(cfg: Mapping[str, Any]) -> Dict[str, Any]:
     merged["rose_bin_width"] = coerce_rose_bin_width(merged["rose_bin_width"])
     for key in ("rose_dpi", "trace_dpi", "rotated_trace_dpi"):
         merged[key] = coerce_positive_int(merged[key], key)
+    merged["window_strategy"] = coerce_window_strategy(merged["window_strategy"])
+    merged["auto_density_threshold"] = coerce_positive_float(
+        merged["auto_density_threshold"],
+        "auto_density_threshold",
+    )
+    merged["tangent_window_count"] = coerce_positive_int(
+        merged["tangent_window_count"],
+        "tangent_window_count",
+    )
     for key in _REQUIRED_KEYS + ("output_prefix",):
         if key in merged:
             merged[key] = str(merged[key]).strip()
@@ -222,7 +254,9 @@ __all__ = [
     "apply_cli_overrides",
     "coerce_bool",
     "coerce_positive_int",
+    "coerce_positive_float",
     "coerce_rose_bin_width",
+    "coerce_window_strategy",
     "load_config",
     "resolve_config_base_dir",
     "resolve_io_paths",

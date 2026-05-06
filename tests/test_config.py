@@ -24,6 +24,9 @@ def test_validate_config_coerces_bool_and_numbers():
         "rose_dpi": "600",
         "trace_dpi": "300",
         "rotated_trace_dpi": "900",
+        "window_strategy": " HYBRID ",
+        "auto_density_threshold": "2.5",
+        "tangent_window_count": "4",
     })
 
     assert cfg["input_dir"] == "input"
@@ -32,11 +35,19 @@ def test_validate_config_coerces_bool_and_numbers():
     assert cfg["export_rose_plot"] is False
     assert cfg["rose_bin_width"] == 15.0
     assert cfg["rose_dpi"] == 600
+    assert cfg["window_strategy"] == "hybrid"
+    assert cfg["auto_density_threshold"] == 2.5
+    assert cfg["tangent_window_count"] == 4
 
 
 def test_validate_config_rejects_ambiguous_bool():
     with pytest.raises(ValueError, match="process_all 必须为布尔值"):
         validate_config({"process_all": "maybe"})
+
+
+def test_validate_config_rejects_invalid_window_strategy():
+    with pytest.raises(ValueError, match="window_strategy"):
+        validate_config({"window_strategy": "diagonal"})
 
 
 def test_resolve_io_paths_can_avoid_creating_dirs(tmp_path):

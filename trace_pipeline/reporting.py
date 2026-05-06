@@ -18,8 +18,8 @@ from .models import RunResult
 
 _SEP = "-"
 _HEADER_SEP = "="
-_COL_WIDTHS = [10, 8, 10, 10, 8, 6]
-_COL_HEADERS = ["露头", "迹线数", "平均迹长", "测线走向", "玫瑰图", "状态"]
+_COL_WIDTHS = [10, 8, 10, 10, 10, 8, 6]
+_COL_HEADERS = ["露头", "迹线数", "平均迹长", "测线走向", "策略", "玫瑰图", "状态"]
 
 
 def _format_row(values: List[str], widths: List[int]) -> str:
@@ -85,6 +85,7 @@ def format_results_table(results: List[RunResult]) -> str:
         count = str(r.trace_count)
         avg_len = f"{r.mean_length:.2f}" if r.status == "success" else ""
         azimuth = f"{r.scanline_azimuth:.0f}°" if r.status == "success" else ""
+        strategy = r.window_strategy if r.status == "success" else ""
         rose = "否"
         status = "OK" if r.status == "success" else "FAIL"
 
@@ -95,7 +96,7 @@ def format_results_table(results: List[RunResult]) -> str:
                 has_rose += 1
                 rose = "是"
 
-        row = [stem, count, avg_len, azimuth, rose, status]
+        row = [stem, count, avg_len, azimuth, strategy, rose, status]
         lines.append(_format_row(row, widths))
 
     lines.append(_format_double_separator(widths))

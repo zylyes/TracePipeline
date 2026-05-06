@@ -40,6 +40,8 @@ class TraceData:
         joint_strikes: 各节理走向角（度），长度 N。
         segment_lengths: 沿测段的迹线长度 r5+r7（MATLAB 定义），长度 N。
         scanline_positions: 沿测线位移 r1，长度 N。
+        measured_scanline_length: 实测测线长度（m），缺失时为 None。
+        measured_outcrop_area: 实测露头面积（m²），缺失时为 None。
     """
 
     scanline_azimuth: float
@@ -48,6 +50,8 @@ class TraceData:
     joint_strikes: np.ndarray
     segment_lengths: np.ndarray
     scanline_positions: np.ndarray
+    measured_scanline_length: float | None = None
+    measured_outcrop_area: float | None = None
 
     def __post_init__(self) -> None:
         endpoints = np.asarray(self.endpoints, dtype=float)
@@ -90,6 +94,23 @@ class TraceData:
             raise ValueError("segment_lengths 包含 NaN 或 inf")
         if not np.isfinite(scanline_positions).all():
             raise ValueError("scanline_positions 包含 NaN 或 inf")
+        self.measured_scanline_length = self._validate_optional_positive(
+            self.measured_scanline_length,
+            "measured_scanline_length",
+        )
+        self.measured_outcrop_area = self._validate_optional_positive(
+            self.measured_outcrop_area,
+            "measured_outcrop_area",
+        )
+
+    @staticmethod
+    def _validate_optional_positive(value: float | None, name: str) -> float | None:
+        if value is None:
+            return None
+        value = float(value)
+        if not np.isfinite(value) or value <= 0.0:
+            raise ValueError(f"{name} 必须为正的有限浮点数")
+        return value
 
     # ---- 派生属性 ----
 

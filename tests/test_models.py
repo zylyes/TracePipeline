@@ -54,6 +54,46 @@ def test_trace_data_rejects_wrong_scanline_position_shape():
         )
 
 
+def test_trace_data_accepts_optional_measured_length_and_area():
+    trace = TraceData(
+        scanline_azimuth=0.0,
+        count=1,
+        endpoints=np.array([[0.0, 0.0, 1.0, 1.0]]),
+        joint_strikes=np.array([10.0]),
+        segment_lengths=np.array([1.0]),
+        scanline_positions=np.array([0.0]),
+        measured_scanline_length=12.5,
+        measured_outcrop_area=34.5,
+    )
+
+    assert trace.measured_scanline_length == pytest.approx(12.5)
+    assert trace.measured_outcrop_area == pytest.approx(34.5)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("measured_scanline_length", 0.0),
+        ("measured_scanline_length", np.inf),
+        ("measured_outcrop_area", -1.0),
+        ("measured_outcrop_area", np.nan),
+    ],
+)
+def test_trace_data_rejects_invalid_optional_measured_values(field, value):
+    kwargs = {
+        "scanline_azimuth": 0.0,
+        "count": 1,
+        "endpoints": np.array([[0.0, 0.0, 1.0, 1.0]]),
+        "joint_strikes": np.array([10.0]),
+        "segment_lengths": np.array([1.0]),
+        "scanline_positions": np.array([0.0]),
+        field: value,
+    }
+
+    with pytest.raises(ValueError, match=f"{field} 必须为正的有限浮点数"):
+        TraceData(**kwargs)
+
+
 def test_run_config_normalizes_values():
     cfg = RunConfig(
         input_dir=" input ",

@@ -394,13 +394,15 @@ def _add_statistics_box(
 ) -> None:
     if not statistics_lines:
         return
-    panel_x0, _panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    panel_width = panel_x1 - panel_x0
+    panel_height = panel_y1 - panel_y0
     ax.text(
-        panel_x0,
-        panel_y0 + (panel_y1 - panel_y0) * 0.66,
+        panel_x1 - panel_width * 0.04,
+        panel_y0 + panel_height * 0.04,
         "\n".join(str(line) for line in statistics_lines),
-        ha="left",
-        va="top",
+        ha="right",
+        va="bottom",
         fontsize=8.0,
         linespacing=1.18,
         color="black",

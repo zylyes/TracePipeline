@@ -4,7 +4,7 @@
 
 > **毕业设计课题**: 25 届地球信息科学与技术专业 — 周咏霖（学号 2022210162）
 > **指导教师**: 霍亮（讲师），地球与行星科学学院
-> **任务进度跟踪**: 见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)（v3.2）
+> **任务进度跟踪**: 见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)（v3.3）
 
 ---
 
@@ -27,7 +27,8 @@
 │   ├── geology/                   # 地质/几何算法（纯函数，无 I/O）
 │   │   ├── angles.py              # 倾向⇄走向、折叠、半平面
 │   │   ├── endpoints.py           # 迹线端点向量化计算（复数运算）
-│   │   └── transforms.py          # 坐标平移与旋转变换
+│   │   ├── transforms.py          # 坐标平移与旋转变换
+│   │   └── statistics.py          # P10/P20/P21 密度统计与迹线分型
 │   │
 │   ├── io/                        # I/O 层
 │   │   ├── excel_reader.py        # Excel 读取
@@ -50,7 +51,7 @@
 ├── input/                         # 输入目录（存放 *_process.xls*）
 ├── output/                        # 输出目录（Excel + 图片）
 ├── logs/                          # 运行日志
-├── tests/                         # pytest 单元测试（10 个模块）
+├── tests/                         # pytest 单元测试
 ├── docs/matlab_reference/         # MATLAB 原版参考代码
 └── reference/                     # 研究资料（任务书、现场照片、地质文献）
 ```
@@ -98,6 +99,7 @@ pip install -e .[dev]          # （可选）安装开发依赖
 | **批量处理** | 自动扫描 `input/` 目录，支持 8 个露头一键处理（串行/并行） |
 | **迹线图导出** | 原始迹线图（300 DPI）+ 旋转迹线图（600 DPI），含比例尺与指北针 |
 | **玫瑰花瓣图** | 节理走向统计，可自定义分箱宽度与 DPI |
+| **迹线统计指标** | I/II/III 型自动分类，P10/P20/P21 密度参数，圆形取样窗法迹长估算 |
 | **Excel 四区输出** | A 基本信息 / B 原始坐标 / C 旋转坐标 / D 走向与长度 |
 | **MATLAB 验证** | 与原版 `Coordinate.m` 端点坐标误差 < 1e-10 m |
 
@@ -201,9 +203,10 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
   2. 倾向 → 走向转换（dip_to_strike）
   3. 向量化端点坐标计算（三种情形复数运算）
   4. 坐标规范化：平移 → 走向旋转 → 再平移
-  5. 导出 Excel（四区布局写入）
-  6. 绘制迹线图（原始 & 旋转后）
-  7. 绘制玫瑰花瓣图
+  5. 迹线统计指标计算（I/II/III 型分类、P10/P20/P21、圆形取样窗法）
+  6. 导出 Excel（四区布局写入）
+  7. 绘制迹线图（原始 & 旋转后，含统计信息框）
+  8. 绘制玫瑰花瓣图
 ```
 
 ### 核心模块
@@ -213,6 +216,7 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 | `angles.py` | 倾向→走向、走向折叠、半平面折叠 | `dip_to_strike`, `fold_strike_angle`, `fold_to_halfplane` |
 | `endpoints.py` | 向量化端点坐标计算、表头解析 | `compute_endpoints` |
 | `transforms.py` | 坐标平移与旋转标准化流水线 | `normalize_coordinates` |
+| `statistics.py` | P10/P20/P21 密度统计、I/II/III 型分类、圆形取样窗法迹长估算 | `compute_trace_statistics` |
 | `pipeline.py` | 单目标全流程编排 | `run_pipeline`, `load_trace_data` |
 | `config.py` | 配置加载/校验、路径解析、CLI 覆盖 | `load_config`, `resolve_io_paths` |
 | `io/` | Excel 读取、四区布局写入、文件发现 | `read_trace_excel`, `write_excel_sections` |
@@ -346,7 +350,7 @@ python run_trace_pipeline.py -p 4 --no-rose
 
 ### MATLAB vs Python 对比
 
-| 维度 | MATLAB 原版 | Python 版 |
+| 功能区 | MATLAB 原版 | Python 版 |
 |------|-------------|-----------|
 | 计算模式 | `for` 循环逐条处理 | NumPy 向量化批量运算 |
 | 角度转换 | 硬编码 `if-else` | `numpy.select` 向量化分段映射 |
@@ -354,6 +358,7 @@ python run_trace_pipeline.py -p 4 --no-rose
 | I/O | `xlsread`/`writematrix` 单文件 | `pandas`+`openpyxl` 四区布局 |
 | 绘图 | `plot` + 手动导图 | `matplotlib` 自动排版 + 多 DPI |
 | 批量处理 | 手动改文件名逐张运行 | 自动扫描 + 可选并行 |
+| 统计指标 | 无 | P10/P20/P21 + 圆形取样窗法迹长估算 |
 | 精度 | 基准 | 端点坐标误差 < 1e-10 m |
 
 ### 迁移要点
@@ -361,7 +366,8 @@ python run_trace_pipeline.py -p 4 --no-rose
 - **向量化**：逐条 `for` 循环改为 NumPy mask 三分支，角度/半平面改为数组广播
 - **修正 MATLAB Bug**：`A_outcrop_0map_rotate.m:68-76` 中 `if ang0<=360` 永远为真，导致分支不可达；Python 版 `fold_strike_angle` 正确折叠到 `[-90°, 90°]`
 - **双定义输出**：Excel 同时输出端点距离（欧氏距离）与测段长度（r5+r7）
-- **自动导出**：迹线图含比例尺与指北针，玫瑰图支持自定义分箱，CJK 字体自动回退
+- **统计增强**：新增 I/II/III 型自动分类与 P10/P20/P21 密度参数，迹线图内置统计信息框
+- **自动导出**：迹线图含比例尺、指北针与统计信息框，玫瑰图支持自定义分箱，CJK 字体自动回退
 
 ### 验证
 
@@ -382,7 +388,7 @@ pip install pytest
 pytest
 ```
 
-10 个测试模块覆盖 `angles`、`endpoints`、`transforms`、`discovery`、`config`、`models`、`plotting`、`excel_reader`、`dispatcher`、`logging_setup`。
+测试模块覆盖 `angles`、`endpoints`、`transforms`、`statistics`、`discovery`、`config`、`models`、`plotting`、`excel_reader`、`dispatcher`、`logging_setup`。
 
 ### 日志
 

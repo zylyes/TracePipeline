@@ -38,9 +38,12 @@ input/
 output/
 logs/
 .opencode/
+.claude/
 
 # reference — 研究资料目录（全部忽略，仅本地保留）
-reference/
+reference/*
+!reference/matlab/
+!reference/matlab/**
 docs/*
 !docs/matlab_reference/
 !docs/matlab_reference/**

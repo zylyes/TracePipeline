@@ -44,6 +44,3 @@ logs/
 reference/*
 !reference/matlab/
 !reference/matlab/**
-docs/*
-!docs/matlab_reference/
-!docs/matlab_reference/**

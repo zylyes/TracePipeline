@@ -365,7 +365,8 @@ def compute_trace_statistics(
     """计算迹线图统计指标。"""
     if config is None:
         config = TraceStatisticsConfig()
-    # Terzaghi 修正接口已预留；本轮无论开关状态均不改变数值。
+    if config.terzaghi_correction:
+        raise NotImplementedError("terzaghi_correction 暂未实现")
 
     scanline_length = _estimate_scanline_length(trace.scanline_positions)
     local_segments = _to_local_segments(trace)

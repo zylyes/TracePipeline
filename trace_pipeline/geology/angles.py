@@ -67,7 +67,7 @@ def fold_strike_angle(strike_deg: float) -> float:
       - (270, 360)  → ang − 360°（负值）
 
     注意（与 MATLAB 参考代码的差异）:
-      `docs/matlab_reference/A_outcrop_0map_rotate.m` 第 68-76 行存在 bug——
+      `reference/matlab/A_outcrop_0map_rotate.m` 第 68-76 行存在 bug——
       `if ang0 <= 360` 永远为真，导致后续 `elseif` 分支均不可达，实际效果始终为
       `rotate_angle = (ang0 - 360)·π/180`。Python 版采用上述正确的
       [-90°, 90°] 折叠语义，使测线方向在旋转后最接近水平轴。

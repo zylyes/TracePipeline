@@ -12,7 +12,7 @@ Excel 列布局（0-based）:
   3: 左迹长 1 (r4)        7: 测线走向 ang0 [首行]
                            8: 迹线条数 n [首行]
 
-MATLAB ↔ Python 变量对照（见 docs/matlab_reference/Coordinate.m）:
+MATLAB ↔ Python 变量对照（见 reference/matlab/Coordinate.m）:
   MATLAB          ┃ Python
   ─────────────── ┃ ─────────────────────────────
   ang0            ┃ azimuth
@@ -56,6 +56,16 @@ COL_HEADER_COUNT = 8    # 迹线条数，仅首行
 
 _MIN_COLUMNS = COL_HEADER_COUNT + 1
 
+_FIELD_NAMES = {
+    COL_SHIFT_ALONG: "r1",
+    COL_SHIFT_ACROSS: "r2",
+    COL_DIP: "dip",
+    COL_LEFT_LEN1: "r4",
+    COL_LEFT_LEN2: "r5",
+    COL_RIGHT_LEN1: "r6",
+    COL_RIGHT_LEN2: "r7",
+}
+
 
 # ===========================================================================
 # 表头解析
@@ -71,7 +81,7 @@ def _parse_header(df: pd.DataFrame) -> Tuple[float, int]:
 
     try:
         ang0 = float(pd.to_numeric(df.iloc[0, COL_HEADER_AZIMUTH]))
-        n = int(pd.to_numeric(df.iloc[0, COL_HEADER_COUNT]))
+        n_value = float(pd.to_numeric(df.iloc[0, COL_HEADER_COUNT]))
     except (TypeError, ValueError, IndexError) as exc:
         raise ValueError(
             f"无法解析表头（第1行第{COL_HEADER_AZIMUTH + 1}-{COL_HEADER_COUNT + 1}列）：{exc}"
@@ -79,12 +89,19 @@ def _parse_header(df: pd.DataFrame) -> Tuple[float, int]:
 
     if not np.isfinite(ang0):
         raise ValueError("表头中的走向角度无效（inf 或 NaN）")
+    if not (0.0 <= ang0 < 360.0):
+        raise ValueError(f"表头中的走向角度必须位于 [0, 360)，当前为 {ang0:g}")
+    if not np.isfinite(n_value):
+        raise ValueError("表头中的迹线条数无效（inf 或 NaN）")
+    if not n_value.is_integer():
+        raise ValueError(f"迹线条数必须为整数，当前为 {n_value:g}")
+    n = int(n_value)
     if n <= 0:
         raise ValueError(f"迹线条数必须为正数，当前为 {n}")
     if len(df.index) < n:
         raise ValueError(f"迹线条数 {n} 超出数据行数 {len(df.index)}")
 
-    return ang0 % 360.0, n
+    return ang0, n
 
 
 def _extract_numeric_block(df: pd.DataFrame, n: int) -> np.ndarray:
@@ -94,13 +111,48 @@ def _extract_numeric_block(df: pd.DataFrame, n: int) -> np.ndarray:
 
     if np.isnan(M).any():
         bad_rows, bad_cols = np.where(np.isnan(M))
+        col = int(bad_cols[0])
         raise ValueError(
-            f"数据块第 {int(bad_rows[0]) + 1} 行第 {int(bad_cols[0]) + 1} 列"
-            f"包含非数值内容"
+            f"第 {int(bad_rows[0]) + 1} 行 {_FIELD_NAMES.get(col, f'第 {col + 1} 列')}"
+            " 包含非数值内容"
         )
+    if not np.isfinite(M).all():
+        bad_rows, bad_cols = np.where(~np.isfinite(M))
+        col = int(bad_cols[0])
+        raise ValueError(
+            f"第 {int(bad_rows[0]) + 1} 行 {_FIELD_NAMES.get(col, f'第 {col + 1} 列')}"
+            " 包含 inf 或 NaN"
+        )
+
+    _validate_numeric_block(M)
 
     M[:, COL_DIP] = dip_to_strike(M[:, COL_DIP])
     return M
+
+
+def _validate_numeric_block(M: np.ndarray) -> None:
+    """校验前 n 行测量数据，错误信息使用 Excel 1-based 行号。"""
+    if np.any(M[:, COL_SHIFT_ALONG] < 0.0):
+        bad_row = int(np.where(M[:, COL_SHIFT_ALONG] < 0.0)[0][0]) + 1
+        raise ValueError(f"第 {bad_row} 行 r1 不能为负数")
+
+    dip = M[:, COL_DIP]
+    invalid_dip = (dip < 0.0) | (dip >= 360.0)
+    if np.any(invalid_dip):
+        bad_row = int(np.where(invalid_dip)[0][0]) + 1
+        raise ValueError(f"第 {bad_row} 行 dip 必须位于 [0, 360)")
+
+    length_cols = (COL_LEFT_LEN1, COL_LEFT_LEN2, COL_RIGHT_LEN1, COL_RIGHT_LEN2)
+    for col in length_cols:
+        invalid = M[:, col] < 0.0
+        if np.any(invalid):
+            bad_row = int(np.where(invalid)[0][0]) + 1
+            raise ValueError(f"第 {bad_row} 行 {_FIELD_NAMES[col]} 不能为负数")
+
+    missing_trace = (M[:, COL_LEFT_LEN2] <= 0.0) & (M[:, COL_RIGHT_LEN2] <= 0.0)
+    if np.any(missing_trace):
+        bad_row = int(np.where(missing_trace)[0][0]) + 1
+        raise ValueError(f"第 {bad_row} 行 r5 与 r7 不能同时为 0")
 
 
 # ===========================================================================

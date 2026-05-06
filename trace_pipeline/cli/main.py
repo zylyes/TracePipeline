@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import sys
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 from ..config import apply_cli_overrides, load_config, resolve_config_base_dir, resolve_io_paths
 from ..io.discovery import find_trace_tables
 from ..plotting.style import configure_style
@@ -56,7 +60,10 @@ def main() -> None:
         return
 
     # ---- 4. 目标决策 ----
-    if args.interactive and sys.stdin.isatty():
+    if args.interactive:
+        if not sys.stdin.isatty():
+            logger.error("--interactive 需要交互式终端，当前 stdin 不是 TTY")
+            sys.exit(2)
         targets = select_targets_interactive(discovered)
         if not targets:
             return

@@ -49,16 +49,12 @@ _ARROW_Y_LOW_RATIO = 0.82      # 面板中箭头 Y 下界
 _ARROW_Y_HIGH_RATIO = 0.98     # 面板中箭头 Y 上界
 _STATS_TEXT_X_INSET = 0.04     # 统计文本 X 内边距比例
 _STATS_TEXT_Y_INSET = 0.04     # 统计文本 Y 内边距比例
-_NICE_SCALE_LENGTHS = (0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
+_FIXED_SCALE_LENGTH = 5.0
 
 
 def _auto_scale_length(data_span: float) -> float:
-    """根据数据跨度选择整数比例尺长度。"""
-    target = data_span * 0.25
-    for length in _NICE_SCALE_LENGTHS:
-        if length >= target:
-            return length
-    return _NICE_SCALE_LENGTHS[-1]
+    """固定比例尺长度为 5m（与论文一致）。"""
+    return _FIXED_SCALE_LENGTH
 
 
 class _DecorationLayout(NamedTuple):

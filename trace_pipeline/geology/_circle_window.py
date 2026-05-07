@@ -21,7 +21,7 @@ __all__ = [
 _EPS = 1e-9
 logger = logging.getLogger(__name__)
 _WINDOW_STRATEGIES = ("tangent", "hybrid", "concentric")
-_AUTO_TIE_TOLERANCE = 0.12
+_AUTO_TIE_TOLERANCE = 0.12  # 评分分差 <= 12% 时回退到密度偏好策略（经验标定）
 
 
 # ── 几何工具 ──────────────────────────────────────────────────────────
@@ -755,6 +755,7 @@ def select_window_diagnostics(
         viable_scores,
         key=lambda item: (item.score, item.valid_group_count, item.valid_window_count),
     )
+    # 容差 = max(固定下限, 最高分 x 3%)；分差在容差内时偏好密度预选策略
     tolerance = max(_AUTO_TIE_TOLERANCE, abs(best.score) * 0.03)
     preferred_score = next(
         (score for score in viable_scores if score.strategy == preferred),

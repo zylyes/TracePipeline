@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -266,7 +266,7 @@ class RunResult:
     """单次流水线运行结果（不可变）。"""
 
     table_stem: str
-    status: str  # Literal["success", "error"]
+    status: Literal["success", "error"]
     trace_count: int = 0
     mean_length: float = 0.0
     scanline_azimuth: float = 0.0

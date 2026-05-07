@@ -4,16 +4,15 @@ import math
 import numpy as np
 import pytest
 
-import trace_pipeline.geology._circle_window as _circle_window_module
+import trace_pipeline.geology._window_scoring as _window_scoring_module
 from tests.conftest import make_trace
-from trace_pipeline.geology._circle_window import (
+from trace_pipeline.geology._convex_hull import convex_hull_area as _convex_hull_area
+from trace_pipeline.geology._window_scoring import (
     select_window_diagnostics as _select_window_diagnostics,
 )
-from trace_pipeline.geology._convex_hull import convex_hull_area as _convex_hull_area
 from trace_pipeline.geology.statistics import (
     CircleWindowDiagnostic,
     TraceStatisticsConfig,
-    _effective_trace_length_total,
     compute_trace_statistics,
     format_statistics_box_lines,
 )
@@ -135,17 +134,28 @@ def test_trace_length_total_falls_back_from_endpoint_to_segment_lengths():
 def test_trace_length_total_falls_back_from_segments_to_window_mean():
     trace = make_trace(
         [
-            [0.0, 0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0, 1.0],
+            [5.0, -2.0, 5.0, 2.0],
+            [10.0, -2.0, 10.0, 2.0],
+            [0.0, 4.0, 20.0, 4.0],
+            [0.0, -4.0, 20.0, -4.0],
         ],
-        [0.0, 10.0],
-        segment_lengths=[0.0, 0.0],
+        [0.0, 5.0, 10.0, 15.0],
+        segment_lengths=[0.0, 0.0, 0.0, 0.0],
+        measured_scanline_length=20.0,
     )
 
-    total, source = _effective_trace_length_total(trace, estimated_mean_length=2.5, observed_total=0.0, observed_source="endpoint")
+    stats = compute_trace_statistics(
+        trace,
+        TraceStatisticsConfig(
+            window_strategy="hybrid",
+            cut_fractions=(0.5,),
+            radius_fractions=(1.0,),
+            min_intersections=1,
+        ),
+    )
 
-    assert source == "window"
-    assert total == pytest.approx(5.0)
+    assert stats.trace_length_source == "window"
+    assert stats.mean_trace_length > 0.0
 
 
 def test_circle_window_counts_stay_available_for_internal_diagnostics():
@@ -389,7 +399,7 @@ def test_auto_window_strategy_scores_groups_instead_of_raw_window_count(monkeypa
             ),
         )
 
-    monkeypatch.setattr(_circle_window_module, "compute_circle_windows", fake_circle_windows)
+    monkeypatch.setattr(_window_scoring_module, "compute_circle_windows", fake_circle_windows)
 
     selected, diagnostics = _select_window_diagnostics(
         np.zeros((0, 4)),
@@ -420,7 +430,7 @@ def test_auto_window_strategy_uses_density_preference_for_close_scores(monkeypat
             ),
         )
 
-    monkeypatch.setattr(_circle_window_module, "compute_circle_windows", fake_circle_windows)
+    monkeypatch.setattr(_window_scoring_module, "compute_circle_windows", fake_circle_windows)
 
     selected, _diagnostics = _select_window_diagnostics(
         np.zeros((0, 4)),

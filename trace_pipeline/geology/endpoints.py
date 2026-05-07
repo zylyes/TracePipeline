@@ -44,7 +44,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .angles import dip_to_strike, fold_to_halfplane
+from .angles import azimuth_to_cartesian_deg, dip_to_strike, fold_to_halfplane
 
 logger = logging.getLogger(__name__)
 
@@ -309,7 +309,7 @@ def compute_endpoints(
     segment_lengths = r5 + r7
 
     # ---- 基准角 ----
-    ang_base_deg = 90.0 - azimuth if azimuth < 90.0 else 450.0 - azimuth
+    ang_base_deg = azimuth_to_cartesian_deg(azimuth)
     rad_base = math.radians(ang_base_deg)
 
     # 节理方向角

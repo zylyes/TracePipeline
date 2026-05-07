@@ -13,11 +13,29 @@ import math
 import numpy as np
 
 __all__ = [
+    "azimuth_to_cartesian_deg",
     "dip_to_strike",
     "fold_strike_angle",
     "fold_strikes_to_semicircle",
     "fold_to_halfplane",
 ]
+
+
+# ===========================================================================
+# 方位角 → 笛卡尔角
+# ===========================================================================
+
+
+def azimuth_to_cartesian_deg(azimuth_deg: float) -> float:
+    """地质方位角（北偏东顺时针）→ 数学笛卡尔角（东偏北逆时针）。
+
+    Args:
+        azimuth_deg: 方位角（度），[0, 360)。
+
+    Returns:
+        笛卡尔角（度）。
+    """
+    return 90.0 - azimuth_deg if azimuth_deg < 90.0 else 450.0 - azimuth_deg
 
 
 # ===========================================================================

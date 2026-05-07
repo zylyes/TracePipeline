@@ -18,21 +18,23 @@ import numpy as np
 
 from ..models import TraceData
 from ._circle_window import (
-    aggregate_window_metric as _aggregate_window_metric,
-)
-from ._circle_window import (
     classify_trace_types as _classify_trace_types,
 )
-from ._circle_window import (
-    select_window_diagnostics as _select_window_diagnostics,
-)
 from ._convex_hull import convex_hull_area as _convex_hull_area
+from ._geometry_utils import _EPS
 from ._stat_format import format_statistics_box_lines
 from ._stat_types import (
     CircleWindowDiagnostic,
     TraceStatistics,
     TraceStatisticsConfig,
 )
+from ._window_scoring import (
+    aggregate_window_metric as _aggregate_window_metric,
+)
+from ._window_scoring import (
+    select_window_diagnostics as _select_window_diagnostics,
+)
+from .angles import azimuth_to_cartesian_deg
 
 __all__ = [
     "CircleWindowDiagnostic",
@@ -42,7 +44,6 @@ __all__ = [
     "format_statistics_box_lines",
 ]
 
-_EPS = 1e-9
 logger = logging.getLogger(__name__)
 
 
@@ -70,8 +71,7 @@ def _effective_scanline_length(trace: TraceData) -> tuple[float, str]:
 
 
 def _scanline_angle_rad(azimuth_deg: float) -> float:
-    angle_deg = 90.0 - azimuth_deg if azimuth_deg < 90.0 else 450.0 - azimuth_deg
-    return math.radians(angle_deg)
+    return math.radians(azimuth_to_cartesian_deg(azimuth_deg))
 
 
 def _to_local_segments(trace: TraceData) -> np.ndarray:

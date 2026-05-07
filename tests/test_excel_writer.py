@@ -1,20 +1,17 @@
 """单元测试：Excel 分区输出。"""
-import numpy as np
 from openpyxl import load_workbook
 
+from tests.conftest import make_trace
 from trace_pipeline.geology.statistics import TraceStatistics
 from trace_pipeline.io.excel_writer import build_excel_sections, write_excel_sections
-from trace_pipeline.models import TraceData
 
 
 def _trace():
-    return TraceData(
-        scanline_azimuth=90.0,
-        count=2,
-        endpoints=np.array([[0.0, 0.0, 3.0, 4.0], [1.0, 2.0, 4.0, 6.0]]),
-        joint_strikes=np.array([10.0, 20.0]),
-        segment_lengths=np.array([5.0, 6.0]),
-        scanline_positions=np.array([0.0, 10.0]),
+    return make_trace(
+        [[0.0, 0.0, 3.0, 4.0], [1.0, 2.0, 4.0, 6.0]],
+        [0.0, 10.0],
+        segment_lengths=[5.0, 6.0],
+        joint_strikes=[10.0, 20.0],
     )
 
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cached_property
 from typing import Any
 
 import numpy as np
@@ -36,7 +35,7 @@ __all__ = [
 # ===========================================================================
 
 
-@dataclass
+@dataclass(frozen=True)
 class TraceData:
     """单张迹线表的完整解析结果（不可变数据容器）。
 
@@ -61,14 +60,14 @@ class TraceData:
     measured_outcrop_area: float | None = None
 
     def __post_init__(self) -> None:
-        endpoints = np.asarray(self.endpoints, dtype=float)
-        joint_strikes = np.asarray(self.joint_strikes, dtype=float)
-        segment_lengths = np.asarray(self.segment_lengths, dtype=float)
-        scanline_positions = np.asarray(self.scanline_positions, dtype=float)
-        self.endpoints = endpoints
-        self.joint_strikes = joint_strikes
-        self.segment_lengths = segment_lengths
-        self.scanline_positions = scanline_positions
+        endpoints = np.array(self.endpoints, dtype=float, copy=True)
+        joint_strikes = np.array(self.joint_strikes, dtype=float, copy=True)
+        segment_lengths = np.array(self.segment_lengths, dtype=float, copy=True)
+        scanline_positions = np.array(self.scanline_positions, dtype=float, copy=True)
+        object.__setattr__(self, "endpoints", endpoints)
+        object.__setattr__(self, "joint_strikes", joint_strikes)
+        object.__setattr__(self, "segment_lengths", segment_lengths)
+        object.__setattr__(self, "scanline_positions", scanline_positions)
 
         if not np.isfinite(self.scanline_azimuth):
             raise ValueError("scanline_azimuth 必须为有限浮点数")
@@ -101,14 +100,26 @@ class TraceData:
             raise ValueError("segment_lengths 包含 NaN 或 inf")
         if not np.isfinite(scanline_positions).all():
             raise ValueError("scanline_positions 包含 NaN 或 inf")
-        self.measured_scanline_length = self._validate_optional_positive(
-            self.measured_scanline_length,
+        object.__setattr__(
+            self,
             "measured_scanline_length",
+            self._validate_optional_positive(
+                self.measured_scanline_length,
+                "measured_scanline_length",
+            ),
         )
-        self.measured_outcrop_area = self._validate_optional_positive(
-            self.measured_outcrop_area,
+        object.__setattr__(
+            self,
             "measured_outcrop_area",
+            self._validate_optional_positive(
+                self.measured_outcrop_area,
+                "measured_outcrop_area",
+            ),
         )
+        endpoints.flags.writeable = False
+        joint_strikes.flags.writeable = False
+        segment_lengths.flags.writeable = False
+        scanline_positions.flags.writeable = False
 
     @staticmethod
     def _validate_optional_positive(value: float | None, name: str) -> float | None:
@@ -121,14 +132,22 @@ class TraceData:
 
     # ---- 派生属性 ----
 
-    @cached_property
+    @property
     def lengths(self) -> np.ndarray:
         """迹线端点间的二维欧氏距离 (N,)，首次访问后缓存。"""
+        try:
+            return self.__dict__["_lengths"]
+        except KeyError:
+            pass
         if self.count == 0:
-            return np.array([], dtype=float)
-        dx = self.endpoints[:, 2] - self.endpoints[:, 0]
-        dy = self.endpoints[:, 3] - self.endpoints[:, 1]
-        return np.hypot(dx, dy)
+            result = np.array([], dtype=float)
+        else:
+            dx = self.endpoints[:, 2] - self.endpoints[:, 0]
+            dy = self.endpoints[:, 3] - self.endpoints[:, 1]
+            result = np.hypot(dx, dy)
+        result.flags.writeable = False
+        self.__dict__["_lengths"] = result
+        return result
 
     @property
     def mean_length(self) -> float:
@@ -181,36 +200,39 @@ class RunConfig:
             if not normalized:
                 raise ValueError(f"{name} 不能为空")
             object.__setattr__(self, name, normalized)
-        object.__setattr__(
-            self,
-            "export_rose_plot",
-            coerce_bool(self.export_rose_plot, "export_rose_plot"),
-        )
-        object.__setattr__(
-            self, "rose_bin_width", coerce_rose_bin_width(self.rose_bin_width)
-        )
-        object.__setattr__(self, "rose_dpi", coerce_positive_int(self.rose_dpi, "rose_dpi"))
-        object.__setattr__(self, "trace_dpi", coerce_positive_int(self.trace_dpi, "trace_dpi"))
-        object.__setattr__(
-            self,
-            "rotated_trace_dpi",
-            coerce_positive_int(self.rotated_trace_dpi, "rotated_trace_dpi"),
-        )
-        object.__setattr__(
-            self,
-            "window_strategy",
-            coerce_window_strategy(self.window_strategy),
-        )
-        object.__setattr__(
-            self,
-            "auto_density_threshold",
-            coerce_positive_float(self.auto_density_threshold, "auto_density_threshold"),
-        )
-        object.__setattr__(
-            self,
-            "tangent_window_count",
-            coerce_positive_int(self.tangent_window_count, "tangent_window_count"),
-        )
+        # 数值型字段由 validate_config() 或直接构造时的 coerce 保证，
+        # 此处仅做防御性类型断言，避免与 config.py 重复校验逻辑。
+        if not isinstance(self.export_rose_plot, bool):
+            object.__setattr__(
+                self, "export_rose_plot",
+                coerce_bool(self.export_rose_plot, "export_rose_plot"),
+            )
+        if not isinstance(self.rose_bin_width, (int, float)) or not (0 < self.rose_bin_width <= 180):
+            object.__setattr__(
+                self, "rose_bin_width", coerce_rose_bin_width(self.rose_bin_width)
+            )
+        for int_field in ("rose_dpi", "trace_dpi", "rotated_trace_dpi", "tangent_window_count"):
+            if not isinstance(getattr(self, int_field), int) or getattr(self, int_field) <= 0:
+                object.__setattr__(
+                    self, int_field,
+                    coerce_positive_int(getattr(self, int_field), int_field),
+                )
+        if not isinstance(self.auto_density_threshold, (int, float)) or self.auto_density_threshold <= 0:
+            object.__setattr__(
+                self, "auto_density_threshold",
+                coerce_positive_float(self.auto_density_threshold, "auto_density_threshold"),
+            )
+        if isinstance(self.window_strategy, str):
+            strategy = self.window_strategy.strip().lower()
+            if strategy != self.window_strategy:
+                object.__setattr__(self, "window_strategy", strategy)
+            if strategy not in {"auto", "tangent", "hybrid", "concentric"}:
+                raise ValueError("window_strategy 必须为 auto/tangent/hybrid/concentric")
+        else:
+            object.__setattr__(
+                self, "window_strategy",
+                coerce_window_strategy(self.window_strategy),
+            )
 
     # ---- 工厂方法 ----
 
@@ -244,7 +266,7 @@ class RunResult:
     """单次流水线运行结果（不可变）。"""
 
     table_stem: str
-    status: str  # "success" | "error"
+    status: str  # Literal["success", "error"]
     trace_count: int = 0
     mean_length: float = 0.0
     scanline_azimuth: float = 0.0

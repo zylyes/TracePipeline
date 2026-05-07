@@ -1,5 +1,9 @@
 """迹线几何计算 — 表头解析与端点坐标的向量化计算。
 
+注意：内部函数 ``_compute_left_only`` / ``_compute_right_only`` /
+``_compute_bilateral`` 通过就地修改预分配数组实现高效计算，
+仅由 ``compute_endpoints`` 在本地零数组上调用，不影响外部状态。
+
 核心流程：
   1. 解析 Excel 表头（测线走向、迹线条数）
   2. 提取数值矩阵，倾向 → 走向转换
@@ -35,7 +39,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Tuple
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -62,6 +66,21 @@ COL_HEADER_SCANLINE_LENGTH = 11  # 实测测线长度（m），仅首行，可�
 COL_HEADER_OUTCROP_AREA = 12     # 实测露头面积（m²），仅首行，可选
 
 _MIN_COLUMNS = COL_HEADER_COUNT + 1
+
+
+@dataclass(frozen=True)
+class EndpointResult:
+    """compute_endpoints 的结构化返回值。"""
+
+    azimuth: float
+    count: int
+    endpoints: np.ndarray
+    joint_strikes: np.ndarray
+    segment_lengths: np.ndarray
+    scanline_positions: np.ndarray
+    measured_scanline_length: float | None
+    measured_outcrop_area: float | None
+
 
 _FIELD_NAMES = {
     COL_SHIFT_ALONG: "r1",
@@ -94,7 +113,7 @@ def _parse_optional_positive_header(df: pd.DataFrame, col: int, label: str) -> f
     return value
 
 
-def _parse_header(df: pd.DataFrame) -> Tuple[float, int, float | None, float | None]:
+def _parse_header(df: pd.DataFrame) -> tuple[float, int, float | None, float | None]:
     """从 DataFrame 首行解析测线走向、迹线条数及可选实测量。"""
     if df.empty:
         raise ValueError("输入表格为空")
@@ -259,7 +278,7 @@ def _compute_bilateral(
 
 def compute_endpoints(
     df: pd.DataFrame,
-) -> Tuple[float, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float | None, float | None]:
+) -> EndpointResult:
     """从原始表格解析测线走向、迹线条数与端点坐标（纯向量化）。
 
     整合表头解析、数值提取、角度转换与三种情况的端点计算。
@@ -333,15 +352,15 @@ def compute_endpoints(
         )
 
     endpoints = np.column_stack((X1, Y1, X2, Y2))
-    return (
-        azimuth,
-        n,
-        endpoints,
-        joint_strike,
-        segment_lengths,
-        r1.copy(),
-        measured_scanline_length,
-        measured_outcrop_area,
+    return EndpointResult(
+        azimuth=azimuth,
+        count=n,
+        endpoints=endpoints,
+        joint_strikes=joint_strike,
+        segment_lengths=segment_lengths,
+        scanline_positions=r1.copy(),
+        measured_scanline_length=measured_scanline_length,
+        measured_outcrop_area=measured_outcrop_area,
     )
 
 
@@ -352,5 +371,6 @@ __all__ = [
     "COL_LEFT_LEN1", "COL_LEFT_LEN2",
     "COL_RIGHT_LEN1", "COL_RIGHT_LEN2",
     "COL_SHIFT_ALONG", "COL_SHIFT_ACROSS",
+    "EndpointResult",
     "compute_endpoints",
 ]

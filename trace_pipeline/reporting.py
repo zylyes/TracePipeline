@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from typing import List
+import unicodedata
 
 from .models import RunResult
 
@@ -16,40 +16,69 @@ from .models import RunResult
 
 _SEP = "-"
 _HEADER_SEP = "="
-_COL_WIDTHS = [10, 8, 10, 10, 10, 8, 6]
+_MIN_COL_WIDTHS = [6, 6, 8, 8, 8, 6, 4]
 _COL_HEADERS = ["露头", "迹线数", "平均迹长", "测线走向", "策略", "玫瑰图", "状态"]
 
 
-def _format_row(values: List[str], widths: List[int]) -> str:
-    """按列宽格式化一行。"""
-    cells = [v.center(w) if i > 0 else v.ljust(w) for i, (v, w) in enumerate(zip(values, widths))]
+def _display_width(s: str) -> int:
+    """计算字符串在等宽终端中的显示宽度（CJK 字符按双宽度计算）。"""
+    width = 0
+    for ch in s:
+        eaw = unicodedata.east_asian_width(ch)
+        width += 2 if eaw in ("W", "F") else 1
+    return width
+
+
+def _pad_to_width(s: str, target: int, align: str = "center") -> str:
+    """按显示宽度填充字符串。"""
+    current = _display_width(s)
+    padding = max(0, target - current)
+    if align == "left":
+        return s + " " * padding
+    left = padding // 2
+    right = padding - left
+    return " " * left + s + " " * right
+
+
+def _compute_col_widths(rows: list[list[str]]) -> list[int]:
+    """根据表头和数据内容动态计算各列宽度。"""
+    ncols = len(_COL_HEADERS)
+    widths = [max(_MIN_COL_WIDTHS[i], _display_width(_COL_HEADERS[i])) for i in range(ncols)]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], _display_width(cell))
+    return widths
+
+
+def _format_row(values: list[str], widths: list[int]) -> str:
+    """按列宽格式化一行（支持 CJK 字符宽度）。"""
+    if len(values) != len(widths):
+        raise ValueError(f"values 长度 {len(values)} 与 widths 长度 {len(widths)} 不一致")
+    cells = [
+        _pad_to_width(v, w, "left") if i == 0 else _pad_to_width(v, w)
+        for i, (v, w) in enumerate(zip(values, widths))
+    ]
     return "| " + " | ".join(cells) + " |"
 
 
-def _format_separator(widths: List[int], char: str = _SEP) -> str:
+def _format_separator(widths: list[int], char: str = _SEP) -> str:
     """绘制分隔线。"""
     parts = [char * w for w in widths]
     return "+-" + "-+-".join(parts) + "-+"
 
 
-def _format_double_separator(widths: List[int]) -> str:
+def _format_double_separator(widths: list[int]) -> str:
     """绘制双线分隔（表头/表尾）。"""
     parts = [_HEADER_SEP * w for w in widths]
     return "+=" + "=+=".join(parts) + "=+"
 
 
-def format_results_table(results: List[RunResult]) -> str:
+def format_results_table(results: list[RunResult]) -> str:
     """将批量处理结果格式化为终端表格。"""
     if not results:
         return "（无结果）"
 
-    widths = list(_COL_WIDTHS)
-    lines = []
-
-    lines.append(_format_double_separator(widths))
-    lines.append(_format_row(_COL_HEADERS, widths))
-    lines.append(_format_separator(widths, _HEADER_SEP))
-
+    data_rows: list[list[str]] = []
     total_traces = 0
     total_length = 0.0
     has_rose = 0
@@ -69,7 +98,15 @@ def format_results_table(results: List[RunResult]) -> str:
                 has_rose += 1
                 rose = "是"
 
-        row = [stem, count, avg_len, azimuth, strategy, rose, status]
+        data_rows.append([stem, count, avg_len, azimuth, strategy, rose, status])
+
+    widths = _compute_col_widths(data_rows)
+    lines = []
+    lines.append(_format_double_separator(widths))
+    lines.append(_format_row(_COL_HEADERS, widths))
+    lines.append(_format_separator(widths, _HEADER_SEP))
+
+    for row in data_rows:
         lines.append(_format_row(row, widths))
 
     lines.append(_format_double_separator(widths))
@@ -80,7 +117,7 @@ def format_results_table(results: List[RunResult]) -> str:
     return "\n".join(lines)
 
 
-def format_summary(results: List[RunResult]) -> str:
+def format_summary(results: list[RunResult]) -> str:
     """生成批量处理的统计摘要。"""
     if not results:
         return "没有可用的处理结果。"
@@ -115,7 +152,7 @@ def format_summary(results: List[RunResult]) -> str:
     return "\n".join(lines)
 
 
-def print_pipeline_results(results: List[RunResult]) -> None:
+def print_pipeline_results(results: list[RunResult]) -> None:
     """一站式打印：先输出汇总表，再输出摘要。"""
     print()
     print(format_results_table(results))

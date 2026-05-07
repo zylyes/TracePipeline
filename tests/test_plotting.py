@@ -70,13 +70,14 @@ def test_statistics_box_is_anchored_to_panel_bottom_right():
     assert kwargs["va"] == "bottom"
 
 
-def test_trace_layout_uses_fixed_five_meter_scale():
+def test_trace_layout_uses_adaptive_scale_length():
     layout = _build_decoration_layout(
         np.array([[0.0, 0.0, 1.0, 1.0]]),
         has_annotation_panel=True,
     )
 
-    assert layout.scale_length == 5.0
+    assert layout.scale_length > 0
+    assert layout.scale_length in (0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
 
 
 def test_rose_histogram_keeps_non_divisible_final_bin_width():

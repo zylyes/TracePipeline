@@ -65,4 +65,4 @@ def setup_logging(log_dir: str = "logs") -> logging.Logger:
         pkg_logger.addHandler(file_handler)
         _cleanup_old_logs(log_dir)
 
-    return logging.getLogger(__name__)
+    return pkg_logger

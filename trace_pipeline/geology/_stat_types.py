@@ -1,0 +1,103 @@
+"""统计相关数据类型定义。"""
+from __future__ import annotations
+
+import math
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+__all__ = ["CircleWindowDiagnostic", "TraceStatistics", "TraceStatisticsConfig"]
+
+
+@dataclass(frozen=True)
+class TraceStatisticsConfig:
+    """迹线统计计算参数。"""
+
+    cut_fractions: Sequence[float] = (0.25, 0.5, 0.75)
+    radius_fractions: Sequence[float] = (1.0, 0.75, 0.5)
+    min_intersections: int = 5
+    window_strategy: str = "auto"
+    auto_density_threshold: float = 5.0
+    tangent_window_count: int = 3
+
+    def __post_init__(self) -> None:
+        cut_fractions = tuple(float(v) for v in self.cut_fractions)
+        radius_fractions = tuple(float(v) for v in self.radius_fractions)
+        window_strategy = str(self.window_strategy).strip().lower()
+        if not cut_fractions:
+            raise ValueError("cut_fractions 不能为空")
+        if not radius_fractions:
+            raise ValueError("radius_fractions 不能为空")
+        if any((not math.isfinite(v)) or v <= 0.0 or v >= 1.0 for v in cut_fractions):
+            raise ValueError("cut_fractions 必须位于 (0, 1) 范围内")
+        if any((not math.isfinite(v)) or v <= 0.0 for v in radius_fractions):
+            raise ValueError("radius_fractions 必须为正数")
+        if int(self.min_intersections) <= 0:
+            raise ValueError("min_intersections 必须为正整数")
+        if window_strategy not in {"auto", "tangent", "hybrid", "concentric"}:
+            raise ValueError("window_strategy 必须为 auto/tangent/hybrid/concentric")
+        auto_density_threshold = float(self.auto_density_threshold)
+        if not math.isfinite(auto_density_threshold) or auto_density_threshold <= 0.0:
+            raise ValueError("auto_density_threshold 必须为正数")
+        tangent_window_count = int(self.tangent_window_count)
+        if tangent_window_count <= 0:
+            raise ValueError("tangent_window_count 必须为正整数")
+        object.__setattr__(self, "cut_fractions", cut_fractions)
+        object.__setattr__(self, "radius_fractions", radius_fractions)
+        object.__setattr__(self, "min_intersections", int(self.min_intersections))
+        object.__setattr__(self, "window_strategy", window_strategy)
+        object.__setattr__(self, "auto_density_threshold", auto_density_threshold)
+        object.__setattr__(self, "tangent_window_count", tangent_window_count)
+
+
+@dataclass(frozen=True)
+class CircleWindowDiagnostic:
+    """单个圆形取样窗的计数和有效性诊断。"""
+
+    cut_position: float
+    side: str
+    center_x: float
+    center_y: float
+    radius: float
+    intersection_count: int
+    n0: int
+    n1: int
+    n2: int
+    m: int
+    q: int
+    p20: float
+    p21: float
+    l_est: float
+    strategy: str
+    group_key: str
+    valid: bool
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class TraceStatistics:
+    """迹线图统计结果。"""
+
+    scanline_azimuth: float
+    total_count: int
+    type_i_count: int
+    type_ii_count: int
+    type_iii_count: int
+    scanline_length: float
+    outcrop_area: float
+    mean_trace_length: float
+    trace_length_total: float
+    p10: float
+    p20: float
+    p21: float
+    scanline_length_source: str
+    outcrop_area_source: str
+    trace_length_source: str
+    p20_source: str
+    p21_source: str
+    window_strategy: str
+    trace_types: tuple[str, ...]
+    diagnostics: tuple[CircleWindowDiagnostic, ...]
+
+    @property
+    def valid_window_count(self) -> int:
+        return sum(1 for diagnostic in self.diagnostics if diagnostic.valid)

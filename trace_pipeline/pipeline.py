@@ -33,29 +33,20 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
     logger.info("加载迹线数据: %s/%s", input_dir, table_stem)
     df = read_trace_excel(input_dir, table_stem, outcrop)
 
-    (
-        azimuth,
-        n,
-        endpoints,
-        joint_strikes,
-        segment_lengths,
-        scanline_positions,
-        measured_scanline_length,
-        measured_outcrop_area,
-    ) = compute_endpoints(df)
+    result = compute_endpoints(df)
     trace = TraceData(
-        scanline_azimuth=azimuth,
-        count=n,
-        endpoints=endpoints,
-        joint_strikes=joint_strikes,
-        segment_lengths=segment_lengths,
-        scanline_positions=scanline_positions,
-        measured_scanline_length=measured_scanline_length,
-        measured_outcrop_area=measured_outcrop_area,
+        scanline_azimuth=result.azimuth,
+        count=result.count,
+        endpoints=result.endpoints,
+        joint_strikes=result.joint_strikes,
+        segment_lengths=result.segment_lengths,
+        scanline_positions=result.scanline_positions,
+        measured_scanline_length=result.measured_scanline_length,
+        measured_outcrop_area=result.measured_outcrop_area,
     )
     logger.info(
         "解析完成: %d 条迹线, 走向 %.1f°, 平均端点距离 %.2f",
-        n, azimuth, trace.mean_length,
+        result.count, result.azimuth, trace.mean_length,
     )
     return trace
 
@@ -93,7 +84,6 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
         # ---- 3. 导出 Excel ----
         output_dir = Path(cfg.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
         excel_path = output_dir / f"{cfg.output_prefix}_traces.xlsx"
         sections = build_excel_sections(trace, rotated, statistics=statistics)
         write_excel_sections(str(excel_path), cfg.outcrop, sections)

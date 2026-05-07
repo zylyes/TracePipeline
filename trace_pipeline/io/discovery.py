@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, NamedTuple, Tuple
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
-EXCEL_EXTENSIONS: Tuple[str, ...] = (".xlsx", ".xls")
+EXCEL_EXTENSIONS: tuple[str, ...] = (".xlsx", ".xls")
 TRACE_SUFFIX = "_process"
 
 __all__ = ["TRACE_SUFFIX", "TraceFile", "find_trace_tables"]
@@ -22,8 +22,8 @@ class TraceFile(NamedTuple):
 def find_trace_tables(
     input_dir: str,
     suffix: str = TRACE_SUFFIX,
-    extensions: Tuple[str, ...] = EXCEL_EXTENSIONS,
-) -> List[TraceFile]:
+    extensions: tuple[str, ...] = EXCEL_EXTENSIONS,
+) -> list[TraceFile]:
     """扫描输入目录，返回匹配的迹线表列表。
 
     匹配规则：

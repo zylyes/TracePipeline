@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from typing import List
 
 import matplotlib
 import matplotlib.font_manager as fm
@@ -10,14 +9,14 @@ import matplotlib.font_manager as fm
 logger = logging.getLogger(__name__)
 
 # 论文常用西文字体（优先 Times New Roman）
-WESTERN_FONT_CANDIDATES: List[str] = [
+WESTERN_FONT_CANDIDATES: list[str] = [
     "Times New Roman",
     "DejaVu Serif",
     "serif",
 ]
 
 # 优先使用宋体，与 Times New Roman 风格更协调
-CJK_SERIF_CANDIDATES: List[str] = [
+CJK_SERIF_CANDIDATES: list[str] = [
     "SimSun",
     "Noto Serif SC",
     "STSong",
@@ -25,7 +24,7 @@ CJK_SERIF_CANDIDATES: List[str] = [
 ]
 
 # 无衬线中文 fallback
-CJK_SANS_CANDIDATES: List[str] = [
+CJK_SANS_CANDIDATES: list[str] = [
     "SimHei",
     "Microsoft YaHei",
     "Noto Sans CJK SC",
@@ -37,24 +36,29 @@ CJK_SANS_CANDIDATES: List[str] = [
 
 __all__ = ["configure_style"]
 
+_CJK_FONTS_CACHE: dict[str, list[str]] | None = None
 
-def _detect_cjk_fonts(candidates: List[str]) -> List[str]:
-    """扫描系统已安装的 CJK 字体，返回可用字体名列表。"""
+
+def _get_font_cache() -> dict[str, list[str]]:
+    """返回系统字体检测缓存（惰性创建、仅扫描一次）。"""
+    global _CJK_FONTS_CACHE  # noqa: PLW0603
+    if _CJK_FONTS_CACHE is not None:
+        return _CJK_FONTS_CACHE
     available = {f.name for f in fm.fontManager.ttflist}
-    return [f for f in candidates if f in available]
-
-
-def _detect_western_fonts() -> List[str]:
-    """扫描系统已安装的西文字体，返回可用字体名列表。"""
-    available = {f.name for f in fm.fontManager.ttflist}
-    return [f for f in WESTERN_FONT_CANDIDATES if f in available]
+    _CJK_FONTS_CACHE = {
+        "cjk_serif": [f for f in CJK_SERIF_CANDIDATES if f in available],
+        "cjk_sans": [f for f in CJK_SANS_CANDIDATES if f in available],
+        "western": [f for f in WESTERN_FONT_CANDIDATES if f in available],
+    }
+    return _CJK_FONTS_CACHE
 
 
 def configure_style() -> None:
     """配置 matplotlib 全局样式以支持中文显示并符合论文规范（幂等）。"""
-    available_cjk_serif = _detect_cjk_fonts(CJK_SERIF_CANDIDATES)
-    available_cjk_sans = _detect_cjk_fonts(CJK_SANS_CANDIDATES)
-    available_western = _detect_western_fonts()
+    cache = _get_font_cache()
+    available_cjk_serif = cache["cjk_serif"]
+    available_cjk_sans = cache["cjk_sans"]
+    available_western = cache["western"]
 
     # 优先选择衬线体中文（与 Times New Roman 更协调）
     if available_cjk_serif:
@@ -63,12 +67,12 @@ def configure_style() -> None:
         primary_cjk = available_cjk_sans
 
     if primary_cjk:
-        # 必须把支持中文的字体放在第一位，否则中文无法显示。
-        # 西文如果该字体支持则共用，否则 fallback 到后面的字体。
-        serif_list = primary_cjk + available_western + ["serif"]
+        # 西文字体放在前面保证 Latin 字形质量，
+        # CJK 字体作为后备处理中文（matplotlib 支持按字符回退）。
+        serif_list = available_western + primary_cjk + ["serif"]
         matplotlib.rcParams["font.family"] = "serif"
         matplotlib.rcParams["font.serif"] = serif_list
-        matplotlib.rcParams["font.sans-serif"] = primary_cjk + available_western + ["sans-serif"]
+        matplotlib.rcParams["font.sans-serif"] = available_western + primary_cjk + ["sans-serif"]
         logger.info("检测到中文主字体: %s", primary_cjk[0])
     else:
         existing = list(matplotlib.rcParams.get("font.sans-serif", ["sans-serif"]))

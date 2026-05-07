@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Tuple
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-EXCEL_ENGINES: Tuple[Tuple[str, str], ...] = (
+EXCEL_ENGINES: tuple[tuple[str, str], ...] = (
     (".xlsx", "openpyxl"),
     (".xls", "xlrd"),
 )
@@ -38,8 +37,8 @@ def read_trace_excel(
     """
     base = Path(base_path)
     # 候选：(path, engine, sheet_arg)，每个文件尝试两次（指定 sheet / 第一个 sheet）
-    attempts: List[Tuple[Path, str, object]] = []
-    found_paths: List[Path] = []
+    attempts: list[tuple[Path, str, object]] = []
+    found_paths: list[Path] = []
     for ext, engine in EXCEL_ENGINES:
         path = base / f"{table_stem}{ext}"
         if not path.is_file():
@@ -55,7 +54,7 @@ def read_trace_excel(
         )
 
     last_error: Exception | None = None
-    errors: List[str] = []
+    errors: list[str] = []
     for path, engine, sheet_arg in attempts:
         logger.debug("读取文件: %s (引擎=%s, sheet=%r)", path, engine, sheet_arg)
         try:

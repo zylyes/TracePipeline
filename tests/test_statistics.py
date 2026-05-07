@@ -4,14 +4,16 @@ import math
 import numpy as np
 import pytest
 
-import trace_pipeline.geology.statistics as statistics_module
+import trace_pipeline.geology._circle_window as _circle_window_module
 from tests.conftest import make_trace
+from trace_pipeline.geology._circle_window import (
+    select_window_diagnostics as _select_window_diagnostics,
+)
+from trace_pipeline.geology._convex_hull import convex_hull_area as _convex_hull_area
 from trace_pipeline.geology.statistics import (
     CircleWindowDiagnostic,
     TraceStatisticsConfig,
-    _convex_hull_area,
     _effective_trace_length_total,
-    _select_window_diagnostics,
     compute_trace_statistics,
     format_statistics_box_lines,
 )
@@ -387,7 +389,7 @@ def test_auto_window_strategy_scores_groups_instead_of_raw_window_count(monkeypa
             ),
         )
 
-    monkeypatch.setattr(statistics_module, "_compute_circle_windows", fake_circle_windows)
+    monkeypatch.setattr(_circle_window_module, "compute_circle_windows", fake_circle_windows)
 
     selected, diagnostics = _select_window_diagnostics(
         np.zeros((0, 4)),
@@ -418,7 +420,7 @@ def test_auto_window_strategy_uses_density_preference_for_close_scores(monkeypat
             ),
         )
 
-    monkeypatch.setattr(statistics_module, "_compute_circle_windows", fake_circle_windows)
+    monkeypatch.setattr(_circle_window_module, "compute_circle_windows", fake_circle_windows)
 
     selected, _diagnostics = _select_window_diagnostics(
         np.zeros((0, 4)),

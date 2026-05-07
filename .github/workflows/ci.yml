@@ -8,9 +8,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
@@ -33,11 +34,11 @@ jobs:
         run: mypy trace_pipeline/
 
       - name: Pytest 测试与覆盖率
-        run: pytest --cov --cov-report=term --cov-report=html
+        run: pytest --cov --cov-report=term --cov-report=html --cov-fail-under=80
 
       - name: 上传覆盖率报告
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report-py${{ matrix.python-version }}
+          name: coverage-report-${{ matrix.os }}-py${{ matrix.python-version }}
           path: htmlcov/

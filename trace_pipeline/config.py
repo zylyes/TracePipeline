@@ -172,7 +172,10 @@ def validate_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
         logger.warning("忽略未知配置项: %s", ", ".join(sorted(unknown)))
     merged.update({k: v for k, v in cfg.items() if k in merged})
 
-    missing = [k for k in _REQUIRED_KEYS if str(merged.get(k, "")).strip() == ""]
+    missing = [
+        k for k in _REQUIRED_KEYS
+        if merged.get(k) is None or str(merged[k]).strip() == ""
+    ]
     if missing:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 

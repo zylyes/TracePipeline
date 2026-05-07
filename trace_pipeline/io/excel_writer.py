@@ -42,7 +42,7 @@ class ExcelSection:
 
 @dataclass(frozen=True)
 class ExcelLayout:
-    """Layout specification for the generated Excel worksheet."""
+    """生成 Excel 工作表的布局规格。"""
 
     base_info_row: int = 0
     data_gap: int = 1
@@ -173,7 +173,7 @@ def build_excel_sections(
     statistics: TraceStatistics | None = None,
     layout: ExcelLayout = DEFAULT_LAYOUT,
 ) -> list[ExcelSection]:
-    """Build DataFrame sections for a single worksheet export."""
+    """构建单工作表导出的 DataFrame 区段。"""
     if rotated_xy.shape != trace.endpoints.shape:
         raise ValueError(
             f"旋转坐标形状 {rotated_xy.shape} 与原始坐标 {trace.endpoints.shape} 不一致"
@@ -345,7 +345,7 @@ def write_excel_sections(
     sections: Sequence[ExcelSection],
     layout: ExcelLayout = DEFAULT_LAYOUT,
 ) -> None:
-    """Write multiple DataFrame sections into one worksheet."""
+    """将多个 DataFrame 区段写入同一工作表。"""
     output_dir = Path(excel_path).parent
     if str(output_dir):
         output_dir.mkdir(parents=True, exist_ok=True)

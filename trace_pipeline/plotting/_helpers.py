@@ -1,7 +1,7 @@
 """绘图通用辅助 — Figure 创建与保存。"""
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import Tuple
 
 import matplotlib.pyplot as plt
@@ -33,8 +33,9 @@ def save_figure(
     pad_inches: float = 0.08,
 ) -> str:
     """保存并关闭图形，返回完整输出路径。"""
-    os.makedirs(output_dir, exist_ok=True)
-    full_path = os.path.join(output_dir, filename)
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    full_path = str(out / filename)
     try:
         fig.tight_layout(pad=0.6)
         fig.savefig(full_path, dpi=dpi, facecolor="white", bbox_inches="tight", pad_inches=pad_inches)

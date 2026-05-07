@@ -4,10 +4,13 @@ import math
 import numpy as np
 import pytest
 
+import trace_pipeline.geology.statistics as statistics_module
 from trace_pipeline.geology.statistics import (
+    CircleWindowDiagnostic,
     TraceStatisticsConfig,
     _convex_hull_area,
     _effective_trace_length_total,
+    _select_window_diagnostics,
     compute_trace_statistics,
     format_statistics_box_lines,
 )
@@ -160,7 +163,7 @@ def test_trace_length_total_falls_back_from_segments_to_window_mean():
         segment_lengths=[0.0, 0.0],
     )
 
-    total, source = _effective_trace_length_total(trace, estimated_mean_length=2.5)
+    total, source = _effective_trace_length_total(trace, estimated_mean_length=2.5, observed_total=0.0, observed_source="endpoint")
 
     assert source == "window"
     assert total == pytest.approx(5.0)
@@ -316,7 +319,7 @@ def test_explicit_window_strategy_layouts_are_recorded():
     assert concentric.diagnostics[0].radius == pytest.approx(2.0)
 
 
-def test_auto_window_strategy_selects_tangent_hybrid_and_concentric():
+def test_auto_window_strategy_uses_viable_diagnostics_before_density_fallback():
     def rectangular_trace(count, width, height):
         xs = np.linspace(0.0, width, count)
         endpoints = np.column_stack((xs, np.zeros(count), xs, np.full(count, height)))
@@ -340,12 +343,113 @@ def test_auto_window_strategy_selects_tangent_hybrid_and_concentric():
     )
 
     assert sparse.window_strategy == "tangent"
-    assert medium.window_strategy == "hybrid"
+    assert medium.window_strategy == "concentric"
     assert dense.window_strategy == "concentric"
 
 
-def test_terzaghi_correction_true_raises_not_implemented():
-    trace = _trace([[5.0, -1.0, 5.0, 1.0]], [0.0])
+def _window(
+    strategy,
+    group_key,
+    side,
+    *,
+    cut_position=15.0,
+    radius=5.0,
+    intersection_count=10,
+    valid=True,
+    l_est=5.0,
+    p20=1.0,
+    p21=1.0,
+):
+    return CircleWindowDiagnostic(
+        cut_position=cut_position,
+        side=side,
+        center_x=cut_position,
+        center_y=radius if side == "left" else -radius if side == "right" else 0.0,
+        radius=radius,
+        intersection_count=intersection_count,
+        n0=1,
+        n1=1,
+        n2=1,
+        m=3,
+        q=3,
+        p20=p20,
+        p21=p21,
+        l_est=l_est,
+        strategy=strategy,
+        group_key=group_key,
+        valid=valid,
+        reason="" if valid else "invalid",
+    )
 
-    with pytest.raises(NotImplementedError, match="terzaghi_correction 暂未实现"):
-        compute_trace_statistics(trace, TraceStatisticsConfig(terzaghi_correction=True))
+
+def test_auto_window_strategy_scores_groups_instead_of_raw_window_count(monkeypatch):
+    def fake_circle_windows(_segments, _length, _config, strategy):
+        if strategy == "hybrid":
+            return tuple(
+                _window(
+                    "hybrid",
+                    "hybrid:0.5:left",
+                    "left",
+                    radius=2.0,
+                    intersection_count=20,
+                )
+                for _ in range(9)
+            )
+        if strategy == "tangent":
+            return (
+                _window("tangent", "tangent:left:0", "left", cut_position=5.0),
+                _window("tangent", "tangent:right:0", "right", cut_position=5.0),
+            )
+        return (
+            _window(
+                "concentric",
+                "concentric:center",
+                "center",
+                valid=False,
+                intersection_count=0,
+            ),
+        )
+
+    monkeypatch.setattr(statistics_module, "_compute_circle_windows", fake_circle_windows)
+
+    selected, diagnostics = _select_window_diagnostics(
+        np.zeros((0, 4)),
+        30.0,
+        20,
+        TraceStatisticsConfig(min_intersections=5),
+        200.0,
+    )
+
+    assert selected == "tangent"
+    assert len([diagnostic for diagnostic in diagnostics if diagnostic.valid]) == 2
+
+
+def test_auto_window_strategy_uses_density_preference_for_close_scores(monkeypatch):
+    def fake_circle_windows(_segments, _length, _config, strategy):
+        if strategy in {"tangent", "hybrid"}:
+            return (
+                _window(strategy, f"{strategy}:left:0", "left", cut_position=5.0),
+                _window(strategy, f"{strategy}:right:0", "right", cut_position=5.0),
+            )
+        return (
+            _window(
+                "concentric",
+                "concentric:center",
+                "center",
+                valid=False,
+                intersection_count=0,
+            ),
+        )
+
+    monkeypatch.setattr(statistics_module, "_compute_circle_windows", fake_circle_windows)
+
+    selected, _diagnostics = _select_window_diagnostics(
+        np.zeros((0, 4)),
+        30.0,
+        20,
+        TraceStatisticsConfig(min_intersections=5),
+        200.0,
+    )
+
+    assert selected == "hybrid"
+

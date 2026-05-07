@@ -5,11 +5,11 @@
 """
 from __future__ import annotations
 
-import math
 import logging
+import math
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Mapping, Sequence
 
 import numpy as np
 
@@ -25,6 +25,8 @@ __all__ = [
 
 _EPS = 1e-9
 logger = logging.getLogger(__name__)
+_WINDOW_STRATEGIES = ("tangent", "hybrid", "concentric")
+_AUTO_TIE_TOLERANCE = 0.12
 
 
 @dataclass(frozen=True)
@@ -34,7 +36,6 @@ class TraceStatisticsConfig:
     cut_fractions: Sequence[float] = (0.25, 0.5, 0.75)
     radius_fractions: Sequence[float] = (1.0, 0.75, 0.5)
     min_intersections: int = 5
-    terzaghi_correction: bool = False
     window_strategy: str = "auto"
     auto_density_threshold: float = 5.0
     tangent_window_count: int = 3
@@ -91,6 +92,14 @@ class CircleWindowDiagnostic:
     group_key: str
     valid: bool
     reason: str = ""
+
+
+@dataclass(frozen=True)
+class _WindowStrategyScore:
+    strategy: str
+    score: float
+    valid_group_count: int
+    valid_window_count: int
 
 
 @dataclass(frozen=True)
@@ -194,7 +203,7 @@ def _convex_hull_area(local_segments: np.ndarray) -> float:
     return area if math.isfinite(area) and area > _EPS else math.nan
 
 
-def _estimate_outcrop_area(local_segments: np.ndarray, scanline_length: float) -> float:
+def _estimate_outcrop_area(local_segments: np.ndarray) -> float:
     return _convex_hull_area(local_segments)
 
 
@@ -205,7 +214,7 @@ def _effective_outcrop_area(
 ) -> tuple[float, str]:
     if trace.measured_outcrop_area is not None:
         return float(trace.measured_outcrop_area), "measured"
-    return _estimate_outcrop_area(local_segments, scanline_length), "hull"
+    return _estimate_outcrop_area(local_segments), "hull"
 
 
 def _finite_positive_total(values: np.ndarray) -> float:
@@ -219,12 +228,14 @@ def _finite_positive_total(values: np.ndarray) -> float:
 def _effective_trace_length_total(
     trace: TraceData,
     estimated_mean_length: float,
+    observed_total: float,
+    observed_source: str,
 ) -> tuple[float, str]:
     estimated_mean_length = float(estimated_mean_length)
     if trace.count > 0 and math.isfinite(estimated_mean_length) and estimated_mean_length >= 0.0:
         return float(estimated_mean_length * trace.count), "window"
 
-    return _observed_trace_length_total(trace)
+    return observed_total, observed_source
 
 
 def _observed_trace_length_total(trace: TraceData) -> tuple[float, str]:
@@ -456,16 +467,12 @@ def _tangent_radius(scanline_length: float, config: TraceStatisticsConfig) -> fl
     return float(scanline_length) / (2.0 * config.tangent_window_count)
 
 
-def _select_window_strategy(
-    local_segments: np.ndarray,
+def _density_preferred_strategy(
     scanline_length: float,
     trace_count: int,
     config: TraceStatisticsConfig,
     hull_area: float,
 ) -> str:
-    if config.window_strategy != "auto":
-        return config.window_strategy
-
     rough_density = (
         trace_count / hull_area
         if math.isfinite(float(hull_area)) and hull_area > _EPS
@@ -482,6 +489,23 @@ def _select_window_strategy(
     if rough_density < config.auto_density_threshold:
         return "hybrid"
     return "concentric"
+
+
+def _select_window_strategy(
+    local_segments: np.ndarray,
+    scanline_length: float,
+    trace_count: int,
+    config: TraceStatisticsConfig,
+    hull_area: float,
+) -> str:
+    selected_strategy, _diagnostics = _select_window_diagnostics(
+        local_segments,
+        scanline_length,
+        trace_count,
+        config,
+        hull_area,
+    )
+    return selected_strategy
 
 
 def _compute_hybrid_windows(
@@ -654,6 +678,253 @@ def _aggregate_window_metric(
     return float(np.mean(group_means)) if group_means else math.nan
 
 
+def _valid_group_keys(diagnostics: Sequence[CircleWindowDiagnostic]) -> set[str]:
+    return {diagnostic.group_key for diagnostic in diagnostics if diagnostic.valid}
+
+
+def _valid_group_metric_values(
+    diagnostics: Sequence[CircleWindowDiagnostic],
+    attr: str,
+) -> list[float]:
+    grouped: Mapping[str, list[float]] = defaultdict(list)
+    for diagnostic in diagnostics:
+        if not diagnostic.valid:
+            continue
+        value = float(getattr(diagnostic, attr))
+        if math.isfinite(value):
+            grouped[diagnostic.group_key].append(value)
+    return [float(np.mean(values)) for values in grouped.values() if values]
+
+
+def _side_coverage_score(diagnostics: Sequence[CircleWindowDiagnostic]) -> float:
+    valid = [diagnostic for diagnostic in diagnostics if diagnostic.valid]
+    if not valid:
+        return 0.0
+
+    if any(diagnostic.side == "center" for diagnostic in valid):
+        return 0.85
+
+    left_groups = {
+        diagnostic.group_key for diagnostic in valid if diagnostic.side == "left"
+    }
+    right_groups = {
+        diagnostic.group_key for diagnostic in valid if diagnostic.side == "right"
+    }
+    covered_side_count = int(bool(left_groups)) + int(bool(right_groups))
+    if covered_side_count == 0:
+        return 0.0
+    if covered_side_count == 1:
+        return 0.25
+
+    balance = min(len(left_groups), len(right_groups)) / max(
+        len(left_groups),
+        len(right_groups),
+    )
+    return 0.5 + 0.5 * balance
+
+
+def _along_coverage_score(
+    diagnostics: Sequence[CircleWindowDiagnostic],
+    scanline_length: float,
+) -> float:
+    if scanline_length <= _EPS:
+        return 0.0
+
+    bins = set()
+    for diagnostic in diagnostics:
+        if not diagnostic.valid or not math.isfinite(float(diagnostic.cut_position)):
+            continue
+        position = diagnostic.cut_position / scanline_length
+        if position < 1.0 / 3.0:
+            bins.add(0)
+        elif position <= 2.0 / 3.0:
+            bins.add(1)
+        else:
+            bins.add(2)
+    return len(bins) / 3.0
+
+
+def _spatial_coverage_score(
+    diagnostics: Sequence[CircleWindowDiagnostic],
+    scanline_length: float,
+) -> float:
+    return (
+        _side_coverage_score(diagnostics)
+        + _along_coverage_score(diagnostics, scanline_length)
+    ) / 2.0
+
+
+def _stability_score(diagnostics: Sequence[CircleWindowDiagnostic]) -> float:
+    scores = []
+    for attr in ("l_est", "p20", "p21"):
+        values = np.asarray(_valid_group_metric_values(diagnostics, attr), dtype=float)
+        if values.size == 0:
+            continue
+        if values.size == 1:
+            scores.append(1.0)
+            continue
+        mean_abs = abs(float(np.mean(values)))
+        if mean_abs <= _EPS:
+            continue
+        coefficient_of_variation = float(np.std(values)) / mean_abs
+        scores.append(1.0 / (1.0 + coefficient_of_variation))
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def _sample_sufficiency_score(
+    diagnostics: Sequence[CircleWindowDiagnostic],
+    min_intersections: int,
+) -> float:
+    valid_counts = [
+        diagnostic.intersection_count for diagnostic in diagnostics if diagnostic.valid
+    ]
+    if not valid_counts:
+        return 0.0
+    target = max(1, 2 * int(min_intersections))
+    ratios = [min(1.0, count / target) for count in valid_counts]
+    return float(np.mean(ratios))
+
+
+def _radius_score(
+    diagnostics: Sequence[CircleWindowDiagnostic],
+    max_radius: float,
+) -> float:
+    if not math.isfinite(max_radius) or max_radius <= _EPS:
+        return 0.0
+    radii = [
+        float(diagnostic.radius)
+        for diagnostic in diagnostics
+        if diagnostic.valid and math.isfinite(float(diagnostic.radius))
+    ]
+    if not radii:
+        return 0.0
+    return min(1.0, float(np.median(radii)) / max_radius)
+
+
+def _score_window_strategy(
+    strategy: str,
+    diagnostics: tuple[CircleWindowDiagnostic, ...],
+    scanline_length: float,
+    config: TraceStatisticsConfig,
+    *,
+    max_valid_groups: int,
+    max_radius: float,
+) -> _WindowStrategyScore:
+    valid_groups = _valid_group_keys(diagnostics)
+    valid_group_count = len(valid_groups)
+    valid_window_count = sum(1 for diagnostic in diagnostics if diagnostic.valid)
+    all_groups = {diagnostic.group_key for diagnostic in diagnostics}
+    valid_group_score = (
+        valid_group_count / max_valid_groups
+        if max_valid_groups > 0
+        else 0.0
+    )
+    valid_group_ratio = (
+        valid_group_count / len(all_groups)
+        if all_groups
+        else 0.0
+    )
+    score = (
+        1.45 * valid_group_score
+        + 1.00 * valid_group_ratio
+        + 1.35 * _spatial_coverage_score(diagnostics, scanline_length)
+        + 1.10 * _stability_score(diagnostics)
+        + 1.00 * _radius_score(diagnostics, max_radius)
+        + 1.10 * _sample_sufficiency_score(diagnostics, config.min_intersections)
+    )
+    return _WindowStrategyScore(
+        strategy=strategy,
+        score=float(score),
+        valid_group_count=valid_group_count,
+        valid_window_count=valid_window_count,
+    )
+
+
+def _select_window_diagnostics(
+    local_segments: np.ndarray,
+    scanline_length: float,
+    trace_count: int,
+    config: TraceStatisticsConfig,
+    hull_area: float,
+) -> tuple[str, tuple[CircleWindowDiagnostic, ...]]:
+    if config.window_strategy != "auto":
+        selected = config.window_strategy
+        return selected, _compute_circle_windows(
+            local_segments,
+            scanline_length,
+            config,
+            selected,
+        )
+
+    diagnostics_by_strategy = {
+        strategy: _compute_circle_windows(
+            local_segments,
+            scanline_length,
+            config,
+            strategy,
+        )
+        for strategy in _WINDOW_STRATEGIES
+    }
+    preferred = _density_preferred_strategy(
+        scanline_length,
+        trace_count,
+        config,
+        hull_area,
+    )
+    max_valid_groups = max(
+        len(_valid_group_keys(diagnostics))
+        for diagnostics in diagnostics_by_strategy.values()
+    )
+    finite_radii = [
+        float(diagnostic.radius)
+        for diagnostics in diagnostics_by_strategy.values()
+        for diagnostic in diagnostics
+        if diagnostic.valid and math.isfinite(float(diagnostic.radius))
+    ]
+    max_radius = max(finite_radii) if finite_radii else math.nan
+    scores = [
+        _score_window_strategy(
+            strategy,
+            diagnostics,
+            scanline_length,
+            config,
+            max_valid_groups=max_valid_groups,
+            max_radius=max_radius,
+        )
+        for strategy, diagnostics in diagnostics_by_strategy.items()
+    ]
+    viable_scores = [score for score in scores if score.valid_group_count > 0]
+    if not viable_scores:
+        logger.debug("auto 圆窗策略无有效候选，回退到密度偏好: %s", preferred)
+        return preferred, diagnostics_by_strategy[preferred]
+
+    best = max(
+        viable_scores,
+        key=lambda item: (item.score, item.valid_group_count, item.valid_window_count),
+    )
+    tolerance = max(_AUTO_TIE_TOLERANCE, abs(best.score) * 0.03)
+    preferred_score = next(
+        (score for score in viable_scores if score.strategy == preferred),
+        None,
+    )
+    selected = (
+        preferred
+        if preferred_score is not None and best.score - preferred_score.score <= tolerance
+        else best.strategy
+    )
+    logger.debug(
+        "auto 圆窗策略评分: %s；密度偏好=%s；选择=%s",
+        ", ".join(
+            f"{score.strategy}={score.score:.3f}"
+            f"(groups={score.valid_group_count}, windows={score.valid_window_count})"
+            for score in scores
+        ),
+        preferred,
+        selected,
+    )
+    return selected, diagnostics_by_strategy[selected]
+
+
 def compute_trace_statistics(
     trace: TraceData,
     config: TraceStatisticsConfig | None = None,
@@ -661,8 +932,6 @@ def compute_trace_statistics(
     """计算迹线图统计指标。"""
     if config is None:
         config = TraceStatisticsConfig()
-    if config.terzaghi_correction:
-        raise NotImplementedError("terzaghi_correction 暂未实现")
 
     scanline_length, scanline_length_source = _effective_scanline_length(trace)
     finite_scanline_length = (
@@ -672,19 +941,13 @@ def compute_trace_statistics(
     )
     local_segments = _to_local_segments(trace)
     trace_types = _classify_trace_types(local_segments, finite_scanline_length)
-    hull_area = _estimate_outcrop_area(local_segments, finite_scanline_length)
-    selected_strategy = _select_window_strategy(
+    hull_area = _estimate_outcrop_area(local_segments)
+    selected_strategy, diagnostics = _select_window_diagnostics(
         local_segments,
         finite_scanline_length,
         trace.count,
         config,
         hull_area,
-    )
-    diagnostics = _compute_circle_windows(
-        local_segments,
-        finite_scanline_length,
-        config,
-        selected_strategy,
     )
 
     type_i_count = trace_types.count("I")
@@ -698,9 +961,12 @@ def compute_trace_statistics(
         local_segments,
         scanline_length,
     )
+    observed_total, observed_source = _observed_trace_length_total(trace)
     trace_length_total, trace_length_source = _effective_trace_length_total(
         trace,
         estimated_mean_length,
+        observed_total,
+        observed_source,
     )
     mean_trace_length = (
         trace_length_total / trace.count
@@ -722,7 +988,6 @@ def compute_trace_statistics(
         p20 = math.nan
         p20_source = "unavailable"
 
-    observed_total, _observed_source = _observed_trace_length_total(trace)
     if math.isfinite(estimated_p21):
         p21 = estimated_p21
         p21_source = "window"

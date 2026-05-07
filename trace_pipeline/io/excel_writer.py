@@ -4,9 +4,10 @@ from __future__ import annotations
 import logging
 import math
 import numbers
-import os
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple
+from pathlib import Path
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -306,9 +307,7 @@ def _apply_column_widths(ws, sections: Sequence[ExcelSection], max_col: int, lay
             structural_width = layout.raw_column_width
         elif layout.rot_col_start <= zero_based < layout.rot_col_start + 4:
             structural_width = layout.rotated_column_width
-        elif zero_based == layout.orient_col_start:
-            structural_width = layout.orientation_column_width
-        elif zero_based == layout.orient_col_start + 1:
+        elif zero_based == layout.orient_col_start or zero_based == layout.orient_col_start + 1:
             structural_width = layout.orientation_column_width
         elif zero_based == layout.orient_col_start + 2:
             structural_width = layout.segment_length_column_width
@@ -344,9 +343,9 @@ def write_excel_sections(
     layout: ExcelLayout = DEFAULT_LAYOUT,
 ) -> None:
     """Write multiple DataFrame sections into one worksheet."""
-    output_dir = os.path.dirname(excel_path)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
+    output_dir = Path(excel_path).parent
+    if str(output_dir):
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     max_col = 0
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:

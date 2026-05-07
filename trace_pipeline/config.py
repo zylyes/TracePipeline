@@ -10,8 +10,9 @@ from __future__ import annotations
 import json
 import logging
 import math
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,6 @@
 """结果展示 — 格式化输出与汇总报告。
 
 提供处理结果的终端友好展示：
-  - 单结果详情
   - 批量结果汇总表
   - 统计摘要
 """
@@ -10,7 +9,6 @@ from __future__ import annotations
 from typing import List
 
 from .models import RunResult
-
 
 # ===========================================================================
 # 表格常量
@@ -38,31 +36,6 @@ def _format_double_separator(widths: List[int]) -> str:
     """绘制双线分隔（表头/表尾）。"""
     parts = [_HEADER_SEP * w for w in widths]
     return "+=" + "=+=".join(parts) + "=+"
-
-
-# ===========================================================================
-# 公开 API
-# ===========================================================================
-
-
-def format_result_detail(result: RunResult) -> str:
-    """格式化单个处理结果的详细信息。"""
-    lines = [
-        f"露头: {result.table_stem}",
-        f"状态: {result.status}",
-    ]
-    if result.status == "success":
-        lines += [
-            f"迹线数量: {result.trace_count}",
-            f"Excel 输出: {result.excel_path}",
-            f"原始迹线图: {result.raw_plot_path}",
-            f"旋转迹线图: {result.rotated_plot_path}",
-        ]
-        if result.rose_plot_path:
-            lines.append(f"玫瑰图: {result.rose_plot_path}")
-    else:
-        lines.append(f"错误: {result.error}")
-    return "\n".join(lines)
 
 
 def format_results_table(results: List[RunResult]) -> str:
@@ -152,7 +125,6 @@ def print_pipeline_results(results: List[RunResult]) -> None:
 
 
 __all__ = [
-    "format_result_detail",
     "format_results_table",
     "format_summary",
     "print_pipeline_results",

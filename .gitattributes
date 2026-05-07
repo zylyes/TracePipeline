@@ -1,8 +1,15 @@
 # Auto-detect text vs binary
 * text=auto
 
-# Python
-*.py text diff=python
+# Python — 强制 LF，跨平台一致
+*.py text eol=lf diff=python
+
+# 配置文件 — 强制 LF
+*.toml text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
 
 # Binary file types
 *.png binary

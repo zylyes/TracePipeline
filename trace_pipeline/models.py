@@ -9,9 +9,10 @@
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as np
 
@@ -214,7 +215,7 @@ class RunConfig:
     # ---- 工厂方法 ----
 
     @classmethod
-    def from_mapping(cls, cfg: Mapping[str, Any]) -> "RunConfig":
+    def from_mapping(cls, cfg: Mapping[str, Any]) -> RunConfig:
         """从配置字典构造，执行字段级校验。"""
         return cls(
             input_dir=str(cfg["input_dir"]),
@@ -266,7 +267,7 @@ class RunResult:
         rotated_plot_path: str = "",
         rose_plot_path: str = "",
         window_strategy: str = "",
-    ) -> "RunResult":
+    ) -> RunResult:
         return cls(
             table_stem=table_stem,
             status="success",
@@ -281,5 +282,5 @@ class RunResult:
         )
 
     @classmethod
-    def failure(cls, table_stem: str, error: str) -> "RunResult":
+    def failure(cls, table_stem: str, error: str) -> RunResult:
         return cls(table_stem=table_stem, status="error", error=error)

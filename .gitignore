@@ -19,6 +19,7 @@ coverage.xml
 *.cover
 *.log
 .pytest_cache/
+pytest-cache-files-*/
 .mypy_cache/
 .dmypy.json
 dmypy.json

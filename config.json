@@ -12,5 +12,9 @@
   "rose_dpi": 400,
 
   "trace_dpi": 300,
-  "rotated_trace_dpi": 600
+  "rotated_trace_dpi": 600,
+
+  "window_strategy": "auto",
+  "auto_density_threshold": 5.0,
+  "tangent_window_count": 3
 }

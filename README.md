@@ -20,7 +20,6 @@
 │
 ├── trace_pipeline/                # 核心包
 │   ├── __init__.py                # 顶层公开 API
-│   ├── __main__.py                # 支持 `python -m trace_pipeline`
 │   ├── models.py                  # TraceData / RunConfig / RunResult
 │   ├── config.py                  # 配置加载、校验、路径解析
 │   ├── pipeline.py                # 单目标全流程编排
@@ -186,6 +185,7 @@ python run_trace_pipeline.py -i ./data -o ./results
 | `--rose-bin` | — | 玫瑰图分箱宽度（度） |
 | `--rose-dpi` | — | 玫瑰图 DPI |
 | `--no-rose` | — | 跳过玫瑰图导出 |
+| `--window-strategy` | — | 圆窗策略：auto/tangent/hybrid/concentric |
 | `--parallel` | `-p` | 并行处理线程数（默认 0=串行） |
 | `--list` | `-l` | 列出发现的迹线表文件后退出 |
 | `--interactive` | `-I` | 交互模式：由用户选择处理目标 |
@@ -312,7 +312,7 @@ dd + 90 & dd < 90
 > - **tangent** — 沿测线均布 k 个相切圆（每侧 `tangent_window_count` 个），适合大间距迹线
 > - **hybrid** — 3 切点（25%/50%/75%）× 2 侧（左/右）× 3 半径缩放比（1.0/0.75/0.50），最多 18 窗口，适合中等密度
 > - **concentric** — 测线中点同心圆，按 `radius_fractions` 生成多个半径，适合高密度
-> - **auto** — 按粗估面密度自动阶梯选择：低密度 → tangent → 中密度 → hybrid → 高密度 → concentric
+> - **auto** — 先实际试算 tangent/hybrid/concentric，再按有效组数、空间覆盖、指标稳定性、半径尺度和样本量综合评分；评分接近时回退到粗估面密度偏好
 >
 > 各窗口统计量：n₀/n₁/n₂（端点落入窗内的迹线数）、m = n₁+2n₂、q = 2n₀+n₁。指标按 group_key 分组取均值后再聚合，无效窗口（相交数 < `min_intersections` 或 m ≤ 0）自动排除。来源标注：(M) 实测、(W) 圆窗、(E) 估算。
 >

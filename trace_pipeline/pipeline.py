@@ -9,8 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .geology.endpoints import compute_endpoints
 from .geology.angles import fold_strike_angle
+from .geology.endpoints import compute_endpoints
 from .geology.statistics import (
     TraceStatisticsConfig,
     compute_trace_statistics,

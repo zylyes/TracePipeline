@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, NamedTuple, Sequence, Tuple
-
-from ._helpers import new_figure, save_figure
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, NamedTuple, Tuple
 
 import numpy as np
+
+from ._helpers import new_figure, save_figure
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -113,10 +114,19 @@ def _apply_decoration_limits(ax: plt.Axes, layout: _DecorationLayout) -> None:
     ax.set_ylim(layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad)
 
 
-def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout) -> None:
-    x0 = layout.data_x_min + max(layout.x_span * 0.03, layout.base_span * 0.01)
-    x1 = x0 + layout.scale_length
-    y = layout.data_y_min - layout.bottom_pad * 0.42
+def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout, is_panel: bool = False) -> None:
+    if is_panel:
+        panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+        panel_width = panel_x1 - panel_x0
+        scale_length = layout.scale_length
+        x0 = panel_x0 + (panel_width - scale_length) / 2.0
+        x1 = x0 + scale_length
+        y = panel_y0 + (panel_y1 - panel_y0) * 0.76
+    else:
+        x0 = layout.data_x_min + max(layout.x_span * 0.03, layout.base_span * 0.01)
+        x1 = x0 + layout.scale_length
+        y = layout.data_y_min - layout.bottom_pad * 0.42
+
     tick = min(layout.bottom_pad * 0.14, layout.base_span * 0.022)
 
     ax.plot(
@@ -191,162 +201,80 @@ def _shift_into_bounds(
     return shift_x, shift_y
 
 
-def _add_panel_scale_bar(ax: plt.Axes, layout: _DecorationLayout) -> None:
-    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
-    panel_width = panel_x1 - panel_x0
-    scale_length = layout.scale_length
-    x0 = panel_x0 + (panel_width - scale_length) / 2.0
-    x1 = x0 + scale_length
-    y = panel_y0 + (panel_y1 - panel_y0) * 0.76
-    tick = min(layout.bottom_pad * 0.14, layout.base_span * 0.022)
-
-    ax.plot(
-        [x0, x1],
-        [y, y],
-        color="black",
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        solid_capstyle="butt",
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.plot(
-        [x0, x0],
-        [y - tick, y + tick],
-        color="black",
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.plot(
-        [x1, x1],
-        [y - tick, y + tick],
-        color="black",
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.text(
-        (x0 + x1) / 2.0,
-        y - tick * 1.45,
-        _format_scale_label(scale_length),
-        ha="center",
-        va="top",
-        fontsize=10,
-        color="black",
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-
-
-def _add_direction_marker(
+def _add_north_arrow(
     ax: plt.Axes,
     layout: _DecorationLayout,
     north_angle_deg: float,
+    is_panel: bool = False,
 ) -> None:
     if not math.isfinite(north_angle_deg):
         north_angle_deg = 90.0
 
     angle = math.radians(north_angle_deg)
     dx, dy = math.cos(angle), math.sin(angle)
-    arrow_len = min(layout.left_pad * 0.50, layout.top_pad * 0.50, layout.base_span * 0.09)
-    label_gap = arrow_len * 0.25
 
-    base_x = layout.data_x_min - layout.left_pad * 0.52
-    base_y = layout.data_y_max + layout.top_pad * 0.32
-    tip_x = base_x + arrow_len * dx
-    tip_y = base_y + arrow_len * dy
-    label_x = tip_x + label_gap * dx
-    label_y = tip_y + label_gap * dy
+    if is_panel:
+        panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+        arrow_len = min(
+            (panel_x1 - panel_x0) * 0.38,
+            (panel_y1 - panel_y0) * 0.13,
+            layout.base_span * 0.11,
+        )
+        label_gap = arrow_len * 0.25
+        center_x = (panel_x0 + panel_x1) / 2.0
+        center_y = panel_y0 + (panel_y1 - panel_y0) * 0.91
 
-    x_low = layout.data_x_min - layout.left_pad
-    x_high = layout.data_x_max + layout.right_pad
-    y_low = layout.data_y_min - layout.bottom_pad
-    y_high = layout.data_y_max + layout.top_pad
-    inset = layout.base_span * 0.05
+        base_x = center_x - arrow_len * dx * 0.50
+        base_y = center_y - arrow_len * dy * 0.50
+        tip_x = center_x + arrow_len * dx * 0.50
+        tip_y = center_y + arrow_len * dy * 0.50
+        label_x = tip_x + label_gap * dx
+        label_y = tip_y + label_gap * dy
 
-    min_x = min(base_x, tip_x, label_x)
-    max_x = max(base_x, tip_x, label_x)
-    min_y = min(base_y, tip_y, label_y)
-    max_y = max(base_y, tip_y, label_y)
-    shift_x = max(0.0, x_low + inset - min_x) - max(0.0, max_x - (x_high - inset))
-    shift_y = max(0.0, y_low + inset - min_y) - max(0.0, max_y - (y_high - inset))
+        shift_x, shift_y = _shift_into_bounds(
+            [base_x, tip_x, label_x],
+            [base_y, tip_y, label_y],
+            panel_x0,
+            panel_x1,
+            panel_y0 + (panel_y1 - panel_y0) * 0.82,
+            panel_y0 + (panel_y1 - panel_y0) * 0.98,
+        )
+        base_x += shift_x
+        tip_x += shift_x
+        label_x += shift_x
+        base_y += shift_y
+        tip_y += shift_y
+        label_y += shift_y
+    else:
+        arrow_len = min(layout.left_pad * 0.50, layout.top_pad * 0.50, layout.base_span * 0.09)
+        label_gap = arrow_len * 0.25
 
-    base_x += shift_x
-    tip_x += shift_x
-    label_x += shift_x
-    base_y += shift_y
-    tip_y += shift_y
-    label_y += shift_y
+        base_x = layout.data_x_min - layout.left_pad * 0.52
+        base_y = layout.data_y_max + layout.top_pad * 0.32
+        tip_x = base_x + arrow_len * dx
+        tip_y = base_y + arrow_len * dy
+        label_x = tip_x + label_gap * dx
+        label_y = tip_y + label_gap * dy
 
-    # 绘制更精致的指北针
-    ax.annotate(
-        "",
-        xy=(tip_x, tip_y),
-        xytext=(base_x, base_y),
-        arrowprops=dict(
-            arrowstyle="->",
-            color="black",
-            lw=1.2,
-            mutation_scale=14,
-        ),
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.text(
-        label_x,
-        label_y,
-        "N",
-        ha="center",
-        va="center",
-        fontsize=11,
-        fontweight="bold",
-        color="black",
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
+        x_low = layout.data_x_min - layout.left_pad
+        x_high = layout.data_x_max + layout.right_pad
+        y_low = layout.data_y_min - layout.bottom_pad
+        y_high = layout.data_y_max + layout.top_pad
+        inset = layout.base_span * 0.05
 
+        min_x = min(base_x, tip_x, label_x)
+        max_x = max(base_x, tip_x, label_x)
+        min_y = min(base_y, tip_y, label_y)
+        max_y = max(base_y, tip_y, label_y)
+        shift_x = max(0.0, x_low + inset - min_x) - max(0.0, max_x - (x_high - inset))
+        shift_y = max(0.0, y_low + inset - min_y) - max(0.0, max_y - (y_high - inset))
 
-def _add_panel_direction_marker(
-    ax: plt.Axes,
-    layout: _DecorationLayout,
-    north_angle_deg: float,
-) -> None:
-    if not math.isfinite(north_angle_deg):
-        north_angle_deg = 90.0
-
-    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
-    angle = math.radians(north_angle_deg)
-    dx, dy = math.cos(angle), math.sin(angle)
-    arrow_len = min(
-        (panel_x1 - panel_x0) * 0.38,
-        (panel_y1 - panel_y0) * 0.13,
-        layout.base_span * 0.11,
-    )
-    label_gap = arrow_len * 0.25
-    center_x = (panel_x0 + panel_x1) / 2.0
-    center_y = panel_y0 + (panel_y1 - panel_y0) * 0.91
-
-    base_x = center_x - arrow_len * dx * 0.50
-    base_y = center_y - arrow_len * dy * 0.50
-    tip_x = center_x + arrow_len * dx * 0.50
-    tip_y = center_y + arrow_len * dy * 0.50
-    label_x = tip_x + label_gap * dx
-    label_y = tip_y + label_gap * dy
-
-    shift_x, shift_y = _shift_into_bounds(
-        [base_x, tip_x, label_x],
-        [base_y, tip_y, label_y],
-        panel_x0,
-        panel_x1,
-        panel_y0 + (panel_y1 - panel_y0) * 0.82,
-        panel_y0 + (panel_y1 - panel_y0) * 0.98,
-    )
-    base_x += shift_x
-    tip_x += shift_x
-    label_x += shift_x
-    base_y += shift_y
-    tip_y += shift_y
-    label_y += shift_y
+        base_x += shift_x
+        tip_x += shift_x
+        label_x += shift_x
+        base_y += shift_y
+        tip_y += shift_y
+        label_y += shift_y
 
     ax.annotate(
         "",
@@ -436,10 +364,10 @@ def render_trace_plot(
     _apply_decoration_limits(ax, layout)
     if has_annotation_panel:
         _add_statistics_box(ax, layout, statistics_lines)
-        _add_panel_direction_marker(ax, layout, north_angle_deg)
-        _add_panel_scale_bar(ax, layout)
+        _add_north_arrow(ax, layout, north_angle_deg, is_panel=True)
+        _add_scale_bar(ax, layout, is_panel=True)
     else:
-        _add_direction_marker(ax, layout, north_angle_deg)
-        _add_scale_bar(ax, layout)
+        _add_north_arrow(ax, layout, north_angle_deg, is_panel=False)
+        _add_scale_bar(ax, layout, is_panel=False)
     ax.set_title(title, fontsize=14, fontweight="bold", pad=12)
     return save_figure(fig, output_dir, filename, dpi=dpi)

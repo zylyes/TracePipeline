@@ -2,26 +2,14 @@
 import logging
 import time
 
+from tests.conftest import base_config
 from trace_pipeline.cli import dispatcher
-from trace_pipeline.config import DEFAULT_CONFIG
 from trace_pipeline.io.discovery import TraceFile
 from trace_pipeline.models import RunResult
 
 
-def _base_cfg(**overrides):
-    cfg = dict(DEFAULT_CONFIG)
-    cfg.update({
-        "input_dir": "input",
-        "output_dir": "output",
-        "table_stem": "O76_process",
-        "outcrop": "O76",
-    })
-    cfg.update(overrides)
-    return cfg
-
-
 def test_batch_run_config_uses_outcrop_prefix():
-    cfg = _base_cfg(process_all=True, output_prefix="Custom")
+    cfg = base_config(process_all=True, output_prefix="Custom")
     run_cfg = dispatcher._build_run_config(
         cfg, "in", "out", TraceFile(stem="O77_process", outcrop="O77")
     )
@@ -30,7 +18,7 @@ def test_batch_run_config_uses_outcrop_prefix():
 
 
 def test_single_run_config_honors_custom_output_prefix():
-    cfg = _base_cfg(process_all=False, output_prefix="Custom")
+    cfg = base_config(process_all=False, output_prefix="Custom")
     run_cfg = dispatcher._build_run_config(
         cfg, "in", "out", TraceFile(stem="O76_process", outcrop="O76")
     )
@@ -39,7 +27,7 @@ def test_single_run_config_honors_custom_output_prefix():
 
 
 def test_single_run_config_keeps_default_outcrop_prefix():
-    cfg = _base_cfg(process_all=False)
+    cfg = base_config(process_all=False)
     run_cfg = dispatcher._build_run_config(
         cfg, "in", "out", TraceFile(stem="O76_process", outcrop="O76")
     )
@@ -61,7 +49,7 @@ def test_parallel_results_keep_target_order(monkeypatch):
 
     results = dispatcher.execute_targets(
         targets,
-        _base_cfg(process_all=True),
+        base_config(process_all=True),
         "input",
         "output",
         workers=2,

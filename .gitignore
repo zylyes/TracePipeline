@@ -40,6 +40,7 @@ output/
 logs/
 .opencode/
 .claude/
+constraints.txt
 
 # reference — 研究资料目录（全部忽略，仅本地保留）
 reference/*

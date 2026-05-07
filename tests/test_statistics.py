@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 import trace_pipeline.geology.statistics as statistics_module
+from tests.conftest import make_trace
 from trace_pipeline.geology.statistics import (
     CircleWindowDiagnostic,
     TraceStatisticsConfig,
@@ -14,34 +15,10 @@ from trace_pipeline.geology.statistics import (
     compute_trace_statistics,
     format_statistics_box_lines,
 )
-from trace_pipeline.models import TraceData
-
-
-def _trace(
-    endpoints,
-    scanline_positions,
-    *,
-    segment_lengths=None,
-    measured_scanline_length=None,
-    measured_outcrop_area=None,
-):
-    arr = np.asarray(endpoints, dtype=float)
-    if segment_lengths is None:
-        segment_lengths = np.ones(arr.shape[0])
-    return TraceData(
-        scanline_azimuth=90.0,
-        count=arr.shape[0],
-        endpoints=arr,
-        joint_strikes=np.zeros(arr.shape[0]),
-        segment_lengths=np.asarray(segment_lengths, dtype=float),
-        scanline_positions=np.asarray(scanline_positions, dtype=float),
-        measured_scanline_length=measured_scanline_length,
-        measured_outcrop_area=measured_outcrop_area,
-    )
 
 
 def test_measured_scanline_length_outcrop_area_and_density_formulas():
-    trace = _trace(
+    trace = make_trace(
         [
             [5.0, -1.0, 5.0, 1.0],    # I：有限段与测线相交
             [10.0, 1.0, 12.0, 3.0],   # II：延长线与测线相交
@@ -73,7 +50,7 @@ def test_measured_scanline_length_outcrop_area_and_density_formulas():
 
 
 def test_outcrop_area_estimates_from_endpoint_convex_hull():
-    trace = _trace(
+    trace = make_trace(
         [
             [0.0, 0.0, 10.0, 0.0],
             [10.0, 0.0, 10.0, 4.0],
@@ -115,7 +92,7 @@ def test_convex_hull_area_handles_basic_shapes_and_degenerate_cases():
 
 
 def test_p21_uses_endpoint_length_total_over_outcrop_area():
-    trace = _trace(
+    trace = make_trace(
         [
             [0.0, 0.0, 3.0, 4.0],
             [1.0, 0.0, 1.0, 5.0],
@@ -134,7 +111,7 @@ def test_p21_uses_endpoint_length_total_over_outcrop_area():
 
 
 def test_trace_length_total_falls_back_from_endpoint_to_segment_lengths():
-    trace = _trace(
+    trace = make_trace(
         [
             [0.0, 0.0, 0.0, 0.0],
             [1.0, 1.0, 1.0, 1.0],
@@ -154,7 +131,7 @@ def test_trace_length_total_falls_back_from_endpoint_to_segment_lengths():
 
 
 def test_trace_length_total_falls_back_from_segments_to_window_mean():
-    trace = _trace(
+    trace = make_trace(
         [
             [0.0, 0.0, 0.0, 0.0],
             [1.0, 1.0, 1.0, 1.0],
@@ -170,7 +147,7 @@ def test_trace_length_total_falls_back_from_segments_to_window_mean():
 
 
 def test_circle_window_counts_stay_available_for_internal_diagnostics():
-    trace = _trace(
+    trace = make_trace(
         [
             [9.5, 2.0, 15.5, 2.0],      # N0：两端点都在圆外但线段穿圆
             [12.5, 2.0, 15.5, 2.0],     # N1：一个端点在圆内
@@ -211,7 +188,7 @@ def test_circle_window_counts_stay_available_for_internal_diagnostics():
 
 
 def test_p20_measured_area_takes_priority_over_valid_window():
-    trace = _trace(
+    trace = make_trace(
         [
             [9.5, 2.0, 15.5, 2.0],
             [12.5, 2.0, 15.5, 2.0],
@@ -238,7 +215,7 @@ def test_p20_measured_area_takes_priority_over_valid_window():
 
 
 def test_invalid_circle_windows_record_reasons_and_format_na():
-    trace = _trace([[5.0, -1.0, 5.0, 1.0]], [0.0])
+    trace = make_trace([[5.0, -1.0, 5.0, 1.0]], [0.0])
 
     stats = compute_trace_statistics(
         trace,
@@ -263,7 +240,7 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
 
 
 def test_explicit_window_strategy_layouts_are_recorded():
-    trace = _trace(
+    trace = make_trace(
         [
             [1.5, 2.0, 2.5, 2.0],
             [5.5, 2.0, 6.5, 2.0],
@@ -323,7 +300,7 @@ def test_auto_window_strategy_uses_viable_diagnostics_before_density_fallback():
     def rectangular_trace(count, width, height):
         xs = np.linspace(0.0, width, count)
         endpoints = np.column_stack((xs, np.zeros(count), xs, np.full(count, height)))
-        return _trace(
+        return make_trace(
             endpoints,
             np.arange(count),
             measured_scanline_length=30.0,

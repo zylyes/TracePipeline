@@ -1,6 +1,7 @@
 """日志初始化 — 双通道（控制台 INFO+ / 文件 DEBUG+）。"""
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 from datetime import datetime
@@ -11,6 +12,19 @@ _FILE_FMT = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 _MANAGED_ATTR = "_trace_pipeline_managed"
 
 __all__ = ["setup_logging"]
+
+_KEEP_LOG_COUNT = 7
+
+
+def _cleanup_old_logs(log_dir: str, keep: int = _KEEP_LOG_COUNT) -> None:
+    """保留最近 `keep` 个 pipeline_*.log 文件，删除其余。"""
+    log_path = Path(log_dir)
+    if not log_path.is_dir():
+        return
+    logs = sorted(log_path.glob("pipeline_*.log"))
+    for f in logs[:-keep]:
+        with contextlib.suppress(OSError):
+            f.unlink(missing_ok=True)
 
 
 def setup_logging(log_dir: str = "logs") -> logging.Logger:
@@ -49,5 +63,6 @@ def setup_logging(log_dir: str = "logs") -> logging.Logger:
         file_handler.setFormatter(_FILE_FMT)
         setattr(file_handler, _MANAGED_ATTR, True)
         pkg_logger.addHandler(file_handler)
+        _cleanup_old_logs(log_dir)
 
     return logging.getLogger(__name__)

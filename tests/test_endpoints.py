@@ -1,23 +1,15 @@
 """单元测试：geology.endpoints.compute_endpoints"""
-import numpy as np
 import pandas as pd
 import pytest
 
+from tests.conftest import make_trace_df
 from trace_pipeline.geology.endpoints import compute_endpoints
-
-
-def _make_df(rows):
-    """构造形如 compute_endpoints 期望的 DataFrame。
-
-    rows: [[r1,r2,dip,r4,r5,r6,r7, ang0_or_nan, n_or_nan], ...]
-    """
-    return pd.DataFrame(rows)
 
 
 class TestComputeEndpoints:
     def test_left_only(self):
         # 1 条迹线，仅左侧（r5=1, r7=0），azimuth=90, dip=0
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
         az, n, ep, js, seg, r1, measured_length, measured_area = compute_endpoints(df)
         assert az == 90.0
         assert n == 1
@@ -31,7 +23,7 @@ class TestComputeEndpoints:
         assert measured_area is None
 
     def test_right_only(self):
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 90.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 90.0, 1]])
         az, n, ep, js, seg, r1, measured_length, measured_area = compute_endpoints(df)
         assert n == 1
         assert r1[0] == pytest.approx(0.0)
@@ -40,7 +32,7 @@ class TestComputeEndpoints:
         assert measured_area is None
 
     def test_bilateral(self):
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.0, 90.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.0, 90.0, 1]])
         az, n, ep, js, seg, r1, measured_length, measured_area = compute_endpoints(df)
         assert n == 1
         assert r1[0] == pytest.approx(0.0)
@@ -49,7 +41,7 @@ class TestComputeEndpoints:
         assert measured_area is None
 
     def test_reads_optional_measured_scanline_length_and_outcrop_area(self):
-        df = _make_df([
+        df = make_trace_df([
             [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1, 999.0, 888.0, 12.5, 34.5]
         ])
 
@@ -59,7 +51,7 @@ class TestComputeEndpoints:
         assert measured_area == pytest.approx(34.5)
 
     def test_invalid_optional_measured_values_fall_back_to_none(self):
-        df = _make_df([
+        df = make_trace_df([
             [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1, 999.0, 888.0, 0.0, -1.0]
         ])
 
@@ -77,36 +69,36 @@ class TestComputeEndpoints:
             compute_endpoints(pd.DataFrame([[0, 0, 0]]))
 
     def test_invalid_n(self):
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 0]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 0]])
         with pytest.raises(ValueError):
             compute_endpoints(df)
 
     def test_non_integer_n_raises(self):
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1.5]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1.5]])
         with pytest.raises(ValueError, match="迹线条数必须为整数"):
             compute_endpoints(df)
 
     def test_out_of_range_azimuth_raises(self):
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 360.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 360.0, 1]])
         with pytest.raises(ValueError, match="走向角度必须位于"):
             compute_endpoints(df)
 
     def test_negative_scanline_position_raises_with_row_and_field(self):
-        df = _make_df([[-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
+        df = make_trace_df([[-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
         with pytest.raises(ValueError, match="第 1 行 r1 不能为负数"):
             compute_endpoints(df)
 
     def test_out_of_range_dip_raises_with_row_and_field(self):
-        df = _make_df([[0.0, 0.0, 360.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 360.0, 0.0, 1.0, 0.0, 0.0, 90.0, 1]])
         with pytest.raises(ValueError, match="第 1 行 dip 必须位于"):
             compute_endpoints(df)
 
     def test_negative_length_raises_with_row_and_field(self):
-        df = _make_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -0.5, 90.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -0.5, 90.0, 1]])
         with pytest.raises(ValueError, match="第 1 行 r7 不能为负数"):
             compute_endpoints(df)
 
     def test_zero_left_and_right_trace_lengths_raise(self):
-        df = _make_df([[0.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 90.0, 1]])
+        df = make_trace_df([[0.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 90.0, 1]])
         with pytest.raises(ValueError, match="第 1 行 r5 与 r7 不能同时为 0"):
             compute_endpoints(df)

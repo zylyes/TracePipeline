@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Any
 
 from tqdm import tqdm
 
@@ -17,10 +17,10 @@ __all__ = ["decide_targets", "execute_targets"]
 
 
 def decide_targets(
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     discovered: Sequence[TraceFile],
     logger: logging.Logger,
-) -> List[TraceFile]:
+) -> list[TraceFile]:
     """根据配置模式与扫描结果，决定处理目标列表。"""
     if cfg.get("process_all", True):
         if discovered:
@@ -35,7 +35,7 @@ def decide_targets(
 
 
 def _build_run_config(
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     input_dir: str,
     output_dir: str,
     target: TraceFile,
@@ -51,7 +51,7 @@ def _build_run_config(
     })
 
 
-def _resolve_output_prefix(cfg: Dict[str, Any], target: TraceFile) -> str:
+def _resolve_output_prefix(cfg: dict[str, Any], target: TraceFile) -> str:
     """解析输出前缀：批量保持按露头命名，单目标允许显式配置覆盖。"""
     configured_prefix = str(cfg.get("output_prefix", "")).strip()
     custom_prefix = configured_prefix and configured_prefix != DEFAULT_CONFIG["output_prefix"]
@@ -62,28 +62,28 @@ def _resolve_output_prefix(cfg: Dict[str, Any], target: TraceFile) -> str:
 
 def execute_targets(
     targets: Sequence[TraceFile],
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     input_dir: str,
     output_dir: str,
     workers: int,
     logger: logging.Logger,
-) -> List[RunResult]:
+) -> list[RunResult]:
     """执行目标列表，支持串/并行模式，返回结果列表。"""
     total = len(targets)
     parallel = workers > 1
 
     if parallel:
-        logger.info("启用并行处理：%d 线程", workers)
-        results: List[Optional[RunResult]] = [None] * total
+        logger.info("启用并行处理：%d 进程", workers)
+        parallel_results: list[RunResult | None] = [None] * total
         pbar = tqdm(total=total, desc="处理迹线表", unit="个", ncols=100)
         try:
-            with ThreadPoolExecutor(max_workers=workers) as executor:
+            with ProcessPoolExecutor(max_workers=workers) as executor:
                 future_map = {}
                 for idx, target in enumerate(targets):
                     try:
                         run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
                     except Exception as exc:
-                        results[idx] = RunResult.failure(target.stem, str(exc))
+                        parallel_results[idx] = RunResult.failure(target.stem, str(exc))
                         pbar.update(1)
                         continue
                     future_map[executor.submit(run_pipeline, run_cfg)] = (idx, target.stem)
@@ -94,14 +94,17 @@ def execute_targets(
                         result = future.result()
                     except Exception as exc:
                         result = RunResult.failure(stem, str(exc))
-                    results[idx] = result
+                    parallel_results[idx] = result
                     pbar.set_postfix_str(f"完成: {stem}")
                     pbar.update(1)
         finally:
             pbar.close()
-        return [r for r in results if r is not None]
+        valid = [r for r in parallel_results if r is not None]
+        if len(valid) < total:
+            logger.warning("并行执行结果不完整: 预期 %d，实际 %d", total, len(valid))
+        return valid
 
-    results: List[RunResult] = []
+    serial_results: list[RunResult] = []
     pbar = tqdm(targets, desc="处理迹线表", unit="个", ncols=100)
     try:
         for target in pbar:
@@ -109,11 +112,11 @@ def execute_targets(
             try:
                 run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
             except Exception as exc:
-                results.append(RunResult.failure(target.stem, str(exc)))
+                serial_results.append(RunResult.failure(target.stem, str(exc)))
                 continue
 
             result = run_pipeline(run_cfg)
-            results.append(result)
+            serial_results.append(result)
 
             if result.status == "success":
                 logger.info(
@@ -125,4 +128,4 @@ def execute_targets(
     finally:
         pbar.close()
 
-    return results
+    return serial_results

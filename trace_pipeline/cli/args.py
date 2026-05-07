@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from typing import Any, Dict
+from typing import Any
 
 __all__ = ["build_overrides", "parse_args"]
 
@@ -36,9 +36,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_overrides(args: argparse.Namespace) -> Dict[str, Any]:
+def build_overrides(args: argparse.Namespace) -> dict[str, Any]:
     """将 CLI 参数转换为配置覆盖字典（仅包含显式指定的项）。"""
-    overrides: Dict[str, Any] = {}
+    overrides: dict[str, Any] = {}
     if args.input:
         overrides["input_dir"] = args.input
     if args.output:

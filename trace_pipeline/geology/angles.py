@@ -40,7 +40,7 @@ def dip_to_strike(dip_deg: np.ndarray) -> np.ndarray:
         走向角度（度），与输入同形状，值域 [0, 360)。
     """
     dd = np.asarray(dip_deg, dtype=float)
-    res = np.empty_like(dd, dtype=float)
+    res = np.full_like(dd, np.nan, dtype=float)
 
     mask_ge270 = dd >= 270.0
     mask_mid = (dd >= 90.0) & (dd < 270.0)
@@ -105,6 +105,11 @@ def fold_to_halfplane(
          （或 (base−180°, base) 当 base > 180°）。
       3. 若在半平面内 → 返回 target；否则 → 返回 target+180°（模 360°）。
       4. invert=True 反转上述判定逻辑。
+
+    边界行为说明：
+      半平面判定使用开区间 (base, base+180°)。当 target 恰好等于 base
+      或 base+180° 时，该 target 被视为"不在半平面内"，执行 +180° 翻转。
+      此行为在 base=180° 附近连续，无跳变。
 
     用途：确保左/右侧迹线的方向向量严格位于测线的左/右半平面。
 

@@ -3,20 +3,19 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from typing import List
 
 from ..io.discovery import TraceFile
 
 __all__ = ["select_targets_interactive"]
 
 
-def _parse_selection(raw: str, max_n: int) -> List[int]:
+def _parse_selection(raw: str, max_n: int) -> list[int]:
     """解析用户输入的索引字符串，返回 0-based 索引列表。"""
     cleaned = raw.strip().lower()
     if cleaned in ("", "all", "a"):
         return list(range(max_n))
 
-    selected: List[int] = []
+    selected: list[int] = []
     for token in re.split(r"\s*,\s*", cleaned):
         token = token.strip()
         if not token:
@@ -25,16 +24,16 @@ def _parse_selection(raw: str, max_n: int) -> List[int]:
             parts = token.split("-", 1)
             try:
                 lo, hi = int(parts[0]), int(parts[1])
-            except ValueError:
-                raise ValueError(f"无效区间: {token}")
+            except ValueError as exc:
+                raise ValueError(f"无效区间: {token}") from exc
             if lo < 1 or hi > max_n or lo > hi:
                 raise ValueError(f"区间 {lo}-{hi} 超出范围 1-{max_n}")
             selected.extend(range(lo - 1, hi))
         else:
             try:
                 idx = int(token)
-            except ValueError:
-                raise ValueError(f"无效索引: {token}")
+            except ValueError as exc:
+                raise ValueError(f"无效索引: {token}") from exc
             if idx < 1 or idx > max_n:
                 raise ValueError(f"索引 {idx} 超出范围 1-{max_n}")
             selected.append(idx - 1)
@@ -44,7 +43,7 @@ def _parse_selection(raw: str, max_n: int) -> List[int]:
     return sorted(set(selected))
 
 
-def select_targets_interactive(discovered: Sequence[TraceFile]) -> List[TraceFile]:
+def select_targets_interactive(discovered: Sequence[TraceFile]) -> list[TraceFile]:
     """交互式选择处理目标。"""
     if not discovered:
         print("没有可用的迹线表文件。")

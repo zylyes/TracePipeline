@@ -45,7 +45,7 @@ def _shift_to_nonnegative(arr: np.ndarray, margin: float = 0.0) -> np.ndarray:
     dx = max(0.0, margin - min_x)
     dy = max(0.0, margin - min_y)
     if dx == 0.0 and dy == 0.0:
-        return arr
+        return arr.copy()
     return arr + np.array([dx, dy, dx, dy], dtype=float)
 
 

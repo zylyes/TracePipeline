@@ -1,27 +1,64 @@
 """迹线长度图绘制。"""
 from __future__ import annotations
 
+import logging
 import math
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, NamedTuple, Tuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
 from ._helpers import new_figure, save_figure
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
 __all__ = ["render_trace_plot", "segments_to_xy"]
 
-_TRACE_FIGSIZE_CM: Tuple[float, float] = (20, 14)
+_TRACE_FIGSIZE_CM: tuple[float, float] = (20, 14)
 _DEFAULT_TRACE_DPI = 300
 _TRACE_LINE_COLOR = (0, 0, 0)
 _TRACE_LINE_WIDTH = 1.0
 _ANNOTATION_LINE_WIDTH = 1.0
 _ANNOTATION_ZORDER = 5
 _MIN_DATA_SPAN = 1.0
-_FIXED_SCALE_LENGTH = 5.0
+
+# 布局比例常量
+_PAD_DATA_RATIO = 0.04         # 数据区域边距占跨度比例
+_PAD_BASE_RATIO = 0.08         # 基准跨度边距比例
+_LEFT_PAD_RATIO = 0.14         # 左边距占 x_span 比例
+_BOTTOM_PAD_RATIO = 0.16       # 下边距占 y_span 比例
+_TOP_PAD_RATIO = 0.12          # 上边距占 y_span 比例
+_PANEL_X_RATIO = 0.68          # 注释面板宽度占 x_span 比例
+_PANEL_BASE_RATIO = 0.54       # 注释面板占基准跨度比例
+_PANEL_SCALE_MULTIPLIER = 2.0  # 注释面板中比例尺倍数
+_PANEL_INSET_RATIO = 0.08      # 面板内边距占 right_pad 比例
+_PANEL_BOTTOM_RATIO = 0.06     # 面板底部留白
+_PANEL_TOP_RATIO = 0.04        # 面板顶部留白
+_SCALE_BAR_Y_RATIO = 0.76      # 面板中比例尺 Y 位置
+_SCALE_BAR_BOTTOM_RATIO = 0.42 # 无面板时比例尺 Y 偏移
+_TICK_PAD_RATIO = 0.14         # 刻度线高度占底部边距
+_TICK_BASE_RATIO = 0.022       # 刻度线高度占基准跨度
+_ARROW_MAX_WIDTH_RATIO = 0.38  # 箭头最大宽度占面板宽度
+_ARROW_MAX_HEIGHT_RATIO = 0.13 # 箭头最大高度占面板高度
+_ARROW_BASE_RATIO = 0.11       # 箭头占基准跨度比例
+_ARROW_Y_CENTER_RATIO = 0.91   # 面板中箭头 Y 中心位置
+_ARROW_Y_LOW_RATIO = 0.82      # 面板中箭头 Y 下界
+_ARROW_Y_HIGH_RATIO = 0.98     # 面板中箭头 Y 上界
+_STATS_TEXT_X_INSET = 0.04     # 统计文本 X 内边距比例
+_STATS_TEXT_Y_INSET = 0.04     # 统计文本 Y 内边距比例
+_NICE_SCALE_LENGTHS = (0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
+
+
+def _auto_scale_length(data_span: float) -> float:
+    """根据数据跨度选择整数比例尺长度。"""
+    target = data_span * 0.25
+    for length in _NICE_SCALE_LENGTHS:
+        if length >= target:
+            return length
+    return _NICE_SCALE_LENGTHS[-1]
 
 
 class _DecorationLayout(NamedTuple):
@@ -40,7 +77,7 @@ class _DecorationLayout(NamedTuple):
     has_annotation_panel: bool
 
 
-def segments_to_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def segments_to_xy(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """将 (N, 4) 线段数组转为带 NaN 分隔的一维 X/Y 序列。
 
     NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
@@ -57,7 +94,7 @@ def segments_to_xy(segments: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return X, Y
 
 
-def _data_bounds(segments: np.ndarray) -> Tuple[float, float, float, float]:
+def _data_bounds(segments: np.ndarray) -> tuple[float, float, float, float]:
     if segments.size == 0:
         return 0.0, 1.0, 0.0, 1.0
 
@@ -83,14 +120,14 @@ def _build_decoration_layout(
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
     base_span = max(x_span, y_span, _MIN_DATA_SPAN)
-    scale_length = _FIXED_SCALE_LENGTH
+    scale_length = _auto_scale_length(base_span)
     right_pad = max(
-        x_span * 0.04,
-        base_span * 0.04,
+        x_span * _PAD_DATA_RATIO,
+        base_span * _PAD_DATA_RATIO,
         max(0.0, scale_length - x_span + x_span * 0.05),
     )
     if has_annotation_panel:
-        right_pad = max(x_span * 0.68, base_span * 0.54, scale_length * 2.00)
+        right_pad = max(x_span * _PANEL_X_RATIO, base_span * _PANEL_BASE_RATIO, scale_length * _PANEL_SCALE_MULTIPLIER)
 
     return _DecorationLayout(
         data_x_min=x_min,
@@ -100,10 +137,10 @@ def _build_decoration_layout(
         x_span=x_span,
         y_span=y_span,
         base_span=base_span,
-        left_pad=max(x_span * 0.14, base_span * 0.08),
+        left_pad=max(x_span * _LEFT_PAD_RATIO, base_span * _PAD_BASE_RATIO),
         right_pad=right_pad,
-        bottom_pad=max(y_span * 0.16, base_span * 0.08),
-        top_pad=max(y_span * 0.12, base_span * 0.08),
+        bottom_pad=max(y_span * _BOTTOM_PAD_RATIO, base_span * _PAD_BASE_RATIO),
+        top_pad=max(y_span * _TOP_PAD_RATIO, base_span * _PAD_BASE_RATIO),
         scale_length=scale_length,
         has_annotation_panel=has_annotation_panel,
     )
@@ -121,13 +158,13 @@ def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout, is_panel: bool = Fal
         scale_length = layout.scale_length
         x0 = panel_x0 + (panel_width - scale_length) / 2.0
         x1 = x0 + scale_length
-        y = panel_y0 + (panel_y1 - panel_y0) * 0.76
+        y = panel_y0 + (panel_y1 - panel_y0) * _SCALE_BAR_Y_RATIO
     else:
         x0 = layout.data_x_min + max(layout.x_span * 0.03, layout.base_span * 0.01)
         x1 = x0 + layout.scale_length
-        y = layout.data_y_min - layout.bottom_pad * 0.42
+        y = layout.data_y_min - layout.bottom_pad * _SCALE_BAR_BOTTOM_RATIO
 
-    tick = min(layout.bottom_pad * 0.14, layout.base_span * 0.022)
+    tick = min(layout.bottom_pad * _TICK_PAD_RATIO, layout.base_span * _TICK_BASE_RATIO)
 
     ax.plot(
         [x0, x1],
@@ -167,7 +204,7 @@ def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout, is_panel: bool = Fal
     )
 
 
-def _axis_bounds(layout: _DecorationLayout) -> Tuple[float, float, float, float]:
+def _axis_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float]:
     return (
         layout.data_x_min - layout.left_pad,
         layout.data_x_max + layout.right_pad,
@@ -176,13 +213,13 @@ def _axis_bounds(layout: _DecorationLayout) -> Tuple[float, float, float, float]
     )
 
 
-def _panel_bounds(layout: _DecorationLayout) -> Tuple[float, float, float, float]:
+def _panel_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float]:
     x_low, x_high, y_low, y_high = _axis_bounds(layout)
     return (
-        layout.data_x_max + layout.right_pad * 0.08,
-        x_high - layout.right_pad * 0.08,
-        y_low + (y_high - y_low) * 0.06,
-        y_high - (y_high - y_low) * 0.04,
+        layout.data_x_max + layout.right_pad * _PANEL_INSET_RATIO,
+        x_high - layout.right_pad * _PANEL_INSET_RATIO,
+        y_low + (y_high - y_low) * _PANEL_BOTTOM_RATIO,
+        y_high - (y_high - y_low) * _PANEL_TOP_RATIO,
     )
 
 
@@ -193,7 +230,7 @@ def _shift_into_bounds(
     x_high: float,
     y_low: float,
     y_high: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
     shift_x = max(0.0, x_low - min_x) - max(0.0, max_x - x_high)
@@ -208,6 +245,7 @@ def _add_north_arrow(
     is_panel: bool = False,
 ) -> None:
     if not math.isfinite(north_angle_deg):
+        logger.warning("north_angle_deg 非有限值 (%s)，回退到 90.0°", north_angle_deg)
         north_angle_deg = 90.0
 
     angle = math.radians(north_angle_deg)
@@ -216,13 +254,13 @@ def _add_north_arrow(
     if is_panel:
         panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
         arrow_len = min(
-            (panel_x1 - panel_x0) * 0.38,
-            (panel_y1 - panel_y0) * 0.13,
-            layout.base_span * 0.11,
+            (panel_x1 - panel_x0) * _ARROW_MAX_WIDTH_RATIO,
+            (panel_y1 - panel_y0) * _ARROW_MAX_HEIGHT_RATIO,
+            layout.base_span * _ARROW_BASE_RATIO,
         )
         label_gap = arrow_len * 0.25
         center_x = (panel_x0 + panel_x1) / 2.0
-        center_y = panel_y0 + (panel_y1 - panel_y0) * 0.91
+        center_y = panel_y0 + (panel_y1 - panel_y0) * _ARROW_Y_CENTER_RATIO
 
         base_x = center_x - arrow_len * dx * 0.50
         base_y = center_y - arrow_len * dy * 0.50
@@ -236,8 +274,8 @@ def _add_north_arrow(
             [base_y, tip_y, label_y],
             panel_x0,
             panel_x1,
-            panel_y0 + (panel_y1 - panel_y0) * 0.82,
-            panel_y0 + (panel_y1 - panel_y0) * 0.98,
+            panel_y0 + (panel_y1 - panel_y0) * _ARROW_Y_LOW_RATIO,
+            panel_y0 + (panel_y1 - panel_y0) * _ARROW_Y_HIGH_RATIO,
         )
         base_x += shift_x
         tip_x += shift_x
@@ -326,8 +364,8 @@ def _add_statistics_box(
     panel_width = panel_x1 - panel_x0
     panel_height = panel_y1 - panel_y0
     ax.text(
-        panel_x1 - panel_width * 0.04,
-        panel_y0 + panel_height * 0.04,
+        panel_x1 - panel_width * _STATS_TEXT_X_INSET,
+        panel_y0 + panel_height * _STATS_TEXT_Y_INSET,
         "\n".join(str(line) for line in statistics_lines),
         ha="right",
         va="bottom",
@@ -345,7 +383,7 @@ def render_trace_plot(
     output_dir: str,
     filename: str,
     dpi: int = _DEFAULT_TRACE_DPI,
-    figsize_cm: Tuple[float, float] = _TRACE_FIGSIZE_CM,
+    figsize_cm: tuple[float, float] = _TRACE_FIGSIZE_CM,
     north_angle_deg: float = 90.0,
     statistics_lines: Sequence[str] | None = None,
 ) -> str:

@@ -1,7 +1,7 @@
 """节理走向玫瑰花瓣图绘制。"""
 from __future__ import annotations
 
-from typing import Tuple
+import math
 
 import numpy as np
 
@@ -10,7 +10,7 @@ from ._helpers import new_figure, save_figure
 
 __all__ = ["render_rose_plot"]
 
-_ROSE_FIGSIZE_CM: Tuple[float, float] = (14, 14)
+_ROSE_FIGSIZE_CM: tuple[float, float] = (14, 14)
 _DEFAULT_ROSE_DPI = 400
 _ROSE_GRID_COLOR = "#d0d0d0"
 _ROSE_BAR_COLOR = "#DC2626"
@@ -20,7 +20,7 @@ _ROSE_BAR_EDGE = "#991B1B"
 def _compute_rose_histogram(
     strike_deg: np.ndarray,
     bin_width: float = 10.0,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """计算玫瑰图柱体的角度（弧度）、频数与柱宽（弧度）。"""
     if not (0 < bin_width <= 180):
         raise ValueError("rose bin_width 必须在 (0, 180] 范围内")
@@ -54,7 +54,7 @@ def render_rose_plot(
     filename: str,
     bin_width: float = 10.0,
     dpi: int = _DEFAULT_ROSE_DPI,
-    figsize_cm: Tuple[float, float] = _ROSE_FIGSIZE_CM,
+    figsize_cm: tuple[float, float] = _ROSE_FIGSIZE_CM,
 ) -> str:
     """绘制并保存节理走向玫瑰花瓣图。
 
@@ -87,7 +87,7 @@ def render_rose_plot(
             color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
             linewidth=0.6, alpha=0.75, align="center",
         )
-        rmax = max(1, int(radii.max()))
+        rmax = max(1, math.ceil(radii.max()))
         ax.set_ylim(0, rmax)
         # 设置径向刻度标签
         rticks = np.arange(0, rmax + 1, max(1, rmax // 5))

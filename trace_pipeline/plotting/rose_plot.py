@@ -7,6 +7,7 @@ import numpy as np
 
 from ..geology.angles import fold_strikes_to_semicircle
 from ._helpers import new_figure, save_figure
+from .style import apply_axis_text_fonts, configure_style, text_font_kwargs
 
 __all__ = ["render_rose_plot"]
 
@@ -61,6 +62,7 @@ def render_rose_plot(
     Returns:
         输出文件的完整路径。
     """
+    configure_style()
     theta, radii, width = _compute_rose_histogram(strike_deg, bin_width=bin_width)
 
     fig, ax = new_figure(
@@ -102,5 +104,6 @@ def render_rose_plot(
     ax.spines["polar"].set_linewidth(0.8)
     ax.spines["polar"].set_color("black")
 
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=20)
+    apply_axis_text_fonts(ax)
+    ax.set_title(title, pad=20, **text_font_kwargs(fontsize=14, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi)

@@ -1,10 +1,17 @@
 """单元测试：绘图辅助与玫瑰图分箱。"""
+import logging
+
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from matplotlib.patches import Circle
 
+from trace_pipeline.plotting import style as style_module
 from trace_pipeline.plotting.rose_plot import _compute_rose_histogram
 from trace_pipeline.plotting.trace_plot import (
+    CircleWindowOverlay,
+    _add_circle_window_overlays,
     _add_statistics_box,
     _build_decoration_layout,
     render_trace_plot,
@@ -44,6 +51,65 @@ def test_render_trace_plot_accepts_statistics_box(tmp_path):
 
     assert out.endswith("stats.png")
     assert (tmp_path / "stats.png").is_file()
+
+
+def test_configure_style_prefers_times_new_roman_and_simsun(monkeypatch):
+    with matplotlib.rc_context():
+        monkeypatch.setattr(
+            style_module,
+            "_get_font_cache",
+            lambda: {
+                "western": ["Times New Roman"],
+                "cjk_serif": ["SimSun"],
+                "cjk_sans": [],
+            },
+        )
+
+        style_module.configure_style()
+
+        assert matplotlib.rcParams["font.family"][:2] == ["Times New Roman", "SimSun"]
+        assert matplotlib.rcParams["mathtext.fontset"] == "custom"
+        assert matplotlib.rcParams["mathtext.rm"] == "Times New Roman"
+
+
+def test_configure_style_warns_but_handles_missing_fonts(monkeypatch, caplog):
+    with matplotlib.rc_context():
+        monkeypatch.setattr(
+            style_module,
+            "_get_font_cache",
+            lambda: {"western": [], "cjk_serif": [], "cjk_sans": []},
+        )
+
+        with caplog.at_level(logging.WARNING):
+            style_module.configure_style()
+
+        assert matplotlib.rcParams["font.family"][:2] == ["Times New Roman", "SimSun"]
+        assert "Times New Roman" in caplog.text
+        assert "SimSun" in caplog.text
+
+
+def test_circle_window_overlays_draw_valid_dark_dashed_auxiliary_circles():
+    fig, ax = plt.subplots()
+    try:
+        _add_circle_window_overlays(
+            ax,
+            (
+                CircleWindowOverlay(1.0, 2.0, 3.0),
+                CircleWindowOverlay(np.nan, 2.0, 3.0),
+                CircleWindowOverlay(4.0, 5.0, -1.0),
+            ),
+        )
+
+        circles = [patch for patch in ax.patches if isinstance(patch, Circle)]
+        assert len(circles) == 1
+        circle = circles[0]
+        assert circle.center == pytest.approx((1.0, 2.0))
+        assert circle.radius == pytest.approx(3.0)
+        assert circle.get_fill() is False
+        assert circle.get_edgecolor()[:3] == pytest.approx((0.25, 0.25, 0.25))
+        assert circle.get_linestyle() == "--"
+    finally:
+        plt.close(fig)
 
 
 def test_statistics_box_draws_fixed_grid_with_compact_labels():

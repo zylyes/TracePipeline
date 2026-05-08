@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
@@ -25,31 +26,64 @@ _ANNOTATION_LINE_WIDTH = 1.0
 _ANNOTATION_ZORDER = 5
 _MIN_DATA_SPAN = 1.0
 
-# 布局比例常量
-_PAD_DATA_RATIO = 0.04         # 数据区域边距占跨度比例
-_PAD_BASE_RATIO = 0.08         # 基准跨度边距比例
-_LEFT_PAD_RATIO = 0.14         # 左边距占 x_span 比例
-_BOTTOM_PAD_RATIO = 0.16       # 下边距占 y_span 比例
-_TOP_PAD_RATIO = 0.12          # 上边距占 y_span 比例
-_PANEL_X_RATIO = 0.68          # 注释面板宽度占 x_span 比例
-_PANEL_BASE_RATIO = 0.54       # 注释面板占基准跨度比例
-_PANEL_SCALE_MULTIPLIER = 2.0  # 注释面板中比例尺倍数
-_PANEL_INSET_RATIO = 0.08      # 面板内边距占 right_pad 比例
-_PANEL_BOTTOM_RATIO = 0.06     # 面板底部留白
-_PANEL_TOP_RATIO = 0.04        # 面板顶部留白
-_SCALE_BAR_Y_RATIO = 0.76      # 面板中比例尺 Y 位置
-_SCALE_BAR_BOTTOM_RATIO = 0.42 # 无面板时比例尺 Y 偏移
-_TICK_PAD_RATIO = 0.14         # 刻度线高度占底部边距
-_TICK_BASE_RATIO = 0.022       # 刻度线高度占基准跨度
-_ARROW_MAX_WIDTH_RATIO = 0.38  # 箭头最大宽度占面板宽度
-_ARROW_MAX_HEIGHT_RATIO = 0.13 # 箭头最大高度占面板高度
-_ARROW_BASE_RATIO = 0.11       # 箭头占基准跨度比例
-_ARROW_Y_CENTER_RATIO = 0.91   # 面板中箭头 Y 中心位置
-_ARROW_Y_LOW_RATIO = 0.82      # 面板中箭头 Y 下界
-_ARROW_Y_HIGH_RATIO = 0.98     # 面板中箭头 Y 上界
-_STATS_TEXT_X_INSET = 0.04     # 统计文本 X 内边距比例
-_STATS_TEXT_Y_INSET = 0.04     # 统计文本 Y 内边距比例
-_FIXED_SCALE_LENGTH = 5.0
+
+@dataclass(frozen=True)
+class TracePlotLayout:
+    """迹线图布局比例参数（所有值为相对比例）。"""
+
+    pad_data_ratio: float = 0.04
+    pad_base_ratio: float = 0.08
+    left_pad_ratio: float = 0.14
+    bottom_pad_ratio: float = 0.16
+    top_pad_ratio: float = 0.12
+    panel_x_ratio: float = 0.68
+    panel_base_ratio: float = 0.54
+    panel_scale_multiplier: float = 2.0
+    panel_inset_ratio: float = 0.08
+    panel_bottom_ratio: float = 0.06
+    panel_top_ratio: float = 0.04
+    scale_bar_y_ratio: float = 0.76
+    scale_bar_bottom_ratio: float = 0.42
+    tick_pad_ratio: float = 0.14
+    tick_base_ratio: float = 0.022
+    arrow_max_width_ratio: float = 0.38
+    arrow_max_height_ratio: float = 0.13
+    arrow_base_ratio: float = 0.11
+    arrow_y_center_ratio: float = 0.91
+    arrow_y_low_ratio: float = 0.82
+    arrow_y_high_ratio: float = 0.98
+    stats_text_x_inset: float = 0.04
+    stats_text_y_inset: float = 0.04
+    fixed_scale_length: float = 5.0
+
+
+_DEFAULT_LAYOUT = TracePlotLayout()
+
+# 模块级别名（向后兼容内部引用）
+_PAD_DATA_RATIO = _DEFAULT_LAYOUT.pad_data_ratio
+_PAD_BASE_RATIO = _DEFAULT_LAYOUT.pad_base_ratio
+_LEFT_PAD_RATIO = _DEFAULT_LAYOUT.left_pad_ratio
+_BOTTOM_PAD_RATIO = _DEFAULT_LAYOUT.bottom_pad_ratio
+_TOP_PAD_RATIO = _DEFAULT_LAYOUT.top_pad_ratio
+_PANEL_X_RATIO = _DEFAULT_LAYOUT.panel_x_ratio
+_PANEL_BASE_RATIO = _DEFAULT_LAYOUT.panel_base_ratio
+_PANEL_SCALE_MULTIPLIER = _DEFAULT_LAYOUT.panel_scale_multiplier
+_PANEL_INSET_RATIO = _DEFAULT_LAYOUT.panel_inset_ratio
+_PANEL_BOTTOM_RATIO = _DEFAULT_LAYOUT.panel_bottom_ratio
+_PANEL_TOP_RATIO = _DEFAULT_LAYOUT.panel_top_ratio
+_SCALE_BAR_Y_RATIO = _DEFAULT_LAYOUT.scale_bar_y_ratio
+_SCALE_BAR_BOTTOM_RATIO = _DEFAULT_LAYOUT.scale_bar_bottom_ratio
+_TICK_PAD_RATIO = _DEFAULT_LAYOUT.tick_pad_ratio
+_TICK_BASE_RATIO = _DEFAULT_LAYOUT.tick_base_ratio
+_ARROW_MAX_WIDTH_RATIO = _DEFAULT_LAYOUT.arrow_max_width_ratio
+_ARROW_MAX_HEIGHT_RATIO = _DEFAULT_LAYOUT.arrow_max_height_ratio
+_ARROW_BASE_RATIO = _DEFAULT_LAYOUT.arrow_base_ratio
+_ARROW_Y_CENTER_RATIO = _DEFAULT_LAYOUT.arrow_y_center_ratio
+_ARROW_Y_LOW_RATIO = _DEFAULT_LAYOUT.arrow_y_low_ratio
+_ARROW_Y_HIGH_RATIO = _DEFAULT_LAYOUT.arrow_y_high_ratio
+_STATS_TEXT_X_INSET = _DEFAULT_LAYOUT.stats_text_x_inset
+_STATS_TEXT_Y_INSET = _DEFAULT_LAYOUT.stats_text_y_inset
+_FIXED_SCALE_LENGTH = _DEFAULT_LAYOUT.fixed_scale_length
 
 
 def _auto_scale_length(data_span: float) -> float:

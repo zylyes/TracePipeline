@@ -1,6 +1,10 @@
 """pytest 共享 fixture 与辅助函数。"""
 from __future__ import annotations
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import numpy as np
 import pandas as pd
 

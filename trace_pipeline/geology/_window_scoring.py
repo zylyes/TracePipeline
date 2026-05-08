@@ -23,6 +23,17 @@ logger = logging.getLogger(__name__)
 _WINDOW_STRATEGIES = ("tangent", "hybrid", "concentric")
 _AUTO_TIE_TOLERANCE = 0.12
 
+# 6 因子加权评分权重（基于 O76–O83 八个露头的对比调参确定）:
+#   有效分组得分权重最高，因为有效分组是一切指标可信度的前提；
+#   空间覆盖（侧向 + 沿测线）保证代表性；
+#   稳定性和样本充分性保证统计指标方差受控。
+_WEIGHT_VALID_GROUP = 1.45
+_WEIGHT_GROUP_RATIO = 1.00
+_WEIGHT_SPATIAL_COVERAGE = 1.35
+_WEIGHT_STABILITY = 1.10
+_WEIGHT_RADIUS = 1.00
+_WEIGHT_SUFFICIENCY = 1.10
+
 
 def aggregate_window_metric(
     diagnostics: Sequence[CircleWindowDiagnostic],
@@ -197,12 +208,12 @@ def _score_window_strategy(
         else 0.0
     )
     score = (
-        1.45 * valid_group_score
-        + 1.00 * valid_group_ratio
-        + 1.35 * _spatial_coverage_score(diagnostics, scanline_length)
-        + 1.10 * _stability_score(diagnostics)
-        + 1.00 * _radius_score(diagnostics, max_radius)
-        + 1.10 * _sample_sufficiency_score(diagnostics, config.min_intersections)
+        _WEIGHT_VALID_GROUP * valid_group_score
+        + _WEIGHT_GROUP_RATIO * valid_group_ratio
+        + _WEIGHT_SPATIAL_COVERAGE * _spatial_coverage_score(diagnostics, scanline_length)
+        + _WEIGHT_STABILITY * _stability_score(diagnostics)
+        + _WEIGHT_RADIUS * _radius_score(diagnostics, max_radius)
+        + _WEIGHT_SUFFICIENCY * _sample_sufficiency_score(diagnostics, config.min_intersections)
     )
     return _WindowStrategyScore(
         strategy=strategy,

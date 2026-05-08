@@ -57,7 +57,7 @@ def test_interactive_requires_tty(monkeypatch, tmp_path):
     monkeypatch.setattr(main_module, "setup_logging", lambda: logging.getLogger("test"))
     monkeypatch.setattr(main_module, "load_config", lambda path: cfg)
     monkeypatch.setattr(main_module, "build_overrides", lambda args: {})
-    monkeypatch.setattr(main_module, "configure_style", lambda: None)
+
     monkeypatch.setattr(main_module, "resolve_config_base_dir", lambda path: tmp_path)
     monkeypatch.setattr(
         main_module,
@@ -96,7 +96,7 @@ def test_list_mode_prints_discovered_files(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(main_module, "setup_logging", lambda: logging.getLogger("test"))
     monkeypatch.setattr(main_module, "load_config", lambda path: dict(DEFAULT_CONFIG))
     monkeypatch.setattr(main_module, "build_overrides", lambda args: {})
-    monkeypatch.setattr(main_module, "configure_style", lambda: None)
+
     monkeypatch.setattr(main_module, "resolve_config_base_dir", lambda path: tmp_path)
     monkeypatch.setattr(
         main_module,
@@ -131,7 +131,7 @@ def test_list_mode_shows_none_found(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(main_module, "setup_logging", lambda: logging.getLogger("test"))
     monkeypatch.setattr(main_module, "load_config", lambda path: dict(DEFAULT_CONFIG))
     monkeypatch.setattr(main_module, "build_overrides", lambda args: {})
-    monkeypatch.setattr(main_module, "configure_style", lambda: None)
+
     monkeypatch.setattr(main_module, "resolve_config_base_dir", lambda path: tmp_path)
     monkeypatch.setattr(
         main_module,
@@ -171,7 +171,7 @@ def test_dry_run_mode_prints_targets_without_executing(monkeypatch, tmp_path, ca
     monkeypatch.setattr(main_module, "setup_logging", lambda: logging.getLogger("test"))
     monkeypatch.setattr(main_module, "load_config", lambda path: cfg)
     monkeypatch.setattr(main_module, "build_overrides", lambda args: {})
-    monkeypatch.setattr(main_module, "configure_style", lambda: None)
+
     monkeypatch.setattr(main_module, "resolve_config_base_dir", lambda path: tmp_path)
     monkeypatch.setattr(
         main_module,

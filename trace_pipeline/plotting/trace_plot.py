@@ -52,8 +52,8 @@ class TracePlotLayout:
     arrow_y_center_ratio: float = 0.91
     arrow_y_low_ratio: float = 0.82
     arrow_y_high_ratio: float = 0.98
-    stats_text_x_inset: float = 0.04
-    stats_text_y_inset: float = 0.04
+    stats_text_x_inset: float = 0.05
+    stats_text_y_inset: float = 0.10
     fixed_scale_length: float = 5.0
 
 
@@ -253,6 +253,17 @@ def _panel_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float
     )
 
 
+def _panel_axes_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float]:
+    x_low, x_high, y_low, y_high = _axis_bounds(layout)
+    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    return (
+        (panel_x0 - x_low) / (x_high - x_low),
+        (panel_x1 - x_low) / (x_high - x_low),
+        (panel_y0 - y_low) / (y_high - y_low),
+        (panel_y1 - y_low) / (y_high - y_low),
+    )
+
+
 def _shift_into_bounds(
     xs: Sequence[float],
     ys: Sequence[float],
@@ -383,6 +394,28 @@ def _style_trace_axes(ax: plt.Axes) -> None:
     ax.set_facecolor("white")
 
 
+def _compact_statistics_label(label: str) -> str:
+    replacements = {
+        "平均迹线长度": "平均迹长",
+        "I/II/III型裂隙数": "I/II/III型数",
+        "线密度（$P_{10}$）": "P10 线密度",
+        "面密度（$P_{20}$）": "P20 面密度",
+        "面累计长度密度（$P_{21}$）": "P21 长度密度",
+    }
+    for source, target in replacements.items():
+        label = label.replace(source, target)
+    return label
+
+
+def _split_statistics_line(line: str) -> tuple[str, str]:
+    text = str(line).strip()
+    for separator in ("：", ":"):
+        if separator in text:
+            label, value = text.split(separator, 1)
+            return _compact_statistics_label(label.strip()), value.strip()
+    return text, ""
+
+
 def _add_statistics_box(
     ax: plt.Axes,
     layout: _DecorationLayout,
@@ -390,21 +423,85 @@ def _add_statistics_box(
 ) -> None:
     if not statistics_lines:
         return
-    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
+    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_axes_bounds(layout)
     panel_width = panel_x1 - panel_x0
     panel_height = panel_y1 - panel_y0
+    x_label = panel_x0 + panel_width * 0.08
+    x_value = panel_x1 - panel_width * 0.04
+    title_y = panel_y0 + panel_height * 0.62
+    rule_y = panel_y0 + panel_height * 0.585
+    first_row_y = panel_y0 + panel_height * 0.535
+    bottom_y = panel_y0 + panel_height * _STATS_TEXT_Y_INSET
+    rows = [_split_statistics_line(line) for line in statistics_lines]
+    row_step = (first_row_y - bottom_y) / max(len(rows) - 1, 1)
+
+    ax.fill(
+        [
+            panel_x0 + panel_width * 0.015,
+            panel_x1 - panel_width * 0.015,
+            panel_x1 - panel_width * 0.015,
+            panel_x0 + panel_width * 0.015,
+        ],
+        [
+            panel_y0 + panel_height * 0.055,
+            panel_y0 + panel_height * 0.055,
+            panel_y0 + panel_height * 0.655,
+            panel_y0 + panel_height * 0.655,
+        ],
+        facecolor="white",
+        edgecolor="none",
+        transform=ax.transAxes,
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER - 0.5,
+    )
     ax.text(
-        panel_x1 - panel_width * _STATS_TEXT_X_INSET,
-        panel_y0 + panel_height * _STATS_TEXT_Y_INSET,
-        "\n".join(str(line) for line in statistics_lines),
-        ha="right",
-        va="bottom",
-        fontsize=8.0,
-        linespacing=1.18,
+        x_label,
+        title_y,
+        "统计信息",
+        ha="left",
+        va="center",
+        fontsize=7.0,
+        fontweight="bold",
         color="black",
+        transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER + 1,
     )
+    ax.plot(
+        [x_label, x_value],
+        [rule_y, rule_y],
+        color="0.35",
+        linewidth=0.45,
+        transform=ax.transAxes,
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    for index, (label, value) in enumerate(rows):
+        y = first_row_y - row_step * index
+        ax.text(
+            x_label,
+            y,
+            label,
+            ha="left",
+            va="center",
+            fontsize=5.0,
+            color="0.18",
+            transform=ax.transAxes,
+            clip_on=True,
+            zorder=_ANNOTATION_ZORDER + 1,
+        )
+        ax.text(
+            x_value,
+            y,
+            value,
+            ha="right",
+            va="center",
+            fontsize=5.0,
+            color="black",
+            transform=ax.transAxes,
+            clip_on=True,
+            zorder=_ANNOTATION_ZORDER + 1,
+        )
 
 
 def render_trace_plot(

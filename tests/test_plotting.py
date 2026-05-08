@@ -1,4 +1,5 @@
 """单元测试：绘图辅助与玫瑰图分箱。"""
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -6,7 +7,6 @@ from trace_pipeline.plotting.rose_plot import _compute_rose_histogram
 from trace_pipeline.plotting.trace_plot import (
     _add_statistics_box,
     _build_decoration_layout,
-    _panel_bounds,
     render_trace_plot,
     segments_to_xy,
 )
@@ -46,28 +46,52 @@ def test_render_trace_plot_accepts_statistics_box(tmp_path):
     assert (tmp_path / "stats.png").is_file()
 
 
-def test_statistics_box_is_anchored_to_panel_bottom_right():
+def test_statistics_box_draws_fixed_grid_with_compact_labels():
     layout = _build_decoration_layout(
         np.array([[0.0, 0.0, 1.0, 1.0]]),
         has_annotation_panel=True,
     )
-    panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
-    panel_width = panel_x1 - panel_x0
-    panel_height = panel_y1 - panel_y0
-    calls = []
+    fig, ax = plt.subplots()
+    try:
+        _add_statistics_box(
+            ax,
+            layout,
+            (
+                "迹线数量: 1",
+                "平均迹线长度（圆窗）: 9.060 $\\mathrm{m}$",
+                "面密度（$P_{20}$）（圆窗）: 0.034 $\\mathrm{m}^{-2}$",
+                "面累计长度密度（$P_{21}$）（圆窗）: 0.307 $\\mathrm{m}^{-1}$",
+            ),
+        )
 
-    class AxStub:
-        def text(self, *args, **kwargs):
-            calls.append((args, kwargs))
+        assert ax.texts[0].get_text() == "统计信息"
+        assert ax.texts[0].get_transform() == ax.transAxes
+        assert len(ax.patches) == 1
+        assert ax.patches[0].get_facecolor()[:3] == pytest.approx((1.0, 1.0, 1.0))
+        assert len(ax.lines) == 1
 
-    _add_statistics_box(AxStub(), layout, ("line 1", "line 2"))
+        label_texts = [
+            text for text in ax.texts
+            if text.get_ha() == "left" and text.get_text() != "统计信息"
+        ]
+        value_texts = [text for text in ax.texts if text.get_ha() == "right"]
 
-    assert len(calls) == 1
-    args, kwargs = calls[0]
-    assert args[0] == pytest.approx(panel_x1 - panel_width * 0.04)
-    assert args[1] == pytest.approx(panel_y0 + panel_height * 0.04)
-    assert kwargs["ha"] == "right"
-    assert kwargs["va"] == "bottom"
+        assert [text.get_text() for text in label_texts] == [
+            "迹线数量",
+            "平均迹长（圆窗）",
+            "P20 面密度（圆窗）",
+            "P21 长度密度（圆窗）",
+        ]
+        assert len(value_texts) == 4
+        assert all(text.get_transform() == ax.transAxes for text in label_texts + value_texts)
+
+        label_y = [text.get_position()[1] for text in label_texts]
+        value_y = [text.get_position()[1] for text in value_texts]
+        np.testing.assert_allclose(label_y, value_y)
+        steps = np.diff(label_y)
+        np.testing.assert_allclose(steps, np.full_like(steps, steps[0]))
+    finally:
+        plt.close(fig)
 
 
 def test_trace_layout_uses_adaptive_scale_length():

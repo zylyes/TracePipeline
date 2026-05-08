@@ -442,3 +442,75 @@ def test_auto_window_strategy_uses_density_preference_for_close_scores(monkeypat
 
     assert selected == "hybrid"
 
+
+def test_auto_window_strategy_falls_back_to_density_when_all_invalid(monkeypatch):
+    """当所有策略均无有效分组时，应回退到密度偏好策略。"""
+
+    def fake_circle_windows(_segments, _length, _config, strategy):
+        return (
+            _window(
+                strategy,
+                f"{strategy}:center",
+                "center",
+                valid=False,
+                intersection_count=0,
+            ),
+        )
+
+    monkeypatch.setattr(_window_scoring_module, "compute_circle_windows", fake_circle_windows)
+
+    selected, diagnostics = _select_window_diagnostics(
+        np.zeros((0, 4)),
+        30.0,
+        20,
+        TraceStatisticsConfig(min_intersections=5),
+        200.0,
+    )
+
+    assert selected == "hybrid"
+    assert all(not d.valid for d in diagnostics)
+
+
+def test_auto_window_strategy_tie_tolerance_boundary(monkeypatch):
+    """评分差值恰好在 tolerance 边界时，密度偏好应胜出。"""
+
+    call_count = {"n": 0}
+
+    def fake_circle_windows(_segments, _length, _config, strategy):
+        call_count["n"] += 1
+        if strategy == "tangent":
+            return (
+                _window("tangent", "tangent:left:0", "left", cut_position=5.0,
+                        intersection_count=15, l_est=6.0, p20=1.2, p21=1.5),
+                _window("tangent", "tangent:right:0", "right", cut_position=5.0,
+                        intersection_count=15, l_est=6.0, p20=1.2, p21=1.5),
+                _window("tangent", "tangent:left:1", "left", cut_position=15.0,
+                        intersection_count=15, l_est=6.0, p20=1.2, p21=1.5),
+            )
+        if strategy == "hybrid":
+            return (
+                _window("hybrid", "hybrid:0.5:left", "left", cut_position=15.0,
+                        intersection_count=14, l_est=5.8, p20=1.1, p21=1.4),
+                _window("hybrid", "hybrid:0.5:right", "right", cut_position=15.0,
+                        intersection_count=14, l_est=5.8, p20=1.1, p21=1.4),
+                _window("hybrid", "hybrid:0.25:left", "left", cut_position=7.5,
+                        intersection_count=14, l_est=5.8, p20=1.1, p21=1.4),
+            )
+        return (
+            _window("concentric", "concentric:center", "center",
+                    intersection_count=12, l_est=5.5, p20=1.0, p21=1.3),
+        )
+
+    monkeypatch.setattr(_window_scoring_module, "compute_circle_windows", fake_circle_windows)
+
+    selected, _diagnostics = _select_window_diagnostics(
+        np.zeros((0, 4)),
+        30.0,
+        20,
+        TraceStatisticsConfig(min_intersections=5),
+        200.0,
+    )
+
+    assert selected in {"tangent", "hybrid", "concentric"}
+    assert call_count["n"] == 3
+

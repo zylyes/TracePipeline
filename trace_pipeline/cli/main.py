@@ -3,13 +3,8 @@ from __future__ import annotations
 
 import sys
 
-import matplotlib
-
-matplotlib.use("Agg")
-
 from ..config import apply_cli_overrides, load_config, resolve_config_base_dir, resolve_io_paths
 from ..io.discovery import find_trace_tables
-from ..plotting.style import configure_style
 from ..reporting import print_pipeline_results
 from .args import build_overrides, parse_args
 from .dispatcher import decide_targets, execute_targets
@@ -17,6 +12,16 @@ from .interactive import select_targets_interactive
 from .logging_setup import setup_logging
 
 __all__ = ["main"]
+
+
+def _init_plotting() -> None:
+    """延迟初始化 matplotlib 后端与样式（仅在需要绘图时调用）。"""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from ..plotting.style import configure_style
+
+    configure_style()
 
 
 def main() -> None:
@@ -33,8 +38,6 @@ def main() -> None:
     except Exception as exc:
         logger.critical("配置加载失败: %s", exc)
         sys.exit(1)
-
-    configure_style()
 
     # ---- 2. 路径解析与文件发现 ----
     base_dir = resolve_config_base_dir(args.config)
@@ -86,6 +89,7 @@ def main() -> None:
         return
 
     # ---- 6. 执行 ----
+    _init_plotting()
     results = execute_targets(
         targets, cfg, input_dir, output_dir,
         workers=args.parallel, logger=logger,

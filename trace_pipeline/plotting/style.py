@@ -1,6 +1,7 @@
 """matplotlib 全局样式与 CJK 字体配置。"""
 from __future__ import annotations
 
+import functools
 import logging
 
 import matplotlib
@@ -36,21 +37,16 @@ CJK_SANS_CANDIDATES: list[str] = [
 
 __all__ = ["configure_style"]
 
-_CJK_FONTS_CACHE: dict[str, list[str]] | None = None
 
-
+@functools.lru_cache(maxsize=1)
 def _get_font_cache() -> dict[str, list[str]]:
     """返回系统字体检测缓存（惰性创建、仅扫描一次）。"""
-    global _CJK_FONTS_CACHE  # noqa: PLW0603
-    if _CJK_FONTS_CACHE is not None:
-        return _CJK_FONTS_CACHE
     available = {f.name for f in fm.fontManager.ttflist}
-    _CJK_FONTS_CACHE = {
+    return {
         "cjk_serif": [f for f in CJK_SERIF_CANDIDATES if f in available],
         "cjk_sans": [f for f in CJK_SANS_CANDIDATES if f in available],
         "western": [f for f in WESTERN_FONT_CANDIDATES if f in available],
     }
-    return _CJK_FONTS_CACHE
 
 
 def configure_style() -> None:
@@ -61,10 +57,7 @@ def configure_style() -> None:
     available_western = cache["western"]
 
     # 优先选择衬线体中文（与 Times New Roman 更协调）
-    if available_cjk_serif:
-        primary_cjk = available_cjk_serif
-    else:
-        primary_cjk = available_cjk_sans
+    primary_cjk = available_cjk_serif or available_cjk_sans
 
     if primary_cjk:
         # CJK 字体必须在列表首位：matplotlib Agg 后端不支持按字符级别回退，

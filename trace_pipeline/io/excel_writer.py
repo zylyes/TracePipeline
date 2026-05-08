@@ -304,7 +304,12 @@ def _apply_column_widths(ws, sections: Sequence[ExcelSection], max_col: int, lay
                 layout.summary_max_width,
             )
 
-        if zero_based in {4, 5, 10, 11}:
+        if zero_based in {
+            layout.raw_col_start + 4,
+            layout.raw_col_start + 5,
+            layout.rot_col_start + 4,
+            layout.rot_col_start + 5,
+        }:
             structural_width = layout.gap_column_width
         elif layout.raw_col_start <= zero_based < layout.raw_col_start + 4:
             structural_width = layout.raw_column_width

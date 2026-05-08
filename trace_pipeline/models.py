@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-from .config import (
+from .validation import (
     coerce_bool,
     coerce_positive_float,
     coerce_positive_int,

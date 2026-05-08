@@ -138,4 +138,4 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         return RunResult.failure(cfg.table_stem, str(exc))
     except Exception as exc:
         logger.error("处理 [%s] 时发生未预期错误: %s", cfg.outcrop, exc, exc_info=True)
-        return RunResult.failure(cfg.table_stem, str(exc))
+        return RunResult.failure(cfg.table_stem, f"{type(exc).__name__}: {exc}")

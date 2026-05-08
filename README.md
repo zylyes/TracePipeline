@@ -14,6 +14,16 @@
 
 ---
 
+## 研究背景
+
+本项目服务于**甘肃北山高放废物地质处置**场址评价。北山沙枣园花岗岩体是我国高放废物处置库的候选场址之一，岩体结构面（节理）的几何特征——产状、迹长、密度——直接影响地下硐室稳定性评价与离散裂隙网络（DFN）建模的可靠性。
+
+野外采用**综合法（Scanline Method）**对 8 个花岗岩露头（O76-O83）进行系统测量，记录 172 条节理迹线的 r1-r7 参数。传统 MATLAB 脚本逐条处理、缺乏统计模块与批量能力。本工具将完整流水线工程化为 Python：复数向量化端点计算 → 坐标变换 → 迹线分型与密度统计（P10/P20/P21 三级回退 + 圆形取样窗法 4 策略自适应 + Mauldon 迹长估计）→ 四区 Excel 导出 → 迹线图与玫瑰花瓣图自动生成。
+
+> **参考资料**: 区域地质背景见 `reference/地质背景/`（董艳辉等、纪景仁等），统计理论来源见 `reference/文献/`（霍亮 4 篇、王贵宾、杨春和等），野外测量规范见 `reference/测量/`。
+
+---
+
 ## 目录结构
 
 ```
@@ -29,6 +39,7 @@
 │   ├── __main__.py                     # python -m trace_pipeline 入口
 │   ├── models.py                       # TraceData / RunConfig / RunResult
 │   ├── config.py                       # 配置加载、校验、路径解析
+│   ├── validation.py                   # 校验与类型强制转换工具
 │   ├── pipeline.py                     # 单目标全流程编排
 │   ├── reporting.py                    # 结果格式化与汇总报告
 │   │
@@ -69,31 +80,29 @@
 ├── tests/                              # pytest 单元测试（17 个文件，覆盖全包）
 │   ├── conftest.py                     # 共享夹具
 │   └── test_*.py                       # 各模块测试
-├── reference/                          # 研究资料
-│   ├── matlab/                         # MATLAB 原版参考代码（3 文件 + README）
-│   ├── 地质背景/                       # 区域地质 PDF（董艳辉、纪景仁等）
-│   ├── 文献/                           # 学术论文（霍亮、王贵宾、杨春和等 7 种 / 12 文件）
-│   ├── 测量/                           # 野外测量资料（原理、工具、照片）
-│   └── 论文/                           # 任务书、开题报告、模板等
+├── reference/                          # 研究资料（共 37 文件）
+│   ├── matlab/                         # MATLAB 原版（3 .m + README，含 Bug 文档）
+│   ├── 地质背景/                       # 区域地质 PDF x2（董艳辉、纪景仁）
+│   ├── 文献/                           # 学术论文 12 份（霍亮 x4、王贵宾、杨春和、许文涛，含 CAJ+PDF）
+│   ├── 测量/                           # 野外资料 x5（测量原理.docx、工具.docx、测线法说明.pptx、现场照片 x2）
+│   └── 论文/                           # 论文相关 x13（任务书、开题报告、文献综述、初稿、外文翻译、模板等）
 │
-└── .github/workflows/ci.yml           # GitHub Actions CI（2 OS × 5 Python）
+└── .github/workflows/                 # CI 配置（2 OS × 5 Python，当前位于工作树，待合并至主分支）
 ```
 
 ---
 
 ## 设计理念
 
-```
-用户接口层 (cli/)
-        ↓
-流水线层 (pipeline.py, config.py, reporting.py)
-        ↓
-┌───────────────┬──────────────┬──────────────┐
-│ 核心计算层     │ I/O 层       │ 绘图层        │
-│ geology/      │ io/          │ plotting/    │
-└───────┬───────┴──────────────┴──────────────┘
-        ↕
-数据模型层 (models.py)
+```mermaid
+graph TD
+    CLI[用户接口层 cli/] --> PIPE[流水线层 pipeline.py / config.py / reporting.py]
+    PIPE --> GEOL[核心计算层 geology/]
+    PIPE --> IO[I/O 层 io/]
+    PIPE --> PLOT[绘图层 plotting/]
+    GEOL --> MODEL[数据模型层 models.py / validation.py]
+    IO --> MODEL
+    PLOT --> MODEL
 ```
 
 | 原则 | 说明 |
@@ -150,6 +159,39 @@ uv run trace-pipeline
 ```
 
 安装后可通过 `trace-pipeline` 命令直接调用，或使用 `python run_trace_pipeline.py`。
+
+### 运行效果
+
+安装后一行命令即可生成全部成果，终端输出汇总表，`output/` 目录生成 32 个文件：
+
+```bash
+uv run trace-pipeline
+```
+
+| 产物 | 示例 | 数量 |
+|------|------|------|
+| 旋转迹线图（600 DPI，含 LaTeX 统计框） | `O76_rotated(strike=298.0).png` | 8 |
+| 原始迹线图（300 DPI） | `O76_raw(n=19).png` | 8 |
+| 玫瑰花瓣图（400 DPI） | `O76_rose(bin=10.0).png` | 8 |
+| 四区 Excel | `O76_traces.xlsx` | 8 |
+
+> 全部 8 露头串行处理约 30-60 秒，加 `-p 4` 启用 4 线程并行。详细输出格式见[输出](#输出)章节。
+
+---
+
+## 参考资料索引
+
+`reference/` 目录包含 37 个参考文件，按类别组织：
+
+| 类别 | 内容 | 代表文件 | 对应章节 |
+|------|------|----------|----------|
+| **matlab/** | MATLAB 原版算法（3 .m + README） | `Coordinate.m`、`A_outcrop_0map_rotate.m` | MATLAB 参考、§4.6 对比 |
+| **地质背景/** | 区域地质 PDF x2 | 董艳辉《地下水循环模式》、纪景仁《离散裂隙网络》 | §2 地质背景 |
+| **文献/** | 学术论文 12 份（7 篇） | 霍亮 x4（空间分布/多尺度/平面特征/聚类）、王贵宾《平均迹长》、杨春和《面密度估计》、许文涛《摄影测量》 | §1 研究现状、§4.7 统计理论 |
+| **测量/** | 野外资料 x5 | 测量原理.docx、测量工具.docx、测线法说明.pptx、现场照片 x2 | §3 野外测量 |
+| **论文/** | 论文相关 x13 | 任务书、开题报告、文献综述、初稿、外文翻译、论文模板、过程管理手册 | 全文写作 |
+
+> 各资料的论文具体引用点见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)。
 
 ---
 
@@ -412,18 +454,18 @@ dd + 90 & dd < 90
 
 ### 各露头统计汇总
 
-| 露头 | 迹线数 | 测线走向 | 平均迹长 (m) | I型/II型/III型 | P10 (m^-1) | P20 (m^-2) | P21_est (m^-1) |
-|------|--------|----------|-------------|----------------|-----------|-----------|---------------|
-| O76 | 19 | 298 | 10.07 | 13/6/0 | 1.0671 | 0.0530 | 0.5180 |
-| O77 | 19 | 280 | 9.06 | 12/7/0 | 0.8064 | 0.0338 | 0.3065 |
-| O78 | 26 | 165 | 3.45 | 21/5/0 | 1.0033 | 0.0607 | 0.2167 |
-| O79 | 20 | 212 | 6.67 | 20/0/0 | 0.5672 | 0.0225 | 0.1560 |
-| O80 | 29 | 334 | 6.57 | 29/0/0 | 1.1959 | 0.0585 | 0.3757 |
-| O81 | 19 | 75 | 14.27 | 17/2/0 | 2.2042 | 0.1362 | 1.8798 |
-| O82 | 20 | 273 | 4.99 | 18/2/0 | 1.6632 | 0.1430 | 0.6884 |
-| O83 | 20 | 265 | 4.15 | 18/2/0 | 2.1769 | 0.2383 | 0.9856 |
+| 露头 | 迹线数 | 测线走向 | 平均迹长 (m) | I/II/III | P10 (m⁻¹) | P20 (m⁻²) | P21 (m⁻¹) | 策略 | 有效窗 |
+|------|--------|----------|-------------|----------|-----------|-----------|-----------|------|--------|
+| O76 | 19 | 298 | 10.07 | 13/6/0 | 1.0671 | 0.0530 (W) | 0.5180 (W) | concentric | 6 |
+| O77 | 19 | 280 | 9.06 | 12/7/0 | 0.8064 | 0.0338 (W) | 0.3065 (W) | concentric | 6 |
+| O78 | 26 | 165 | 3.45 | 21/5/0 | 1.0033 | 0.0607 (W) | 0.2167 (W) | concentric | 6 |
+| O79 | 20 | 212 | 6.67 | 20/0/0 | 0.5672 | 0.0225 (W) | 0.1560 (W) | concentric | 6 |
+| O80 | 29 | 334 | 6.57 | 29/0/0 | 1.1959 | 0.0585 (W) | 0.3757 (W) | concentric | 6 |
+| O81 | 19 | 75 | 14.27 | 17/2/0 | 2.2042 | 0.1362 (W) | 1.8798 (W) | hybrid | 18 |
+| O82 | 20 | 273 | 4.99 | 18/2/0 | 1.6632 | 0.1430 (W) | 0.6884 (W) | concentric | 6 |
+| O83 | 20 | 265 | 4.15 | 18/2/0 | 2.1769 | 0.2383 (W) | 0.9856 (W) | concentric | 6 |
 
-> 上表统计值由 `auto` 策略生成（O81 为 hybrid，其余为 concentric）。详细数据参见各露头迹线图内置 LaTeX 统计信息框。
+> 上表由 `auto` 策略生成。来源标注：(M) 实测、(W) 圆窗、(E) 估算/凸包。O81 因迹线数少且分布稀疏，auto 评分选择 hybrid（18 窗口）以获得更稳定估计；其余 7 露头均选 concentric。详细数据参见各露头迹线图内置 LaTeX 统计信息框。
 
 ---
 
@@ -468,27 +510,28 @@ output/
 
 ## 使用示例
 
+### 日常使用
+
 ```bash
-# 列出可用文件
-python run_trace_pipeline.py -l
+python run_trace_pipeline.py           # 批量处理全部 8 露头
+python run_trace_pipeline.py -l        # 列出可用文件
+python run_trace_pipeline.py -n        # 试运行，预览目标不实际处理
+```
 
-# 试运行
-python run_trace_pipeline.py -n
+### 自定义输出
 
-# 批量处理
-python run_trace_pipeline.py
-
-# 自定义玫瑰图参数
+```bash
 python run_trace_pipeline.py --rose-bin 15 --rose-dpi 600
+python run_trace_pipeline.py --window-strategy hybrid
+python run_trace_pipeline.py -o ./results --no-rose
+```
 
-# 指定输入输出目录
-python run_trace_pipeline.py -i ./field_data -o ./figures
+### 高级用法
 
-# 交互式选择
-python run_trace_pipeline.py -I
-
-# 4 线程并行 + 跳过玫瑰图
-python run_trace_pipeline.py -p 4 --no-rose
+```bash
+python run_trace_pipeline.py -I                    # 交互式选择目标
+python run_trace_pipeline.py -p 4                  # 4 线程并行
+python run_trace_pipeline.py -s -c my_config.json  # 单文件 + 自定义配置
 ```
 
 ---
@@ -613,3 +656,14 @@ from trace_pipeline import run_pipeline, TraceData, compute_trace_statistics
 from trace_pipeline.geology.angles import fold_strike_angle
 from trace_pipeline.geology.statistics import TraceStatisticsConfig
 ```
+
+### 常见问题
+
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| 迹线图中文字符显示为方块 | 系统缺少 CJK 字体 | 安装宋体/黑体，或配置 `matplotlib` 字体目录；程序已内置 SimSun→Noto Serif SC→SimHei→Microsoft YaHei 多级回退 |
+| `ModuleNotFoundError: openpyxl` | 未安装依赖 | `pip install -e .` |
+| 发现 0 个迹线表文件 | 文件名不以 `_process` 结尾 | 重命名为 `{露头}_process.xls(x)` 并放入 `input/` |
+| "工作表不存在" 错误 | Sheet 名与露头编号不一致 | 确保 Sheet 名为 `O76`/`O77`…与文件名露头部分一致 |
+| P20/P21 显示 NaN | 迹线数过少（< 3）导致凸包退化 | 检查输入数据；此为正常兜底行为，论文中标注 N/A |
+| 迹线图统计框内数值与论文预期不符 | 圆窗策略不同导致估计值差异 | 尝试 `--window-strategy tangent` 或 `hybrid` 对比 |

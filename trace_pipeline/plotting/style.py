@@ -60,14 +60,12 @@ def configure_style() -> None:
     primary_cjk = available_cjk_serif or available_cjk_sans
 
     if primary_cjk:
-        # CJK 字体必须在列表首位：matplotlib Agg 后端不支持按字符级别回退，
-        # 只使用列表中第一个字体渲染全部字符。CJK 字体（如 SimSun）同时包含
-        # 可用的 Latin 字形，故中西文均可正确显示。
-        serif_list = primary_cjk + available_western + ["serif"]
-        matplotlib.rcParams["font.family"] = "serif"
-        matplotlib.rcParams["font.serif"] = serif_list
-        matplotlib.rcParams["font.sans-serif"] = primary_cjk + available_western + ["sans-serif"]
-        logger.info("检测到中文主字体: %s", primary_cjk[0])
+        # 将 font.family 直接设为列表，matplotlib 3.8+ 会按字符级别回退：
+        # TNR 有字形 → 英文/数字用 TNR，TNR 无字形 → 中文回退到 SimSun
+        #   中文 → 宋体，英文/数字 → Times New Roman
+        font_family_list = available_western + primary_cjk + ["serif"]
+        matplotlib.rcParams["font.family"] = font_family_list
+        logger.info("检测到中文主字体: %s (回退)", primary_cjk[0])
     else:
         existing = list(matplotlib.rcParams.get("font.sans-serif", ["sans-serif"]))
         matplotlib.rcParams["font.sans-serif"] = existing

@@ -100,7 +100,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         )
         rot_plot = render_trace_plot(
             rotated,
-            f"迹线长度图\n标尺（走向={trace.scanline_azimuth}°）",
+            f"迹线长度图\n标尺（走向={trace.scanline_azimuth:.1f}°）",
             str(output_dir),
             f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
             dpi=cfg.rotated_trace_dpi,

@@ -198,6 +198,13 @@ def test_circle_window_counts_stay_available_for_internal_diagnostics():
     assert stats.p21 == pytest.approx(3 / 8)
     assert stats.p21_source == "window"
 
+    lines = format_statistics_box_lines(stats)
+    joined = "\n".join(lines)
+    assert "测线走向: 90.0°" in lines
+    assert "圆窗策略: 混合圆窗" in lines
+    assert "平均迹线长度（圆窗）" in joined
+    assert "(W)" not in joined
+
 
 def test_p20_measured_area_takes_priority_over_valid_window():
     trace = make_trace(
@@ -246,6 +253,7 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
     assert "I/II/III型裂隙数: 0/0/1" in lines
     assert "测线长度: 0.000 $\\mathrm{m}$" in lines
     assert "露头面积: N/A" in lines
+    assert "测线走向: 90.0°" in lines
     assert "面累计长度密度" in joined
     assert "体密度" not in joined
     assert "总裂隙数" not in joined
@@ -513,4 +521,3 @@ def test_auto_window_strategy_tie_tolerance_boundary(monkeypatch):
 
     assert selected in {"tangent", "hybrid", "concentric"}
     assert call_count["n"] == 3
-

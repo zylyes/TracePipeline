@@ -1,24 +1,20 @@
 # 岩体节理测线坐标计算与绘图工具
 
-> **版本**: v0.1.0 | **语言**: Python >= 3.9 | **许可证**: 教育用途
+> **版本**: v0.1.0 | **语言**: Python >= 3.9 | **许可证**: MIT
 
-基于 Python 实现的岩体节理测线法数据处理与可视化系统，以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原版算法完整移植为工程化 Python 代码。
+基于 Python 的岩体节理测线法数据处理与可视化系统。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原型算法完整移植为工程化 Python 代码。适用于高放废物地质处置场址的节理几何特征分析。
 
-**几何计算**：综合法复数向量化端点计算 -> 坐标平移与旋转标准化 -> 四区 Excel 导出 -> 迹线图（含比例尺、指北针、LaTeX 统计信息框）-> 玫瑰花瓣图。
-
-**统计分析**：I/II/III 型自动分类 -> P10/P20/P21 密度统计（实测优先三级回退）-> 圆形取样窗法 4 策略自适应（tangent/hybrid/concentric + auto 6因子加权评分）-> 凸包露头面积 -> Mauldon 平均迹长估计。
+**核心流水线**：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → 凸包露头面积 → 圆形取样窗法 4 策略自适应（tangent/hybrid/concentric + auto 6 因子加权评分）→ P10/P20/P21 密度统计 + Mauldon 迹长估计（实测优先三级回退）→ 四区 Excel 导出 → 迹线图（含比例尺、指北针、LaTeX 统计信息框）→ 玫瑰花瓣图。
 
 > **毕业设计课题**: 26 届地球信息科学与技术专业 -- 周咏霖（学号 2022210162）
 > **指导教师**: 霍亮（讲师），地球与行星科学学院
-> **任务进度跟踪**: 见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)（v3.8）
+> **任务进度跟踪**: 见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)（v3.9）
 
 ---
 
 ## 研究背景
 
-本项目服务于**甘肃北山高放废物地质处置**场址评价。北山沙枣园花岗岩体是我国高放废物处置库的候选场址之一，岩体结构面（节理）的几何特征——产状、迹长、密度——直接影响地下硐室稳定性评价与离散裂隙网络（DFN）建模的可靠性。
-
-野外采用**综合法（Scanline Method）**对 8 个花岗岩露头（O76-O83）进行系统测量，记录 172 条节理迹线的 r1-r7 参数。传统 MATLAB 脚本逐条处理、缺乏统计模块与批量能力。本工具将完整流水线工程化为 Python：复数向量化端点计算 → 坐标变换 → 迹线分型与密度统计（P10/P20/P21 三级回退 + 圆形取样窗法 4 策略自适应 + Mauldon 迹长估计）→ 四区 Excel 导出 → 迹线图与玫瑰花瓣图自动生成。
+本项目服务于**甘肃北山高放废物地质处置**场址评价。北山沙枣园花岗岩体是我国高放废物处置库的候选场址，岩体结构面（节理）的几何特征——产状、迹长、密度——直接影响地下硐室稳定性评价与离散裂隙网络（DFN）建模的可靠性。野外采用**综合法（Scanline Method）**对 8 个花岗岩露头进行系统测量，记录 172 条节理迹线的 r1-r7 参数。传统 MATLAB 脚本逐条处理、缺乏统计与批量能力，本工具将其完整工程化为 Python。
 
 > **参考资料**: 区域地质背景见 `reference/地质背景/`（董艳辉等、纪景仁等），统计理论来源见 `reference/文献/`（霍亮 4 篇、王贵宾、杨春和等），野外测量规范见 `reference/测量/`。
 
@@ -32,10 +28,9 @@
 ├── pyproject.toml                      # 项目元数据与依赖（含 CLI 入口）
 ├── run_trace_pipeline.py               # CLI 入口脚本
 ├── constraints.txt                     # 依赖版本锁定
-├── uv.lock                             # uv 锁文件
 │
 ├── trace_pipeline/                     # 核心包
-│   ├── __init__.py                     # 顶层公开 API（21 个导出，惰性导入）
+│   ├── __init__.py                     # 顶层公开 API（20 个导出，3 惰性导入）
 │   ├── __main__.py                     # python -m trace_pipeline 入口
 │   ├── models.py                       # TraceData / RunConfig / RunResult
 │   ├── config.py                       # 配置加载、校验、路径解析
@@ -44,6 +39,7 @@
 │   ├── reporting.py                    # 结果格式化与汇总报告
 │   │
 │   ├── geology/                        # 地质/几何算法（纯函数，无 I/O）
+│   │   ├── __init__.py                 # 子包导出
 │   │   ├── angles.py                   # 倾向⇄走向、折叠、半平面
 │   │   ├── endpoints.py                # 迹线端点向量化计算（复数运算）
 │   │   ├── transforms.py               # 坐标平移与旋转变换
@@ -57,18 +53,21 @@
 │   │   └── _geometry_utils.py          #   └─ 几何常量与工具函数
 │   │
 │   ├── io/                             # I/O 层
+│   │   ├── __init__.py                 # 子包导出（含 TraceFile、ExcelLayout）
 │   │   ├── excel_reader.py             # Excel 读取（.xlsx/.xls 回退）
 │   │   ├── excel_writer.py             # 四区布局写入
 │   │   └── discovery.py                # 输入目录文件扫描与去重
 │   │
 │   ├── plotting/                       # 绘图层
+│   │   ├── __init__.py                 # 子包导出（惰性加载 matplotlib）
 │   │   ├── style.py                    # 全局样式 + CJK 字体多级回退
 │   │   ├── trace_plot.py               # 迹线图（比例尺 + 指北针 + 统计框）
 │   │   ├── rose_plot.py                # 玫瑰花瓣图
 │   │   └── _helpers.py                 # Figure 工具（cm→inch、保存与关闭）
 │   │
 │   └── cli/                            # 命令行入口
-│       ├── main.py                     # 顶层编排（7 阶段）
+│       ├── __init__.py                 # 子包导出
+│       ├── main.py                     # 顶层编排（参数解析→配置加载→文件发现→目标决策→执行→汇总）
 │       ├── args.py                     # argparse 参数解析
 │       ├── interactive.py              # 交互式文件选择
 │       ├── dispatcher.py               # 目标决策与串/并行执行
@@ -80,14 +79,12 @@
 ├── tests/                              # pytest 单元测试（17 个文件，覆盖全包）
 │   ├── conftest.py                     # 共享夹具
 │   └── test_*.py                       # 各模块测试
-├── reference/                          # 研究资料（共 37 文件）
+├── reference/                          # 研究资料（5 子目录，约 37 文件）
 │   ├── matlab/                         # MATLAB 原版（3 .m + README，含 Bug 文档）
 │   ├── 地质背景/                       # 区域地质 PDF x2（董艳辉、纪景仁）
-│   ├── 文献/                           # 学术论文 12 份（霍亮 x4、王贵宾、杨春和、许文涛，含 CAJ+PDF）
+│   ├── 文献/                           # 学术论文 7 篇（霍亮 x4、王贵宾、杨春和、许文涛，共 12 个文件）
 │   ├── 测量/                           # 野外资料 x5（测量原理.docx、工具.docx、测线法说明.pptx、现场照片 x2）
 │   └── 论文/                           # 论文相关 x13（任务书、开题报告、文献综述、初稿、外文翻译、模板等）
-│
-└── .github/workflows/                 # CI 配置（2 OS × 5 Python，当前位于工作树，待合并至主分支）
 ```
 
 ---
@@ -107,12 +104,12 @@ graph TD
 
 | 原则 | 说明 |
 |------|------|
-| **不可变数据模型** | 6 个 `frozen=True` 数据类（`TraceData`、`RunConfig`、`RunResult`、`TraceStatistics`、`TraceStatisticsConfig`、`CircleWindowDiagnostic`），NumPy 数组深拷贝后设为 read-only |
+| **不可变数据模型** | 6 个核心 `frozen=True` 数据类（`models.py`: `TraceData`、`RunConfig`、`RunResult`；`_stat_types.py`: `TraceStatistics`、`TraceStatisticsConfig`、`CircleWindowDiagnostic`），NumPy 数组深拷贝后设为 read-only |
 | **纯函数计算层** | `geology/` 子包全部为纯函数——接收数组，返回数组，无 I/O 无副作用 |
-| **向量化优先** | NumPy 广播 + 复数运算替代 `for` 循环；`numpy.select` 替代多级 `if-else` |
+| **向量化优先** | NumPy 广播 + 复数运算替代 `for` 循环；布尔 mask 索引替代多级 `if-else` |
 | **惰性导入** | `__init__.py` 通过 `__getattr__` 延迟加载 matplotlib 依赖，`import trace_pipeline` 不触发绘图初始化 |
 | **实测优先三级回退** | P10/P20/P21 各有独立回退链（measured -> window -> hull），全链路来源标注 (M)/(W)/(E) |
-| **私有模块拆分** | `statistics.py` 作为编排层，委托 6 个 `_*.py` 单一职责模块，每个模块 50-300 行 |
+| **私有模块拆分** | `statistics.py` 作为编排层，委托 7 个 `_*.py` 单一职责模块（`_stat_types`、`_stat_format`、`_circle_window`、`_convex_hull`、`_window_strategies`、`_window_scoring`、`_geometry_utils`），每个模块 50-300 行 |
 
 ---
 
@@ -179,19 +176,9 @@ uv run trace-pipeline
 
 ---
 
-## 参考资料索引
+## 参考资料
 
-`reference/` 目录包含 37 个参考文件，按类别组织：
-
-| 类别 | 内容 | 代表文件 | 对应章节 |
-|------|------|----------|----------|
-| **matlab/** | MATLAB 原版算法（3 .m + README） | `Coordinate.m`、`A_outcrop_0map_rotate.m` | MATLAB 参考、§4.6 对比 |
-| **地质背景/** | 区域地质 PDF x2 | 董艳辉《地下水循环模式》、纪景仁《离散裂隙网络》 | §2 地质背景 |
-| **文献/** | 学术论文 12 份（7 篇） | 霍亮 x4（空间分布/多尺度/平面特征/聚类）、王贵宾《平均迹长》、杨春和《面密度估计》、许文涛《摄影测量》 | §1 研究现状、§4.7 统计理论 |
-| **测量/** | 野外资料 x5 | 测量原理.docx、测量工具.docx、测线法说明.pptx、现场照片 x2 | §3 野外测量 |
-| **论文/** | 论文相关 x13 | 任务书、开题报告、文献综述、初稿、外文翻译、论文模板、过程管理手册 | 全文写作 |
-
-> 各资料的论文具体引用点见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)。
+`reference/` 包含 5 个子目录：`matlab/`（MATLAB 原版算法及对照文档）、`地质背景/`（区域地质文献）、`文献/`（学术论文 7 篇）、`测量/`（野外资料）、`论文/`（论文相关文档）。各资料与论文章节的对应关系见 [`reference/毕业设计任务流程与预期成果.md`](reference/毕业设计任务流程与预期成果.md)。
 
 ---
 
@@ -206,7 +193,7 @@ uv run trace-pipeline
 | **玫瑰花瓣图** | 节理走向统计，可自定义分箱宽度与 DPI |
 | **迹线统计指标** | I/II/III 型自动分类，P10/P20/P21 密度参数（实测优先三级回退），圆形取样窗法 4 策略自适应，Mauldon 平均迹长估计 |
 | **Excel 四区输出** | A 基本信息 / B 原始坐标 / C 旋转坐标 / D 走向与长度 |
-| **MATLAB 验证** | 与原版 `Coordinate.m` 端点坐标误差 < 1e-10 m |
+| **MATLAB 验证** | 与原版 `Coordinate.m` 端点坐标理论误差 < 1e-10 m（浮点精度级） |
 
 ---
 
@@ -250,7 +237,7 @@ uv run trace-pipeline
 | `auto_density_threshold` | float | `5.0` | `auto` 策略下切换 hybrid->concentric 的粗估面密度阈值 |
 | `tangent_window_count` | int | `3` | `tangent` 策略下每侧布置的切圆数量 |
 
-所有配置项均可通过命令行参数覆盖。
+常用配置项可通过命令行参数覆盖（`-i/-o`、`--rose-bin/--rose-dpi`、`--no-rose`、`--window-strategy`、`-s` 等）；`trace_dpi`、`rotated_trace_dpi` 等其余项通过 `-c` 指定自定义 JSON 配置文件来覆盖。
 
 ---
 
@@ -329,7 +316,7 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 | `geology/angles.py` | 倾向->走向、走向折叠、半平面折叠 | `dip_to_strike`, `fold_strike_angle`, `fold_to_halfplane` |
 | `geology/endpoints.py` | 向量化端点坐标计算、表头解析 | `compute_endpoints` |
 | `geology/transforms.py` | 坐标平移与旋转标准化流水线 | `normalize_coordinates` |
-| `geology/statistics.py` | 统计编排层：P10/P20/P21 + I/II/III 分类（委托 6 个私有模块） | `compute_trace_statistics` |
+| `geology/statistics.py` | 统计编排层：P10/P20/P21 + I/II/III 分类（委托 7 个私有模块） | `compute_trace_statistics` |
 | `pipeline.py` | 单目标全流程编排 | `run_pipeline`, `load_trace_data` |
 | `config.py` | 配置加载/校验、路径解析、CLI 覆盖 | `load_config`, `resolve_io_paths`, `apply_cli_overrides` |
 | `io/excel_reader.py` | Excel 迹线表读取（.xlsx/.xls 回退） | `read_trace_excel` |
@@ -344,7 +331,7 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 
 ### 内部子模块（geology/ 统计实现）
 
-`statistics.py` 将统计流程委托给以下 6 个私有模块，各自承担单一职责：
+`statistics.py` 将统计流程委托给以下 7 个私有模块，各自承担单一职责：
 
 | 模块 | 职责 | 关键函数/类 |
 |------|------|------------|
@@ -412,7 +399,7 @@ dd + 90 & dd < 90
 
 ### 迹线统计指标
 
-> 理论参考：王贵宾、杨春和等《岩体节理平均迹长估计》；Laslett C. (1982) 圆形取样窗法；Mauldon M. (1998) 平均迹长闭式估计。实现：`statistics.py` + 6 个私有子模块。
+> 理论参考：王贵宾、杨春和等《岩体节理平均迹长估计》；Laslett C. (1982) 圆形取样窗法；Mauldon M. (1998) 平均迹长闭式估计。实现：`statistics.py` + 7 个私有子模块。
 
 #### 密度参数定义
 
@@ -473,14 +460,16 @@ dd + 90 & dd < 90
 
 ### Excel 文件
 
-`{outcrop}_traces.xlsx`，单工作表四区布局：
+`{outcrop}_traces.xlsx`，单工作表，包含 3 个汇总 Section + 3 个数据 Section（共 6 个区段）：
 
-| 区域 | 行位置 | 内容 |
-|------|--------|------|
-| **A** | 第1-3行 | 测线走向、迹线数量、平均迹线长度、I/II/III 型裂隙数、测线长度、露头面积、P10/P20/P21、有效取样窗数量 |
-| **B** | 第5行起 | 原始端点坐标（起点X/Y，终点X/Y） |
-| **C** | 第5行起 | 旋转后端点坐标 |
-| **D** | 第5行起 | 节理走向与迹线长度 |
+| Section | 列位置 | 内容 |
+|--------|--------|------|
+| **基本信息** | 左 | 测线走向、测线长度、平均迹长、露头面积 |
+| **裂隙情况** | 中 | 迹线数量、I/II/III 型裂隙数 |
+| **计算数据** | 右 | P10/P20/P21（含来源标注）、有效取样窗数量 |
+| **原始端点坐标** | 左 | 起点(X,Y)、终点(X,Y) |
+| **旋转后端点坐标** | 中 | 旋转后起点(X,Y)、旋转后终点(X,Y) |
+| **走向与长度** | 右 | 节理走向(°)、端点距离、测段长度(r5+r7)、迹线类型 |
 
 ### 图片文件
 
@@ -503,8 +492,6 @@ output/
 ├── ...（O77-O83 同理，共 32 个文件）
 └── O83_rotated(strike=265.0).png
 ```
-
-为保持旧结果兼容，批量处理和默认单文件处理仍按露头名生成 `{outcrop}_traces.xlsx`；只有在单文件模式中把 `output_prefix` 显式改为非默认值时，Excel 文件才使用该自定义前缀。
 
 ---
 
@@ -570,6 +557,8 @@ python run_trace_pipeline.py -s -c my_config.json  # 单文件 + 自定义配置
 
 ### 验证
 
+端点坐标算法与 MATLAB 原版 `Coordinate.m` 公式完全一致（均使用双精度浮点），理论误差 < 1e-10 m。完整的自动化基准测试脚本待补充。
+
 ```bash
 python run_trace_pipeline.py -s    # 处理 O76
 # Excel 区域 B（原始坐标）与 MATLAB XY 变量逐行对比
@@ -579,19 +568,6 @@ python run_trace_pipeline.py -s    # 处理 O76
 ---
 
 ## 开发
-
-### 持续集成
-
-项目使用 GitHub Actions 进行自动化检查（`.github/workflows/ci.yml`）：
-
-| 维度 | 配置 |
-|------|------|
-| 触发条件 | `push` / `pull_request` 到 `main` 分支 |
-| OS 矩阵 | Ubuntu + Windows |
-| Python 矩阵 | 3.9, 3.10, 3.11, 3.12, 3.13 |
-| 检查步骤 | (1) Ruff 代码检查 -> (2) Mypy 类型检查 -> (3) Pytest + 覆盖率 |
-| 覆盖率要求 | >= 80%（`--cov-fail-under=80`） |
-| 产物 | 覆盖率 HTML 报告（每 OS x Python 组合一份） |
 
 ### 开发工具
 
@@ -628,7 +604,7 @@ pytest --cov --cov-report=term --cov-report=html
 | `test_angles.py` | `geology/angles.py` -- 倾向走向转换、折叠逻辑 |
 | `test_endpoints.py` | `geology/endpoints.py` -- 端点计算三分支、可选测量值 |
 | `test_transforms.py` | `geology/transforms.py` -- 坐标变换流水线 |
-| `test_statistics.py` | `geology/statistics.py` -- P10/P20/P21、窗口计数、策略选择 |
+| `test_statistics.py` | `geology/statistics.py` — P10/P20/P21、I/II/III 分型、圆窗计数与策略选择、凸包面积、Mauldon 迹长 |
 | `test_excel_reader.py` | `io/excel_reader.py` -- Excel 读取与回退 |
 | `test_excel_writer.py` | `io/excel_writer.py` -- 四区布局与样式 |
 | `test_discovery.py` | `io/discovery.py` -- 文件扫描与去重 |
@@ -649,7 +625,7 @@ pytest --cov --cov-report=term --cov-report=html
 
 ### 扩展
 
-新增模块在 `trace_pipeline/` 下创建，在 `__init__.py` 中导出。流水线编排在 `pipeline.py:run_pipeline()` 中，可按需插入或替换阶段。顶层包导出 21 个公开入口（含 `TraceStatisticsConfig`、`compute_trace_statistics` 等统计接口），底层函数可直接导入：
+新增模块在 `trace_pipeline/` 下创建，在 `__init__.py` 中导出。流水线编排在 `pipeline.py:run_pipeline()` 中，可按需插入或替换阶段。顶层包导出 20 个公开入口（含 `TraceStatisticsConfig`、`compute_trace_statistics` 等统计接口），底层函数可直接导入：
 
 ```python
 from trace_pipeline import run_pipeline, TraceData, compute_trace_statistics
@@ -661,7 +637,7 @@ from trace_pipeline.geology.statistics import TraceStatisticsConfig
 
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| 迹线图中文字符显示为方块 | 系统缺少 CJK 字体 | 安装宋体/黑体，或配置 `matplotlib` 字体目录；程序已内置 SimSun→Noto Serif SC→SimHei→Microsoft YaHei 多级回退 |
+| 迹线图中文字符显示为方块 | 系统缺少 CJK 字体 | 安装宋体/黑体，或配置 `matplotlib` 字体目录；程序已内置衬线回退链 SimSun → Noto Serif SC → STSong → FangSong，无衬线回退链 SimHei → Microsoft YaHei → Noto Sans CJK SC 等多级自动检测 |
 | `ModuleNotFoundError: openpyxl` | 未安装依赖 | `pip install -e .` |
 | 发现 0 个迹线表文件 | 文件名不以 `_process` 结尾 | 重命名为 `{露头}_process.xls(x)` 并放入 `input/` |
 | "工作表不存在" 错误 | Sheet 名与露头编号不一致 | 确保 Sheet 名为 `O76`/`O77`…与文件名露头部分一致 |

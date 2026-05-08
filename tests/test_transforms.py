@@ -3,7 +3,9 @@ import numpy as np
 import pytest
 
 from trace_pipeline.geology.transforms import (
+    local_points_to_global,
     normalize_coordinates,
+    normalize_points_like_lines,
     rotate_and_shift,
     shift_to_positive,
 )
@@ -52,3 +54,31 @@ class TestNormalizeCoordinates:
         assert out.shape == arr.shape
         # 所有坐标 >= 0
         assert (out >= -1e-9).all()
+
+
+class TestPointTransforms:
+    def test_local_points_to_global_uses_scanline_axes(self):
+        points = np.array([[2.0, 3.0]])
+
+        np.testing.assert_allclose(
+            local_points_to_global(points, azimuth_deg=90.0),
+            [[2.0, 3.0]],
+            atol=1e-9,
+        )
+        np.testing.assert_allclose(
+            local_points_to_global(points, azimuth_deg=0.0),
+            [[-3.0, 2.0]],
+            atol=1e-9,
+        )
+
+    def test_normalize_points_like_lines_matches_endpoint_transform(self):
+        lines = np.array([
+            [-2.0, -3.0, 5.0, 5.0],
+            [1.0, 0.0, 2.0, 0.0],
+        ])
+        points = lines.reshape(-1, 2)
+
+        normalized_lines = normalize_coordinates(lines, azimuth_deg=45.0)
+        normalized_points = normalize_points_like_lines(points, lines, azimuth_deg=45.0)
+
+        np.testing.assert_allclose(normalized_points, normalized_lines.reshape(-1, 2))

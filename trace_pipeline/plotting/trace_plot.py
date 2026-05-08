@@ -8,15 +8,17 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
+from matplotlib.patches import Circle
 
 from ._helpers import new_figure, save_figure
+from .style import configure_style, text_font_kwargs
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
-__all__ = ["render_trace_plot", "segments_to_xy"]
+__all__ = ["CircleWindowOverlay", "render_trace_plot", "segments_to_xy"]
 
 _TRACE_FIGSIZE_CM: tuple[float, float] = (20, 14)
 _DEFAULT_TRACE_DPI = 300
@@ -25,6 +27,19 @@ _TRACE_LINE_WIDTH = 1.0
 _ANNOTATION_LINE_WIDTH = 1.0
 _ANNOTATION_ZORDER = 5
 _MIN_DATA_SPAN = 1.0
+_CIRCLE_WINDOW_LINE_COLOR = "0.25"
+_CIRCLE_WINDOW_LINE_WIDTH = 0.75
+_CIRCLE_WINDOW_LINE_STYLE = "--"
+_CIRCLE_WINDOW_ZORDER = 3
+
+
+@dataclass(frozen=True)
+class CircleWindowOverlay:
+    """绘图层使用的圆窗辅助线数据。"""
+
+    center_x: float
+    center_y: float
+    radius: float
 
 
 @dataclass(frozen=True)
@@ -119,19 +134,60 @@ def segments_to_xy(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if n == 0:
         return np.array([]), np.array([])
 
-    X = np.column_stack([arr[:, 0], arr[:, 2], np.full((n,), np.nan)]).ravel()
-    Y = np.column_stack([arr[:, 1], arr[:, 3], np.full((n,), np.nan)]).ravel()
-    return X, Y
+    x_values = np.column_stack([arr[:, 0], arr[:, 2], np.full((n,), np.nan)]).ravel()
+    y_values = np.column_stack([arr[:, 1], arr[:, 3], np.full((n,), np.nan)]).ravel()
+    return x_values, y_values
 
 
-def _data_bounds(segments: np.ndarray) -> tuple[float, float, float, float]:
+def _valid_circle_windows(
+    circle_windows: Sequence[CircleWindowOverlay] | None,
+) -> tuple[CircleWindowOverlay, ...]:
+    if not circle_windows:
+        return ()
+    valid: list[CircleWindowOverlay] = []
+    for circle in circle_windows:
+        center_x = float(circle.center_x)
+        center_y = float(circle.center_y)
+        radius = float(circle.radius)
+        if math.isfinite(center_x) and math.isfinite(center_y) and math.isfinite(radius) and radius > 0.0:
+            valid.append(CircleWindowOverlay(center_x, center_y, radius))
+    return tuple(valid)
+
+
+def _data_bounds(
+    segments: np.ndarray,
+    circle_windows: Sequence[CircleWindowOverlay] | None = None,
+) -> tuple[float, float, float, float]:
+    circles = _valid_circle_windows(circle_windows)
     if segments.size == 0:
-        return 0.0, 1.0, 0.0, 1.0
+        if not circles:
+            return 0.0, 1.0, 0.0, 1.0
+        circle_xs = np.array(
+            [x for circle in circles for x in (circle.center_x - circle.radius, circle.center_x + circle.radius)],
+            dtype=float,
+        )
+        circle_ys = np.array(
+            [y for circle in circles for y in (circle.center_y - circle.radius, circle.center_y + circle.radius)],
+            dtype=float,
+        )
+        return float(circle_xs.min()), float(circle_xs.max()), float(circle_ys.min()), float(circle_ys.max())
 
     xs = segments[:, [0, 2]].ravel()
     ys = segments[:, [1, 3]].ravel()
     if not np.isfinite(xs).all() or not np.isfinite(ys).all():
         raise ValueError("segments 包含 NaN 或 inf，无法绘制迹线图")
+
+    if circles:
+        circle_xs = np.array(
+            [x for circle in circles for x in (circle.center_x - circle.radius, circle.center_x + circle.radius)],
+            dtype=float,
+        )
+        circle_ys = np.array(
+            [y for circle in circles for y in (circle.center_y - circle.radius, circle.center_y + circle.radius)],
+            dtype=float,
+        )
+        xs = np.concatenate([xs, circle_xs])
+        ys = np.concatenate([ys, circle_ys])
 
     return float(xs.min()), float(xs.max()), float(ys.min()), float(ys.max())
 
@@ -145,8 +201,9 @@ def _format_scale_label(length: float) -> str:
 def _build_decoration_layout(
     segments: np.ndarray,
     has_annotation_panel: bool = False,
+    circle_windows: Sequence[CircleWindowOverlay] | None = None,
 ) -> _DecorationLayout:
-    x_min, x_max, y_min, y_max = _data_bounds(segments)
+    x_min, x_max, y_min, y_max = _data_bounds(segments, circle_windows=circle_windows)
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
     base_span = max(x_span, y_span, _MIN_DATA_SPAN)
@@ -227,10 +284,9 @@ def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout, is_panel: bool = Fal
         _format_scale_label(layout.scale_length),
         ha="center",
         va="top",
-        fontsize=10,
-        color="black",
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
+        **text_font_kwargs(fontsize=10, color="black"),
     )
 
 
@@ -374,11 +430,9 @@ def _add_north_arrow(
         "N",
         ha="center",
         va="center",
-        fontsize=11,
-        fontweight="bold",
-        color="black",
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
+        **text_font_kwargs(fontsize=11, fontweight="bold", color="black"),
     )
 
 
@@ -460,12 +514,10 @@ def _add_statistics_box(
         "统计信息",
         ha="left",
         va="center",
-        fontsize=7.0,
-        fontweight="bold",
-        color="black",
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER + 1,
+        **text_font_kwargs(fontsize=7.0, fontweight="bold", color="black"),
     )
     ax.plot(
         [x_label, x_value],
@@ -484,11 +536,10 @@ def _add_statistics_box(
             label,
             ha="left",
             va="center",
-            fontsize=5.0,
-            color="0.18",
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
+            **text_font_kwargs(fontsize=5.0, color="0.18"),
         )
         ax.text(
             x_value,
@@ -496,12 +547,28 @@ def _add_statistics_box(
             value,
             ha="right",
             va="center",
-            fontsize=5.0,
-            color="black",
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
+            **text_font_kwargs(fontsize=5.0, color="black"),
         )
+
+
+def _add_circle_window_overlays(
+    ax: plt.Axes,
+    circle_windows: Sequence[CircleWindowOverlay] | None,
+) -> None:
+    for circle in _valid_circle_windows(circle_windows):
+        patch = Circle(
+            (circle.center_x, circle.center_y),
+            circle.radius,
+            fill=False,
+            edgecolor=_CIRCLE_WINDOW_LINE_COLOR,
+            linewidth=_CIRCLE_WINDOW_LINE_WIDTH,
+            linestyle=_CIRCLE_WINDOW_LINE_STYLE,
+            zorder=_CIRCLE_WINDOW_ZORDER,
+        )
+        ax.add_patch(patch)
 
 
 def render_trace_plot(
@@ -513,18 +580,25 @@ def render_trace_plot(
     figsize_cm: tuple[float, float] = _TRACE_FIGSIZE_CM,
     north_angle_deg: float = 90.0,
     statistics_lines: Sequence[str] | None = None,
+    circle_windows: Sequence[CircleWindowOverlay] | None = None,
 ) -> str:
     """绘制并保存单张迹线长度图。
 
     Returns:
         输出文件的完整路径。
     """
+    configure_style()
     arr = np.asarray(segments, dtype=float)
-    X_plot, Y_plot = segments_to_xy(arr)
+    x_plot, y_plot = segments_to_xy(arr)
     has_annotation_panel = bool(statistics_lines)
-    layout = _build_decoration_layout(arr, has_annotation_panel=has_annotation_panel)
+    layout = _build_decoration_layout(
+        arr,
+        has_annotation_panel=has_annotation_panel,
+        circle_windows=circle_windows,
+    )
     fig, ax = new_figure(figsize_cm, dpi=dpi)
-    ax.plot(X_plot, Y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
+    ax.plot(x_plot, y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
+    _add_circle_window_overlays(ax, circle_windows)
     _style_trace_axes(ax)
     _apply_decoration_limits(ax, layout)
     if has_annotation_panel:
@@ -534,5 +608,5 @@ def render_trace_plot(
     else:
         _add_north_arrow(ax, layout, north_angle_deg, is_panel=False)
         _add_scale_bar(ax, layout, is_panel=False)
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=12)
+    ax.set_title(title, pad=12, **text_font_kwargs(fontsize=14, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi)

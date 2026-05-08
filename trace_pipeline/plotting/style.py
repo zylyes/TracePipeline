@@ -3,22 +3,31 @@ from __future__ import annotations
 
 import functools
 import logging
+from typing import TYPE_CHECKING
 
 import matplotlib
 import matplotlib.font_manager as fm
 
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.text import Text
+
 logger = logging.getLogger(__name__)
+
+WESTERN_PRIMARY_FONT = "Times New Roman"
+CJK_PRIMARY_FONT = "SimSun"
 
 # 论文常用西文字体（优先 Times New Roman）
 WESTERN_FONT_CANDIDATES: list[str] = [
-    "Times New Roman",
+    WESTERN_PRIMARY_FONT,
+    "Liberation Serif",
     "DejaVu Serif",
     "serif",
 ]
 
 # 优先使用宋体，与 Times New Roman 风格更协调
 CJK_SERIF_CANDIDATES: list[str] = [
-    "SimSun",
+    CJK_PRIMARY_FONT,
     "Noto Serif SC",
     "STSong",
     "FangSong",
@@ -35,7 +44,14 @@ CJK_SANS_CANDIDATES: list[str] = [
     "sans-serif",
 ]
 
-__all__ = ["configure_style"]
+__all__ = [
+    "CJK_PRIMARY_FONT",
+    "WESTERN_PRIMARY_FONT",
+    "apply_axis_text_fonts",
+    "apply_text_font",
+    "configure_style",
+    "text_font_kwargs",
+]
 
 
 @functools.lru_cache(maxsize=1)
@@ -49,6 +65,55 @@ def _get_font_cache() -> dict[str, list[str]]:
     }
 
 
+def _dedupe_fonts(fonts: list[str]) -> list[str]:
+    result: list[str] = []
+    for font in fonts:
+        if font and font not in result:
+            result.append(font)
+    return result
+
+
+def _preferred_font_stack(
+    western_fonts: list[str],
+    cjk_serif_fonts: list[str],
+    cjk_sans_fonts: list[str],
+) -> list[str]:
+    return _dedupe_fonts([
+        WESTERN_PRIMARY_FONT,
+        CJK_PRIMARY_FONT,
+        *western_fonts,
+        *cjk_serif_fonts,
+        *cjk_sans_fonts,
+        "serif",
+    ])
+
+
+def _current_font_family() -> list[str]:
+    family = matplotlib.rcParams.get("font.family", [WESTERN_PRIMARY_FONT, CJK_PRIMARY_FONT])
+    if isinstance(family, str):
+        return [family]
+    return list(family)
+
+
+def text_font_kwargs(**kwargs: object) -> dict[str, object]:
+    """返回绘图文本统一使用的字体参数。"""
+    merged = {"fontfamily": _current_font_family()}
+    merged.update(kwargs)
+    return merged
+
+
+def apply_text_font(text: Text) -> Text:
+    """将单个 matplotlib 文本对象设置为统一字体族。"""
+    text.set_fontfamily(_current_font_family())
+    return text
+
+
+def apply_axis_text_fonts(ax: Axes) -> None:
+    """统一坐标轴刻度与网格标签字体。"""
+    for text in (*ax.get_xticklabels(), *ax.get_yticklabels()):
+        apply_text_font(text)
+
+
 def configure_style() -> None:
     """配置 matplotlib 全局样式以支持中文显示并符合论文规范（幂等）。"""
     cache = _get_font_cache()
@@ -56,23 +121,31 @@ def configure_style() -> None:
     available_cjk_sans = cache["cjk_sans"]
     available_western = cache["western"]
 
-    # 优先选择衬线体中文（与 Times New Roman 更协调）
-    primary_cjk = available_cjk_serif or available_cjk_sans
+    font_family_list = _preferred_font_stack(
+        available_western,
+        available_cjk_serif,
+        available_cjk_sans,
+    )
+    matplotlib.rcParams["font.family"] = font_family_list
+    matplotlib.rcParams["font.serif"] = font_family_list
+    matplotlib.rcParams["font.sans-serif"] = _dedupe_fonts([
+        CJK_PRIMARY_FONT,
+        *available_cjk_sans,
+        *available_cjk_serif,
+        "sans-serif",
+    ])
 
-    if primary_cjk:
-        # 将 font.family 直接设为列表，matplotlib 3.8+ 会按字符级别回退：
-        # TNR 有字形 → 英文/数字用 TNR，TNR 无字形 → 中文回退到 SimSun
-        #   中文 → 宋体，英文/数字 → Times New Roman
-        font_family_list = available_western + primary_cjk + ["serif"]
-        matplotlib.rcParams["font.family"] = font_family_list
-        logger.info("检测到中文主字体: %s (回退)", primary_cjk[0])
-    else:
-        existing = list(matplotlib.rcParams.get("font.sans-serif", ["sans-serif"]))
-        matplotlib.rcParams["font.sans-serif"] = existing
-        logger.warning(
-            "未检测到 CJK 字体，中文标题可能无法正常显示。"
-            "建议安装 Noto Serif CJK / SimSun / SimHei 等中文字体。"
-        )
+    if WESTERN_PRIMARY_FONT not in available_western:
+        logger.warning("未检测到 %s，英文和数字将使用可用衬线字体回退。", WESTERN_PRIMARY_FONT)
+    if CJK_PRIMARY_FONT not in available_cjk_serif:
+        logger.warning("未检测到 %s，中文将使用可用 CJK 字体回退。", CJK_PRIMARY_FONT)
+
+    # 数学文本中的英文、数字和单位显式使用 Times New Roman。
+    matplotlib.rcParams["mathtext.fontset"] = "custom"
+    matplotlib.rcParams["mathtext.rm"] = WESTERN_PRIMARY_FONT
+    matplotlib.rcParams["mathtext.it"] = f"{WESTERN_PRIMARY_FONT}:italic"
+    matplotlib.rcParams["mathtext.bf"] = f"{WESTERN_PRIMARY_FONT}:bold"
+    matplotlib.rcParams["mathtext.sf"] = WESTERN_PRIMARY_FONT
 
     # 论文常用全局设置
     matplotlib.rcParams["axes.unicode_minus"] = False

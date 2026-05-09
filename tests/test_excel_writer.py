@@ -1,7 +1,6 @@
 """单元测试：Excel 分区输出。"""
-from openpyxl import load_workbook
-
 import pytest
+from openpyxl import load_workbook
 
 from tests.conftest import make_trace
 from trace_pipeline.geology.statistics import TraceStatistics

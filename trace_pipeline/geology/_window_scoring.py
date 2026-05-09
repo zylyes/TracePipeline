@@ -10,8 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ._circle_window import _tangent_radius
-from ._geometry_utils import _EPS
-from ._stat_types import CircleWindowDiagnostic, TraceStatisticsConfig
+from ._stat_types import _EPS, CircleWindowDiagnostic, TraceStatisticsConfig
 from ._window_strategies import compute_circle_windows
 
 __all__: list[str] = []

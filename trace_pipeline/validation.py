@@ -6,15 +6,19 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, Callable
 
 __all__ = [
     "coerce_bool",
     "coerce_positive_float",
     "coerce_positive_int",
     "coerce_rose_bin_width",
+    "coerce_scalar_config_fields",
     "coerce_window_strategy",
 ]
+
+_ScalarHandler = Callable[[Any], Any]
 
 
 def coerce_bool(value: Any, name: str) -> bool:
@@ -71,3 +75,22 @@ def coerce_rose_bin_width(value: Any) -> float:
     if not (0 < width <= 180):
         raise ValueError("rose_bin_width 必须在 (0, 180] 范围内")
     return width
+
+
+_SCALAR_COERCIONS: Mapping[str, _ScalarHandler] = {
+    "export_rose_plot": lambda v: coerce_bool(v, "export_rose_plot"),
+    "rose_bin_width": coerce_rose_bin_width,
+    "rose_dpi": lambda v: coerce_positive_int(v, "rose_dpi"),
+    "trace_dpi": lambda v: coerce_positive_int(v, "trace_dpi"),
+    "rotated_trace_dpi": lambda v: coerce_positive_int(v, "rotated_trace_dpi"),
+    "tangent_window_count": lambda v: coerce_positive_int(v, "tangent_window_count"),
+    "window_strategy": coerce_window_strategy,
+    "auto_density_threshold": lambda v: coerce_positive_float(v, "auto_density_threshold"),
+}
+
+
+def coerce_scalar_config_fields(cfg: dict[str, Any]) -> None:
+    """就地规范化配置字典中的标量字段（供 config 与 RunConfig 共用）。"""
+    for key in _SCALAR_COERCIONS:
+        if key in cfg:
+            cfg[key] = _SCALAR_COERCIONS[key](cfg[key])

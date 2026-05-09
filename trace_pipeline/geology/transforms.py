@@ -15,7 +15,6 @@ import numpy as np
 from .angles import azimuth_to_cartesian_deg, fold_strike_angle
 
 __all__ = [
-    "local_points_to_global",
     "normalize_coordinates",
     "normalize_points_like_lines",
     "rotate_and_shift",

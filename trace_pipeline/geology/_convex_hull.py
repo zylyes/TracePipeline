@@ -5,9 +5,14 @@ import math
 
 import numpy as np
 
-from ._geometry_utils import _EPS, cross_2d
+from ._stat_types import _EPS
 
 __all__: list[str] = []
+
+
+def _cross_2d(a: np.ndarray, b: np.ndarray) -> float:
+    """二维向量叉积（标量值）。"""
+    return float(a[0] * b[1] - a[1] * b[0])
 
 
 def _convex_hull_area(local_segments: np.ndarray) -> float:
@@ -29,7 +34,7 @@ def _convex_hull_area(local_segments: np.ndarray) -> float:
     def build_half(iterable: np.ndarray) -> list[np.ndarray]:
         half: list[np.ndarray] = []
         for point in iterable:
-            while len(half) >= 2 and cross_2d(half[-1] - half[-2], point - half[-1]) <= _EPS:
+            while len(half) >= 2 and _cross_2d(half[-1] - half[-2], point - half[-1]) <= _EPS:
                 half.pop()
             half.append(point)
         return half

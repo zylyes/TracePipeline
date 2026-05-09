@@ -11,12 +11,10 @@ from trace_pipeline.geology._window_scoring import _select_window_diagnostics
 from trace_pipeline.geology.statistics import (
     CircleWindowDiagnostic,
     TraceStatisticsConfig,
+    _effective_trace_length_total,
+    _select_effective_area,
     compute_trace_statistics,
     format_statistics_box_lines,
-    _compute_window_equivalent_area,
-    _effective_trace_length_total,
-    _observed_trace_length_total,
-    _select_effective_area,
 )
 
 

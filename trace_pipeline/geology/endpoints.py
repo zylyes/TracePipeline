@@ -365,12 +365,6 @@ def compute_endpoints(
 
 
 __all__ = [
-    "COL_DIP",
-    "COL_HEADER_AZIMUTH", "COL_HEADER_COUNT",
-    "COL_HEADER_SCANLINE_LENGTH", "COL_HEADER_OUTCROP_AREA",
-    "COL_LEFT_LEN1", "COL_LEFT_LEN2",
-    "COL_RIGHT_LEN1", "COL_RIGHT_LEN2",
-    "COL_SHIFT_ALONG", "COL_SHIFT_ACROSS",
     "EndpointResult",
     "compute_endpoints",
 ]

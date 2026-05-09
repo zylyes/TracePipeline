@@ -19,9 +19,9 @@ import numpy as np
 from ..models import TraceData
 from ._circle_window import _classify_trace_types
 from ._convex_hull import _convex_hull_area
-from ._geometry_utils import _EPS
 from ._stat_format import format_statistics_box_lines
 from ._stat_types import (
+    _EPS,
     CircleWindowDiagnostic,
     TraceStatistics,
     TraceStatisticsConfig,

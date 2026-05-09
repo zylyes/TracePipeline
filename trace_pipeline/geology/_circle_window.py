@@ -5,8 +5,7 @@ import math
 
 import numpy as np
 
-from ._geometry_utils import _EPS
-from ._stat_types import CircleWindowDiagnostic, TraceStatisticsConfig
+from ._stat_types import _EPS, CircleWindowDiagnostic, TraceStatisticsConfig
 
 __all__: list[str] = []
 

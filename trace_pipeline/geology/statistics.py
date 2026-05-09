@@ -18,7 +18,7 @@ import numpy as np
 
 from ..models import TraceData
 from ._circle_window import _classify_trace_types
-from ._convex_hull import _convex_hull_area
+from ._convex_hull import _convex_hull_area, _is_hull_geometrically_valid
 from ._stat_format import format_statistics_box_lines
 from ._stat_types import (
     _EPS,
@@ -88,17 +88,6 @@ def _compute_window_equivalent_area(trace_count: int, window_p20: float) -> floa
     if trace_count > 0 and math.isfinite(window_p20) and window_p20 > _EPS:
         return trace_count / window_p20
     return math.nan
-
-
-def _is_hull_geometrically_valid(local_segments: np.ndarray, hull_area: float) -> bool:
-    """检查凸包几何质量：点数足够、非退化、面积有限。"""
-    if not (math.isfinite(hull_area) and hull_area > _EPS):
-        return False
-    points = np.asarray(local_segments, dtype=float).reshape(-1, 2)
-    if points.shape[0] < 3 or not np.isfinite(points).all():
-        return False
-    unique = np.unique(points, axis=0)
-    return unique.shape[0] >= 3
 
 
 def _select_effective_area(
@@ -289,14 +278,18 @@ def compute_trace_statistics(
                 )
 
     logger.debug(
-        "统计来源: 策略=%s, 测线长度=%s, 露头面积=%s, 面积来源=%s, 平均迹长=%s, "
-        "P20=%s, P21=%s, 圆窗等效面积=%s, 校验告警=%s",
+        "统计来源: 策略=%s, 测线长度=%.3f(来源=%s), 露头面积=%.3f(来源=%s), 平均迹长=%.3f(来源=%s), "
+        "P20=%.4f(来源=%s), P21=%.4f(来源=%s), 圆窗等效面积=%.3f, 校验告警=%s",
         selected_strategy,
+        scanline_length,
         scanline_length_source,
+        effective_area,
         area_source,
-        area_source,
+        mean_trace_length,
         trace_length_source,
+        p20,
         p20_source,
+        p21,
         p21_source,
         window_equivalent_area,
         window_validation_warning,

@@ -60,8 +60,11 @@ def dip_to_strike(dip_deg: np.ndarray) -> np.ndarray:
     dd = np.asarray(dip_deg, dtype=float)
     res = np.full_like(dd, np.nan, dtype=float)
 
+    # dd ≥ 270°: 走向 = dd − 270°（第四象限倾向逆推）
     mask_ge270 = dd >= 270.0
+    # 90° ≤ dd < 270°: 走向 = dd − 90°（第二/三象限）
     mask_mid = (dd >= 90.0) & (dd < 270.0)
+    # dd < 90°: 走向 = dd + 90°（第一象限）
     mask_lt90 = dd < 90.0
 
     res[mask_ge270] = dd[mask_ge270] - 270.0
@@ -148,7 +151,8 @@ def fold_to_halfplane(
         in_half = (base - 180.0 < targets) & (targets < base)
 
     adjusted = np.where(in_half ^ invert, targets, targets + 180.0)
-    return np.radians(np.mod(adjusted, 360.0))
+    result: np.ndarray = np.radians(np.mod(adjusted, 360.0))
+    return result
 
 
 # ===========================================================================
@@ -169,4 +173,4 @@ def fold_strikes_to_semicircle(strike_deg: np.ndarray) -> np.ndarray:
     """
     folded = np.mod(np.asarray(strike_deg, dtype=float), 180.0)
     folded[np.isclose(folded, 180.0)] = 0.0
-    return folded
+    return folded  # type: ignore[no-any-return]

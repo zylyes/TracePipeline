@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import logging
 import math
-from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,17 +30,27 @@ _WEIGHT_RADIUS = 1.00
 _WEIGHT_SUFFICIENCY = 1.10
 
 
+def _group_valid_values_by_key(
+    diagnostics: Sequence[CircleWindowDiagnostic],
+    attr: str,
+) -> dict[str, list[float]]:
+    """按 group_key 分组收集有效诊断窗口的指标值。"""
+    grouped: dict[str, list[float]] = {}
+    for diagnostic in diagnostics:
+        if not diagnostic.valid:
+            continue
+        value = float(getattr(diagnostic, attr))
+        if math.isfinite(value):
+            grouped.setdefault(diagnostic.group_key, []).append(value)
+    return grouped
+
+
 def _aggregate_window_metric(
     diagnostics: Sequence[CircleWindowDiagnostic],
     attr: str,
 ) -> float:
     """按分组聚合诊断窗口的指标均值。"""
-    grouped: Mapping[str, list[float]] = defaultdict(list)
-    for diagnostic in diagnostics:
-        if diagnostic.valid:
-            value = float(getattr(diagnostic, attr))
-            if math.isfinite(value):
-                grouped[diagnostic.group_key].append(value)
+    grouped = _group_valid_values_by_key(diagnostics, attr)
     if not grouped:
         return math.nan
 
@@ -57,13 +66,7 @@ def _valid_group_metric_values(
     diagnostics: Sequence[CircleWindowDiagnostic],
     attr: str,
 ) -> list[float]:
-    grouped: Mapping[str, list[float]] = defaultdict(list)
-    for diagnostic in diagnostics:
-        if not diagnostic.valid:
-            continue
-        value = float(getattr(diagnostic, attr))
-        if math.isfinite(value):
-            grouped[diagnostic.group_key].append(value)
+    grouped = _group_valid_values_by_key(diagnostics, attr)
     return [float(np.mean(values)) for values in grouped.values() if values]
 
 

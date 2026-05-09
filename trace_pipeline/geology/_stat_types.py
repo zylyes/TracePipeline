@@ -5,7 +5,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-__all__ = ["CircleWindowDiagnostic", "TraceStatistics", "TraceStatisticsConfig", "_EPS"]
+__all__ = ["CircleWindowDiagnostic", "TraceStatistics", "TraceStatisticsConfig"]
 
 _EPS = 1e-9
 
@@ -61,18 +61,18 @@ class CircleWindowDiagnostic:
     center_y: float
     radius: float
     intersection_count: int
-    n0: int
-    n1: int
-    n2: int
-    m: int
-    q: int
+    n0: int  # 两端点均在圆外的相交迹线数
+    n1: int  # 一端在圆内的相交迹线数
+    n2: int  # 两端均在圆内的相交迹线数
+    m: int   # m = n1 + 2*n2
+    q: int   # q = 2*n0 + n1
     p20: float
     p21: float
     l_est: float
     strategy: str
     group_key: str
     valid: bool
-    reason: str = ""
+    invalid_reason: str = ""
 
 
 @dataclass(frozen=True)

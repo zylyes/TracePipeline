@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from ..geology.angles import fold_strikes_to_semicircle
 from ._helpers import new_figure, save_figure
 from .style import apply_axis_text_fonts, configure_style, text_font_kwargs
+
+if TYPE_CHECKING:
+    from matplotlib.projections.polar import PolarAxes
 
 __all__ = ["render_rose_plot"]
 
@@ -34,9 +38,9 @@ def _compute_rose_histogram(
 
     edges = np.arange(0.0, 180.0, bin_width, dtype=float)
     if edges.size == 0 or not np.isclose(edges[0], 0.0):
-        edges = np.insert(edges, 0, 0.0)
+        edges = np.insert(edges, 0, 0.0)  # type: ignore[assignment]
     if not np.isclose(edges[-1], 180.0):
-        edges = np.append(edges, 180.0)
+        edges = np.append(edges, 180.0)  # type: ignore[assignment]
 
     counts, _ = np.histogram(folded, bins=edges)
     centers = (edges[:-1] + edges[1:]) / 2.0
@@ -63,47 +67,48 @@ def render_rose_plot(
         输出文件的完整路径。
     """
     configure_style()
-    theta, radii, width = _compute_rose_histogram(strike_deg, bin_width=bin_width)
+    theta, radii, bar_widths = _compute_rose_histogram(strike_deg, bin_width=bin_width)
 
     fig, ax = new_figure(
         figsize_cm, dpi=dpi,
         subplot_kw={"projection": "polar"},
     )
-    ax.set_facecolor("white")
-    ax.set_theta_zero_location("N")
-    ax.set_theta_direction(-1)
+    polar_ax: PolarAxes = ax  # type: ignore[assignment]
+    polar_ax.set_facecolor("white")
+    polar_ax.set_theta_zero_location("N")
+    polar_ax.set_theta_direction(-1)
 
     # 外圈角度标签：每 30° 一格，字号适中
-    ax.set_thetagrids(np.arange(0, 360, 30), fontsize=10)
+    polar_ax.set_thetagrids(np.arange(0, 360, 30), fontsize=10)
 
     # 径向网格线与标签
-    ax.grid(
+    polar_ax.grid(
         color=_ROSE_GRID_COLOR, alpha=0.6,
         linewidth=0.6, linestyle="-",
     )
 
     if radii.size:
-        ax.bar(
+        polar_ax.bar(
             theta, radii,
-            width=width, bottom=0.0,
+            width=bar_widths, bottom=0.0,
             color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
             linewidth=0.6, alpha=0.75, align="center",
         )
         rmax = max(1, math.ceil(radii.max()))
-        ax.set_ylim(0, rmax)
+        polar_ax.set_ylim(0, rmax)
         # 设置径向刻度标签
         rticks = np.arange(0, rmax + 1, max(1, rmax // 5))
-        ax.set_rticks(rticks)
-        ax.set_rlabel_position(45)
-        ax.tick_params(axis="y", labelsize=9)
+        polar_ax.set_rticks(rticks)
+        polar_ax.set_rlabel_position(45)
+        polar_ax.tick_params(axis="y", labelsize=9)
     else:
-        ax.set_ylim(0, 1)
-        ax.set_rticks([0, 1])
+        polar_ax.set_ylim(0, 1)
+        polar_ax.set_rticks([0, 1])
 
     # 极坐标外圈边框
-    ax.spines["polar"].set_linewidth(0.8)
-    ax.spines["polar"].set_color("black")
+    polar_ax.spines["polar"].set_linewidth(0.8)
+    polar_ax.spines["polar"].set_color("black")
 
-    apply_axis_text_fonts(ax)
-    ax.set_title(title, pad=20, **text_font_kwargs(fontsize=14, fontweight="bold"))
+    apply_axis_text_fonts(polar_ax)
+    polar_ax.set_title(title, pad=20, **text_font_kwargs(fontsize=14, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi)

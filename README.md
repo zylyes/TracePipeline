@@ -47,10 +47,10 @@
 │   │   ├── _stat_types.py              #   └─ 统计数据类（TraceStatistics 等）
 │   │   ├── _stat_format.py             #   └─ LaTeX 统计信息框格式化
 │   │   ├── _circle_window.py           #   └─ 圆窗计数 + I/II/III 型分类
-│   │   ├── _convex_hull.py             #   └─ 凸包面积（Andrew 单调链算法）
+│   │   ├── _convex_hull.py             #   └─ 凸包面积（Andrew 单调链算法）+ 几何工具
 │   │   ├── _window_strategies.py       #   └─ tangent/hybrid/concentric 策略
 │   │   ├── _window_scoring.py          #   └─ 6 因子加权评分与策略自动选择
-│   │   └── _geometry_utils.py          #   └─ 几何常量与工具函数
+│   │   └── _stat_format.py             #   └─ LaTeX 统计信息框格式化
 │   │
 │   ├── io/                             # I/O 层
 │   │   ├── __init__.py                 # 子包导出（含 TraceFile、ExcelLayout）
@@ -109,7 +109,7 @@ graph TD
 | **向量化优先** | NumPy 广播 + 复数运算替代 `for` 循环；布尔 mask 索引替代多级 `if-else` |
 | **惰性导入** | `__init__.py` 通过 `__getattr__` 延迟加载 matplotlib 依赖，`import trace_pipeline` 不触发绘图初始化 |
 | **实测优先三级回退** | P10/P20/P21 各有独立回退链（measured -> window -> hull），全链路来源标注 (M)/(W)/(E) |
-| **私有模块拆分** | `statistics.py` 作为编排层，委托 7 个 `_*.py` 单一职责模块（`_stat_types`、`_stat_format`、`_circle_window`、`_convex_hull`、`_window_strategies`、`_window_scoring`、`_geometry_utils`），每个模块 50-300 行 |
+| **私有模块拆分** | `statistics.py` 作为编排层，委托 6 个 `_*.py` 单一职责模块（`_stat_types`、`_stat_format`、`_circle_window`、`_convex_hull`、`_window_strategies`、`_window_scoring`），每个模块 50-300 行；浮点容差 `_EPS` 定义于 `_stat_types.py`，几何工具 `cross_2d` 定义于 `_convex_hull.py` |
 
 ---
 
@@ -335,13 +335,12 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 
 | 模块 | 职责 | 关键函数/类 |
 |------|------|------------|
-| `_stat_types.py` | 统计数据类定义 | `TraceStatistics`, `TraceStatisticsConfig`, `CircleWindowDiagnostic` |
+| `_stat_types.py` | 统计数据类定义 + 浮点容差 | `TraceStatistics`, `TraceStatisticsConfig`, `CircleWindowDiagnostic`, `_EPS` |
 | `_circle_window.py` | 圆窗计数与 I/II/III 型分类 | `classify_trace_types`, `_count_circle_window` |
-| `_convex_hull.py` | 凸包面积估算 | `convex_hull_area`（Andrew 单调链算法 + Shoelace 公式） |
+| `_convex_hull.py` | 凸包面积 + 几何工具函数 | `convex_hull_area`（Andrew 单调链）, `cross_2d` |
 | `_window_strategies.py` | 三种圆窗策略实现 | `compute_circle_windows`（调度 tangent/hybrid/concentric） |
 | `_window_scoring.py` | auto 策略 6 因子评分与选择 | `select_window_diagnostics`, `aggregate_window_metric` |
 | `_stat_format.py` | LaTeX 统计信息框文本 | `format_statistics_box_lines`（10 行指标，含来源标注） |
-| `_geometry_utils.py` | 几何常量与工具 | `cross_2d`, `_EPS`（浮点容差 1e-9） |
 
 此外，`plotting/_helpers.py` 提供 `new_figure`（cm->inch 转换）与 `save_figure`（保存+关闭）工具函数。
 

@@ -96,57 +96,64 @@ def segments_to_xy(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     NaN 作为线段间分隔符，使 matplotlib 的 line plot 自动断开各线段。
     """
-    arr = np.asarray(segments, dtype=float)
-    if arr.ndim != 2 or arr.shape[1] != 4:
-        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {arr.shape}")
-    n = arr.shape[0]
-    if n == 0:
+    seg_arr = np.asarray(segments, dtype=float)
+    if seg_arr.ndim != 2 or seg_arr.shape[1] != 4:
+        raise ValueError(f"segments 必须为 (N,4) 形状，当前 {seg_arr.shape}")
+    n_segments = seg_arr.shape[0]
+    if n_segments == 0:
         return np.array([]), np.array([])
 
-    x_values = np.column_stack([arr[:, 0], arr[:, 2], np.full((n,), np.nan)]).ravel()
-    y_values = np.column_stack([arr[:, 1], arr[:, 3], np.full((n,), np.nan)]).ravel()
+    x_values = np.column_stack([seg_arr[:, 0], seg_arr[:, 2], np.full((n_segments,), np.nan)]).ravel()
+    y_values = np.column_stack([seg_arr[:, 1], seg_arr[:, 3], np.full((n_segments,), np.nan)]).ravel()
     return x_values, y_values
+
+
+def _valid_circles(
+    circle_windows: Sequence[CircleWindowOverlay] | None,
+) -> list[CircleWindowOverlay]:
+    """返回几何有效的圆窗列表（有限坐标且正半径）。"""
+    return [
+        cw for cw in (circle_windows or ())
+        if all(math.isfinite(v) for v in (cw.center_x, cw.center_y, cw.radius)) and cw.radius > 0.0
+    ]
+
+
+def _circle_extents(circles: list[CircleWindowOverlay]) -> tuple[np.ndarray, np.ndarray]:
+    """计算所有有效圆窗的 x/y 坐标极值（圆心 ± 半径）。"""
+    if not circles:
+        return np.array([], dtype=float), np.array([], dtype=float)
+    circle_xs = np.array(
+        [x for c in circles for x in (c.center_x - c.radius, c.center_x + c.radius)],
+        dtype=float,
+    )
+    circle_ys = np.array(
+        [y for c in circles for y in (c.center_y - c.radius, c.center_y + c.radius)],
+        dtype=float,
+    )
+    return circle_xs, circle_ys
 
 
 def _data_bounds(
     segments: np.ndarray,
     circle_windows: Sequence[CircleWindowOverlay] | None = None,
 ) -> tuple[float, float, float, float]:
-    circles = [
-        cw for cw in (circle_windows or ())
-        if all(math.isfinite(v) for v in (cw.center_x, cw.center_y, cw.radius)) and cw.radius > 0.0
-    ]
+    circles = _valid_circles(circle_windows)
+    circle_xs, circle_ys = _circle_extents(circles)
     if segments.size == 0:
         if not circles:
             return 0.0, 1.0, 0.0, 1.0
-        circle_xs = np.array(
-            [x for circle in circles for x in (circle.center_x - circle.radius, circle.center_x + circle.radius)],
-            dtype=float,
-        )
-        circle_ys = np.array(
-            [y for circle in circles for y in (circle.center_y - circle.radius, circle.center_y + circle.radius)],
-            dtype=float,
-        )
         return float(circle_xs.min()), float(circle_xs.max()), float(circle_ys.min()), float(circle_ys.max())
 
-    xs = segments[:, [0, 2]].ravel()
-    ys = segments[:, [1, 3]].ravel()
-    if not np.isfinite(xs).all() or not np.isfinite(ys).all():
+    seg_xs = segments[:, [0, 2]].ravel()
+    seg_ys = segments[:, [1, 3]].ravel()
+    if not np.isfinite(seg_xs).all() or not np.isfinite(seg_ys).all():
         raise ValueError("segments 包含 NaN 或 inf，无法绘制迹线图")
 
     if circles:
-        circle_xs = np.array(
-            [x for circle in circles for x in (circle.center_x - circle.radius, circle.center_x + circle.radius)],
-            dtype=float,
-        )
-        circle_ys = np.array(
-            [y for circle in circles for y in (circle.center_y - circle.radius, circle.center_y + circle.radius)],
-            dtype=float,
-        )
-        xs = np.concatenate([xs, circle_xs])
-        ys = np.concatenate([ys, circle_ys])
+        seg_xs = np.concatenate([seg_xs, circle_xs])
+        seg_ys = np.concatenate([seg_ys, circle_ys])
 
-    return float(xs.min()), float(xs.max()), float(ys.min()), float(ys.max())
+    return float(seg_xs.min()), float(seg_xs.max()), float(seg_ys.min()), float(seg_ys.max())
 
 
 def _format_scale_label(length: float) -> str:
@@ -513,12 +520,9 @@ def _add_statistics_box(
 
 def _add_circle_window_overlays(
     ax: plt.Axes,
-    circle_windows: Sequence[CircleWindowOverlay] | None,
+    valid_circles: list[CircleWindowOverlay],
 ) -> None:
-    for circle in (circle_windows or ()):
-        if not (math.isfinite(circle.center_x) and math.isfinite(circle.center_y)
-                and math.isfinite(circle.radius) and circle.radius > 0.0):
-            continue
+    for circle in valid_circles:
         patch = Circle(
             (circle.center_x, circle.center_y),
             circle.radius,
@@ -549,6 +553,7 @@ def render_trace_plot(
     """
     configure_style()
     arr = np.asarray(segments, dtype=float)
+    valid_circles = _valid_circles(circle_windows)
     x_plot, y_plot = segments_to_xy(arr)
     has_annotation_panel = bool(statistics_lines)
     layout = _build_decoration_layout(
@@ -558,7 +563,7 @@ def render_trace_plot(
     )
     fig, ax = new_figure(figsize_cm, dpi=dpi)
     ax.plot(x_plot, y_plot, "-", color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH)
-    _add_circle_window_overlays(ax, circle_windows)
+    _add_circle_window_overlays(ax, valid_circles)
     _style_trace_axes(ax)
     _apply_decoration_limits(ax, layout)
     if has_annotation_panel:

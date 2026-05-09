@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["load_trace_data", "run_pipeline"]
 
 
-def _circle_window_overlays_for_raw_plot(
+def _raw_circle_overlays(
     trace: TraceData,
     statistics: TraceStatistics,
 ) -> tuple[CircleWindowOverlay, ...]:
@@ -58,7 +58,7 @@ def _circle_window_overlays_for_raw_plot(
     )
 
 
-def _circle_window_overlays_for_rotated_plot(
+def _rotated_circle_overlays(
     trace: TraceData,
     raw_overlays: tuple[CircleWindowOverlay, ...],
 ) -> tuple[CircleWindowOverlay, ...]:
@@ -129,8 +129,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         )
         statistics = compute_trace_statistics(trace, statistics_config)
         statistics_lines = format_statistics_box_lines(statistics)
-        raw_circle_windows = _circle_window_overlays_for_raw_plot(trace, statistics)
-        rotated_circle_windows = _circle_window_overlays_for_rotated_plot(trace, raw_circle_windows)
+        raw_circle_windows = _raw_circle_overlays(trace, statistics)
+        rotated_circle_windows = _rotated_circle_overlays(trace, raw_circle_windows)
 
         # ---- 3. 导出 Excel ----
         output_dir = Path(cfg.output_dir)

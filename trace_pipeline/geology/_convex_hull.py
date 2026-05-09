@@ -7,10 +7,10 @@ import numpy as np
 
 from ._geometry_utils import _EPS, cross_2d
 
-__all__ = ["convex_hull_area"]
+__all__: list[str] = []
 
 
-def convex_hull_area(local_segments: np.ndarray) -> float:
+def _convex_hull_area(local_segments: np.ndarray) -> float:
     """返回端点凸包面积；点数不足或共线时返回 NaN。"""
     if local_segments.size == 0:
         return math.nan

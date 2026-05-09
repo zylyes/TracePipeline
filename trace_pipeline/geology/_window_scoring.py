@@ -14,10 +14,7 @@ from ._geometry_utils import _EPS
 from ._stat_types import CircleWindowDiagnostic, TraceStatisticsConfig
 from ._window_strategies import compute_circle_windows
 
-__all__ = [
-    "aggregate_window_metric",
-    "select_window_diagnostics",
-]
+__all__: list[str] = []
 
 logger = logging.getLogger(__name__)
 _WINDOW_STRATEGIES = ("tangent", "hybrid", "concentric")
@@ -35,7 +32,7 @@ _WEIGHT_RADIUS = 1.00
 _WEIGHT_SUFFICIENCY = 1.10
 
 
-def aggregate_window_metric(
+def _aggregate_window_metric(
     diagnostics: Sequence[CircleWindowDiagnostic],
     attr: str,
 ) -> float:
@@ -247,7 +244,7 @@ def _density_preferred_strategy(
     return "concentric"
 
 
-def select_window_diagnostics(
+def _select_window_diagnostics(
     local_segments: np.ndarray,
     scanline_length: float,
     trace_count: int,

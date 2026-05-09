@@ -1,6 +1,8 @@
 """单元测试：Excel 分区输出。"""
 from openpyxl import load_workbook
 
+import pytest
+
 from tests.conftest import make_trace
 from trace_pipeline.geology.statistics import TraceStatistics
 from trace_pipeline.io.excel_writer import build_excel_sections, write_excel_sections
@@ -73,7 +75,7 @@ def test_write_excel_sections_transposes_summary_and_merges_units(tmp_path):
     assert ws["C2"].value == "平均迹长"
     assert ws["C3"].value == "5.5 m"
     assert ws["D2"].value == "露头面积"
-    assert ws["D3"].value == "20 m²"
+    assert ws["D3"].value == "20 m² (M)"
     assert ws["G2"].value == "迹线数量"
     assert ws["G3"].value == "2"
     assert "单位" not in _summary_values(ws)
@@ -84,8 +86,8 @@ def test_write_excel_sections_uses_unicode_subscripts_and_superscripts(tmp_path)
     summary = _summary_values(ws)
 
     assert summary["线密度(P₁₀)"] == "0.2 m⁻¹"
-    assert summary["面密度(P₂₀)"] == "0.1 m⁻²"
-    assert summary["面累计长度密度(P₂₁)"] == "0.55 m⁻¹"
+    assert summary["面密度(P₂₀)"] == "0.1 m⁻² (M)"
+    assert summary["面累计长度密度(P₂₁)"] == "0.55 m⁻¹ (W)"
     assert summary["有效取样窗数量"] == "0"
     for removed in (
         "总裂隙数",
@@ -116,7 +118,8 @@ def test_write_excel_sections_uses_compact_gap_columns_and_section_widths(tmp_pa
     assert ws.column_dimensions["K"].width == 3
     assert ws.column_dimensions["L"].width == 3
     assert ws.column_dimensions["M"].width == 12
-    assert ws.column_dimensions["N"].width == 12
+    # N 列面密度值含来源标注 (M)，宽度由内容动态决定
+    assert ws.column_dimensions["N"].width == pytest.approx(14.1, abs=0.5)
     assert ws.column_dimensions["O"].width == 16
     assert ws.column_dimensions["P"].width == 12
 

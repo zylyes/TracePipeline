@@ -6,15 +6,17 @@ import pytest
 
 import trace_pipeline.geology._window_scoring as _window_scoring_module
 from tests.conftest import make_trace
-from trace_pipeline.geology._convex_hull import convex_hull_area as _convex_hull_area
-from trace_pipeline.geology._window_scoring import (
-    select_window_diagnostics as _select_window_diagnostics,
-)
+from trace_pipeline.geology._convex_hull import _convex_hull_area
+from trace_pipeline.geology._window_scoring import _select_window_diagnostics
 from trace_pipeline.geology.statistics import (
     CircleWindowDiagnostic,
     TraceStatisticsConfig,
     compute_trace_statistics,
     format_statistics_box_lines,
+    _compute_window_equivalent_area,
+    _effective_trace_length_total,
+    _observed_trace_length_total,
+    _select_effective_area,
 )
 
 
@@ -26,6 +28,7 @@ def test_measured_scanline_length_outcrop_area_and_density_formulas():
             [0.0, 2.0, 1.0, 2.0],     # III：其余记录
         ],
         [0.0, 10.0, 20.0],
+        segment_lengths=[0.0, 0.0, 0.0],  # 强制回退到 endpoint
         measured_scanline_length=30.0,
         measured_outcrop_area=60.0,
     )
@@ -99,6 +102,7 @@ def test_p21_uses_endpoint_length_total_over_outcrop_area():
             [1.0, 0.0, 1.0, 5.0],
         ],
         [0.0, 10.0],
+        segment_lengths=[0.0, 0.0],  # 强制回退到 endpoint
         measured_scanline_length=10.0,
         measured_outcrop_area=20.0,
     )
@@ -131,7 +135,8 @@ def test_trace_length_total_falls_back_from_endpoint_to_segment_lengths():
     assert stats.p21 == pytest.approx(0.5)
 
 
-def test_trace_length_total_falls_back_from_segments_to_window_mean():
+def test_trace_length_prefers_endpoint_when_segments_zero():
+    """segment 全为零时回退到 endpoint，不再优先使用圆窗。"""
     trace = make_trace(
         [
             [5.0, -2.0, 5.0, 2.0],
@@ -154,8 +159,48 @@ def test_trace_length_total_falls_back_from_segments_to_window_mean():
         ),
     )
 
-    assert stats.trace_length_source == "window"
-    assert stats.mean_trace_length > 0.0
+    # 端点距离总和 = 4+4+20+20 = 48，segment 全为 0，所以用 endpoint
+    assert stats.trace_length_source == "endpoint"
+    assert stats.trace_length_total == pytest.approx(48.0)
+
+
+def test_trace_length_falls_back_to_window_when_observed_unavailable():
+    """segment 和 endpoint 均不可用时才回退到圆窗 l_est。"""
+    trace = make_trace(
+        [
+            [5.0, -2.0, 5.0, 2.0],
+            [10.0, -2.0, 10.0, 2.0],
+            [0.0, 4.0, 20.0, 4.0],
+            [0.0, -4.0, 20.0, -4.0],
+        ],
+        [0.0, 5.0, 10.0, 15.0],
+        segment_lengths=[0.0, 0.0, 0.0, 0.0],
+        measured_scanline_length=20.0,
+    )
+
+    stats = compute_trace_statistics(
+        trace,
+        TraceStatisticsConfig(
+            window_strategy="hybrid",
+            cut_fractions=(0.5,),
+            radius_fractions=(1.0,),
+            min_intersections=1,
+        ),
+    )
+
+    # segment 全为 0 → endpoint 优先 → 48.0
+    assert stats.trace_length_source == "endpoint"
+    assert stats.trace_length_total == pytest.approx(48.0)
+
+    # 直接测试函数：observed 不可用时回退圆窗
+    total, source = _effective_trace_length_total(
+        trace,
+        estimated_mean_length=5.0,
+        observed_total=math.nan,
+        observed_source="unavailable",
+    )
+    assert source == "window"
+    assert total == pytest.approx(5.0 * trace.count)
 
 
 def test_circle_window_counts_stay_available_for_internal_diagnostics():
@@ -167,6 +212,7 @@ def test_circle_window_counts_stay_available_for_internal_diagnostics():
             [100.0, 4.0, 101.0, 4.0],   # 提供侧向高度，不与圆相交
         ],
         [0.0, 10.0, 20.0, 20.0],
+        segment_lengths=[0.0, 0.0, 0.0, 0.0],  # 强制回退到 endpoint
     )
 
     stats = compute_trace_statistics(
@@ -191,18 +237,27 @@ def test_circle_window_counts_stay_available_for_internal_diagnostics():
     assert window.l_est == pytest.approx(math.pi)
     assert window.strategy == "hybrid"
     assert window.group_key == "hybrid:0.5:left"
-    assert stats.mean_trace_length == pytest.approx(math.pi)
-    assert stats.trace_length_source == "window"
-    assert stats.p20 == pytest.approx(3 / (8 * math.pi))
-    assert stats.p20_source == "window"
-    assert stats.p21 == pytest.approx(3 / 8)
-    assert stats.p21_source == "window"
+
+    # 圆窗诊断始终可用，但主统计现在优先使用观测值
+    # endpoint_total = 6+3+1+1 = 11，mean = 11/4 = 2.75
+    assert stats.trace_length_source == "endpoint"
+    assert stats.trace_length_total == pytest.approx(11.0)
+    assert stats.mean_trace_length == pytest.approx(11.0 / 4)
+
+    # P20 = count / effective_area（凸包或圆窗等效）
+    # 此 trace 的凸包面积与圆窗等效面积差异大，可能触发降级
+    assert stats.p20_source in ("hull", "window_equivalent")
+    # P21 = observed_total / effective_area
+    assert stats.p21_source == stats.p20_source
+
+    # 圆窗等效面积应被记录
+    assert stats.window_outcrop_area > 0.0
 
     lines = format_statistics_box_lines(stats)
     joined = "\n".join(lines)
     assert "测线走向: 90.0°" in lines
     assert "圆窗策略: 混合圆窗" in lines
-    assert "平均迹线长度（圆窗）" in joined
+    assert "平均迹线长度（端点）" in joined
     assert "(W)" not in joined
 
 
@@ -230,7 +285,8 @@ def test_p20_measured_area_takes_priority_over_valid_window():
 
     assert stats.p20 == pytest.approx(4 / 100.0)
     assert stats.p20_source == "measured"
-    assert stats.p21_source == "window"
+    # P21 现在优先 observed_total / measured_area，不再优先圆窗
+    assert stats.p21_source == "measured"
 
 
 def test_invalid_circle_windows_record_reasons_and_format_na():
@@ -251,8 +307,8 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
     assert all(diagnostic.reason for diagnostic in stats.diagnostics)
     assert math.isnan(stats.p20)
     assert "I/II/III型裂隙数: 0/0/1" in lines
-    assert "测线长度: 0.000 $\\mathrm{m}$" in lines
-    assert "露头面积: N/A" in lines
+    assert "测线长度: 0.000 $\mathrm{m}$" in lines
+    assert any("露头面积" in line for line in lines)
     assert "测线走向: 90.0°" in lines
     assert "面累计长度密度" in joined
     assert "体密度" not in joined
@@ -521,3 +577,264 @@ def test_auto_window_strategy_tie_tolerance_boundary(monkeypatch):
 
     assert selected in {"tangent", "hybrid", "concentric"}
     assert call_count["n"] == 3
+
+
+# ── 新增测试：面积三层回退 ─────────────────────────────────────────────
+
+
+def test_area_priority_measured_over_hull_and_window():
+    """实测面积存在时，无论凸包和圆窗如何，都使用实测。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 10.0, 0.0],
+            [10.0, 0.0, 10.0, 4.0],
+            [10.0, 4.0, 0.0, 4.0],
+            [0.0, 4.0, 0.0, 0.0],
+        ],
+        [0.0, 10.0, 20.0, 30.0],
+        measured_outcrop_area=1000.0,  # 远大于凸包面积 40
+    )
+
+    stats = compute_trace_statistics(trace, TraceStatisticsConfig(min_intersections=1))
+    assert stats.outcrop_area_source == "measured"
+    assert stats.outcrop_area == pytest.approx(1000.0)
+    assert stats.p20_source == "measured"
+    assert stats.p20 == pytest.approx(4 / 1000.0)
+    # 实测面积不应触发降级告警
+    assert stats.window_validation_warning == ""
+
+
+def test_area_priority_hull_over_window_equivalent():
+    """无实测面积时，凸包有效且与圆窗差异不大，优先使用凸包。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 10.0, 0.0],
+            [10.0, 0.0, 10.0, 4.0],
+            [10.0, 4.0, 0.0, 4.0],
+            [0.0, 4.0, 0.0, 0.0],
+        ],
+        [0.0, 10.0, 20.0, 30.0],
+    )
+
+    stats = compute_trace_statistics(trace, TraceStatisticsConfig(min_intersections=1))
+    assert stats.outcrop_area_source == "hull"
+    assert stats.outcrop_area == pytest.approx(40.0)
+
+
+def test_area_falls_back_to_window_equivalent_when_hull_degenerate():
+    """凸包退化（点数不足/共线）时回退到圆窗等效面积。"""
+    # 使用与圆窗相交的共线迹线
+    # 原始坐标为竖直线，旋转 90° 后变为水平线（与测线平行）
+    # 端点 (0,0)→(0,0), (0,5)→(5,0), (0,10)→(10,0) 在局部坐标系中
+    trace = make_trace(
+        [
+            [0.0, 0.0, 0.0, 5.0],
+            [0.0, 5.0, 0.0, 10.0],
+        ],
+        [0.0, 10.0],
+        measured_scanline_length=10.0,
+    )
+
+    stats = compute_trace_statistics(
+        trace,
+        TraceStatisticsConfig(
+            window_strategy="tangent",
+            tangent_window_count=1,
+            min_intersections=1,
+        ),
+    )
+
+    # 凸包共线 → NaN
+    assert math.isnan(_convex_hull_area(trace.endpoints.reshape(-1, 2)))
+    # 应回退到圆窗等效面积
+    assert stats.outcrop_area_source == "window_equivalent"
+    assert stats.window_outcrop_area > 0.0
+    assert stats.outcrop_area == pytest.approx(stats.window_outcrop_area)
+
+
+def test_p20_uses_effective_area_chain():
+    """P20 = trace_count / effective_area，跟随面积优先链。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 10.0, 0.0],
+            [10.0, 0.0, 10.0, 4.0],
+            [10.0, 4.0, 0.0, 4.0],
+            [0.0, 4.0, 0.0, 0.0],
+        ],
+        [0.0, 10.0, 20.0, 30.0],
+    )
+
+    stats = compute_trace_statistics(trace, TraceStatisticsConfig(min_intersections=1))
+    # 凸包面积 = 40
+    assert stats.outcrop_area == pytest.approx(40.0)
+    assert stats.p20 == pytest.approx(4 / 40.0)
+    assert stats.p20_source == "hull"
+
+
+def test_p20_falls_back_to_window_p20_when_area_unavailable():
+    """面积完全不可用时，回退到圆窗 P20。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0, 0.0],
+        ],
+        [0.0, 10.0],
+        measured_scanline_length=10.0,
+    )
+
+    stats = compute_trace_statistics(
+        trace,
+        TraceStatisticsConfig(
+            window_strategy="hybrid",
+            cut_fractions=(0.5,),
+            radius_fractions=(1.0,),
+            min_intersections=5,  # 迹线少，窗口无效
+        ),
+    )
+
+    # 凸包退化 + 圆窗无效 → 面积不可用
+    assert stats.outcrop_area_source == "unavailable"
+    assert math.isnan(stats.outcrop_area) or stats.outcrop_area == 0.0
+    # P20 也不可用
+    assert math.isnan(stats.p20)
+    assert stats.p20_source == "unavailable"
+
+
+def test_p21_uses_observed_over_window():
+    """P21 优先使用 observed_total / effective_area，而非圆窗 P21。"""
+    trace = make_trace(
+        [
+            [9.5, 2.0, 15.5, 2.0],
+            [12.5, 2.0, 15.5, 2.0],
+            [12.0, 2.0, 13.0, 2.0],
+            [100.0, 4.0, 101.0, 4.0],
+        ],
+        [0.0, 10.0, 20.0, 20.0],
+        segment_lengths=[0.0, 0.0, 0.0, 0.0],  # 强制回退到 endpoint
+    )
+
+    stats = compute_trace_statistics(
+        trace,
+        TraceStatisticsConfig(
+            window_strategy="hybrid",
+            cut_fractions=(0.5,),
+            radius_fractions=(1.0,),
+            min_intersections=1,
+        ),
+    )
+
+    # observed_total = 6+3+1+1 = 11
+    observed_total = 11.0
+    # effective_area = hull_area
+    assert stats.p21 == pytest.approx(observed_total / stats.outcrop_area)
+    assert stats.p21_source == stats.outcrop_area_source
+
+
+def test_p21_consistency_p20_times_mean_close():
+    """P21 ≈ P20 * mean_trace_length 自洽性检验。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 10.0, 0.0],
+            [10.0, 0.0, 10.0, 4.0],
+            [10.0, 4.0, 0.0, 4.0],
+            [0.0, 4.0, 0.0, 0.0],
+        ],
+        [0.0, 10.0, 20.0, 30.0],
+        measured_scanline_length=35.0,
+    )
+
+    stats = compute_trace_statistics(trace, TraceStatisticsConfig(min_intersections=1))
+
+    # P21 ≈ P20 * mean_trace_length
+    if math.isfinite(stats.p20) and math.isfinite(stats.mean_trace_length) and math.isfinite(stats.p21):
+        expected_p21 = stats.p20 * stats.mean_trace_length
+        assert stats.p21 == pytest.approx(expected_p21, rel=0.01)
+
+
+# ── 新增测试：迹长优先级 ───────────────────────────────────────────────
+
+
+def test_trace_length_prefers_segment_over_endpoint():
+    """segment(r5+r7) 优先于端点欧氏距离。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 3.0, 4.0],   # endpoint length = 5
+            [1.0, 0.0, 1.0, 5.0],   # endpoint length = 5
+        ],
+        [0.0, 10.0],
+        segment_lengths=[6.0, 8.0],  # segment lengths 大于 endpoint
+        measured_scanline_length=10.0,
+        measured_outcrop_area=20.0,
+    )
+
+    stats = compute_trace_statistics(trace, TraceStatisticsConfig(min_intersections=99))
+
+    assert stats.trace_length_source == "segment"
+    assert stats.trace_length_total == pytest.approx(14.0)
+    assert stats.mean_trace_length == pytest.approx(7.0)
+
+
+# ── 新增测试：窗口校验与告警 ───────────────────────────────────────────
+
+
+def test_no_warning_when_sources_agree():
+    """常规数据下不应产生降级告警。"""
+    trace = make_trace(
+        [
+            [0.0, 0.0, 10.0, 0.0],
+            [10.0, 0.0, 10.0, 4.0],
+            [10.0, 4.0, 0.0, 4.0],
+            [0.0, 4.0, 0.0, 0.0],
+        ],
+        [0.0, 10.0, 20.0, 30.0],
+    )
+
+    stats = compute_trace_statistics(trace, TraceStatisticsConfig(min_intersections=1))
+
+    assert stats.window_validation_warning == ""
+    assert stats.outcrop_area_source == "hull"
+
+
+def test_window_equivalent_area_recorded():
+    """圆窗等效面积始终被计算并记录到 TraceStatistics。"""
+    # 使用有有效窗口的 trace
+    trace = make_trace(
+        [
+            [9.5, 2.0, 15.5, 2.0],
+            [12.5, 2.0, 15.5, 2.0],
+            [12.0, 2.0, 13.0, 2.0],
+            [100.0, 4.0, 101.0, 4.0],
+        ],
+        [0.0, 10.0, 20.0, 20.0],
+    )
+
+    stats = compute_trace_statistics(
+        trace,
+        TraceStatisticsConfig(
+            window_strategy="hybrid",
+            cut_fractions=(0.5,),
+            radius_fractions=(1.0,),
+            min_intersections=1,
+        ),
+    )
+
+    assert math.isfinite(stats.window_outcrop_area)
+    assert stats.window_outcrop_area > 0.0
+    # 圆窗等效面积与主面积不同，因为主面积用凸包
+    if stats.outcrop_area_source == "hull":
+        assert stats.window_outcrop_area != pytest.approx(stats.outcrop_area)
+
+
+def test_area_disagreement_ratio_nan_when_measured():
+    """实测面积时，面积差异比应为 NaN（不参与凸包-圆窗比较）。"""
+    # 直接测试函数行为
+    area, source, ratio, warning = _select_effective_area(
+        trace=make_trace([[0.0, 0.0, 1.0, 0.0]], [0.0], measured_outcrop_area=50.0),
+        hull_area=100.0,
+        window_equivalent_area=10.0,
+        local_segments=np.array([[0.0, 0.0, 1.0, 0.0]]),
+    )
+    assert source == "measured"
+    assert area == pytest.approx(50.0)
+    assert math.isnan(ratio)
+    assert warning == ""

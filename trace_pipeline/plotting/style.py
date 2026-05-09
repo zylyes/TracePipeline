@@ -45,10 +45,6 @@ CJK_SANS_CANDIDATES: list[str] = [
 ]
 
 __all__ = [
-    "CJK_PRIMARY_FONT",
-    "WESTERN_PRIMARY_FONT",
-    "apply_axis_text_fonts",
-    "apply_text_font",
     "configure_style",
     "text_font_kwargs",
 ]

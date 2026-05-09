@@ -13,13 +13,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict
 
-from .validation import (
-    coerce_bool,
-    coerce_positive_float,
-    coerce_positive_int,
-    coerce_rose_bin_width,
-    coerce_window_strategy,
-)
+from .validation import coerce_bool, coerce_scalar_config_fields
 
 logger = logging.getLogger(__name__)
 
@@ -131,21 +125,7 @@ def validate_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 
     merged["process_all"] = coerce_bool(merged["process_all"], "process_all")
-    merged["export_rose_plot"] = coerce_bool(
-        merged["export_rose_plot"], "export_rose_plot"
-    )
-    merged["rose_bin_width"] = coerce_rose_bin_width(merged["rose_bin_width"])
-    for key in ("rose_dpi", "trace_dpi", "rotated_trace_dpi"):
-        merged[key] = coerce_positive_int(merged[key], key)
-    merged["window_strategy"] = coerce_window_strategy(merged["window_strategy"])
-    merged["auto_density_threshold"] = coerce_positive_float(
-        merged["auto_density_threshold"],
-        "auto_density_threshold",
-    )
-    merged["tangent_window_count"] = coerce_positive_int(
-        merged["tangent_window_count"],
-        "tangent_window_count",
-    )
+    coerce_scalar_config_fields(merged)
     for key in _REQUIRED_KEYS + ("output_prefix",):
         if key in merged:
             merged[key] = str(merged[key]).strip()

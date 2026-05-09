@@ -5,11 +5,12 @@
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 
 import numpy as np
 
-from .geology.angles import fold_strike_angle
+from .geology.angles import azimuth_to_cartesian_deg, fold_strike_angle
 from .geology.endpoints import compute_endpoints
 from .geology.statistics import (
     TraceStatistics,
@@ -18,7 +19,6 @@ from .geology.statistics import (
     format_statistics_box_lines,
 )
 from .geology.transforms import (
-    local_points_to_global,
     normalize_coordinates,
     normalize_points_like_lines,
 )
@@ -51,7 +51,11 @@ def _raw_circle_overlays(
     if not centers:
         return ()
 
-    global_centers = local_points_to_global(np.array(centers, dtype=float), trace.scanline_azimuth)
+    angle = math.radians(azimuth_to_cartesian_deg(trace.scanline_azimuth))
+    along = np.array([math.cos(angle), math.sin(angle)], dtype=float)
+    left = np.array([-math.sin(angle), math.cos(angle)], dtype=float)
+    pts = np.array(centers, dtype=float)
+    global_centers = pts[:, [0]] * along + pts[:, [1]] * left
     return tuple(
         CircleWindowOverlay(float(center[0]), float(center[1]), radius)
         for center, radius in zip(global_centers, radii)

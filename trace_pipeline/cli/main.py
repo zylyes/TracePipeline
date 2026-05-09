@@ -15,13 +15,9 @@ __all__ = ["main"]
 
 
 def _init_plotting() -> None:
-    """延迟初始化 matplotlib 后端与样式（仅在需要绘图时调用）。"""
+    """延迟初始化 matplotlib 后端（仅在需要绘图时调用）。"""
     import matplotlib
-
     matplotlib.use("Agg")
-    from ..plotting.style import configure_style
-
-    configure_style()
 
 
 def main() -> None:

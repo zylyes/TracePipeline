@@ -108,26 +108,14 @@ def segments_to_xy(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x_values, y_values
 
 
-def _valid_circle_windows(
-    circle_windows: Sequence[CircleWindowOverlay] | None,
-) -> tuple[CircleWindowOverlay, ...]:
-    if not circle_windows:
-        return ()
-    valid: list[CircleWindowOverlay] = []
-    for circle in circle_windows:
-        center_x = float(circle.center_x)
-        center_y = float(circle.center_y)
-        radius = float(circle.radius)
-        if math.isfinite(center_x) and math.isfinite(center_y) and math.isfinite(radius) and radius > 0.0:
-            valid.append(CircleWindowOverlay(center_x, center_y, radius))
-    return tuple(valid)
-
-
 def _data_bounds(
     segments: np.ndarray,
     circle_windows: Sequence[CircleWindowOverlay] | None = None,
 ) -> tuple[float, float, float, float]:
-    circles = _valid_circle_windows(circle_windows)
+    circles = [
+        cw for cw in (circle_windows or ())
+        if all(math.isfinite(v) for v in (cw.center_x, cw.center_y, cw.radius)) and cw.radius > 0.0
+    ]
     if segments.size == 0:
         if not circles:
             return 0.0, 1.0, 0.0, 1.0
@@ -527,7 +515,10 @@ def _add_circle_window_overlays(
     ax: plt.Axes,
     circle_windows: Sequence[CircleWindowOverlay] | None,
 ) -> None:
-    for circle in _valid_circle_windows(circle_windows):
+    for circle in (circle_windows or ()):
+        if not (math.isfinite(circle.center_x) and math.isfinite(circle.center_y)
+                and math.isfinite(circle.radius) and circle.radius > 0.0):
+            continue
         patch = Circle(
             (circle.center_x, circle.center_y),
             circle.radius,

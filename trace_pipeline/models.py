@@ -15,13 +15,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-from .validation import (
-    coerce_bool,
-    coerce_positive_float,
-    coerce_positive_int,
-    coerce_rose_bin_width,
-    coerce_window_strategy,
-)
+from .validation import coerce_scalar_config_fields
 
 __all__ = [
     "RunConfig",
@@ -200,39 +194,16 @@ class RunConfig:
             if not normalized:
                 raise ValueError(f"{name} 不能为空")
             object.__setattr__(self, name, normalized)
-        # 数值型字段由 validate_config() 或直接构造时的 coerce 保证，
-        # 此处仅做防御性类型断言，避免与 config.py 重复校验逻辑。
-        if not isinstance(self.export_rose_plot, bool):
-            object.__setattr__(
-                self, "export_rose_plot",
-                coerce_bool(self.export_rose_plot, "export_rose_plot"),
-            )
-        if not isinstance(self.rose_bin_width, (int, float)) or not (0 < self.rose_bin_width <= 180):
-            object.__setattr__(
-                self, "rose_bin_width", coerce_rose_bin_width(self.rose_bin_width)
-            )
-        for int_field in ("rose_dpi", "trace_dpi", "rotated_trace_dpi", "tangent_window_count"):
-            if not isinstance(getattr(self, int_field), int) or getattr(self, int_field) <= 0:
-                object.__setattr__(
-                    self, int_field,
-                    coerce_positive_int(getattr(self, int_field), int_field),
-                )
-        if not isinstance(self.auto_density_threshold, (int, float)) or self.auto_density_threshold <= 0:
-            object.__setattr__(
-                self, "auto_density_threshold",
-                coerce_positive_float(self.auto_density_threshold, "auto_density_threshold"),
-            )
-        if isinstance(self.window_strategy, str):
-            strategy = self.window_strategy.strip().lower()
-            if strategy != self.window_strategy:
-                object.__setattr__(self, "window_strategy", strategy)
-            if strategy not in {"auto", "tangent", "hybrid", "concentric"}:
-                raise ValueError("window_strategy 必须为 auto/tangent/hybrid/concentric")
-        else:
-            object.__setattr__(
-                self, "window_strategy",
-                coerce_window_strategy(self.window_strategy),
-            )
+
+        field_values = {
+            k: getattr(self, k)
+            for k in ("export_rose_plot", "rose_bin_width", "rose_dpi",
+                      "trace_dpi", "rotated_trace_dpi", "window_strategy",
+                      "auto_density_threshold", "tangent_window_count")
+        }
+        coerce_scalar_config_fields(field_values)
+        for k, v in field_values.items():
+            object.__setattr__(self, k, v)
 
     # ---- 工厂方法 ----
 

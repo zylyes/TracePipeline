@@ -5,7 +5,9 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-__all__ = ["CircleWindowDiagnostic", "TraceStatistics", "TraceStatisticsConfig"]
+__all__ = ["CircleWindowDiagnostic", "TraceStatistics", "TraceStatisticsConfig", "_EPS"]
+
+_EPS = 1e-9
 
 
 @dataclass(frozen=True)

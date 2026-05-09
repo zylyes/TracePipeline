@@ -126,6 +126,7 @@ def _build_mixed_font_text(
             current_text = ch
             current_cjk = is_cjk
     if current_text:
+        assert current_cjk is not None
         blocks.append(_make_text_block(current_text, current_cjk, bold, color))
     return CellRichText(*blocks)
 
@@ -136,7 +137,7 @@ def _make_text_block(
     bold: bool,
     color_str: str | None,
 ) -> TextBlock:
-    font_kwargs: dict = {"rFont": _CJK_FONT if is_cjk else _WESTERN_FONT}
+    font_kwargs: dict[str, object] = {"rFont": _CJK_FONT if is_cjk else _WESTERN_FONT}
     if bold:
         font_kwargs["b"] = True
     if color_str:
@@ -170,7 +171,7 @@ def _round_float(value: float, digits: int = 4) -> float | None:
     return round(value, digits)
 
 
-def _format_value(value, unit: str = "") -> str:
+def _format_excel_cell_value(value, unit: str = "") -> str:
     if value is None:
         text = "N/A"
     elif isinstance(value, numbers.Integral):
@@ -213,18 +214,18 @@ def _build_summary_sections(
 ) -> list[ExcelSection]:
     mean_length = statistics.mean_trace_length if statistics is not None else trace.mean_length
     basic_items = [
-        ("测线走向", _format_value(round(trace.scanline_azimuth, 2), "°")),
+        ("测线走向", _format_excel_cell_value(round(trace.scanline_azimuth, 2), "°")),
         (
             "测线长度",
-            _format_value(_round_float(statistics.scanline_length), "m")
+            _format_excel_cell_value(_round_float(statistics.scanline_length), "m")
             if statistics is not None
             else "N/A",
         ),
-        ("平均迹长", _format_value(_round_float(mean_length), "m")),
+        ("平均迹长", _format_excel_cell_value(_round_float(mean_length), "m")),
         (
             "露头面积",
             (
-                _format_value(_round_float(statistics.outcrop_area), "m²")
+                _format_excel_cell_value(_round_float(statistics.outcrop_area), "m²")
                 + _source_tag(statistics.outcrop_area_source)
             )
             if statistics is not None
@@ -245,24 +246,24 @@ def _build_summary_sections(
         return sections
 
     fracture_items = [
-        ("迹线数量", _format_value(statistics.total_count)),
-        ("I型裂隙数", _format_value(statistics.type_i_count)),
-        ("II型裂隙数", _format_value(statistics.type_ii_count)),
-        ("III型裂隙数", _format_value(statistics.type_iii_count)),
+        ("迹线数量", _format_excel_cell_value(statistics.total_count)),
+        ("I型裂隙数", _format_excel_cell_value(statistics.type_i_count)),
+        ("II型裂隙数", _format_excel_cell_value(statistics.type_ii_count)),
+        ("III型裂隙数", _format_excel_cell_value(statistics.type_iii_count)),
     ]
     calculation_items = [
-        ("线密度(P₁₀)", _format_value(_round_float(statistics.p10), "m⁻¹")),
+        ("线密度(P₁₀)", _format_excel_cell_value(_round_float(statistics.p10), "m⁻¹")),
         (
             "面密度(P₂₀)",
-            _format_value(_round_float(statistics.p20), "m⁻²")
+            _format_excel_cell_value(_round_float(statistics.p20), "m⁻²")
             + _source_tag(statistics.p20_source),
         ),
         (
             "面累计长度密度(P₂₁)",
-            _format_value(_round_float(statistics.p21), "m⁻¹")
+            _format_excel_cell_value(_round_float(statistics.p21), "m⁻¹")
             + _source_tag(statistics.p21_source),
         ),
-        ("有效取样窗数量", _format_value(statistics.valid_window_count)),
+        ("有效取样窗数量", _format_excel_cell_value(statistics.valid_window_count)),
     ]
     if statistics.window_validation_warning:
         calculation_items.append(
@@ -435,7 +436,7 @@ def _apply_column_widths(ws, sections: Sequence[ExcelSection], max_col: int, lay
             layout.rot_col_start + 4,
             layout.rot_col_start + 5,
         }:
-            structural_width = layout.gap_column_width
+            structural_width: float = layout.gap_column_width
         elif layout.raw_col_start <= zero_based < layout.raw_col_start + 4:
             structural_width = layout.raw_column_width
         elif layout.rot_col_start <= zero_based < layout.rot_col_start + 4:

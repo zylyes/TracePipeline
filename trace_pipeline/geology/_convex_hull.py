@@ -49,3 +49,14 @@ def _convex_hull_area(local_segments: np.ndarray) -> float:
     y = hull[:, 1]
     area = 0.5 * abs(float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))))
     return area if math.isfinite(area) and area > _EPS else math.nan
+
+
+def _is_hull_geometrically_valid(local_segments: np.ndarray, hull_area: float) -> bool:
+    """检查凸包几何质量：点数足够、非退化、面积有限。"""
+    if not (math.isfinite(hull_area) and hull_area > _EPS):
+        return False
+    points = np.asarray(local_segments, dtype=float).reshape(-1, 2)
+    if points.shape[0] < 3 or not np.isfinite(points).all():
+        return False
+    unique_points = np.unique(points, axis=0)
+    return int(unique_points.shape[0]) >= 3

@@ -85,8 +85,12 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
         ValueError: JSON 格式无效或配置项不合法。
         OSError: 文件读取失败。
     """
-    explicit_path = config_path is not None
-    path = Path(config_path).expanduser().resolve() if explicit_path else DEFAULT_CONFIG_PATH
+    if config_path is not None:
+        path = Path(config_path).expanduser().resolve()
+        explicit_path = True
+    else:
+        path = DEFAULT_CONFIG_PATH
+        explicit_path = False
     if not path.exists():
         if explicit_path:
             raise FileNotFoundError(f"指定的配置文件不存在: {path}")

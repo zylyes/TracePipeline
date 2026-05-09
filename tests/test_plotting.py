@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from matplotlib.patches import Circle
 
+from trace_pipeline.plotting import render_trace_plot, segments_to_xy
 from trace_pipeline.plotting import style as style_module
 from trace_pipeline.plotting.rose_plot import _compute_rose_histogram
 from trace_pipeline.plotting.trace_plot import (
@@ -14,8 +15,7 @@ from trace_pipeline.plotting.trace_plot import (
     _add_circle_window_overlays,
     _add_statistics_box,
     _build_decoration_layout,
-    render_trace_plot,
-    segments_to_xy,
+    _valid_circles,
 )
 
 
@@ -91,14 +91,14 @@ def test_configure_style_warns_but_handles_missing_fonts(monkeypatch, caplog):
 def test_circle_window_overlays_draw_valid_dark_dashed_auxiliary_circles():
     fig, ax = plt.subplots()
     try:
-        _add_circle_window_overlays(
-            ax,
+        valid = _valid_circles(
             (
                 CircleWindowOverlay(1.0, 2.0, 3.0),
                 CircleWindowOverlay(np.nan, 2.0, 3.0),
                 CircleWindowOverlay(4.0, 5.0, -1.0),
             ),
         )
+        _add_circle_window_overlays(ax, valid)
 
         circles = [patch for patch in ax.patches if isinstance(patch, Circle)]
         assert len(circles) == 1
@@ -160,14 +160,13 @@ def test_statistics_box_draws_fixed_grid_with_compact_labels():
         plt.close(fig)
 
 
-def test_trace_layout_uses_adaptive_scale_length():
+def test_trace_layout_uses_fixed_scale_length():
     layout = _build_decoration_layout(
         np.array([[0.0, 0.0, 1.0, 1.0]]),
         has_annotation_panel=True,
     )
 
-    assert layout.scale_length > 0
-    assert layout.scale_length in (0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
+    assert layout.scale_length == 5.0
 
 
 def test_rose_histogram_keeps_non_divisible_final_bin_width():

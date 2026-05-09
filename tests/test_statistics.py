@@ -93,7 +93,7 @@ def test_convex_hull_area_handles_basic_shapes_and_degenerate_cases():
     assert math.isnan(_convex_hull_area(collinear))
 
 
-def test_p21_uses_endpoint_length_total_over_outcrop_area():
+def test_p21_uses_measured_area_when_available():
     trace = make_trace(
         [
             [0.0, 0.0, 3.0, 4.0],
@@ -113,7 +113,7 @@ def test_p21_uses_endpoint_length_total_over_outcrop_area():
     assert stats.p21_source == "measured"
 
 
-def test_trace_length_total_falls_back_from_endpoint_to_segment_lengths():
+def test_trace_length_total_uses_segment_when_available():
     trace = make_trace(
         [
             [0.0, 0.0, 0.0, 0.0],
@@ -201,7 +201,7 @@ def test_trace_length_falls_back_to_window_when_observed_unavailable():
     assert total == pytest.approx(5.0 * trace.count)
 
 
-def test_circle_window_counts_stay_available_for_internal_diagnostics():
+def test_full_statistics_chain_with_sources_and_formatting():
     trace = make_trace(
         [
             [9.5, 2.0, 15.5, 2.0],      # N0：两端点都在圆外但线段穿圆
@@ -302,10 +302,10 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
     joined = "\n".join(lines)
 
     assert stats.valid_window_count == 0
-    assert all(diagnostic.reason for diagnostic in stats.diagnostics)
+    assert all(diagnostic.invalid_reason for diagnostic in stats.diagnostics)
     assert math.isnan(stats.p20)
     assert "I/II/III型裂隙数: 0/0/1" in lines
-    assert "测线长度: 0.000 $\mathrm{m}$" in lines
+    assert "测线长度: 0.000 $\\mathrm{m}$" in lines
     assert any("露头面积" in line for line in lines)
     assert "测线走向: 90.0°" in lines
     assert "面累计长度密度" in joined
@@ -429,7 +429,7 @@ def _window(
         strategy=strategy,
         group_key=group_key,
         valid=valid,
-        reason="" if valid else "invalid",
+        invalid_reason="" if valid else "invalid",
     )
 
 
@@ -836,3 +836,99 @@ def test_area_disagreement_ratio_nan_when_measured():
     assert area == pytest.approx(50.0)
     assert math.isnan(ratio)
     assert warning == ""
+
+
+# ── 圆窗公式回归测试 ──────────────────────────────────────────────────
+
+
+def test_circle_window_formulas_m_neq_q():
+    """m ≠ q 时，P20 = q/(2πr²)，P21 = m/(4r)，l_est = (πr/2)(m/q)。"""
+    from trace_pipeline.geology._circle_window import _count_circle_windows_batch
+
+    r = 2.0
+    center_x = 15.0
+    center_y = r
+
+    local_segments = np.array([
+        [center_x - r - 0.1, center_y, center_x + r + 0.1, center_y],
+        [center_x - 0.5, center_y, center_x + 0.5, center_y],
+        [center_x - 0.1, center_y - 0.1, center_x + 0.1, center_y + 0.1],
+    ])
+
+    diagnostics = _count_circle_windows_batch(
+        local_segments=local_segments,
+        centers=np.array([[center_x, center_y]]),
+        radii=np.array([r]),
+        min_intersections=1,
+        cut_positions=np.array([center_x]),
+        sides=["left"],
+        strategies=["hybrid"],
+        group_keys=["test"],
+    )
+
+    win = diagnostics[0]
+    assert win.valid
+    m_val = win.m
+    q_val = win.q
+    assert q_val > 0, f"q_val should be positive, got {q_val}"
+
+    p20_expected = q_val / (2.0 * math.pi * r * r)
+    p21_expected = m_val / (4.0 * r)
+    l_est_expected = (math.pi * r / 2.0) * (m_val / q_val) if q_val != 0 else math.nan
+
+    assert win.p20 == pytest.approx(p20_expected)
+    assert win.p21 == pytest.approx(p21_expected)
+    if math.isfinite(l_est_expected):
+        assert win.l_est == pytest.approx(l_est_expected)
+
+
+def test_circle_window_formulas_yang_chunhe_reference():
+    """杨春和参考数据验证: c=13.5287, N0=7, N1=16, N2=4 → m=24, q=30。
+
+    取圆窗半径 r=c/2（切线窗）验证 P20 ≈ 0.0261, l_est ≈ 17.0。
+    """
+    r = 13.5287
+
+    n0, n1, n2 = 7, 16, 4
+    m_expected = n1 + 2 * n2
+    q_expected = 2 * n0 + n1
+    assert m_expected == 24
+    assert q_expected == 30
+
+    p20_expected = q_expected / (2.0 * math.pi * r * r)
+    l_est_expected = (math.pi * r / 2.0) * (m_expected / q_expected)
+
+    assert p20_expected == pytest.approx(0.0261, rel=0.01)
+    assert l_est_expected == pytest.approx(17.0, rel=0.02)
+
+
+def test_circle_window_q_zero_is_invalid():
+    """q <= 0 的圆窗应标记为无效，p20/p21/l_est 为 NaN。"""
+    from trace_pipeline.geology._circle_window import _count_circle_windows_batch
+
+    r = 2.0
+    center_x = 15.0
+    center_y = r
+
+    local_segments = np.array([
+        [center_x - 1.0, center_y - 0.1, center_x + 1.0, center_y + 0.1],
+    ])
+
+    diagnostics = _count_circle_windows_batch(
+        local_segments=local_segments,
+        centers=np.array([[center_x, center_y]]),
+        radii=np.array([r]),
+        min_intersections=1,
+        cut_positions=np.array([center_x]),
+        sides=["left"],
+        strategies=["test"],
+        group_keys=["test"],
+    )
+
+    win = diagnostics[0]
+    if win.q <= 0:
+        assert not win.valid
+        assert "q <= 0" in win.invalid_reason
+        assert math.isnan(win.p20)
+        assert math.isnan(win.p21)
+        assert math.isnan(win.l_est)

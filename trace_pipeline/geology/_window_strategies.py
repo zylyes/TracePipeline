@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from typing import NamedTuple
 
 import numpy as np
 
@@ -16,8 +17,15 @@ from ._stat_types import _EPS, CircleWindowDiagnostic, TraceStatisticsConfig
 
 __all__ = ["compute_circle_windows"]
 
-_BatchSpec = tuple[float, float, float, float, str, str, str]
-"""cut_position, center_x, center_y, radius, side, strategy, group_key"""
+
+class _BatchSpec(NamedTuple):
+    cut_position: float
+    center_x: float
+    center_y: float
+    radius: float
+    side: str
+    strategy: str
+    group_key: str
 
 
 def _resolve_batch(
@@ -30,13 +38,13 @@ def _resolve_batch(
         return tuple(invalids)
     batch = _count_circle_windows_batch(
         local_segments,
-        np.array([[cx, cy] for _, cx, cy, _, _, _, _ in specs], dtype=float),
-        np.array([r for _, _, _, r, _, _, _ in specs], dtype=float),
+        np.array([[s.center_x, s.center_y] for s in specs], dtype=float),
+        np.array([s.radius for s in specs], dtype=float),
         min_intersections,
-        np.array([cp for cp, _, _, _, _, _, _ in specs], dtype=float),
-        [s for _, _, _, _, s, _, _ in specs],
-        [st for _, _, _, _, _, st, _ in specs],
-        [gk for _, _, _, _, _, _, gk in specs],
+        np.array([s.cut_position for s in specs], dtype=float),
+        [s.side for s in specs],
+        [s.strategy for s in specs],
+        [s.group_key for s in specs],
     )
     return tuple(invalids) + tuple(batch)
 
@@ -52,8 +60,8 @@ def _compute_hybrid_windows(
         cut_position = scanline_length * cut_fraction
         edge_limit = min(cut_position, scanline_length - cut_position)
         for side, sign in (("left", 1.0), ("right", -1.0)):
-            side_height = _side_height(local_segments, sign)
-            radius_max = min(side_height / 2.0, edge_limit)
+            side_h = _side_height(local_segments, sign)
+            radius_max = min(side_h / 2.0, edge_limit)
             group_key = f"hybrid:{cut_fraction:.12g}:{side}"
             if radius_max <= _EPS:
                 invalids.append(_invalid_window(
@@ -63,8 +71,9 @@ def _compute_hybrid_windows(
                 continue
             for radius_fraction in config.radius_fractions:
                 radius = radius_max * radius_fraction
-                specs.append((cut_position, cut_position, sign * radius, radius,
-                              side, "hybrid", group_key))
+                specs.append(_BatchSpec(
+                    cut_position, cut_position, sign * radius, radius,
+                    side, "hybrid", group_key))
     return _resolve_batch(specs, invalids, local_segments, config.min_intersections)
 
 
@@ -77,7 +86,7 @@ def _compute_tangent_windows(
     specs: list[_BatchSpec] = []
     invalids: list[CircleWindowDiagnostic] = []
     for side, sign in (("left", 1.0), ("right", -1.0)):
-        side_height = _side_height(local_segments, sign)
+        side_h = _side_height(local_segments, sign)
         for index in range(config.tangent_window_count):
             group_key = f"tangent:{side}:{index}"
             cut_position = radius * (2 * index + 1) if math.isfinite(radius) else math.nan
@@ -88,15 +97,16 @@ def _compute_tangent_windows(
                     strategy="tangent", group_key=group_key,
                 ))
                 continue
-            if side_height + _EPS < 2.0 * radius:
+            if side_h + _EPS < 2.0 * radius:
                 invalids.append(_invalid_window(
                     cut_position, side, "可用侧向高度不足",
                     strategy="tangent", group_key=group_key,
                     center_x=cut_position, center_y=center_y, radius=radius,
                 ))
                 continue
-            specs.append((cut_position, cut_position, center_y, radius,
-                          side, "tangent", group_key))
+            specs.append(_BatchSpec(
+                cut_position, cut_position, center_y, radius,
+                side, "tangent", group_key))
     return _resolve_batch(specs, invalids, local_segments, config.min_intersections)
 
 

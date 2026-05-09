@@ -26,15 +26,15 @@ def _classify_trace_types(local_segments: np.ndarray, scanline_length: float) ->
     s_norm = float(np.linalg.norm(s))
     qp = q1 - p1
 
-    cross_r_s = r[:, 0] * s[1] - r[:, 1] * s[0]
-    cross_qp_s = qp[:, 0] * s[1] - qp[:, 1] * s[0]
-    cross_qp_r = qp[:, 0] * r[:, 1] - qp[:, 1] * r[:, 0]
+    cross_r_s = r[:, 0] * s[1] - r[:, 1] * s[0]  # 叉积：线段方向 × 测线方向
+    cross_qp_s = qp[:, 0] * s[1] - qp[:, 1] * s[0]  # 叉积：偏移向量 × 测线方向
+    cross_qp_r = qp[:, 0] * r[:, 1] - qp[:, 1] * r[:, 0]  # 叉积：偏移向量 × 线段方向
 
     degenerate = (r_norm <= _EPS) | (s_norm <= _EPS)
 
     safe_denom = np.where(np.abs(cross_r_s) > _EPS, cross_r_s, 1.0)
-    t = cross_qp_s / safe_denom
-    u = cross_qp_r / safe_denom
+    t = cross_qp_s / safe_denom  # 线段参数：交点在线段上的位置 t ∈ [0,1]
+    u = cross_qp_r / safe_denom  # 测线参数：交点在测线上的位置 u ∈ [0,1]
     non_parallel_intersect = (
         (np.abs(cross_r_s) > _EPS)
         & (t >= -_EPS) & (t <= 1.0 + _EPS)
@@ -171,7 +171,7 @@ def _count_circle_windows_batch(
         l_est = math.nan
         reason = ""
         valid = True
-        r = float(radii[i])
+        window_radius = float(radii[i])
 
         if ic < min_intersections:
             valid = False
@@ -179,17 +179,20 @@ def _count_circle_windows_batch(
         elif m_val <= 0:
             valid = False
             reason = "m <= 0"
+        elif q_val <= 0:
+            valid = False
+            reason = "q <= 0"
         else:
-            p20 = m_val / (2.0 * math.pi * r * r)
-            p21 = q_val / (4.0 * r)
-            l_est = (math.pi * r / 2.0) * (q_val / m_val)
+            p20 = q_val / (2.0 * math.pi * window_radius * window_radius)  # 迹线面密度 = 端点对数 / 圆面积
+            p21 = m_val / (4.0 * window_radius)  # 累计长度密度
+            l_est = (math.pi * window_radius / 2.0) * (m_val / q_val)  # 估计平均迹长 (Zhang, 1998)
 
         results.append(CircleWindowDiagnostic(
             cut_position=float(cut_positions[i]),
             side=sides[i],
             center_x=float(centers[i, 0]),
             center_y=float(centers[i, 1]),
-            radius=r,
+            radius=window_radius,
             intersection_count=ic,
             n0=n0,
             n1=n1,
@@ -202,7 +205,7 @@ def _count_circle_windows_batch(
             strategy=strategies[i],
             group_key=group_keys[i],
             valid=valid,
-            reason=reason,
+            invalid_reason=reason,
         ))
 
     return results
@@ -237,7 +240,7 @@ def _invalid_window(
         strategy=strategy,
         group_key=group_key,
         valid=False,
-        reason=reason,
+        invalid_reason=reason,
     )
 
 
@@ -245,20 +248,17 @@ def _invalid_window(
 
 
 def _side_height(local_segments: np.ndarray, sign: float) -> float:
+    """提取单侧 y 坐标的最大绝对值。sign=1 左侧, sign=-1 右侧, sign=0 两侧。"""
     y_values = local_segments[:, [1, 3]].ravel()
-    side_values = y_values[y_values * sign > _EPS]
-    if side_values.size == 0:
-        return 0.0
-    return float(np.max(np.abs(side_values)))
-
-
-def _max_abs_y(local_segments: np.ndarray) -> float:
-    if local_segments.size == 0:
-        return 0.0
-    y_values = np.asarray(local_segments[:, [1, 3]].ravel(), dtype=float)
+    if sign != 0.0:
+        y_values = y_values[y_values * sign > _EPS]
     if y_values.size == 0:
         return 0.0
     return float(np.max(np.abs(y_values)))
+
+
+def _max_abs_y(local_segments: np.ndarray) -> float:
+    return _side_height(local_segments, sign=0.0)
 
 
 def _tangent_radius(scanline_length: float, config: TraceStatisticsConfig) -> float:

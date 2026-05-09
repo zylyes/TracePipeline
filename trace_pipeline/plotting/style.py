@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib
 import matplotlib.font_manager as fm
@@ -91,9 +91,9 @@ def _current_font_family() -> list[str]:
     return list(family)
 
 
-def text_font_kwargs(**kwargs: object) -> dict[str, object]:
+def text_font_kwargs(**kwargs: object) -> dict[str, Any]:
     """返回绘图文本统一使用的字体参数。"""
-    merged = {"fontfamily": _current_font_family()}
+    merged: dict[str, Any] = {"fontfamily": _current_font_family()}
     merged.update(kwargs)
     return merged
 

@@ -130,7 +130,8 @@ class TraceData:
     def lengths(self) -> np.ndarray:
         """迹线端点间的二维欧氏距离 (N,)，首次访问后缓存。"""
         try:
-            return self.__dict__["_lengths"]
+            cached: np.ndarray = self.__dict__["_lengths"]
+            return cached
         except KeyError:
             pass
         if self.count == 0:

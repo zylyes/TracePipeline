@@ -5,6 +5,7 @@ from importlib import import_module
 from typing import Any
 
 _LAZY_EXPORTS = {
+    "CircleWindowOverlay": ("trace_pipeline.plotting.trace_plot", "CircleWindowOverlay"),
     "configure_style": ("trace_pipeline.plotting.style", "configure_style"),
     "render_rose_plot": ("trace_pipeline.plotting.rose_plot", "render_rose_plot"),
     "render_trace_plot": ("trace_pipeline.plotting.trace_plot", "render_trace_plot"),
@@ -22,6 +23,7 @@ def __getattr__(name: str) -> Any:
     return value
 
 __all__ = [
+    "CircleWindowOverlay",
     "configure_style",
     "render_rose_plot",
     "render_trace_plot",

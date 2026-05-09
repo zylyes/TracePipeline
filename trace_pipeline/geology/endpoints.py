@@ -159,36 +159,36 @@ def _parse_header(df: pd.DataFrame) -> tuple[float, int, float | None, float | N
 def _extract_numeric_block(df: pd.DataFrame, n: int) -> np.ndarray:
     """提取前 n 行 × 7 列数值矩阵，倾向列转为走向。"""
     numeric_block = df.iloc[:n, 0:7].apply(pd.to_numeric, errors="coerce")
-    M = numeric_block.to_numpy(dtype=float).copy()
+    data_block: np.ndarray = numeric_block.to_numpy(dtype=float).copy()
 
-    if np.isnan(M).any():
-        bad_rows, bad_cols = np.where(np.isnan(M))
+    if np.isnan(data_block).any():
+        bad_rows, bad_cols = np.where(np.isnan(data_block))
         col = int(bad_cols[0])
         raise ValueError(
             f"第 {int(bad_rows[0]) + 1} 行 {_FIELD_NAMES.get(col, f'第 {col + 1} 列')}"
             " 包含非数值内容"
         )
-    if not np.isfinite(M).all():
-        bad_rows, bad_cols = np.where(~np.isfinite(M))
+    if not np.isfinite(data_block).all():
+        bad_rows, bad_cols = np.where(~np.isfinite(data_block))
         col = int(bad_cols[0])
         raise ValueError(
             f"第 {int(bad_rows[0]) + 1} 行 {_FIELD_NAMES.get(col, f'第 {col + 1} 列')}"
             " 包含 inf 或 NaN"
         )
 
-    _validate_numeric_block(M)
+    _validate_numeric_block(data_block)
 
-    M[:, COL_DIP] = dip_to_strike(M[:, COL_DIP])
-    return M
+    data_block[:, COL_DIP] = dip_to_strike(data_block[:, COL_DIP])
+    return data_block
 
 
-def _validate_numeric_block(M: np.ndarray) -> None:
+def _validate_numeric_block(data_block: np.ndarray) -> None:
     """校验前 n 行测量数据，错误信息使用 Excel 1-based 行号。"""
-    if np.any(M[:, COL_SHIFT_ALONG] < 0.0):
-        bad_row = int(np.where(M[:, COL_SHIFT_ALONG] < 0.0)[0][0]) + 1
+    if np.any(data_block[:, COL_SHIFT_ALONG] < 0.0):
+        bad_row = int(np.where(data_block[:, COL_SHIFT_ALONG] < 0.0)[0][0]) + 1
         raise ValueError(f"第 {bad_row} 行 r1 不能为负数")
 
-    dip = M[:, COL_DIP]
+    dip = data_block[:, COL_DIP]
     invalid_dip = (dip < 0.0) | (dip >= 360.0)
     if np.any(invalid_dip):
         bad_row = int(np.where(invalid_dip)[0][0]) + 1
@@ -196,12 +196,12 @@ def _validate_numeric_block(M: np.ndarray) -> None:
 
     length_cols = (COL_LEFT_LEN1, COL_LEFT_LEN2, COL_RIGHT_LEN1, COL_RIGHT_LEN2)
     for col in length_cols:
-        invalid = M[:, col] < 0.0
+        invalid = data_block[:, col] < 0.0
         if np.any(invalid):
             bad_row = int(np.where(invalid)[0][0]) + 1
             raise ValueError(f"第 {bad_row} 行 {_FIELD_NAMES[col]} 不能为负数")
 
-    missing_trace = (M[:, COL_LEFT_LEN2] <= 0.0) & (M[:, COL_RIGHT_LEN2] <= 0.0)
+    missing_trace = (data_block[:, COL_LEFT_LEN2] <= 0.0) & (data_block[:, COL_RIGHT_LEN2] <= 0.0)
     if np.any(missing_trace):
         bad_row = int(np.where(missing_trace)[0][0]) + 1
         raise ValueError(f"第 {bad_row} 行 r5 与 r7 不能同时为 0")
@@ -213,7 +213,7 @@ def _validate_numeric_block(M: np.ndarray) -> None:
 
 
 def _compute_left_only(
-    X1: np.ndarray, Y1: np.ndarray, X2: np.ndarray, Y2: np.ndarray,
+    x1: np.ndarray, y1: np.ndarray, x2: np.ndarray, y2: np.ndarray,
     mask: np.ndarray,
     z1: np.ndarray, r2: np.ndarray, r4: np.ndarray, r5: np.ndarray,
     vec_perp_left: complex, vec_skew: np.ndarray,
@@ -227,12 +227,12 @@ def _compute_left_only(
     _skew = vec_skew[mask]
     s1 = _z1 + r2[mask] * vec_perp_left + r4[mask] * _skew
     s2 = s1 + r5[mask] * _skew
-    X1[mask], Y1[mask] = s1.real, s1.imag
-    X2[mask], Y2[mask] = s2.real, s2.imag
+    x1[mask], y1[mask] = s1.real, s1.imag
+    x2[mask], y2[mask] = s2.real, s2.imag
 
 
 def _compute_right_only(
-    X1: np.ndarray, Y1: np.ndarray, X2: np.ndarray, Y2: np.ndarray,
+    x1: np.ndarray, y1: np.ndarray, x2: np.ndarray, y2: np.ndarray,
     mask: np.ndarray,
     z1: np.ndarray, r2: np.ndarray, r6: np.ndarray, r7: np.ndarray,
     vec_perp_right: complex, vec_skew: np.ndarray,
@@ -246,12 +246,12 @@ def _compute_right_only(
     _skew = vec_skew[mask]
     s1 = _z1 + r2[mask] * vec_perp_right + r6[mask] * _skew
     s2 = s1 + r7[mask] * _skew
-    X1[mask], Y1[mask] = s1.real, s1.imag
-    X2[mask], Y2[mask] = s2.real, s2.imag
+    x1[mask], y1[mask] = s1.real, s1.imag
+    x2[mask], y2[mask] = s2.real, s2.imag
 
 
 def _compute_bilateral(
-    X1: np.ndarray, Y1: np.ndarray, X2: np.ndarray, Y2: np.ndarray,
+    x1: np.ndarray, y1: np.ndarray, x2: np.ndarray, y2: np.ndarray,
     mask: np.ndarray,
     z1: np.ndarray, r2: np.ndarray, r4: np.ndarray, r5: np.ndarray,
     r6: np.ndarray, r7: np.ndarray,
@@ -267,8 +267,8 @@ def _compute_bilateral(
     _r2 = r2[mask]
     s_left = _z1 + _r2 * vec_perp_left + (r4[mask] + r5[mask]) * vec_skew_left[mask]
     s_right = _z1 + _r2 * vec_perp_right + (r6[mask] + r7[mask]) * vec_skew_right[mask]
-    X1[mask], Y1[mask] = s_left.real, s_left.imag
-    X2[mask], Y2[mask] = s_right.real, s_right.imag
+    x1[mask], y1[mask] = s_left.real, s_left.imag
+    x2[mask], y2[mask] = s_right.real, s_right.imag
 
 
 # ===========================================================================
@@ -296,15 +296,15 @@ def compute_endpoints(
         - measured_outcrop_area: 首行第 13 列实测露头面积，缺失/非法时为 None
     """
     azimuth, n, measured_scanline_length, measured_outcrop_area = _parse_header(df)
-    M = _extract_numeric_block(df, n)
+    data_block = _extract_numeric_block(df, n)
 
-    r1 = M[:, COL_SHIFT_ALONG]
-    r2 = M[:, COL_SHIFT_ACROSS]
-    joint_strike = M[:, COL_DIP]
-    r4 = M[:, COL_LEFT_LEN1]
-    r5 = M[:, COL_LEFT_LEN2]
-    r6 = M[:, COL_RIGHT_LEN1]
-    r7 = M[:, COL_RIGHT_LEN2]
+    r1 = data_block[:, COL_SHIFT_ALONG]
+    r2 = data_block[:, COL_SHIFT_ACROSS]
+    joint_strike = data_block[:, COL_DIP]
+    r4 = data_block[:, COL_LEFT_LEN1]
+    r5 = data_block[:, COL_LEFT_LEN2]
+    r6 = data_block[:, COL_RIGHT_LEN1]
+    r7 = data_block[:, COL_RIGHT_LEN2]
 
     segment_lengths = r5 + r7
 
@@ -327,31 +327,31 @@ def compute_endpoints(
     vec_skew_right = np.exp(1j * fold_to_halfplane(ang_base_deg, ang_joint, invert=True))
 
     # ---- 分情况计算 ----
-    X1, Y1, X2, Y2 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
+    x1, y1, x2, y2 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
 
     mask_only_left = has_left & (~has_right)
     if np.any(mask_only_left):
         _compute_left_only(
-            X1, Y1, X2, Y2, mask_only_left,
+            x1, y1, x2, y2, mask_only_left,
             z1_base, r2, r4, r5, vec_perp_left, vec_skew_left,
         )
 
     mask_only_right = (~has_left) & has_right
     if np.any(mask_only_right):
         _compute_right_only(
-            X1, Y1, X2, Y2, mask_only_right,
+            x1, y1, x2, y2, mask_only_right,
             z1_base, r2, r6, r7, vec_perp_right, vec_skew_right,
         )
 
     mask_both = has_left & has_right
     if np.any(mask_both):
         _compute_bilateral(
-            X1, Y1, X2, Y2, mask_both,
+            x1, y1, x2, y2, mask_both,
             z1_base, r2, r4, r5, r6, r7,
             vec_perp_left, vec_perp_right, vec_skew_left, vec_skew_right,
         )
 
-    endpoints = np.column_stack((X1, Y1, X2, Y2))
+    endpoints = np.column_stack((x1, y1, x2, y2))
     return EndpointResult(
         azimuth=azimuth,
         count=n,

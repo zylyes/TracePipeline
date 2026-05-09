@@ -1,4 +1,4 @@
-"""迹线长度图绘制。"""
+﻿"""迹线长度图绘制。"""
 from __future__ import annotations
 
 import logging
@@ -73,37 +73,6 @@ class TracePlotLayout:
 
 
 _DEFAULT_LAYOUT = TracePlotLayout()
-
-# 模块级别名（向后兼容内部引用）
-_PAD_DATA_RATIO = _DEFAULT_LAYOUT.pad_data_ratio
-_PAD_BASE_RATIO = _DEFAULT_LAYOUT.pad_base_ratio
-_LEFT_PAD_RATIO = _DEFAULT_LAYOUT.left_pad_ratio
-_BOTTOM_PAD_RATIO = _DEFAULT_LAYOUT.bottom_pad_ratio
-_TOP_PAD_RATIO = _DEFAULT_LAYOUT.top_pad_ratio
-_PANEL_X_RATIO = _DEFAULT_LAYOUT.panel_x_ratio
-_PANEL_BASE_RATIO = _DEFAULT_LAYOUT.panel_base_ratio
-_PANEL_SCALE_MULTIPLIER = _DEFAULT_LAYOUT.panel_scale_multiplier
-_PANEL_INSET_RATIO = _DEFAULT_LAYOUT.panel_inset_ratio
-_PANEL_BOTTOM_RATIO = _DEFAULT_LAYOUT.panel_bottom_ratio
-_PANEL_TOP_RATIO = _DEFAULT_LAYOUT.panel_top_ratio
-_SCALE_BAR_Y_RATIO = _DEFAULT_LAYOUT.scale_bar_y_ratio
-_SCALE_BAR_BOTTOM_RATIO = _DEFAULT_LAYOUT.scale_bar_bottom_ratio
-_TICK_PAD_RATIO = _DEFAULT_LAYOUT.tick_pad_ratio
-_TICK_BASE_RATIO = _DEFAULT_LAYOUT.tick_base_ratio
-_ARROW_MAX_WIDTH_RATIO = _DEFAULT_LAYOUT.arrow_max_width_ratio
-_ARROW_MAX_HEIGHT_RATIO = _DEFAULT_LAYOUT.arrow_max_height_ratio
-_ARROW_BASE_RATIO = _DEFAULT_LAYOUT.arrow_base_ratio
-_ARROW_Y_CENTER_RATIO = _DEFAULT_LAYOUT.arrow_y_center_ratio
-_ARROW_Y_LOW_RATIO = _DEFAULT_LAYOUT.arrow_y_low_ratio
-_ARROW_Y_HIGH_RATIO = _DEFAULT_LAYOUT.arrow_y_high_ratio
-_STATS_TEXT_X_INSET = _DEFAULT_LAYOUT.stats_text_x_inset
-_STATS_TEXT_Y_INSET = _DEFAULT_LAYOUT.stats_text_y_inset
-_FIXED_SCALE_LENGTH = _DEFAULT_LAYOUT.fixed_scale_length
-
-
-def _auto_scale_length(data_span: float) -> float:
-    """固定比例尺长度为 5m（与论文一致）。"""
-    return _FIXED_SCALE_LENGTH
 
 
 class _DecorationLayout(NamedTuple):
@@ -207,14 +176,14 @@ def _build_decoration_layout(
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
     base_span = max(x_span, y_span, _MIN_DATA_SPAN)
-    scale_length = _auto_scale_length(base_span)
+    scale_length = _DEFAULT_LAYOUT.fixed_scale_length
     right_pad = max(
-        x_span * _PAD_DATA_RATIO,
-        base_span * _PAD_DATA_RATIO,
+        x_span * _DEFAULT_LAYOUT.pad_data_ratio,
+        base_span * _DEFAULT_LAYOUT.pad_data_ratio,
         max(0.0, scale_length - x_span + x_span * 0.05),
     )
     if has_annotation_panel:
-        right_pad = max(x_span * _PANEL_X_RATIO, base_span * _PANEL_BASE_RATIO, scale_length * _PANEL_SCALE_MULTIPLIER)
+        right_pad = max(x_span * _DEFAULT_LAYOUT.panel_x_ratio, base_span * _DEFAULT_LAYOUT.panel_base_ratio, scale_length * _DEFAULT_LAYOUT.panel_scale_multiplier)
 
     return _DecorationLayout(
         data_x_min=x_min,
@@ -224,10 +193,10 @@ def _build_decoration_layout(
         x_span=x_span,
         y_span=y_span,
         base_span=base_span,
-        left_pad=max(x_span * _LEFT_PAD_RATIO, base_span * _PAD_BASE_RATIO),
+        left_pad=max(x_span * _DEFAULT_LAYOUT.left_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio),
         right_pad=right_pad,
-        bottom_pad=max(y_span * _BOTTOM_PAD_RATIO, base_span * _PAD_BASE_RATIO),
-        top_pad=max(y_span * _TOP_PAD_RATIO, base_span * _PAD_BASE_RATIO),
+        bottom_pad=max(y_span * _DEFAULT_LAYOUT.bottom_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio),
+        top_pad=max(y_span * _DEFAULT_LAYOUT.top_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio),
         scale_length=scale_length,
         has_annotation_panel=has_annotation_panel,
     )
@@ -245,13 +214,13 @@ def _add_scale_bar(ax: plt.Axes, layout: _DecorationLayout, is_panel: bool = Fal
         scale_length = layout.scale_length
         x0 = panel_x0 + (panel_width - scale_length) / 2.0
         x1 = x0 + scale_length
-        y = panel_y0 + (panel_y1 - panel_y0) * _SCALE_BAR_Y_RATIO
+        y = panel_y0 + (panel_y1 - panel_y0) * _DEFAULT_LAYOUT.scale_bar_y_ratio
     else:
         x0 = layout.data_x_min + max(layout.x_span * 0.03, layout.base_span * 0.01)
         x1 = x0 + layout.scale_length
-        y = layout.data_y_min - layout.bottom_pad * _SCALE_BAR_BOTTOM_RATIO
+        y = layout.data_y_min - layout.bottom_pad * _DEFAULT_LAYOUT.scale_bar_bottom_ratio
 
-    tick = min(layout.bottom_pad * _TICK_PAD_RATIO, layout.base_span * _TICK_BASE_RATIO)
+    tick = min(layout.bottom_pad * _DEFAULT_LAYOUT.tick_pad_ratio, layout.base_span * _DEFAULT_LAYOUT.tick_base_ratio)
 
     ax.plot(
         [x0, x1],
@@ -302,10 +271,10 @@ def _axis_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float]
 def _panel_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float]:
     x_low, x_high, y_low, y_high = _axis_bounds(layout)
     return (
-        layout.data_x_max + layout.right_pad * _PANEL_INSET_RATIO,
-        x_high - layout.right_pad * _PANEL_INSET_RATIO,
-        y_low + (y_high - y_low) * _PANEL_BOTTOM_RATIO,
-        y_high - (y_high - y_low) * _PANEL_TOP_RATIO,
+        layout.data_x_max + layout.right_pad * _DEFAULT_LAYOUT.panel_inset_ratio,
+        x_high - layout.right_pad * _DEFAULT_LAYOUT.panel_inset_ratio,
+        y_low + (y_high - y_low) * _DEFAULT_LAYOUT.panel_bottom_ratio,
+        y_high - (y_high - y_low) * _DEFAULT_LAYOUT.panel_top_ratio,
     )
 
 
@@ -351,13 +320,13 @@ def _add_north_arrow(
     if is_panel:
         panel_x0, panel_x1, panel_y0, panel_y1 = _panel_bounds(layout)
         arrow_len = min(
-            (panel_x1 - panel_x0) * _ARROW_MAX_WIDTH_RATIO,
-            (panel_y1 - panel_y0) * _ARROW_MAX_HEIGHT_RATIO,
-            layout.base_span * _ARROW_BASE_RATIO,
+            (panel_x1 - panel_x0) * _DEFAULT_LAYOUT.arrow_max_width_ratio,
+            (panel_y1 - panel_y0) * _DEFAULT_LAYOUT.arrow_max_height_ratio,
+            layout.base_span * _DEFAULT_LAYOUT.arrow_base_ratio,
         )
         label_gap = arrow_len * 0.25
         center_x = (panel_x0 + panel_x1) / 2.0
-        center_y = panel_y0 + (panel_y1 - panel_y0) * _ARROW_Y_CENTER_RATIO
+        center_y = panel_y0 + (panel_y1 - panel_y0) * _DEFAULT_LAYOUT.arrow_y_center_ratio
 
         base_x = center_x - arrow_len * dx * 0.50
         base_y = center_y - arrow_len * dy * 0.50
@@ -371,8 +340,8 @@ def _add_north_arrow(
             [base_y, tip_y, label_y],
             panel_x0,
             panel_x1,
-            panel_y0 + (panel_y1 - panel_y0) * _ARROW_Y_LOW_RATIO,
-            panel_y0 + (panel_y1 - panel_y0) * _ARROW_Y_HIGH_RATIO,
+            panel_y0 + (panel_y1 - panel_y0) * _DEFAULT_LAYOUT.arrow_y_low_ratio,
+            panel_y0 + (panel_y1 - panel_y0) * _DEFAULT_LAYOUT.arrow_y_high_ratio,
         )
         base_x += shift_x
         tip_x += shift_x
@@ -485,7 +454,7 @@ def _add_statistics_box(
     title_y = panel_y0 + panel_height * 0.62
     rule_y = panel_y0 + panel_height * 0.585
     first_row_y = panel_y0 + panel_height * 0.535
-    bottom_y = panel_y0 + panel_height * _STATS_TEXT_Y_INSET
+    bottom_y = panel_y0 + panel_height * _DEFAULT_LAYOUT.stats_text_y_inset
     rows = [_split_statistics_line(line) for line in statistics_lines]
     row_step = (first_row_y - bottom_y) / max(len(rows) - 1, 1)
 

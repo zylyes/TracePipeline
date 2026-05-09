@@ -18,21 +18,74 @@ from ._stat_types import CircleWindowDiagnostic, TraceStatisticsConfig
 __all__ = ["compute_circle_windows"]
 
 
+class _BatchCollector:
+    """收集中间参数后统一批量计算并按序组装结果。"""
+
+    def __init__(self) -> None:
+        self._invalid: list[tuple[int, CircleWindowDiagnostic]] = []
+        self._centers: list[list[float]] = []
+        self._radii: list[float] = []
+        self._cut_positions: list[float] = []
+        self._sides: list[str] = []
+        self._strategies: list[str] = []
+        self._group_keys: list[str] = []
+        self._order: list[tuple[str, int]] = []
+
+    def add_invalid(self, *,
+        cut_position: float, side: str, reason: str,
+        strategy: str, group_key: str,
+        center_x: float | None = None, center_y: float | None = None, radius: float | None = None,
+    ) -> None:
+        idx = len(self._invalid)
+        self._invalid.append((idx, _invalid_window(
+            cut_position, side, reason,
+            strategy=strategy, group_key=group_key,
+            center_x=center_x, center_y=center_y, radius=radius,
+        )))
+        self._order.append(("invalid", idx))
+
+    def add_batch(self, *,
+        cut_position: float, side: str, radius: float, center_x: float, center_y: float,
+        strategy: str, group_key: str,
+    ) -> None:
+        idx = len(self._centers)
+        self._centers.append([center_x, center_y])
+        self._radii.append(radius)
+        self._cut_positions.append(cut_position)
+        self._sides.append(side)
+        self._strategies.append(strategy)
+        self._group_keys.append(group_key)
+        self._order.append(("batch", idx))
+
+    def resolve(self, local_segments: np.ndarray, min_intersections: int) -> tuple[CircleWindowDiagnostic, ...]:
+        if self._centers:
+            batch = _count_circle_windows_batch(
+                local_segments,
+                np.array(self._centers, dtype=float),
+                np.array(self._radii, dtype=float),
+                min_intersections,
+                np.array(self._cut_positions, dtype=float),
+                self._sides,
+                self._strategies,
+                self._group_keys,
+            )
+        else:
+            batch = []
+        diagnostics = []
+        for kind, idx in self._order:
+            if kind == "invalid":
+                diagnostics.append(self._invalid[idx][1])
+            else:
+                diagnostics.append(batch[idx])
+        return tuple(diagnostics)
+
+
 def _compute_hybrid_windows(
     local_segments: np.ndarray,
     scanline_length: float,
     config: TraceStatisticsConfig,
 ) -> tuple[CircleWindowDiagnostic, ...]:
-    # 收集有效窗口参数与无效窗口
-    invalid_diagnostics: list[tuple[int, CircleWindowDiagnostic]] = []
-    batch_centers: list[list[float]] = []
-    batch_radii: list[float] = []
-    batch_cut_positions: list[float] = []
-    batch_sides: list[str] = []
-    batch_strategies: list[str] = []
-    batch_group_keys: list[str] = []
-    order: list[tuple[str, int]] = []  # ("invalid", idx) or ("batch", idx)
-
+    coll = _BatchCollector()
     for cut_fraction in config.cut_fractions:
         cut_position = scanline_length * cut_fraction
         edge_limit = min(cut_position, scanline_length - cut_position)
@@ -41,47 +94,20 @@ def _compute_hybrid_windows(
             radius_max = min(side_height / 2.0, edge_limit)
             group_key = f"hybrid:{cut_fraction:.12g}:{side}"
             if radius_max <= _EPS:
-                idx = len(invalid_diagnostics)
-                invalid_diagnostics.append((idx, _invalid_window(
-                    cut_position, side, "可用侧向高度或端部距离不足",
+                coll.add_invalid(
+                    cut_position=cut_position, side=side,
+                    reason="可用侧向高度或端部距离不足",
                     strategy="hybrid", group_key=group_key,
-                )))
-                order.append(("invalid", idx))
+                )
                 continue
             for radius_fraction in config.radius_fractions:
                 radius = radius_max * radius_fraction
-                idx = len(batch_centers)
-                batch_centers.append([cut_position, sign * radius])
-                batch_radii.append(radius)
-                batch_cut_positions.append(cut_position)
-                batch_sides.append(side)
-                batch_strategies.append("hybrid")
-                batch_group_keys.append(group_key)
-                order.append(("batch", idx))
-
-    # 批量计算
-    if batch_centers:
-        batch_results = _count_circle_windows_batch(
-            local_segments,
-            np.array(batch_centers, dtype=float),
-            np.array(batch_radii, dtype=float),
-            config.min_intersections,
-            np.array(batch_cut_positions, dtype=float),
-            batch_sides,
-            batch_strategies,
-            batch_group_keys,
-        )
-    else:
-        batch_results = []
-
-    # 按原始顺序组装结果
-    diagnostics = []
-    for kind, idx in order:
-        if kind == "invalid":
-            diagnostics.append(invalid_diagnostics[idx][1])
-        else:
-            diagnostics.append(batch_results[idx])
-    return tuple(diagnostics)
+                coll.add_batch(
+                    cut_position=cut_position, side=side, radius=radius,
+                    center_x=cut_position, center_y=sign * radius,
+                    strategy="hybrid", group_key=group_key,
+                )
+    return coll.resolve(local_segments, config.min_intersections)
 
 
 def _compute_tangent_windows(
@@ -90,73 +116,32 @@ def _compute_tangent_windows(
     config: TraceStatisticsConfig,
 ) -> tuple[CircleWindowDiagnostic, ...]:
     radius = _tangent_radius(scanline_length, config)
-
-    invalid_diagnostics: list[tuple[int, CircleWindowDiagnostic]] = []
-    batch_centers: list[list[float]] = []
-    batch_radii: list[float] = []
-    batch_cut_positions: list[float] = []
-    batch_sides: list[str] = []
-    batch_strategies: list[str] = []
-    batch_group_keys: list[str] = []
-    order: list[tuple[str, int]] = []
-
+    coll = _BatchCollector()
     for side, sign in (("left", 1.0), ("right", -1.0)):
         side_height = _side_height(local_segments, sign)
         for index in range(config.tangent_window_count):
             group_key = f"tangent:{side}:{index}"
-            cut_position = (
-                radius * (2 * index + 1)
-                if math.isfinite(radius)
-                else math.nan
-            )
+            cut_position = radius * (2 * index + 1) if math.isfinite(radius) else math.nan
             center_y = sign * radius if math.isfinite(radius) else math.nan
             if not math.isfinite(radius) or radius <= _EPS:
-                idx = len(invalid_diagnostics)
-                invalid_diagnostics.append((idx, _invalid_window(
-                    0.0, side, "测线长度不足",
+                coll.add_invalid(
+                    cut_position=0.0, side=side, reason="测线长度不足",
                     strategy="tangent", group_key=group_key,
-                )))
-                order.append(("invalid", idx))
+                )
                 continue
             if side_height + _EPS < 2.0 * radius:
-                idx = len(invalid_diagnostics)
-                invalid_diagnostics.append((idx, _invalid_window(
-                    cut_position, side, "可用侧向高度不足",
+                coll.add_invalid(
+                    cut_position=cut_position, side=side, reason="可用侧向高度不足",
                     strategy="tangent", group_key=group_key,
                     center_x=cut_position, center_y=center_y, radius=radius,
-                )))
-                order.append(("invalid", idx))
+                )
                 continue
-            idx = len(batch_centers)
-            batch_centers.append([cut_position, center_y])
-            batch_radii.append(radius)
-            batch_cut_positions.append(cut_position)
-            batch_sides.append(side)
-            batch_strategies.append("tangent")
-            batch_group_keys.append(group_key)
-            order.append(("batch", idx))
-
-    if batch_centers:
-        batch_results = _count_circle_windows_batch(
-            local_segments,
-            np.array(batch_centers, dtype=float),
-            np.array(batch_radii, dtype=float),
-            config.min_intersections,
-            np.array(batch_cut_positions, dtype=float),
-            batch_sides,
-            batch_strategies,
-            batch_group_keys,
-        )
-    else:
-        batch_results = []
-
-    diagnostics = []
-    for kind, idx in order:
-        if kind == "invalid":
-            diagnostics.append(invalid_diagnostics[idx][1])
-        else:
-            diagnostics.append(batch_results[idx])
-    return tuple(diagnostics)
+            coll.add_batch(
+                cut_position=cut_position, side=side, radius=radius,
+                center_x=cut_position, center_y=center_y,
+                strategy="tangent", group_key=group_key,
+            )
+    return coll.resolve(local_segments, config.min_intersections)
 
 
 def _compute_concentric_windows(

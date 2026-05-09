@@ -191,6 +191,21 @@ def _one_row_df(items: Sequence[tuple[str, str]]) -> pd.DataFrame:
     )
 
 
+def _source_tag(source: str) -> str:
+    """来源标注短标签，用于 Excel/表格。"""
+    mapping = {
+        "measured": "M",
+        "window": "W",
+        "window_equivalent": "W",
+        "hull": "E",
+        "endpoint": "E",
+        "segment": "E",
+        "estimated": "est",
+    }
+    tag = mapping.get(source)
+    return f" ({tag})" if tag else ""
+
+
 def _build_summary_sections(
     trace: TraceData,
     statistics: TraceStatistics | None,
@@ -208,7 +223,10 @@ def _build_summary_sections(
         ("平均迹长", _format_value(_round_float(mean_length), "m")),
         (
             "露头面积",
-            _format_value(_round_float(statistics.outcrop_area), "m²")
+            (
+                _format_value(_round_float(statistics.outcrop_area), "m²")
+                + _source_tag(statistics.outcrop_area_source)
+            )
             if statistics is not None
             else "N/A",
         ),
@@ -234,10 +252,22 @@ def _build_summary_sections(
     ]
     calculation_items = [
         ("线密度(P₁₀)", _format_value(_round_float(statistics.p10), "m⁻¹")),
-        ("面密度(P₂₀)", _format_value(_round_float(statistics.p20), "m⁻²")),
-        ("面累计长度密度(P₂₁)", _format_value(_round_float(statistics.p21), "m⁻¹")),
+        (
+            "面密度(P₂₀)",
+            _format_value(_round_float(statistics.p20), "m⁻²")
+            + _source_tag(statistics.p20_source),
+        ),
+        (
+            "面累计长度密度(P₂₁)",
+            _format_value(_round_float(statistics.p21), "m⁻¹")
+            + _source_tag(statistics.p21_source),
+        ),
         ("有效取样窗数量", _format_value(statistics.valid_window_count)),
     ]
+    if statistics.window_validation_warning:
+        calculation_items.append(
+            ("校验告警", statistics.window_validation_warning),
+        )
     sections.extend([
         ExcelSection(
             df=_one_row_df(fracture_items),

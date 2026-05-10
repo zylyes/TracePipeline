@@ -67,12 +67,8 @@ def _effective_scanline_length(trace: TraceData) -> tuple[float, str]:
     return float(_estimate_scanline_length(trace.scanline_positions)), "estimated"
 
 
-def _scanline_angle_rad(azimuth_deg: float) -> float:
-    return math.radians(azimuth_to_cartesian_deg(azimuth_deg))
-
-
 def _to_local_segments(trace: TraceData) -> np.ndarray:
-    angle = _scanline_angle_rad(trace.scanline_azimuth)
+    angle = math.radians(azimuth_to_cartesian_deg(trace.scanline_azimuth))
     along = np.array([math.cos(angle), math.sin(angle)], dtype=float)
     left = np.array([-math.sin(angle), math.cos(angle)], dtype=float)
 
@@ -97,10 +93,6 @@ def _adaptive_consistency_threshold(trace_count: int) -> float:
 
 
 # ── 露头面积 ──────────────────────────────────────────────────────────
-
-
-def _estimate_outcrop_area(local_segments: np.ndarray) -> float:
-    return _convex_hull_area(local_segments)
 
 
 def _compute_window_equivalent_area(trace_count: int, window_p20: float) -> float:
@@ -211,6 +203,20 @@ def _effective_trace_length_total(
     return math.nan, "unavailable"
 
 
+def _angle_weights(
+    strikes: np.ndarray,
+    scanline_azimuth: float,
+    min_angle: float,
+) -> np.ndarray:
+    """计算方向偏差角 α 及其截断后的 sin(α)。"""
+    alpha = np.abs(strikes - scanline_azimuth)
+    alpha = np.mod(alpha, 180.0)
+    alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
+    min_sin = math.sin(math.radians(min_angle))
+    sin_alpha = np.sin(np.radians(alpha))
+    return np.where(sin_alpha < min_sin, min_sin, sin_alpha)
+
+
 def _compute_weighted_mean_length(
     lengths: np.ndarray,
     strikes: np.ndarray,
@@ -220,19 +226,9 @@ def _compute_weighted_mean_length(
     """方向偏差修正后的加权平均迹长。"""
     if lengths.size == 0:
         return math.nan
-
-    alpha = np.abs(strikes - scanline_azimuth)
-    alpha = np.mod(alpha, 180.0)
-    alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
-
-    min_sin = math.sin(math.radians(min_angle))
-    sin_alpha = np.sin(np.radians(alpha))
-    sin_alpha = np.where(sin_alpha < min_sin, min_sin, sin_alpha)
-
-    weights = 1.0 / sin_alpha
+    weights = 1.0 / _angle_weights(strikes, scanline_azimuth, min_angle)
     numerator = float(np.sum(weights * lengths))
     denominator = float(np.sum(weights))
-
     return numerator / denominator if denominator > _EPS else math.nan
 
 
@@ -246,21 +242,10 @@ def _compute_unbiased_mean_length(
     """长度+方向双修正（IPW）后的无偏平均迹长。"""
     if lengths.size == 0:
         return math.nan
-
-    alpha = np.abs(strikes - scanline_azimuth)
-    alpha = np.mod(alpha, 180.0)
-    alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
-
-    min_sin = math.sin(math.radians(min_angle))
-    sin_alpha = np.sin(np.radians(alpha))
-    sin_alpha = np.where(sin_alpha < min_sin, min_sin, sin_alpha)
-
     safe_lengths = np.where(lengths < min_length, min_length, lengths)
-
-    weights = 1.0 / (safe_lengths * sin_alpha)
+    weights = 1.0 / (safe_lengths * _angle_weights(strikes, scanline_azimuth, min_angle))
     numerator = float(np.sum(weights * lengths))
     denominator = float(np.sum(weights))
-
     return numerator / denominator if denominator > _EPS else math.nan
 
 

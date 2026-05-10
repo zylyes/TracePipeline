@@ -210,22 +210,17 @@ class RunConfig:
 
     @classmethod
     def from_mapping(cls, cfg: Mapping[str, Any]) -> RunConfig:
-        """从配置字典构造，执行字段级校验。"""
-        return cls(
-            input_dir=str(cfg["input_dir"]),
-            output_dir=str(cfg["output_dir"]),
-            output_prefix=str(cfg["output_prefix"]),
-            table_stem=str(cfg["table_stem"]),
-            outcrop=str(cfg["outcrop"]),
-            export_rose_plot=cfg.get("export_rose_plot", True),
-            rose_bin_width=cfg.get("rose_bin_width", 10.0),
-            rose_dpi=cfg.get("rose_dpi", 400),
-            trace_dpi=cfg.get("trace_dpi", 300),
-            rotated_trace_dpi=cfg.get("rotated_trace_dpi", 600),
-            window_strategy=cfg.get("window_strategy", "auto"),
-            auto_density_threshold=cfg.get("auto_density_threshold", 5.0),
-            tangent_window_count=cfg.get("tangent_window_count", 3),
-        )
+        """从配置字典构造，执行字段级校验。
+
+        只提取 RunConfig 已知字段，多余键被忽略；缺失的可选字段回退到 dataclass 默认值。
+        """
+        known = {
+            "input_dir", "output_dir", "output_prefix", "table_stem", "outcrop",
+            "export_rose_plot", "rose_bin_width", "rose_dpi", "trace_dpi",
+            "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
+            "tangent_window_count",
+        }
+        return cls(**{k: cfg[k] for k in known if k in cfg})
 
 
 # ===========================================================================
@@ -247,6 +242,7 @@ class RunResult:
     rotated_plot_path: str = ""
     rose_plot_path: str = ""
     window_strategy: str = ""
+    area_source: str = ""
     error: str = ""
 
     @classmethod
@@ -261,6 +257,7 @@ class RunResult:
         rotated_plot_path: str = "",
         rose_plot_path: str = "",
         window_strategy: str = "",
+        area_source: str = "",
     ) -> RunResult:
         return cls(
             table_stem=table_stem,
@@ -273,6 +270,7 @@ class RunResult:
             rotated_plot_path=rotated_plot_path,
             rose_plot_path=rose_plot_path,
             window_strategy=window_strategy,
+            area_source=area_source,
         )
 
     @classmethod

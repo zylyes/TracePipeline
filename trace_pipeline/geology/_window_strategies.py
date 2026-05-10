@@ -9,7 +9,6 @@ import numpy as np
 from ._circle_window import (
     _count_circle_windows_batch,
     _invalid_window,
-    _max_abs_y,
     _side_height,
     _tangent_radius,
 )
@@ -116,7 +115,7 @@ def _compute_concentric_windows(
     config: TraceStatisticsConfig,
 ) -> tuple[CircleWindowDiagnostic, ...]:
     cut_position = scanline_length / 2.0 if math.isfinite(float(scanline_length)) else 0.0
-    radius_max = min(scanline_length / 2.0, _max_abs_y(local_segments))
+    radius_max = min(scanline_length / 2.0, _side_height(local_segments, 0.0))
     group_key = "concentric:center"
     if not math.isfinite(float(radius_max)) or radius_max <= _EPS:
         return (

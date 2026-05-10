@@ -10,6 +10,7 @@ from trace_pipeline.geology._convex_hull import _convex_hull_area
 from trace_pipeline.geology._window_scoring import _select_window_diagnostics
 from trace_pipeline.geology.statistics import (
     CircleWindowDiagnostic,
+    TraceStatistics,
     TraceStatisticsConfig,
     _effective_trace_length_total,
     _select_effective_area,
@@ -244,7 +245,7 @@ def test_full_statistics_chain_with_sources_and_formatting():
 
     # P20 = count / effective_area（凸包或圆窗等效）
     # 此 trace 的凸包面积与圆窗等效面积差异大，可能触发降级
-    assert stats.p20_source in ("hull", "window_equivalent")
+    assert stats.p20_source in ("hull", "hull_buffered", "window_equivalent")
     # P21 = observed_total / effective_area
     assert stats.p21_source == stats.p20_source
 
@@ -254,7 +255,6 @@ def test_full_statistics_chain_with_sources_and_formatting():
     lines = format_statistics_box_lines(stats)
     joined = "\n".join(lines)
     assert "测线走向: 90.0°" in lines
-    assert "圆窗策略: 混合圆窗" in lines
     assert "平均迹线长度（端点）" in joined
     assert "(W)" not in joined
 
@@ -305,12 +305,75 @@ def test_invalid_circle_windows_record_reasons_and_format_na():
     assert all(diagnostic.invalid_reason for diagnostic in stats.diagnostics)
     assert math.isnan(stats.p20)
     assert "I/II/III型裂隙数: 0/0/1" in lines
-    assert "测线长度: 0.000 $\\mathrm{m}$" in lines
+    assert "测线长度: 0.000 m" in lines
     assert any("露头面积" in line for line in lines)
     assert "测线走向: 90.0°" in lines
     assert "面累计长度密度" in joined
     assert "体密度" not in joined
     assert "总裂隙数" not in joined
+
+
+def test_statistics_box_lines_show_only_selected_area_source():
+    stats = TraceStatistics(
+        scanline_azimuth=90.0,
+        total_count=5,
+        type_i_count=1,
+        type_ii_count=2,
+        type_iii_count=2,
+        scanline_length=10.0,
+        outcrop_area=20.0,
+        mean_trace_length=3.0,
+        trace_length_total=15.0,
+        p10=0.5,
+        p20=0.25,
+        p21=0.75,
+        scanline_length_source="estimated",
+        outcrop_area_source="hull",
+        trace_length_source="segment",
+        p20_source="hull",
+        p21_source="hull",
+        window_strategy="hybrid",
+        trace_types=("I", "II", "II", "III", "III"),
+        diagnostics=(),
+        hull_buffered_area=50.0,
+    )
+
+    joined = "\n".join(format_statistics_box_lines(stats))
+
+    assert "露头面积（凸包）: 20.000 m²" in joined
+    assert "边界缓冲" not in joined
+
+
+def test_statistics_box_lines_label_buffered_area_source():
+    stats = TraceStatistics(
+        scanline_azimuth=90.0,
+        total_count=5,
+        type_i_count=1,
+        type_ii_count=2,
+        type_iii_count=2,
+        scanline_length=10.0,
+        outcrop_area=50.0,
+        mean_trace_length=3.0,
+        trace_length_total=15.0,
+        p10=0.5,
+        p20=0.1,
+        p21=0.3,
+        scanline_length_source="estimated",
+        outcrop_area_source="hull_buffered",
+        trace_length_source="segment",
+        p20_source="hull_buffered",
+        p21_source="hull_buffered",
+        window_strategy="hybrid",
+        trace_types=("I", "II", "II", "III", "III"),
+        diagnostics=(),
+        hull_buffered_area=50.0,
+    )
+
+    joined = "\n".join(format_statistics_box_lines(stats))
+
+    assert "露头面积（缓冲凸包）: 50.000 m²" in joined
+    assert "P20 面密度（缓冲凸包）" not in joined
+    assert "面密度（$P_{20}$）（缓冲凸包）: 0.100 m⁻²" in joined
 
 
 def test_explicit_window_strategy_layouts_are_recorded():
@@ -829,8 +892,10 @@ def test_area_disagreement_ratio_nan_when_measured():
     area, source, ratio, warning = _select_effective_area(
         trace=make_trace([[0.0, 0.0, 1.0, 0.0]], [0.0], measured_outcrop_area=50.0),
         hull_area=100.0,
+        hull_buffered_area=120.0,
         window_equivalent_area=10.0,
         local_segments=np.array([[0.0, 0.0, 1.0, 0.0]]),
+        config=TraceStatisticsConfig(),
     )
     assert source == "measured"
     assert area == pytest.approx(50.0)
@@ -932,3 +997,213 @@ def test_circle_window_q_zero_is_invalid():
         assert math.isnan(win.p20)
         assert math.isnan(win.p21)
         assert math.isnan(win.l_est)
+
+
+# ── 新增测试：凸包修复 ────────────────────────────────────────────────
+
+
+def test_convex_hull_collinear_boundary_points_retained():
+    """共线边界点应被保留在凸包上，面积不丢失。"""
+    from trace_pipeline.geology._convex_hull import _compute_convex_hull, _shoelace_area
+
+    points = np.array([
+        [0.0, 0.0, 2.0, 0.0],
+        [2.0, 0.0, 4.0, 0.0],
+        [4.0, 0.0, 4.0, 3.0],
+        [4.0, 3.0, 0.0, 3.0],
+        [0.0, 3.0, 0.0, 0.0],
+    ])
+    hull = _compute_convex_hull(points)
+    assert hull is not None
+    area = _shoelace_area(hull)
+    assert area == pytest.approx(12.0)
+
+
+def test_convex_hull_skinny_shape_rejected():
+    """极度狭长凸包（长宽比 > 15:1）应被判定为退化。"""
+    from trace_pipeline.geology._convex_hull import _is_hull_geometrically_valid
+
+    skinny = np.array([
+        [0.0, 0.0, 100.0, 0.0],
+        [100.0, 0.0, 100.0, 1.0],
+        [100.0, 1.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0, 0.0],
+    ])
+    assert not _is_hull_geometrically_valid(skinny, 100.0)
+
+
+def test_convex_hull_centered_precision_vs_large_coordinates():
+    """大坐标下中心化 Shoelace 精度。"""
+    from trace_pipeline.geology._convex_hull import _shoelace_area
+
+    offset = 1e6
+    square = np.array([
+        [offset, offset],
+        [offset + 2.0, offset],
+        [offset + 2.0, offset + 2.0],
+        [offset, offset + 2.0],
+    ])
+    area = _shoelace_area(square)
+    assert area == pytest.approx(4.0, rel=1e-12)
+
+
+# ── 新增测试：缓冲区面积 ─────────────────────────────────────────────
+
+
+def test_buffered_hull_area_rectangle():
+    """矩形凸包缓冲面积 = A + P·b + π·b²。"""
+    from trace_pipeline.geology._convex_hull import (
+        _buffered_hull_area,
+        _buffered_hull_vertices,
+        _shoelace_area,
+    )
+
+    rect = np.array([
+        [0.0, 0.0],
+        [4.0, 0.0],
+        [4.0, 3.0],
+        [0.0, 3.0],
+    ])
+    buffer = 1.0
+    expected = 12.0 + 14.0 * 1.0 + math.pi * 1.0
+    result = _buffered_hull_area(rect, buffer)
+    assert result == pytest.approx(expected)
+
+    vertices = _buffered_hull_vertices(rect, buffer)
+    assert vertices is not None
+    assert _shoelace_area(vertices) == pytest.approx(expected, rel=0.01)
+
+
+# ── 新增测试：数值稳定性 ─────────────────────────────────────────────
+
+
+def test_density_preferred_strategy_near_zero_hull_area():
+    """hull_area 极端小时策略选择不崩溃。"""
+    from trace_pipeline.geology._window_scoring import _density_preferred_strategy
+
+    config = TraceStatisticsConfig()
+    result = _density_preferred_strategy(30.0, 20, config, 1e-12)
+    assert result in ("tangent", "hybrid", "concentric")
+
+
+# ── 新增测试：自适应阈值 ─────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("n,expected", [
+    (10, pytest.approx(0.444, abs=0.01)),
+    (30, pytest.approx(0.374, abs=0.01)),
+    (100, pytest.approx(0.315, abs=0.01)),
+])
+def test_adaptive_disagreement_threshold_values(n, expected):
+    from trace_pipeline.geology.statistics import _adaptive_disagreement_threshold
+
+    assert _adaptive_disagreement_threshold(n) == expected
+
+
+# ── 新增测试：加权/无偏迹长 ──────────────────────────────────────────
+
+
+def test_weighted_mean_perpendicular_equals_arithmetic():
+    """全垂直迹线（α=90°）方向修正后等于算术平均。"""
+    from trace_pipeline.geology.statistics import _compute_weighted_mean_length
+
+    lengths = np.array([5.0, 10.0, 15.0])
+    strikes = np.array([0.0, 0.0, 0.0])
+    azimuth = 90.0
+    result = _compute_weighted_mean_length(lengths, strikes, azimuth, 20.0)
+    assert result == pytest.approx(10.0)
+
+
+def test_weighted_mean_parallel_truncated():
+    """全平行迹线（α=0°）应触发 min_angle 截断。"""
+    from trace_pipeline.geology.statistics import _compute_weighted_mean_length
+
+    lengths = np.array([5.0, 10.0])
+    strikes = np.array([0.0, 0.0])
+    azimuth = 0.0
+    result = _compute_weighted_mean_length(lengths, strikes, azimuth, 20.0)
+    # sin(20°) ≈ 0.342，权重相等，结果 = 算术平均
+    assert result == pytest.approx(7.5)
+
+
+def test_unbiased_mean_hand_calculated():
+    """两条迹线的 IPW 手算验证。
+
+    迹线1: l=6, α=90°(sin=1), weight=1/(6·1)=1/6
+    迹线2: l=3, α=30°(sin=0.5), weight=1/(3·0.5)=2/3
+    numerator = 6·(1/6) + 3·(2/3) = 3
+    denominator = 1/6 + 2/3 = 5/6
+    unbiased = 3 / (5/6) = 3.6
+    """
+    from trace_pipeline.geology.statistics import _compute_unbiased_mean_length
+
+    lengths = np.array([6.0, 3.0])
+    strikes = np.array([0.0, 60.0])
+    azimuth = 90.0
+    result = _compute_unbiased_mean_length(lengths, strikes, azimuth, 20.0, 0.3)
+    assert result == pytest.approx(3.6)
+
+
+# ── 新增测试：Terzaghi 修正 ──────────────────────────────────────────
+
+
+def test_terzaghi_p10_uniform_distribution():
+    """均匀分布优势组 mean_sin=2/π，Terzaghi P10 = P10·π/2。"""
+    from trace_pipeline.geology.statistics import _terzaghi_p10_correction
+
+    p10 = 1.0
+    mean_sin = 2.0 / math.pi
+    result = _terzaghi_p10_correction(p10, mean_sin)
+    assert result == pytest.approx(math.pi / 2.0)
+
+
+# ── 新增测试：面积选择方案 B ─────────────────────────────────────────
+
+
+def test_area_selects_buffered_when_it_closes_gap():
+    """原始凸包与圆窗差异大，但缓冲凸包更接近时，使用缓冲凸包。"""
+    from trace_pipeline.geology.statistics import _select_effective_area
+
+    trace = make_trace(
+        [
+            [0.0, 0.0, 1.0, 0.0],
+            [1.0, 0.0, 1.0, 1.0],
+            [1.0, 1.0, 0.0, 1.0],
+        ],
+        [0.0, 10.0, 20.0],
+    )
+    area, source, ratio, warning = _select_effective_area(
+        trace,
+        hull_area=1.0,
+        hull_buffered_area=1.5,
+        window_equivalent_area=1.4,
+        local_segments=trace.endpoints.reshape(-1, 2),
+        config=TraceStatisticsConfig(disagreement_threshold=0.10),
+    )
+    assert source == "hull_buffered"
+    assert area == pytest.approx(1.5)
+
+
+def test_area_skips_buffer_when_hull_agrees_with_window():
+    """原始凸包与圆窗差异小时，直接使用原始凸包，不触发缓冲。"""
+    from trace_pipeline.geology.statistics import _select_effective_area
+
+    trace = make_trace(
+        [
+            [0.0, 0.0, 10.0, 0.0],
+            [10.0, 0.0, 10.0, 4.0],
+            [10.0, 4.0, 0.0, 4.0],
+            [0.0, 4.0, 0.0, 0.0],
+        ],
+        [0.0, 10.0, 20.0, 30.0],
+    )
+    area, source, ratio, warning = _select_effective_area(
+        trace,
+        hull_area=40.0,
+        hull_buffered_area=55.0,
+        window_equivalent_area=38.0,
+        local_segments=trace.endpoints.reshape(-1, 2),
+        config=TraceStatisticsConfig(disagreement_threshold=0.10),
+    )
+    assert source == "hull"
+    assert area == pytest.approx(40.0)

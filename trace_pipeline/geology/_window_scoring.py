@@ -228,11 +228,13 @@ def _density_preferred_strategy(
     config: TraceStatisticsConfig,
     hull_area: float,
 ) -> str:
-    rough_density = (
-        trace_count / hull_area
-        if math.isfinite(float(hull_area)) and hull_area > _EPS
-        else math.nan
-    )
+    if math.isfinite(float(hull_area)) and hull_area > _EPS:
+        # 温和保护：面积不应小于迹线数 × 1e-6，避免极端密度爆炸
+        min_sensible_area = max(_EPS, trace_count * 1e-6)
+        effective_area = hull_area if hull_area >= min_sensible_area else min_sensible_area
+        rough_density = trace_count / effective_area
+    else:
+        rough_density = math.nan
     radius = _tangent_radius(scanline_length, config)
     expected_intersections = (
         rough_density * math.pi * radius * radius
@@ -304,6 +306,11 @@ def _select_window_diagnostics(
     if not viable_scores:
         logger.debug("auto 圆窗策略无有效候选，回退到密度偏好: %s", preferred)
         return preferred, diagnostics_by_strategy[preferred]
+
+    # 当所有策略得分非正时，回退到最保守策略
+    if not any(score.score > 0 for score in viable_scores):
+        logger.debug("auto 圆窗策略所有得分非正，回退到最保守策略 tangent")
+        return "tangent", diagnostics_by_strategy["tangent"]
 
     best = max(
         viable_scores,

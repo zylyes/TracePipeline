@@ -29,7 +29,7 @@ def save_figure(
     output_dir: str,
     filename: str,
     dpi: int = 300,
-    pad_inches: float = 0.08,
+    pad_inches: float = 0.12,
 ) -> str:
     """保存并关闭图形，返回完整输出路径。"""
     out = Path(output_dir)

@@ -8,8 +8,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tests.conftest import make_trace
+from trace_pipeline.geology._convex_hull import _shoelace_area
+from trace_pipeline.geology.statistics import TraceStatistics
 from trace_pipeline.models import RunConfig
-from trace_pipeline.pipeline import run_pipeline
+from trace_pipeline.pipeline import _selected_hull_overlays, run_pipeline
 
 
 def _make_test_excel(tmp_path: Path, stem: str, sheet: str) -> None:
@@ -43,6 +46,62 @@ def _make_test_excel(tmp_path: Path, stem: str, sheet: str) -> None:
     df = pd.DataFrame(rows)
     excel_path = tmp_path / f"{stem}.xlsx"
     df.to_excel(str(excel_path), index=False, header=False, engine="openpyxl")
+
+
+def test_selected_hull_overlays_match_area_source():
+    trace = make_trace(
+        [
+            [0.0, 0.0, 4.0, 0.0],
+            [4.0, 0.0, 4.0, 3.0],
+            [4.0, 3.0, 0.0, 3.0],
+            [0.0, 3.0, 0.0, 0.0],
+        ],
+        [0.0, 1.0, 2.0, 3.0],
+        scanline_azimuth=90.0,
+    )
+    base_stats = dict(
+        scanline_azimuth=90.0,
+        total_count=4,
+        type_i_count=4,
+        type_ii_count=0,
+        type_iii_count=0,
+        scanline_length=4.0,
+        outcrop_area=12.0,
+        mean_trace_length=2.0,
+        trace_length_total=8.0,
+        p10=1.0,
+        p20=4 / 12.0,
+        p21=8 / 12.0,
+        scanline_length_source="estimated",
+        trace_length_source="segment",
+        p20_source="hull",
+        p21_source="hull",
+        window_strategy="auto",
+        trace_types=("I", "I", "I", "I"),
+        diagnostics=(),
+        hull_buffer_ratio=0.25,
+    )
+
+    hull_stats = TraceStatistics(outcrop_area_source="hull", **base_stats)
+    raw_hull, rotated_hull = _selected_hull_overlays(trace, hull_stats)
+    assert raw_hull is not None
+    assert rotated_hull is not None
+    assert _shoelace_area(raw_hull.vertices) == pytest.approx(12.0)
+
+    buffered_stats = TraceStatistics(
+        outcrop_area_source="hull_buffered",
+        hull_buffered_area=20.0,
+        **base_stats,
+    )
+    raw_buffered, rotated_buffered = _selected_hull_overlays(trace, buffered_stats)
+    assert raw_buffered is not None
+    assert rotated_buffered is not None
+    assert _shoelace_area(raw_buffered.vertices) > _shoelace_area(raw_hull.vertices)
+    assert rotated_buffered.vertices[:, 0].min() <= rotated_hull.vertices[:, 0].min()
+    assert rotated_buffered.vertices[:, 0].max() >= rotated_hull.vertices[:, 0].max()
+
+    measured_stats = TraceStatistics(outcrop_area_source="measured", **base_stats)
+    assert _selected_hull_overlays(trace, measured_stats) == (None, None)
 
 
 @pytest.fixture()

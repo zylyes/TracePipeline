@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .geology._convex_hull import _buffered_hull_vertices, _compute_convex_hull
 from .geology.angles import azimuth_to_cartesian_deg, fold_strike_angle
 from .geology.endpoints import compute_endpoints
 from .geology.statistics import (
@@ -26,7 +27,7 @@ from .io.excel_reader import read_trace_excel
 from .io.excel_writer import build_excel_sections, write_excel_sections
 from .models import RunConfig, RunResult, TraceData
 from .plotting.rose_plot import render_rose_plot
-from .plotting.trace_plot import CircleWindowOverlay, render_trace_plot
+from .plotting.trace_plot import CircleWindowOverlay, ConvexHullOverlay, render_trace_plot
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,34 @@ def _rotated_circle_overlays(
         CircleWindowOverlay(float(center[0]), float(center[1]), overlay.radius)
         for center, overlay in zip(rotated_centers, raw_overlays)
     )
+
+
+def _selected_hull_overlays(
+    trace: TraceData,
+    statistics: TraceStatistics,
+) -> tuple[ConvexHullOverlay | None, ConvexHullOverlay | None]:
+    """返回与露头面积来源一致的原始/旋转凸包覆盖物。"""
+    if statistics.outcrop_area_source not in {"hull", "hull_buffered"}:
+        return None, None
+
+    raw_hull = _compute_convex_hull(trace.endpoints)
+    if raw_hull is None:
+        return None, None
+
+    selected_vertices = raw_hull
+    if statistics.outcrop_area_source == "hull_buffered":
+        buffer_distance = statistics.hull_buffer_ratio * statistics.mean_trace_length
+        buffered_vertices = _buffered_hull_vertices(raw_hull, buffer_distance)
+        if buffered_vertices is None:
+            return None, None
+        selected_vertices = buffered_vertices
+
+    rotated_vertices = normalize_points_like_lines(
+        selected_vertices,
+        trace.endpoints,
+        trace.scanline_azimuth,
+    )
+    return ConvexHullOverlay(selected_vertices), ConvexHullOverlay(rotated_vertices)
 
 
 def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
@@ -136,6 +165,12 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         raw_circle_windows = _raw_circle_overlays(trace, statistics)
         rotated_circle_windows = _rotated_circle_overlays(trace, raw_circle_windows)
 
+        # 即时终端告警
+        if statistics.window_validation_warning:
+            print(f"\n[{cfg.outcrop}] 警告: {statistics.window_validation_warning}")
+
+        raw_hull_overlay, rotated_hull_overlay = _selected_hull_overlays(trace, statistics)
+
         # ---- 3. 导出 Excel ----
         output_dir = Path(cfg.output_dir)
         excel_path = output_dir / f"{cfg.output_prefix}_traces.xlsx"
@@ -152,6 +187,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             dpi=cfg.trace_dpi,
             statistics_lines=statistics_lines,
             circle_windows=raw_circle_windows,
+            hull_overlay=raw_hull_overlay,
+            area_source=statistics.outcrop_area_source,
         )
         rot_plot = render_trace_plot(
             rotated,
@@ -162,6 +199,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             north_angle_deg=rotated_north_angle,
             statistics_lines=statistics_lines,
             circle_windows=rotated_circle_windows,
+            hull_overlay=rotated_hull_overlay,
+            area_source=statistics.outcrop_area_source,
         )
 
         rose_plot = ""

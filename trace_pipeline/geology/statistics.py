@@ -18,7 +18,12 @@ import numpy as np
 
 from ..models import TraceData
 from ._circle_window import _classify_trace_types
-from ._convex_hull import _convex_hull_area, _is_hull_geometrically_valid
+from ._convex_hull import (
+    _buffered_hull_area,
+    _compute_convex_hull,
+    _convex_hull_area,
+    _is_hull_geometrically_valid,
+)
 from ._stat_format import format_statistics_box_lines
 from ._stat_types import (
     _EPS,
@@ -76,6 +81,21 @@ def _to_local_segments(trace: TraceData) -> np.ndarray:
     return local_points.reshape(trace.endpoints.shape)
 
 
+# ── 自适应阈值 ───────────────────────────────────────────────────────
+
+
+def _adaptive_disagreement_threshold(trace_count: int) -> float:
+    """自适应面积降级阈值：样本量越大越严格。"""
+    n = max(0, trace_count)
+    return 0.30 + 0.20 * math.exp(-n / 30.0)
+
+
+def _adaptive_consistency_threshold(trace_count: int) -> float:
+    """自适应 P20/P21 一致性校验阈值。"""
+    n = max(0, trace_count)
+    return 0.50 * (0.30 + 0.20 * math.exp(-n / 30.0))
+
+
 # ── 露头面积 ──────────────────────────────────────────────────────────
 
 
@@ -93,43 +113,57 @@ def _compute_window_equivalent_area(trace_count: int, window_p20: float) -> floa
 def _select_effective_area(
     trace: TraceData,
     hull_area: float,
+    hull_buffered_area: float,
     window_equivalent_area: float,
     local_segments: np.ndarray,
-    *,
-    disagreement_threshold: float = 0.40,
+    config: TraceStatisticsConfig,
 ) -> tuple[float, str, float, str]:
-    """三层回退：实测 -> 凸包 -> 圆窗等效面积。
+    """四层回退：实测 -> 凸包 -> 缓冲凸包 -> 圆窗等效面积。
 
     Returns:
         (effective_area, area_source, disagreement_ratio, warning)
     """
     # 层 1：实测面积（最可靠，绝不降级）
     if trace.measured_outcrop_area is not None:
-        return (
-            float(trace.measured_outcrop_area),
-            "measured",
-            math.nan,
-            "",
-        )
+        return float(trace.measured_outcrop_area), "measured", math.nan, ""
 
-    # 层 2：凸包面积（需几何质量合格）
+    # 层 2：原始凸包（需几何质量合格）
     hull_valid = _is_hull_geometrically_valid(local_segments, hull_area)
     if hull_valid:
-        ratio = (
-            abs(hull_area - window_equivalent_area) / max(hull_area, window_equivalent_area)
-            if math.isfinite(window_equivalent_area) and max(hull_area, window_equivalent_area) > _EPS
-            else 0.0
+        if not math.isfinite(window_equivalent_area) or window_equivalent_area <= _EPS:
+            return hull_area, "hull", 0.0, ""
+
+        ratio_hull = abs(hull_area - window_equivalent_area) / max(hull_area, window_equivalent_area)
+        threshold = (
+            config.disagreement_threshold
+            if config.disagreement_threshold is not None
+            else _adaptive_disagreement_threshold(trace.count)
         )
-        if ratio <= disagreement_threshold or not math.isfinite(window_equivalent_area):
-            return hull_area, "hull", ratio, ""
-        # 凸包与圆窗差异过大 → 降级到圆窗等效面积
+
+        if ratio_hull <= threshold:
+            # 差异小，信任原始凸包
+            return hull_area, "hull", ratio_hull, ""
+
+        # 差异大 → 尝试缓冲修正
+        if math.isfinite(hull_buffered_area) and hull_buffered_area > _EPS:
+            ratio_buffered = abs(hull_buffered_area - window_equivalent_area) / max(
+                hull_buffered_area, window_equivalent_area
+            )
+            if ratio_buffered < ratio_hull:
+                return hull_buffered_area, "hull_buffered", ratio_buffered, ""
+
+        # 缓冲后仍差异大 → 降级到圆窗等效面积
         warning = (
             f"凸包面积({hull_area:.2f})与圆窗等效面积({window_equivalent_area:.2f})"
-            f"差异达{ratio:.0%}，已降级使用圆窗等效面积"
+            f"差异达{ratio_hull:.0%}，已降级使用圆窗等效面积"
         )
-        return window_equivalent_area, "window_equivalent", ratio, warning
+        return window_equivalent_area, "window_equivalent", ratio_hull, warning
 
-    # 层 3：圆窗等效面积（兜底）
+    # 层 3：缓冲凸包（兜底）
+    if math.isfinite(hull_buffered_area) and hull_buffered_area > _EPS:
+        return hull_buffered_area, "hull_buffered", math.nan, ""
+
+    # 层 4：圆窗等效面积（兜底）
     if math.isfinite(window_equivalent_area) and window_equivalent_area > _EPS:
         return window_equivalent_area, "window_equivalent", math.nan, ""
 
@@ -177,6 +211,68 @@ def _effective_trace_length_total(
     return math.nan, "unavailable"
 
 
+def _compute_weighted_mean_length(
+    lengths: np.ndarray,
+    strikes: np.ndarray,
+    scanline_azimuth: float,
+    min_angle: float,
+) -> float:
+    """方向偏差修正后的加权平均迹长。"""
+    if lengths.size == 0:
+        return math.nan
+
+    alpha = np.abs(strikes - scanline_azimuth)
+    alpha = np.mod(alpha, 180.0)
+    alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
+
+    min_sin = math.sin(math.radians(min_angle))
+    sin_alpha = np.sin(np.radians(alpha))
+    sin_alpha = np.where(sin_alpha < min_sin, min_sin, sin_alpha)
+
+    weights = 1.0 / sin_alpha
+    numerator = float(np.sum(weights * lengths))
+    denominator = float(np.sum(weights))
+
+    return numerator / denominator if denominator > _EPS else math.nan
+
+
+def _compute_unbiased_mean_length(
+    lengths: np.ndarray,
+    strikes: np.ndarray,
+    scanline_azimuth: float,
+    min_angle: float,
+    min_length: float,
+) -> float:
+    """长度+方向双修正（IPW）后的无偏平均迹长。"""
+    if lengths.size == 0:
+        return math.nan
+
+    alpha = np.abs(strikes - scanline_azimuth)
+    alpha = np.mod(alpha, 180.0)
+    alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
+
+    min_sin = math.sin(math.radians(min_angle))
+    sin_alpha = np.sin(np.radians(alpha))
+    sin_alpha = np.where(sin_alpha < min_sin, min_sin, sin_alpha)
+
+    safe_lengths = np.where(lengths < min_length, min_length, lengths)
+
+    weights = 1.0 / (safe_lengths * sin_alpha)
+    numerator = float(np.sum(weights * lengths))
+    denominator = float(np.sum(weights))
+
+    return numerator / denominator if denominator > _EPS else math.nan
+
+
+def _terzaghi_p10_correction(p10: float, mean_sin_alpha: float) -> float:
+    """Terzaghi 方向修正：P10_Terzaghi = P10_observed / mean(|sin α|)。"""
+    if not math.isfinite(p10) or not math.isfinite(mean_sin_alpha):
+        return math.nan
+    if mean_sin_alpha < _EPS:
+        return math.nan
+    return p10 / mean_sin_alpha
+
+
 # ── 主入口 ────────────────────────────────────────────────────────────
 
 
@@ -188,6 +284,7 @@ def compute_trace_statistics(
     if config is None:
         config = TraceStatisticsConfig()
 
+    # 1. 基础几何与坐标转换
     scanline_length, scanline_length_source = _effective_scanline_length(trace)
     finite_scanline_length = (
         scanline_length
@@ -196,13 +293,16 @@ def compute_trace_statistics(
     )
     local_segments = _to_local_segments(trace)
     trace_types = _classify_trace_types(local_segments, finite_scanline_length)
-    hull_area = _estimate_outcrop_area(local_segments)
+
+    # 2. 圆窗诊断（完全独立于凸包面积）
+    # 数据依赖：endpoints -> circle_window_p20（独立路径）
+    hull_area_placeholder = _convex_hull_area(local_segments)
     selected_strategy, diagnostics = _select_window_diagnostics(
         local_segments,
         finite_scanline_length,
         trace.count,
         config,
-        hull_area,
+        hull_area_placeholder,
     )
 
     type_i_count = trace_types.count("I")
@@ -212,16 +312,11 @@ def compute_trace_statistics(
     estimated_p20 = _aggregate_window_metric(diagnostics, "p20")
     estimated_p21 = _aggregate_window_metric(diagnostics, "p21")
 
-    # ── 面积计算（三层回退）───────────────────────────────────
-    window_equivalent_area = _compute_window_equivalent_area(trace.count, estimated_p20)
-    effective_area, area_source, disagreement_ratio, area_warning = _select_effective_area(
-        trace,
-        hull_area,
-        window_equivalent_area,
-        local_segments,
-    )
+    # 3. 露头面积估算（独立路径：endpoints -> hull_area）
+    hull_area = _convex_hull_area(local_segments)
+    hull_vertices = _compute_convex_hull(local_segments)
 
-    # ── 迹长计算（observed 优先）──────────────────────────────
+    # 4. 观测迹长
     observed_total, observed_source = _observed_trace_length_total(trace)
     trace_length_total, trace_length_source = _effective_trace_length_total(
         trace,
@@ -235,51 +330,121 @@ def compute_trace_statistics(
         else math.nan
     )
 
-    # ── P10 ───────────────────────────────────────────────────
+    # 5. 缓冲凸包面积
+    hull_buffered_area = math.nan
+    if (
+        hull_vertices is not None
+        and math.isfinite(mean_trace_length)
+        and mean_trace_length > _EPS
+        and config.hull_buffer_ratio > _EPS
+    ):
+        buffer_distance = config.hull_buffer_ratio * mean_trace_length
+        hull_buffered_area = _buffered_hull_area(hull_vertices, buffer_distance)
+
+    # 6. 圆窗等效面积（独立路径）
+    window_equivalent_area = _compute_window_equivalent_area(trace.count, estimated_p20)
+    if not math.isfinite(window_equivalent_area):
+        window_equivalent_area = math.nan
+
+    # 7. 面积选择（四层回退，自适应阈值）
+    effective_area, area_source, disagreement_ratio, area_warning = _select_effective_area(
+        trace,
+        hull_area,
+        hull_buffered_area,
+        window_equivalent_area,
+        local_segments,
+        config,
+    )
+
+    # 8. P10（观测线密度）
     p10 = trace.count / scanline_length if scanline_length > _EPS else math.nan
 
-    # ── P20：trace_count / effective_area，面积不可用则回退圆窗 P20 ─
+    # 9. Terzaghi 方向修正
+    mean_sin_alpha = math.nan
+    p10_terzaghi = math.nan
+    if trace.count > 0:
+        alpha = np.abs(trace.joint_strikes - trace.scanline_azimuth)
+        alpha = np.mod(alpha, 180.0)
+        alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
+        sin_alpha = np.sin(np.radians(alpha))
+        mean_sin_alpha = float(np.mean(sin_alpha)) if sin_alpha.size else math.nan
+        p10_terzaghi = _terzaghi_p10_correction(p10, mean_sin_alpha)
+
+    # 10. 迹长三级估计
+    weighted_mean = math.nan
+    unbiased_mean = math.nan
+    if trace.count > 0:
+        if observed_source == "segment":
+            lengths_for_correction = trace.segment_lengths
+        elif observed_source == "endpoint":
+            lengths_for_correction = trace.lengths
+        else:
+            lengths_for_correction = np.array([], dtype=float)
+
+        if (
+            lengths_for_correction.size > 0
+            and np.isfinite(lengths_for_correction).all()
+            and np.any(lengths_for_correction > _EPS)
+        ):
+            weighted_mean = _compute_weighted_mean_length(
+                lengths_for_correction,
+                trace.joint_strikes,
+                trace.scanline_azimuth,
+                config.weighted_length_min_angle,
+            )
+            unbiased_mean = _compute_unbiased_mean_length(
+                lengths_for_correction,
+                trace.joint_strikes,
+                trace.scanline_azimuth,
+                config.weighted_length_min_angle,
+                config.min_trace_length,
+            )
+
+    # 11. P20 / P21
     if math.isfinite(effective_area) and effective_area > _EPS:
         p20 = trace.count / effective_area
         p20_source = area_source
+        if math.isfinite(observed_total) and observed_total > 0:
+            p21 = observed_total / effective_area
+            p21_source = area_source
+        else:
+            p21 = math.nan
+            p21_source = area_source
     elif math.isfinite(estimated_p20):
         p20 = estimated_p20
         p20_source = "window"
+        p21 = estimated_p21 if math.isfinite(estimated_p21) else math.nan
+        p21_source = "window"
     else:
         p20 = math.nan
         p20_source = "unavailable"
-
-    # ── P21：observed_total / effective_area，不可用则回退圆窗 P21 ─
-    if math.isfinite(observed_total) and observed_total > 0 and math.isfinite(effective_area) and effective_area > _EPS:
-        p21 = observed_total / effective_area
-        p21_source = area_source
-    elif math.isfinite(estimated_p21):
-        p21 = estimated_p21
-        p21_source = "window"
-    else:
         p21 = math.nan
         p21_source = "unavailable"
 
-    # ── 一致性校验：主结果 vs 圆窗结果 ─────────────────────────
-    # 若主结果来自圆窗则跳过，否则对比并追加窗口校验告警
+    # 12. 一致性校验（自适应阈值）
+    consistency_threshold = _adaptive_consistency_threshold(trace.count)
     window_validation_warning = area_warning
     if not window_validation_warning and p20_source != "window" and p21_source != "window":
         if math.isfinite(estimated_p20) and math.isfinite(p20) and p20 > _EPS:
             p20_disagreement = abs(p20 - estimated_p20) / max(p20, estimated_p20)
-            if p20_disagreement > 0.5:
+            if p20_disagreement > consistency_threshold:
                 window_validation_warning = (
                     f"主 P20({p20:.4f})与圆窗 P20({estimated_p20:.4f})差异达{p20_disagreement:.0%}"
                 )
         if not window_validation_warning and math.isfinite(estimated_p21) and math.isfinite(p21) and p21 > _EPS:
             p21_disagreement = abs(p21 - estimated_p21) / max(p21, estimated_p21)
-            if p21_disagreement > 0.5:
+            if p21_disagreement > consistency_threshold:
                 window_validation_warning = (
                     f"主 P21({p21:.4f})与圆窗 P21({estimated_p21:.4f})差异达{p21_disagreement:.0%}"
                 )
 
+    if window_validation_warning:
+        logger.warning("校验告警: %s", window_validation_warning)
+
     logger.debug(
-        "统计来源: 策略=%s, 测线长度=%.3f(来源=%s), 露头面积=%.3f(来源=%s), 平均迹长=%.3f(来源=%s), "
-        "P20=%.4f(来源=%s), P21=%.4f(来源=%s), 圆窗等效面积=%.3f, 校验告警=%s",
+        "统计来源: 策略=%s, 测线长度=%.3f(来源=%s), 露头面积=%.3f(来源=%s), "
+        "平均迹长=%.3f(来源=%s), P20=%.4f(来源=%s), P21=%.4f(来源=%s), "
+        "圆窗等效面积=%.3f, 缓冲面积=%.3f, 校验告警=%s",
         selected_strategy,
         scanline_length,
         scanline_length_source,
@@ -292,6 +457,7 @@ def compute_trace_statistics(
         p21,
         p21_source,
         window_equivalent_area,
+        hull_buffered_area,
         window_validation_warning,
     )
 
@@ -319,4 +485,10 @@ def compute_trace_statistics(
         window_outcrop_area=float(window_equivalent_area) if math.isfinite(window_equivalent_area) else math.nan,
         area_disagreement_ratio=float(disagreement_ratio) if math.isfinite(disagreement_ratio) else math.nan,
         window_validation_warning=window_validation_warning,
+        weighted_mean_trace_length=float(weighted_mean),
+        unbiased_mean_trace_length=float(unbiased_mean),
+        p10_terzaghi=float(p10_terzaghi),
+        mean_sin_alpha=float(mean_sin_alpha),
+        hull_buffered_area=float(hull_buffered_area) if math.isfinite(hull_buffered_area) else math.nan,
+        hull_buffer_ratio=float(config.hull_buffer_ratio),
     )

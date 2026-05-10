@@ -315,30 +315,6 @@ def _add_scale_bar(
     )
 
 
-def _axis_bounds(layout: _DecorationLayout) -> tuple[float, float, float, float]:
-    return (
-        layout.data_x_min - layout.left_pad,
-        layout.data_x_max + layout.right_pad,
-        layout.data_y_min - layout.bottom_pad,
-        layout.data_y_max + layout.top_pad,
-    )
-
-
-def _shift_into_bounds(
-    xs: Sequence[float],
-    ys: Sequence[float],
-    x_low: float,
-    x_high: float,
-    y_low: float,
-    y_high: float,
-) -> tuple[float, float]:
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
-    shift_x = max(0.0, x_low - min_x) - max(0.0, max_x - x_high)
-    shift_y = max(0.0, y_low - min_y) - max(0.0, max_y - y_high)
-    return shift_x, shift_y
-
-
 def _add_north_arrow(ax: plt.Axes, north_angle_deg: float) -> None:
     """在主图右上角绘制指北针（transAxes 坐标，不遮挡数据区）。"""
     if not math.isfinite(north_angle_deg):

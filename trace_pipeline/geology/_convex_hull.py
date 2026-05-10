@@ -54,9 +54,7 @@ def _shoelace_area(hull_vertices: np.ndarray) -> float:
         return math.nan
 
     centered = hull - hull.mean(axis=0)
-    x = centered[:, 0]
-    y = centered[:, 1]
-    area = 0.5 * abs(float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))))
+    area = abs(_signed_area(centered))
     return area if math.isfinite(area) and area > _EPS else math.nan
 
 

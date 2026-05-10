@@ -19,6 +19,27 @@ _HEADER_SEP = "="
 _MIN_COL_WIDTHS = [6, 6, 8, 8, 8, 6, 4]
 _COL_HEADERS = ["露头", "迹线数", "平均迹长", "测线走向", "策略", "玫瑰图", "状态"]
 
+_AREA_SOURCE_LABELS = {
+    "measured": "实测",
+    "hull": "凸包",
+    "hull_buffered": "缓冲凸包",
+}
+
+_WINDOW_STRATEGY_LABELS = {
+    "auto": "自动",
+    "tangent": "切线圆窗",
+    "hybrid": "混合圆窗",
+    "concentric": "同心圆窗",
+}
+
+
+def _format_strategy(r: RunResult) -> str:
+    """将面积来源与圆窗策略映射为终端显示中文名。"""
+    if r.area_source in _AREA_SOURCE_LABELS:
+        return _AREA_SOURCE_LABELS[r.area_source]
+    # window / window_equivalent / 其他回退到圆窗策略
+    return _WINDOW_STRATEGY_LABELS.get(r.window_strategy, r.window_strategy)
+
 
 def _display_width(s: str) -> int:
     """计算字符串在等宽终端中的显示宽度（CJK 字符按双宽度计算）。"""
@@ -62,15 +83,12 @@ def _format_row(values: list[str], widths: list[int]) -> str:
 
 
 def _format_separator(widths: list[int], char: str = _SEP) -> str:
-    """绘制分隔线。"""
+    """绘制分隔线；char 为 '=' 时绘制双线分隔（表头/表尾）。"""
     parts = [char * w for w in widths]
-    return "+-" + "-+-".join(parts) + "-+"
-
-
-def _format_double_separator(widths: list[int]) -> str:
-    """绘制双线分隔（表头/表尾）。"""
-    parts = [_HEADER_SEP * w for w in widths]
-    return "+=" + "=+=".join(parts) + "=+"
+    left = "+=" if char == _HEADER_SEP else "+-"
+    mid = "=+=" if char == _HEADER_SEP else "-+-"
+    right = "=+" if char == _HEADER_SEP else "-+"
+    return left + mid.join(parts) + right
 
 
 def format_results_table(results: list[RunResult]) -> str:
@@ -87,7 +105,7 @@ def format_results_table(results: list[RunResult]) -> str:
         count = str(r.trace_count)
         avg_len = f"{r.mean_length:.2f}" if r.status == "success" else ""
         azimuth = f"{r.scanline_azimuth:.0f}°" if r.status == "success" else ""
-        strategy = r.window_strategy if r.status == "success" else ""
+        strategy = _format_strategy(r) if r.status == "success" else ""
         rose = "否"
         status = "OK" if r.status == "success" else "FAIL"
 
@@ -102,14 +120,14 @@ def format_results_table(results: list[RunResult]) -> str:
 
     widths = _compute_col_widths(data_rows)
     lines = []
-    lines.append(_format_double_separator(widths))
+    lines.append(_format_separator(widths, _HEADER_SEP))
     lines.append(_format_row(_COL_HEADERS, widths))
     lines.append(_format_separator(widths, _HEADER_SEP))
 
     for row in data_rows:
         lines.append(_format_row(row, widths))
 
-    lines.append(_format_double_separator(widths))
+    lines.append(_format_separator(widths, _HEADER_SEP))
 
     success = sum(1 for r in results if r.status == "success")
     lines.append(f"\n总计: {len(results)} 个露头 | 成功 {success} 个 | 迹线总数 {total_traces} | 玫瑰图 {has_rose} 张")

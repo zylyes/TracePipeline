@@ -226,6 +226,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             rotated_plot_path=rot_plot,
             rose_plot_path=rose_plot,
             window_strategy=statistics.window_strategy,
+            area_source=statistics.outcrop_area_source,
         )
 
     except (FileNotFoundError, ValueError, OSError) as exc:

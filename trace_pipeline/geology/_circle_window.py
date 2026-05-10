@@ -257,10 +257,6 @@ def _side_height(local_segments: np.ndarray, sign: float) -> float:
     return float(np.max(np.abs(y_values)))
 
 
-def _max_abs_y(local_segments: np.ndarray) -> float:
-    return _side_height(local_segments, sign=0.0)
-
-
 def _tangent_radius(scanline_length: float, config: TraceStatisticsConfig) -> float:
     if not math.isfinite(float(scanline_length)) or scanline_length <= _EPS:
         return math.nan

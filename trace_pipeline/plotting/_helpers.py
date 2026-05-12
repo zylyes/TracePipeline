@@ -30,13 +30,20 @@ def save_figure(
     filename: str,
     dpi: int = 300,
     pad_inches: float = 0.12,
+    bbox_inches: str | None = "tight",
 ) -> str:
     """保存并关闭图形，返回完整输出路径。"""
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     full_path = str(out / filename)
     try:
-        fig.savefig(full_path, dpi=dpi, facecolor="white", bbox_inches="tight", pad_inches=pad_inches)
+        fig.savefig(
+            full_path,
+            dpi=dpi,
+            facecolor="white",
+            bbox_inches=bbox_inches,
+            pad_inches=pad_inches,
+        )
     finally:
         plt.close(fig)
     return full_path

@@ -15,11 +15,11 @@ if TYPE_CHECKING:
 
 __all__ = ["render_rose_plot"]
 
-_ROSE_FIGSIZE_CM: tuple[float, float] = (14, 14)
+_ROSE_FIGSIZE_CM: tuple[float, float] = (12, 12)
 _DEFAULT_ROSE_DPI = 400
-_ROSE_GRID_COLOR = "#d0d0d0"
-_ROSE_BAR_COLOR = "#DC2626"
-_ROSE_BAR_EDGE = "#991B1B"
+_ROSE_GRID_COLOR = "#d9d9d9"
+_ROSE_BAR_COLOR = "#C94C4C"
+_ROSE_BAR_EDGE = "#7A1F1F"
 
 
 def _compute_rose_histogram(
@@ -78,13 +78,13 @@ def render_rose_plot(
     polar_ax.set_theta_zero_location("N")
     polar_ax.set_theta_direction(-1)
 
-    # 外圈角度标签：每 30° 一格，字号适中
-    polar_ax.set_thetagrids(np.arange(0, 360, 30), fontsize=10)
+    # 外圈角度标签：每 30° 一格，保持论文插图的克制字号
+    polar_ax.set_thetagrids(np.arange(0, 360, 30), fontsize=8.6)
 
     # 径向网格线与标签
     polar_ax.grid(
-        color=_ROSE_GRID_COLOR, alpha=0.6,
-        linewidth=0.6, linestyle="-",
+        color=_ROSE_GRID_COLOR, alpha=0.62,
+        linewidth=0.45, linestyle="-",
     )
 
     if radii.size:
@@ -92,7 +92,7 @@ def render_rose_plot(
             theta, radii,
             width=bar_widths, bottom=0.0,
             color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
-            linewidth=0.6, alpha=0.75, align="center",
+            linewidth=0.45, alpha=0.68, align="center",
         )
         rmax = max(1, math.ceil(radii.max()))
         polar_ax.set_ylim(0, rmax)
@@ -100,15 +100,16 @@ def render_rose_plot(
         rticks = np.arange(0, rmax + 1, max(1, rmax // 5))
         polar_ax.set_rticks(rticks)
         polar_ax.set_rlabel_position(45)
-        polar_ax.tick_params(axis="y", labelsize=9)
+        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
     else:
         polar_ax.set_ylim(0, 1)
         polar_ax.set_rticks([0, 1])
+        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
 
     # 极坐标外圈边框
-    polar_ax.spines["polar"].set_linewidth(0.8)
+    polar_ax.spines["polar"].set_linewidth(0.7)
     polar_ax.spines["polar"].set_color("black")
 
     apply_axis_text_fonts(polar_ax)
-    polar_ax.set_title(title, pad=20, **text_font_kwargs(fontsize=14, fontweight="bold"))
-    return save_figure(fig, output_dir, filename, dpi=dpi)
+    polar_ax.set_title(title, pad=14, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
+    return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)

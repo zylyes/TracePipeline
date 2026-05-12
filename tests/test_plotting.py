@@ -1,17 +1,19 @@
 """单元测试：绘图辅助与玫瑰图分箱。"""
 import logging
+from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from matplotlib.patches import Circle, Polygon
+from matplotlib.patches import Circle, Polygon, Rectangle
 
 import trace_pipeline.plotting.trace_plot as trace_plot_module
+import trace_pipeline.plotting.rose_plot as rose_plot_module
 from trace_pipeline.plotting import render_trace_plot, segments_to_xy
 from trace_pipeline.plotting import style as style_module
 from trace_pipeline.plotting._decoration_layout import resolve_decoration_positions
-from trace_pipeline.plotting.rose_plot import _compute_rose_histogram
+from trace_pipeline.plotting.rose_plot import _compute_rose_histogram, render_rose_plot
 from trace_pipeline.plotting.trace_plot import (
     CircleWindowOverlay,
     ConvexHullOverlay,
@@ -19,6 +21,7 @@ from trace_pipeline.plotting.trace_plot import (
     _add_circle_window_overlays,
     _add_statistics_box,
     _build_decoration_layout,
+    _split_statistics_line,
     _valid_circles,
 )
 
@@ -74,6 +77,8 @@ def test_configure_style_prefers_times_new_roman_and_simsun(monkeypatch):
         assert matplotlib.rcParams["font.family"][:2] == ["Times New Roman", "SimSun"]
         assert matplotlib.rcParams["mathtext.fontset"] == "custom"
         assert matplotlib.rcParams["mathtext.rm"] == "Times New Roman"
+        assert matplotlib.rcParams["mathtext.default"] == "regular"
+        assert matplotlib.rcParams["lines.linewidth"] <= 0.9
 
 
 def test_configure_style_warns_but_handles_missing_fonts(monkeypatch, caplog):
@@ -162,6 +167,25 @@ def test_statistics_box_draws_fixed_grid_with_compact_labels():
         plt.close(fig)
 
 
+def test_statistics_values_normalize_units_to_mathtext():
+    assert _split_statistics_line("露头面积: 92.936 m²") == (
+        "露头面积",
+        "92.936 $\\mathrm{m}^{2}$",
+    )
+    assert _split_statistics_line("P10 线密度: 2.204 m⁻¹") == (
+        "P10 线密度",
+        "2.204 $\\mathrm{m}^{-1}$",
+    )
+    assert _split_statistics_line("P20 面密度: 0.204 m^-2") == (
+        "P20 面密度",
+        "0.204 $\\mathrm{m}^{-2}$",
+    )
+    assert _split_statistics_line("平均迹线长度: 6.541 $\\mathrm{m}$") == (
+        "平均迹长",
+        "6.541 $\\mathrm{m}$",
+    )
+
+
 def test_statistics_box_keeps_many_rows_separated():
     layout = _build_decoration_layout(
         np.array([[0.0, 0.0, 1.0, 1.0]]),
@@ -233,12 +257,12 @@ def test_render_trace_plot_draws_only_window_overlay(tmp_path, monkeypatch):
     assert calls == [("circles", 1)]
 
 
-def test_render_trace_plot_draws_legend_inside_main_axes(tmp_path, monkeypatch):
+def test_render_trace_plot_draws_legend_in_info_band(tmp_path, monkeypatch):
     legend_calls = []
     original = trace_plot_module._add_legend
 
     def record_legend(ax, area_source, has_hull, has_circles, **kwargs):
-        legend_calls.append((area_source, has_hull, has_circles))
+        legend_calls.append((area_source, has_hull, has_circles, ax.get_label()))
         return original(ax, area_source, has_hull, has_circles, **kwargs)
 
     monkeypatch.setattr(trace_plot_module, "_add_legend", record_legend)
@@ -253,9 +277,83 @@ def test_render_trace_plot_draws_legend_inside_main_axes(tmp_path, monkeypatch):
         area_source="hull",
     )
 
-    # 图例始终在主图内绘制，且 area_source 正确传递
+    # 图例位于同一外框内的独立信息区，且 area_source 正确传递
     assert len(legend_calls) == 1
-    assert legend_calls[0] == ("hull", True, False)
+    assert legend_calls[0] == ("hull", True, False, "trace_legend")
+
+
+def test_render_trace_plot_keeps_decorations_outside_data_axes(tmp_path, monkeypatch):
+    inspected = {}
+    artist_bounds = {}
+
+    def fake_save_figure(fig, output_dir, filename, dpi=300, pad_inches=0.12, bbox_inches="tight"):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        axes_by_label = {ax.get_label(): ax for ax in fig.axes}
+        inspected.update(axes_by_label)
+        for label in ("trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+            ax = axes_by_label[label]
+            ax_bbox = ax.get_window_extent(renderer)
+            bounds = []
+            for artist in (*ax.texts, *ax.patches, *ax.lines):
+                if not artist.get_visible():
+                    continue
+                bbox = artist.get_window_extent(renderer)
+                if bbox.width == 0 and bbox.height == 0:
+                    continue
+                bounds.append((bbox.x0, bbox.y0, bbox.x1, bbox.y1, ax_bbox.bounds))
+            artist_bounds[label] = bounds
+        assert bbox_inches is None
+        plt.close(fig)
+        return str(tmp_path / filename)
+
+    monkeypatch.setattr(trace_plot_module, "save_figure", fake_save_figure)
+
+    render_trace_plot(
+        np.array([[0.0, 0.0, 8.0, 8.0], [2.0, 0.0, 9.0, 7.0]]),
+        "layout",
+        str(tmp_path),
+        "layout.png",
+        statistics_lines=tuple(f"指标{idx}: {idx}" for idx in range(20)),
+        hull_overlay=ConvexHullOverlay(np.array([[0.0, 0.0], [9.0, 0.0], [9.0, 8.0], [0.0, 8.0]])),
+        area_source="hull",
+    )
+
+    assert {
+        "trace_outer_frame",
+        "trace_data",
+        "trace_statistics",
+        "trace_compass",
+        "trace_scale",
+        "trace_legend",
+    } <= set(inspected)
+
+    frame = inspected["trace_outer_frame"].get_position().bounds
+    for label in ("trace_data", "trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+        bounds = inspected[label].get_position().bounds
+        assert bounds[0] >= frame[0]
+        assert bounds[1] >= frame[1]
+        assert bounds[0] + bounds[2] <= frame[0] + frame[2]
+        assert bounds[1] + bounds[3] <= frame[1] + frame[3]
+
+    data_ax = inspected["trace_data"]
+    assert len(data_ax.lines) == 1
+    assert any(isinstance(patch, Polygon) for patch in data_ax.patches)
+    assert not any(isinstance(patch, Rectangle) for patch in data_ax.patches)
+    assert len(data_ax.texts) == 0
+    assert data_ax.get_legend() is None
+
+    stats_ax = inspected["trace_statistics"]
+    assert any(isinstance(patch, Rectangle) for patch in stats_ax.patches)
+    assert stats_ax.get_position().x0 > data_ax.get_position().x1
+
+    for bounds in artist_bounds.values():
+        for x0, y0, x1, y1, ax_bounds in bounds:
+            ax_x0, ax_y0, ax_w, ax_h = ax_bounds
+            assert x0 >= ax_x0 - 1.0
+            assert y0 >= ax_y0 - 1.0
+            assert x1 <= ax_x0 + ax_w + 1.0
+            assert y1 <= ax_y0 + ax_h + 1.0
 
 
 def test_trace_layout_uses_adaptive_scale_length():
@@ -283,6 +381,39 @@ def test_rose_histogram_keeps_non_divisible_final_bin_width():
 def test_rose_histogram_rejects_nonfinite_values():
     with pytest.raises(ValueError, match="strike_deg 包含"):
         _compute_rose_histogram(np.array([10.0, np.nan]), bin_width=10.0)
+
+
+def test_render_rose_plot_uses_academic_style(tmp_path, monkeypatch):
+    inspected = {}
+
+    def fake_save(fig, output_dir, filename, dpi=300, pad_inches=0.12, bbox_inches="tight"):
+        fig.canvas.draw()
+        ax = fig.axes[0]
+        inspected["ax"] = ax
+        inspected["title"] = ax.title
+        inspected["bars"] = list(ax.patches)
+        inspected["gridlines"] = [line for line in (*ax.xaxis.get_gridlines(), *ax.yaxis.get_gridlines())]
+        assert pad_inches <= 0.08
+        plt.close(fig)
+        return str(tmp_path / filename)
+
+    monkeypatch.setattr(rose_plot_module, "save_figure", fake_save)
+
+    out = render_rose_plot(
+        np.array([10.0, 20.0, 30.0, 200.0]),
+        "产状玫瑰花瓣图（数量=4，分箱=10.0°）",
+        str(tmp_path),
+        "rose.png",
+    )
+
+    assert out.endswith("rose.png")
+    title = inspected["title"]
+    assert title.get_fontfamily()[:2] == ["Times New Roman", "SimSun"]
+    assert title.get_fontsize() <= 11.0
+    assert inspected["bars"]
+    assert all(bar.get_alpha() <= 0.7 for bar in inspected["bars"])
+    assert inspected["ax"].spines["polar"].get_linewidth() <= 0.75
+    assert all(line.get_linewidth() <= 0.5 for line in inspected["gridlines"] if line.get_visible())
 
 
 # ── 新增测试：旋转凸包坐标系一致性 ────────────────────────────────────
@@ -450,3 +581,252 @@ def test_auto_placement_disabled_returns_legacy_positions():
         layout.stats_box_rel_x1,
         layout.stats_box_rel_y1,
     )
+
+
+# ── 新增布局测试：标题间距与代表性图幅 ────────────────────────────────
+
+
+def _fake_save_inspector(inspected: dict, artist_bounds: dict, tmp_path):
+    """返回一个 monkeypatch 用的 fake save_figure，用于捕获布局信息。"""
+    def fake_save_figure(fig, output_dir, filename, dpi=300, pad_inches=0.12, bbox_inches="tight"):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        axes_by_label = {ax.get_label(): ax for ax in fig.axes}
+        inspected.update(axes_by_label)
+
+        for label in ("trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+            ax = axes_by_label[label]
+            ax_bbox = ax.get_window_extent(renderer)
+            bounds = []
+            for artist in (*ax.texts, *ax.patches, *ax.lines):
+                if not artist.get_visible():
+                    continue
+                bbox = artist.get_window_extent(renderer)
+                if bbox.width == 0 and bbox.height == 0:
+                    continue
+                bounds.append((bbox.x0, bbox.y0, bbox.x1, bbox.y1, ax_bbox.bounds))
+            artist_bounds[label] = bounds
+
+        assert bbox_inches is None
+        plt.close(fig)
+        return str(tmp_path / filename)
+    return fake_save_figure
+
+
+def _assert_layout_invariants(inspected: dict, artist_bounds: dict) -> None:
+    """断言各面板互不重叠、全部在 frame 内、artist 在各自轴内、数据轴清洁。"""
+    assert {
+        "trace_outer_frame",
+        "trace_data",
+        "trace_statistics",
+        "trace_compass",
+        "trace_scale",
+        "trace_legend",
+    } <= set(inspected)
+
+    frame = inspected["trace_outer_frame"].get_position().bounds
+    for label in ("trace_data", "trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+        bounds = inspected[label].get_position().bounds
+        assert bounds[0] >= frame[0]
+        assert bounds[1] >= frame[1]
+        assert bounds[0] + bounds[2] <= frame[0] + frame[2]
+        assert bounds[1] + bounds[3] <= frame[1] + frame[3]
+
+    # 数据轴清洁：无文本、无 legend、无 Rectangle patch
+    data_ax = inspected["trace_data"]
+    assert len(data_ax.texts) == 0
+    assert data_ax.get_legend() is None
+    assert not any(isinstance(p, Rectangle) for p in data_ax.patches)
+
+    # 统计框在数据轴右侧
+    assert inspected["trace_statistics"].get_position().x0 > data_ax.get_position().x1
+
+    # artist 全部落在各自轴内
+    for bounds in artist_bounds.values():
+        for x0, y0, x1, y1, ax_bounds in bounds:
+            ax_x0, ax_y0, ax_w, ax_h = ax_bounds
+            assert x0 >= ax_x0 - 1.0
+            assert y0 >= ax_y0 - 1.0
+            assert x1 <= ax_x0 + ax_w + 1.0
+            assert y1 <= ax_y0 + ax_h + 1.0
+
+    # 面板间互不重叠（IoU ≈ 0）
+    def _rect_overlap(a, b):
+        dx = max(0.0, min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0]))
+        dy = max(0.0, min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1]))
+        return dx * dy
+
+    panel_labels = ("trace_statistics", "trace_legend", "trace_compass", "trace_scale")
+    for i, a_label in enumerate(panel_labels):
+        for b_label in panel_labels[i + 1 :]:
+            a = inspected[a_label].get_position().bounds
+            b = inspected[b_label].get_position().bounds
+            assert _rect_overlap(a, b) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_double_line_title_frame_spacing(tmp_path, monkeypatch):
+    """双行标题时 suptitle 不与 outer_frame 相交，且保留 >= 2 px 间距。"""
+    inspected = {}
+    artist_bounds = {}
+    gaps = {}
+
+    def fake_save(fig, output_dir, filename, dpi=300, pad_inches=0.12, bbox_inches="tight"):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        axes_by_label = {ax.get_label(): ax for ax in fig.axes}
+        inspected.update(axes_by_label)
+
+        for label in ("trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+            ax = axes_by_label[label]
+            ax_bbox = ax.get_window_extent(renderer)
+            bounds = []
+            for artist in (*ax.texts, *ax.patches, *ax.lines):
+                if not artist.get_visible():
+                    continue
+                bbox = artist.get_window_extent(renderer)
+                if bbox.width == 0 and bbox.height == 0:
+                    continue
+                bounds.append((bbox.x0, bbox.y0, bbox.x1, bbox.y1, ax_bbox.bounds))
+            artist_bounds[label] = bounds
+
+        suptitle = fig._suptitle
+        suptitle_bbox = suptitle.get_window_extent(renderer)
+        frame_bbox = axes_by_label["trace_outer_frame"].get_window_extent(renderer)
+        gaps["vertical"] = suptitle_bbox.y0 - frame_bbox.y1
+        gaps["overlap"] = suptitle_bbox.overlaps(frame_bbox)
+
+        assert bbox_inches is None
+        plt.close(fig)
+        return str(tmp_path / filename)
+
+    monkeypatch.setattr(trace_plot_module, "save_figure", fake_save)
+
+    render_trace_plot(
+        np.array([[0.0, 0.0, 8.0, 8.0], [2.0, 0.0, 9.0, 7.0]]),
+        "迹线长度图\n标尺（走向=75.0°）",
+        str(tmp_path),
+        "double.png",
+        statistics_lines=tuple(f"指标{idx}: {idx}" for idx in range(9)),
+        hull_overlay=ConvexHullOverlay(np.array([[0.0, 0.0], [9.0, 0.0], [9.0, 8.0], [0.0, 8.0]])),
+        area_source="hull",
+    )
+
+    _assert_layout_invariants(inspected, artist_bounds)
+    assert not gaps["overlap"], "双行标题 suptitle 不应与 outer_frame 相交"
+    assert gaps["vertical"] >= 2.0, f"双行标题间距应 >= 2 px, 实际 {gaps['vertical']}"
+
+
+def test_single_line_title_gap_measured(tmp_path, monkeypatch):
+    """单行标题时同样断言 suptitle 与 outer_frame 保留 >= 2 px 间距。"""
+    inspected = {}
+    artist_bounds = {}
+    gaps = {}
+
+    def fake_save(fig, output_dir, filename, dpi=300, pad_inches=0.12, bbox_inches="tight"):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        axes_by_label = {ax.get_label(): ax for ax in fig.axes}
+        inspected.update(axes_by_label)
+
+        for label in ("trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+            ax = axes_by_label[label]
+            ax_bbox = ax.get_window_extent(renderer)
+            bounds = []
+            for artist in (*ax.texts, *ax.patches, *ax.lines):
+                if not artist.get_visible():
+                    continue
+                bbox = artist.get_window_extent(renderer)
+                if bbox.width == 0 and bbox.height == 0:
+                    continue
+                bounds.append((bbox.x0, bbox.y0, bbox.x1, bbox.y1, ax_bbox.bounds))
+            artist_bounds[label] = bounds
+
+        suptitle = fig._suptitle
+        suptitle_bbox = suptitle.get_window_extent(renderer)
+        frame_bbox = axes_by_label["trace_outer_frame"].get_window_extent(renderer)
+        gaps["vertical"] = suptitle_bbox.y0 - frame_bbox.y1
+        gaps["overlap"] = suptitle_bbox.overlaps(frame_bbox)
+
+        assert bbox_inches is None
+        plt.close(fig)
+        return str(tmp_path / filename)
+
+    monkeypatch.setattr(trace_plot_module, "save_figure", fake_save)
+
+    render_trace_plot(
+        np.array([[0.0, 0.0, 8.0, 8.0], [2.0, 0.0, 9.0, 7.0]]),
+        "迹线长度图",
+        str(tmp_path),
+        "single_gap.png",
+        statistics_lines=tuple(f"指标{idx}: {idx}" for idx in range(9)),
+        hull_overlay=ConvexHullOverlay(np.array([[0.0, 0.0], [9.0, 0.0], [9.0, 8.0], [0.0, 8.0]])),
+        area_source="hull",
+    )
+
+    _assert_layout_invariants(inspected, artist_bounds)
+    assert not gaps["overlap"], "单行标题 suptitle 不应与 outer_frame 相交"
+    assert gaps["vertical"] >= 2.0, f"单行标题间距应 >= 2 px, 实际 {gaps['vertical']}"
+
+
+@pytest.mark.parametrize("title", ["迹线长度图", "迹线长度图\n标尺（走向=273.0°）"])
+def test_representative_wide_layout_o81_style(tmp_path, monkeypatch, title):
+    """宽图 + 9 行统计 + 凸包，覆盖 O81/O82/O83 代表性布局，并断言 PNG 文件特征。"""
+    inspected = {}
+    artist_bounds = {}
+    original_save = trace_plot_module.save_figure
+
+    def fake_save(fig, output_dir, filename, dpi=300, pad_inches=0.12, bbox_inches="tight"):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        axes_by_label = {ax.get_label(): ax for ax in fig.axes}
+        inspected.update(axes_by_label)
+
+        for label in ("trace_statistics", "trace_compass", "trace_scale", "trace_legend"):
+            ax = axes_by_label[label]
+            ax_bbox = ax.get_window_extent(renderer)
+            bounds = []
+            for artist in (*ax.texts, *ax.patches, *ax.lines):
+                if not artist.get_visible():
+                    continue
+                bbox = artist.get_window_extent(renderer)
+                if bbox.width == 0 and bbox.height == 0:
+                    continue
+                bounds.append((bbox.x0, bbox.y0, bbox.x1, bbox.y1, ax_bbox.bounds))
+            artist_bounds[label] = bounds
+
+        assert bbox_inches is None
+        return original_save(fig, output_dir, filename, dpi=dpi, pad_inches=pad_inches, bbox_inches=bbox_inches)
+
+    monkeypatch.setattr(trace_plot_module, "save_figure", fake_save)
+
+    # 模拟 20 条迹线的宽矩形露头
+    rng = np.random.default_rng(42)
+    segments = rng.uniform(
+        low=[0.0, 0.0, 0.0, 0.0],
+        high=[30.0, 8.0, 30.0, 8.0],
+        size=(20, 4),
+    )
+    hull = ConvexHullOverlay(np.array([
+        [0.0, 0.0], [30.0, 0.0], [30.0, 8.0], [0.0, 8.0],
+    ]))
+
+    out_path = render_trace_plot(
+        segments,
+        title,
+        str(tmp_path),
+        "wide.png",
+        figsize_cm=(36.0, 14.0),
+        statistics_lines=tuple(f"指标{idx}: {idx:.3f}" for idx in range(9)),
+        hull_overlay=hull,
+        area_source="hull",
+    )
+
+    _assert_layout_invariants(inspected, artist_bounds)
+
+    # 文件级断言
+    assert Path(out_path).exists()
+    assert Path(out_path).stat().st_size > 10 * 1024
+    from PIL import Image
+    with Image.open(out_path) as img:
+        assert img.width > img.height, "代表性图幅应为宽图"
+        assert img.width >= 4000  # 36cm @ 300dpi ≈ 4250px

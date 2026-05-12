@@ -22,8 +22,6 @@ class TraceStatisticsConfig:
     tangent_window_count: int = 3
     hull_buffer_ratio: float = 0.25
     disagreement_threshold: float | None = None
-    weighted_length_min_angle: float = 20.0
-    min_trace_length: float = 0.3
 
     def __post_init__(self) -> None:
         cut_fractions = tuple(float(v) for v in self.cut_fractions)
@@ -50,12 +48,6 @@ class TraceStatisticsConfig:
         hull_buffer_ratio = float(self.hull_buffer_ratio)
         if not math.isfinite(hull_buffer_ratio) or hull_buffer_ratio < 0.0:
             raise ValueError("hull_buffer_ratio 必须为非负数")
-        weighted_length_min_angle = float(self.weighted_length_min_angle)
-        if not math.isfinite(weighted_length_min_angle) or weighted_length_min_angle <= 0.0 or weighted_length_min_angle > 90.0:
-            raise ValueError("weighted_length_min_angle 必须位于 (0, 90] 范围内")
-        min_trace_length = float(self.min_trace_length)
-        if not math.isfinite(min_trace_length) or min_trace_length <= 0.0:
-            raise ValueError("min_trace_length 必须为正数")
         disagreement_threshold = self.disagreement_threshold
         if disagreement_threshold is not None:
             disagreement_threshold = float(disagreement_threshold)
@@ -69,8 +61,6 @@ class TraceStatisticsConfig:
         object.__setattr__(self, "tangent_window_count", tangent_window_count)
         object.__setattr__(self, "hull_buffer_ratio", hull_buffer_ratio)
         object.__setattr__(self, "disagreement_threshold", disagreement_threshold)
-        object.__setattr__(self, "weighted_length_min_angle", weighted_length_min_angle)
-        object.__setattr__(self, "min_trace_length", min_trace_length)
 
 
 @dataclass(frozen=True)
@@ -125,11 +115,6 @@ class TraceStatistics:
     window_outcrop_area: float = 0.0
     area_disagreement_ratio: float = 0.0
     window_validation_warning: str = ""
-    # ── 新增无偏估计字段 ──────────────────────────
-    weighted_mean_trace_length: float = math.nan
-    unbiased_mean_trace_length: float = math.nan
-    p10_terzaghi: float = math.nan
-    mean_sin_alpha: float = math.nan
     hull_buffered_area: float = math.nan
     hull_buffer_ratio: float = 0.0
 

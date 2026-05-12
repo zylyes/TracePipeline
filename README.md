@@ -4,7 +4,7 @@
 
 基于 Python 的岩体节理测线法数据处理与可视化系统。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原型算法完整移植为工程化 Python 代码。适用于高放废物地质处置场址的节理几何特征分析。
 
-**核心流水线**：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → 凸包/缓冲凸包露头面积 → 圆形取样窗法 4 策略自适应（tangent/hybrid/concentric + auto 6 因子加权评分）→ P10/P20/P21 密度统计 + Mauldon 迹长估计 + Terzaghi/IPW 修正（实测优先四级回退）→ 四区 Excel 导出 → 迹线图（含比例尺、指北针、LaTeX 统计信息框、凸包/圆窗覆盖层、自动避让布局）→ 玫瑰花瓣图。
+**核心流水线**：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → 凸包/缓冲凸包露头面积 → 圆形取样窗法 4 策略自适应（tangent/hybrid/concentric + auto 6 因子加权评分）→ P10/P20/P21 密度统计 + Mauldon 迹长估计（实测优先四级回退）→ 四区 Excel 导出 → 迹线图（含比例尺、指北针、统计信息框、凸包/圆窗覆盖层、独立信息区布局）→ 玫瑰花瓣图。
 
 > **毕业设计课题**: 26 届地球信息科学与技术专业 -- 周咏霖（学号 2022210162）
 > **指导教师**: 霍亮（讲师），地球与行星科学学院
@@ -192,7 +192,7 @@ uv run trace-pipeline
 | **批量处理** | 自动扫描 `input/` 目录，支持 8 个露头一键处理（串行/并行） |
 | **迹线图导出** | 原始迹线图（300 DPI）+ 旋转迹线图（600 DPI），含比例尺、指北针、统计信息框；凸包/缓冲凸包/圆窗覆盖层（按面积来源自动选择）；装饰元素（统计框/图例/比例尺）自动避让布局 |
 | **玫瑰花瓣图** | 节理走向统计，可自定义分箱宽度与 DPI |
-| **迹线统计指标** | I/II/III 型自动分类，P10/P20/P21 密度参数（实测优先四级回退），圆形取样窗法 4 策略自适应，Mauldon 平均迹长估计，Terzaghi 方向修正 P10，IPW 方向/长度双修正无偏平均迹长，凸包/缓冲凸包露头面积 |
+| **迹线统计指标** | I/II/III 型自动分类，P10/P20/P21 密度参数（实测优先四级回退），圆形取样窗法 4 策略自适应，Mauldon 平均迹长估计，凸包/缓冲凸包露头面积 |
 | **Excel 四区输出** | A 基本信息 / B 原始坐标 / C 旋转坐标 / D 走向与长度 |
 | **MATLAB 验证** | 与原版 `Coordinate.m` 端点坐标理论误差 < 1e-10 m（浮点精度级） |
 
@@ -317,7 +317,7 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 | `geology/angles.py` | 倾向->走向、走向折叠、半平面折叠 | `dip_to_strike`, `fold_strike_angle`, `fold_to_halfplane` |
 | `geology/endpoints.py` | 向量化端点坐标计算、表头解析 | `compute_endpoints` |
 | `geology/transforms.py` | 坐标平移与旋转标准化流水线 | `normalize_coordinates` |
-| `geology/statistics.py` | 统计编排层：P10/P20/P21 + I/II/III 分类 + Terzaghi/IPW（委托 6 个私有模块） | `compute_trace_statistics` |
+| `geology/statistics.py` | 统计编排层：P10/P20/P21 + I/II/III 分类（委托 6 个私有模块） | `compute_trace_statistics` |
 | `pipeline.py` | 单目标全流程编排（含凸包/圆窗覆盖层构建） | `run_pipeline`, `load_trace_data` |
 | `config.py` | 配置加载/校验、路径解析、CLI 覆盖 | `load_config`, `resolve_io_paths`, `apply_cli_overrides` |
 | `io/excel_reader.py` | Excel 迹线表读取（.xlsx/.xls 回退） | `read_trace_excel` |
@@ -333,7 +333,7 @@ python run_trace_pipeline.py -s -c my_config.json     # 自定义配置
 
 ### 内部子模块（geology/ 统计实现）
 
-`statistics.py` 将圆形取样窗、凸包面积、分型与格式化委托给以下 6 个私有模块，各自承担单一职责；面积选择（四层回退）、Terzaghi 方向修正、IPW 无偏估计等编排逻辑直接位于 `statistics.py` 中：
+`statistics.py` 将圆形取样窗、凸包面积、分型与格式化委托给以下 6 个私有模块，各自承担单一职责；面积选择（四层回退）等编排逻辑直接位于 `statistics.py` 中：
 
 | 模块 | 职责 | 关键函数/类 |
 |------|------|------------|
@@ -400,7 +400,7 @@ dd + 90 & dd < 90
 
 ### 迹线统计指标
 
-> 理论参考：王贵宾、杨春和等《岩体节理平均迹长估计》；Laslett C. (1982) 圆形取样窗法；Mauldon M. (1998) 平均迹长闭式估计。实现：`statistics.py` + 6 个私有子模块（`_stat_types`/`_stat_format`/`_circle_window`/`_convex_hull`/`_window_strategies`/`_window_scoring`），面积四层回退与 Terzaghi/IPW 编排逻辑位于 `statistics.py` 主模块。
+> 理论参考：王贵宾、杨春和等《岩体节理平均迹长估计》；Laslett C. (1982) 圆形取样窗法；Mauldon M. (1998) 平均迹长闭式估计。实现：`statistics.py` + 6 个私有子模块（`_stat_types`/`_stat_format`/`_circle_window`/`_convex_hull`/`_window_strategies`/`_window_scoring`），面积四层回退逻辑位于 `statistics.py` 主模块。
 
 #### 密度参数定义
 
@@ -409,11 +409,9 @@ dd + 90 & dd < 90
 | **P10** | 线密度（m^-1） | 迹线数 / 测线长度；测线长度优先读取列 11 实测值，缺失/非法时由 r1 间距估算 |
 | **P20** | 面密度（m^-2） | `trace_count / effective_area`；面积优先链：实测 → 凸包 → 缓冲凸包 → 圆窗等效；面积不可用时回退圆窗 P20 |
 | **P21** | 面累计长度密度（m^-1） | `observed_total / effective_area`；observed 优先：测段(r5+r7) → 端点欧氏距离 → 圆窗 L_est；面积不可用时回退圆窗 P21 |
-| **平均迹长** | 平均迹线长度（m） | 三级回退：(1) 测段(r5+r7) 现场观测 → (2) 端点欧氏距离校验 → (3) 圆窗 Mauldon L_est 兜底；同时计算方向修正加权平均（`weighted_mean`）与 IPW 无偏估计（`unbiased_mean`） |
+| **平均迹长** | 平均迹线长度（m） | 三级回退：(1) 测段(r5+r7) 现场观测 → (2) 端点欧氏距离校验 → (3) 圆窗 Mauldon L_est 兜底 |
 | **露头面积** | 露头有效面积（m2） | 四层回退：实测 → 凸包 → 缓冲凸包 → 圆窗等效(`trace_count / P20_window`)；自适应阈值（样本量越大越严格）自动决定是否降级 |
-| **Terzaghi 方向修正** | 修正后的线密度（m^-1） | P10_Terzaghi = P10 / mean(|sin α|)，α 为节理走向与测线走向偏差角 |
-
-来源标注：**(M)** 实测、**(W)** 圆窗、**(W_eq)** 圆窗等效、**(E)** 估算/凸包/端点/测段。另有 `weighted`（方向修正）、`unbiased`（IPW 无偏估计）、`terzaghi`（Terzaghi 修正）三种特殊标注。
+来源标注：**(M)** 实测、**(W)** 圆窗、**(W_eq)** 圆窗等效、**(E)** 估算/凸包/端点/测段。
 
 #### 圆形取样窗法（4 策略）
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
@@ -10,7 +11,6 @@ from typing import TYPE_CHECKING, NamedTuple
 import numpy as np
 from matplotlib.patches import Circle, Polygon, Rectangle
 
-from ._decoration_layout import resolve_decoration_positions
 from ._helpers import new_figure, save_figure
 from .style import configure_style, text_font_kwargs
 
@@ -24,10 +24,10 @@ __all__ = ["CircleWindowOverlay", "ConvexHullOverlay", "render_trace_plot", "seg
 _DEFAULT_TRACE_DPI = 300
 _TARGET_SCALE_CM_PER_METER: float = 0.35
 _MIN_FIGSIZE_CM: tuple[float, float] = (12.0, 8.0)
-_MAX_FIGSIZE_CM: tuple[float, float] = (30.0, 25.0)
+_MAX_FIGSIZE_CM: tuple[float, float] = (36.0, 25.0)
 _TRACE_LINE_COLOR = (0, 0, 0)
-_TRACE_LINE_WIDTH = 1.2
-_ANNOTATION_LINE_WIDTH = 1.0
+_TRACE_LINE_WIDTH = 0.85
+_ANNOTATION_LINE_WIDTH = 0.75
 _ANNOTATION_ZORDER = 12
 _MIN_DATA_SPAN = 1.0
 _EPS = 1e-9
@@ -38,20 +38,63 @@ _TRACE_ZORDER = 10
 # ── 凸包 ─────────────────────────────────────────────────
 _HULL_LINE_COLOR = "#1565C0"
 _HULL_FILL_COLOR = "#1565C0"
-_HULL_FILL_ALPHA = 0.12
-_HULL_LINE_WIDTH = 1.2
+_HULL_FILL_ALPHA = 0.08
+_HULL_LINE_WIDTH = 0.8
 _HULL_LINE_STYLE = "--"
 _HULL_ZORDER = 2
 
 # ── 圆窗 ─────────────────────────────────────────────────
 _CIRCLE_WINDOW_LINE_COLOR = "#E65100"
 _CIRCLE_WINDOW_FILL_COLOR = "#E65100"
-_CIRCLE_WINDOW_FILL_ALPHA = 0.12
-_CIRCLE_WINDOW_LINE_WIDTH = 1.2
+_CIRCLE_WINDOW_FILL_ALPHA = 0.08
+_CIRCLE_WINDOW_LINE_WIDTH = 0.8
 _CIRCLE_WINDOW_LINE_STYLE = "--"
 _CIRCLE_WINDOW_ZORDER = 2
 
-_MAIN_AXES_FULL = (0.075, 0.10, 0.85, 0.78)
+_FRAME_AXES_BOUNDS = (0.035, 0.055, 0.93, 0.86)
+_TRACE_AXES_BOUNDS = (0.065, 0.205, 0.57, 0.645)
+_STATS_AXES_BOUNDS = (0.66, 0.155, 0.285, 0.61)
+_COMPASS_AXES_BOUNDS = (0.76, 0.765, 0.12, 0.095)
+_SCALE_AXES_BOUNDS = (0.065, 0.075, 0.57, 0.09)
+_LEGEND_AXES_BOUNDS = (0.66, 0.065, 0.285, 0.075)
+_MAIN_AXES_FULL = _TRACE_AXES_BOUNDS
+
+# ── 动态布局常量 ─────────────────────────────────────────
+_FRAME_BOTTOM = 0.055
+_FRAME_LEFT = 0.035
+_FRAME_WIDTH = 0.93
+_COMPASS_W = 0.12
+_COMPASS_H = 0.095
+_STATS_W = 0.285
+_STATS_H = 0.46
+_LEGEND_W = 0.285
+_LEGEND_H = 0.095
+_LEGEND_BOTTOM_MARGIN = 0.010
+_HARD_GAP = 0.020
+_SINGLE_FRAME_TOP = 0.900
+_DOUBLE_FRAME_TOP = 0.855
+
+_UNIT_PLACEHOLDERS: tuple[tuple[str, str], ...] = (
+    ("m⁻²", "__TRACE_UNIT_M2_INV__"),
+    ("m−2", "__TRACE_UNIT_M2_INV__"),
+    ("m^-2", "__TRACE_UNIT_M2_INV__"),
+    ("m**-2", "__TRACE_UNIT_M2_INV__"),
+    ("m⁻¹", "__TRACE_UNIT_M_INV__"),
+    ("m−1", "__TRACE_UNIT_M_INV__"),
+    ("m^-1", "__TRACE_UNIT_M_INV__"),
+    ("m**-1", "__TRACE_UNIT_M_INV__"),
+    ("m²", "__TRACE_UNIT_M2__"),
+    ("m^2", "__TRACE_UNIT_M2__"),
+    ("m**2", "__TRACE_UNIT_M2__"),
+)
+
+_UNIT_MATH_TEXT = {
+    "__TRACE_UNIT_M2_INV__": r"$\mathrm{m}^{-2}$",
+    "__TRACE_UNIT_M_INV__": r"$\mathrm{m}^{-1}$",
+    "__TRACE_UNIT_M2__": r"$\mathrm{m}^{2}$",
+    "__TRACE_UNIT_CM__": r"$\mathrm{cm}$",
+    "__TRACE_UNIT_M__": r"$\mathrm{m}$",
+}
 
 
 @dataclass(frozen=True)
@@ -213,8 +256,23 @@ def _data_bounds(
 
 def _format_scale_label(length: float) -> str:
     if length >= 1.0:
-        return f"{length:g} m"
-    return f"{length * 100:g} cm"
+        return f"{length:g} $\\mathrm{{m}}$"
+    return f"{length * 100:g} $\\mathrm{{cm}}$"
+
+
+def _mathtext_units(text: str) -> str:
+    """将普通单位文本规范为 mathtext，保证英文单位与上标使用 Times New Roman。"""
+    parts = text.split("$")
+    for idx in range(0, len(parts), 2):
+        segment = parts[idx]
+        for source, placeholder in _UNIT_PLACEHOLDERS:
+            segment = segment.replace(source, placeholder)
+        segment = re.sub(r"(?<![A-Za-z\\])cm(?![A-Za-z])", "__TRACE_UNIT_CM__", segment)
+        segment = re.sub(r"(?<![A-Za-z\\])m(?![A-Za-z])", "__TRACE_UNIT_M__", segment)
+        for placeholder, math_text in _UNIT_MATH_TEXT.items():
+            segment = segment.replace(placeholder, math_text)
+        parts[idx] = segment
+    return "$".join(parts)
 
 
 def _build_decoration_layout(
@@ -254,6 +312,13 @@ def _build_decoration_layout(
 def _apply_decoration_limits(ax: plt.Axes, layout: _DecorationLayout) -> None:
     ax.set_xlim(layout.data_x_min - layout.left_pad, layout.data_x_max + layout.right_pad)
     ax.set_ylim(layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad)
+
+
+def _decoration_limits(layout: _DecorationLayout) -> tuple[tuple[float, float], tuple[float, float]]:
+    return (
+        (layout.data_x_min - layout.left_pad, layout.data_x_max + layout.right_pad),
+        (layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad),
+    )
 
 
 def _add_scale_bar(
@@ -311,11 +376,72 @@ def _add_scale_bar(
         va="top",
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=9, color="black"),
+        **text_font_kwargs(fontsize=7.2, color="black"),
     )
 
 
-def _add_north_arrow(ax: plt.Axes, north_angle_deg: float) -> None:
+def _add_scale_bar_band(
+    ax: plt.Axes,
+    layout: _DecorationLayout,
+    xlim: tuple[float, float],
+) -> None:
+    """在独立比例尺带中绘制与数据轴同尺度的比例尺。"""
+    ax.set_xlim(*xlim)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_axis_off()
+
+    x_span = xlim[1] - xlim[0]
+    x0 = xlim[0] + x_span * 0.04
+    if x0 + layout.scale_length > xlim[1]:
+        x0 = xlim[1] - layout.scale_length - x_span * 0.04
+    x1 = x0 + layout.scale_length
+    y = 0.62
+    tick = 0.17
+
+    ax.plot(
+        [x0, x1],
+        [y, y],
+        color="black",
+        linewidth=_ANNOTATION_LINE_WIDTH,
+        solid_capstyle="butt",
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.plot(
+        [x0, x0],
+        [y - tick, y + tick],
+        color="black",
+        linewidth=_ANNOTATION_LINE_WIDTH,
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.plot(
+        [x1, x1],
+        [y - tick, y + tick],
+        color="black",
+        linewidth=_ANNOTATION_LINE_WIDTH,
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+    )
+    ax.text(
+        (x0 + x1) / 2.0,
+        y - tick * 0.85,
+        _format_scale_label(layout.scale_length),
+        ha="center",
+        va="top",
+        clip_on=True,
+        zorder=_ANNOTATION_ZORDER,
+        **text_font_kwargs(fontsize=7.2, color="black"),
+    )
+
+
+def _add_north_arrow(
+    ax: plt.Axes,
+    north_angle_deg: float,
+    *,
+    center: tuple[float, float] | None = None,
+    arrow_len: float | None = None,
+) -> None:
     """在主图右上角绘制指北针（transAxes 坐标，不遮挡数据区）。"""
     if not math.isfinite(north_angle_deg):
         logger.warning("north_angle_deg 非有限值 (%s)，回退到 90.0°", north_angle_deg)
@@ -323,11 +449,14 @@ def _add_north_arrow(ax: plt.Axes, north_angle_deg: float) -> None:
 
     angle = math.radians(north_angle_deg)
     dx, dy = math.cos(angle), math.sin(angle)
-    arrow_len = _DEFAULT_LAYOUT.arrow_rel_len
+    arrow_len = _DEFAULT_LAYOUT.arrow_rel_len if arrow_len is None else arrow_len
     label_gap = arrow_len * 0.25
 
-    center_x = _DEFAULT_LAYOUT.arrow_rel_x
-    center_y = _DEFAULT_LAYOUT.arrow_rel_y
+    if center is None:
+        center_x = _DEFAULT_LAYOUT.arrow_rel_x
+        center_y = _DEFAULT_LAYOUT.arrow_rel_y
+    else:
+        center_x, center_y = center
     base_x = center_x - arrow_len * dx * 0.50
     base_y = center_y - arrow_len * dy * 0.50
     tip_x = center_x + arrow_len * dx * 0.50
@@ -344,8 +473,8 @@ def _add_north_arrow(ax: plt.Axes, north_angle_deg: float) -> None:
         arrowprops=dict(
             arrowstyle="->",
             color="black",
-            lw=1.2,
-            mutation_scale=14,
+            lw=0.85,
+            mutation_scale=11,
         ),
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
@@ -359,7 +488,7 @@ def _add_north_arrow(ax: plt.Axes, north_angle_deg: float) -> None:
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=11, fontweight="bold", color="black"),
+        **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
     )
 
 
@@ -370,9 +499,81 @@ def _style_trace_axes(ax: plt.Axes) -> None:
     ax.set_yticks([])
     # 论文风格：完整四边框
     for spine in ax.spines.values():
-        spine.set_linewidth(1.0)
+        spine.set_linewidth(0.75)
         spine.set_color("black")
     ax.set_facecolor("white")
+
+
+def _style_trace_data_axes(ax: plt.Axes) -> None:
+    """设置外框内的数据轴，避免数据区再出现第二道边框。"""
+    _style_trace_axes(ax)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+
+def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
+    """根据标题行数动态解析各轴在 figure 中的位置。
+
+    单行标题外框顶边不高于 0.900；双行标题外框顶边不高于 0.875。
+    统计框、图例、指北针之间保留硬间距，全部落在 frame 内部。
+    """
+    title_lines = title.count("\n") + 1 if title else 1
+    if title_lines >= 2:
+        frame_top = _DOUBLE_FRAME_TOP
+    else:
+        frame_top = _SINGLE_FRAME_TOP
+    frame_h = frame_top - _FRAME_BOTTOM
+
+    # 从 frame 顶边向下排布
+    compass_y1 = frame_top - _LEGEND_BOTTOM_MARGIN
+    compass_y0 = compass_y1 - _COMPASS_H
+
+    stats_y1 = compass_y0 - _HARD_GAP
+    stats_y0 = stats_y1 - _STATS_H
+
+    legend_y1 = stats_y0 - _HARD_GAP
+    legend_y0 = legend_y1 - _LEGEND_H
+
+    # 指北针水平居中于右侧信息区
+    info_left = _STATS_AXES_BOUNDS[0]  # 0.66
+    info_right = info_left + _STATS_W  # 0.945
+    compass_x0 = (info_left + info_right - _COMPASS_W) / 2.0  # ~0.7425
+
+    # 数据轴保持原样，但确保不超出 frame
+    data_bounds = _TRACE_AXES_BOUNDS
+    scale_bounds = _SCALE_AXES_BOUNDS
+
+    return {
+        "trace_outer_frame": (_FRAME_LEFT, _FRAME_BOTTOM, _FRAME_WIDTH, frame_h),
+        "trace_data": data_bounds,
+        "trace_statistics": (info_left, stats_y0, _STATS_W, _STATS_H),
+        "trace_legend": (info_left, legend_y0, _LEGEND_W, _LEGEND_H),
+        "trace_compass": (compass_x0, compass_y0, _COMPASS_W, _COMPASS_H),
+        "trace_scale": scale_bounds,
+    }
+
+
+def _add_outer_frame(fig: plt.Figure, bounds: tuple[float, float, float, float]) -> plt.Axes:
+    frame_ax = fig.add_axes(bounds, label="trace_outer_frame")
+    frame_ax.set_xlim(0.0, 1.0)
+    frame_ax.set_ylim(0.0, 1.0)
+    frame_ax.set_xticks([])
+    frame_ax.set_yticks([])
+    frame_ax.patch.set_alpha(0.0)
+    for spine in frame_ax.spines.values():
+        spine.set_linewidth(0.75)
+        spine.set_color("black")
+    frame_ax.set_zorder(0)
+    return frame_ax
+
+
+def _blank_panel_axes(fig: plt.Figure, bounds: tuple[float, float, float, float], label: str) -> plt.Axes:
+    ax = fig.add_axes(bounds, label=label)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_frame_on(False)
+    ax.set_facecolor("none")
+    return ax
 
 
 def _compact_statistics_label(label: str) -> str:
@@ -399,19 +600,21 @@ def _split_statistics_line(line: str) -> tuple[str, str]:
     for separator in ("：", ":"):
         if separator in text:
             label, value = text.split(separator, 1)
-            return _compact_statistics_label(label.strip()), value.strip()
-    return text, ""
+            return _compact_statistics_label(label.strip()), _mathtext_units(value.strip())
+    return _compact_statistics_label(text), ""
 
 
 def _statistics_font_size(row_count: int) -> float:
     """按统计行数收缩字号，保证 PNG 面板内不发生纵向重叠。"""
     if row_count <= 8:
-        return 7.6
+        return 6.8
     if row_count <= 10:
-        return 7.0
+        return 5.8
     if row_count <= 12:
-        return 6.3
-    return 5.8
+        return 5.5
+    if row_count <= 18:
+        return 5.1
+    return 4.7
 
 
 def _add_statistics_box(
@@ -452,9 +655,9 @@ def _add_statistics_box(
         panel_width,
         panel_y1 - panel_y0,
         facecolor="white",
-        edgecolor="0.72",
-        linewidth=0.8,
-        alpha=0.92,
+        edgecolor="0.68",
+        linewidth=0.6,
+        alpha=0.94,
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER - 0.5,
@@ -468,13 +671,13 @@ def _add_statistics_box(
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER + 1,
-        **text_font_kwargs(fontsize=8.3, fontweight="bold", color="black"),
+        **text_font_kwargs(fontsize=7.2, fontweight="bold", color="black"),
     )
     ax.plot(
         [x_label, x_value],
         [rule_y, rule_y],
-        color="0.35",
-        linewidth=0.8,
+        color="0.42",
+        linewidth=0.6,
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
@@ -490,7 +693,7 @@ def _add_statistics_box(
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=font_size, color="0.18"),
+            **text_font_kwargs(fontsize=font_size, color="0.20"),
         )
         ax.text(
             x_value,
@@ -552,87 +755,104 @@ def _add_legend(
     anchor_y: float | None = None,
     loc: str | None = None,
 ) -> None:
-    """在主图内绘制动态图例（transAxes 坐标，不占用数据区）。
+    """在独立信息区中绘制固定尺寸图例，避免 Matplotlib legend 自动越界。"""
+    _ = (anchor_x, anchor_y, loc)
+    ax.set_xlim(0.0, 1.0)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_axis_off()
 
-    若未提供 ``anchor_x`` / ``anchor_y`` / ``loc``，则回退到原左下角硬编码位置。
-    """
-    import matplotlib.patches as mpatches
-    from matplotlib.lines import Line2D
-
-    if anchor_x is None:
-        anchor_x = _DEFAULT_LAYOUT.legend_rel_x
-    if anchor_y is None:
-        anchor_y = _DEFAULT_LAYOUT.legend_rel_y
-    if loc is None:
-        loc = "lower left"
-
-    handles: list[object] = []
-    # 迹线（始终显示）
-    handles.append(
-        Line2D([0], [0], color=_TRACE_LINE_COLOR, linewidth=_TRACE_LINE_WIDTH, label="迹线")
-    )
-    # 凸包/圆窗（二选一），标签与统计框来源一致
+    items: list[tuple[str, str]] = [("trace", "迹线")]
     if has_hull and area_source == "hull":
-        label = "露头面积（凸包）"
+        items.append(("hull", "面积: 凸包"))
     elif has_hull and area_source == "hull_buffered":
-        label = "露头面积（缓冲凸包）"
+        items.append(("hull", "面积: 缓冲凸包"))
     elif area_source == "measured":
-        label = "实测面积（表格来源）"
+        items.append(("measured", "面积: 实测"))
     elif has_circles and area_source in ("window", "window_equivalent"):
-        label = "露头面积（圆窗等效）"
-    else:
-        label = ""
+        items.append(("circle", "面积: 圆窗"))
 
-    if label:
-        if has_hull and area_source in ("hull", "hull_buffered", "measured"):
-            handles.append(
-                mpatches.Patch(
+    ax.add_patch(
+        Rectangle(
+            (0.02, 0.06),
+            0.96,
+            0.88,
+            facecolor="white",
+            edgecolor="0.68",
+            linewidth=0.6,
+            alpha=0.94,
+            transform=ax.transAxes,
+            clip_on=True,
+            zorder=_ANNOTATION_ZORDER,
+        )
+    )
+
+    y_positions = (0.68, 0.28) if len(items) > 1 else (0.50,)
+    icon_h = 0.12
+    icon_half = icon_h / 2.0
+    for (kind, label), y in zip(items, y_positions, strict=False):
+        if kind == "trace":
+            ax.plot(
+                [0.08, 0.24],
+                [y, y],
+                color=_TRACE_LINE_COLOR,
+                linewidth=_TRACE_LINE_WIDTH,
+                transform=ax.transAxes,
+                clip_on=True,
+                zorder=_ANNOTATION_ZORDER + 1,
+            )
+        elif kind == "hull":
+            ax.add_patch(
+                Rectangle(
+                    (0.08, y - icon_half),
+                    0.16,
+                    icon_h,
                     facecolor=_HULL_FILL_COLOR,
                     alpha=_HULL_FILL_ALPHA,
                     edgecolor=_HULL_LINE_COLOR,
                     linewidth=_HULL_LINE_WIDTH,
                     linestyle=_HULL_LINE_STYLE,
-                    label=label,
+                    transform=ax.transAxes,
+                    clip_on=True,
+                    zorder=_ANNOTATION_ZORDER + 1,
                 )
             )
-        elif area_source == "measured":
-            handles.append(
-                Line2D(
-                    [0],
-                    [0],
-                    color="none",
-                    linewidth=0,
-                    label=label,
-                )
-            )
-        elif has_circles and area_source in ("window", "window_equivalent"):
-            handles.append(
-                mpatches.Patch(
+        elif kind == "circle":
+            ax.add_patch(
+                Rectangle(
+                    (0.08, y - icon_half),
+                    0.16,
+                    icon_h,
                     facecolor=_CIRCLE_WINDOW_FILL_COLOR,
                     alpha=_CIRCLE_WINDOW_FILL_ALPHA,
                     edgecolor=_CIRCLE_WINDOW_LINE_COLOR,
                     linewidth=_CIRCLE_WINDOW_LINE_WIDTH,
                     linestyle=_CIRCLE_WINDOW_LINE_STYLE,
-                    label=label,
+                    transform=ax.transAxes,
+                    clip_on=True,
+                    zorder=_ANNOTATION_ZORDER + 1,
                 )
             )
-
-    if handles:
-        legend = ax.legend(
-            handles=handles,
-            frameon=True,
-            fontsize=9,
-            edgecolor="0.72",
-            facecolor="white",
-            framealpha=0.92,
-            loc=loc,
-            bbox_to_anchor=(anchor_x, anchor_y),
-            borderpad=0.45,
-            handlelength=1.6,
-            handletextpad=0.7,
+        else:
+            ax.plot(
+                [0.08, 0.24],
+                [y, y],
+                color="0.55",
+                linewidth=0.65,
+                transform=ax.transAxes,
+                clip_on=True,
+                zorder=_ANNOTATION_ZORDER + 1,
+            )
+        ax.text(
+            0.31,
+            y,
+            label,
+            ha="left",
+            va="center",
+            transform=ax.transAxes,
+            clip_on=True,
+            zorder=_ANNOTATION_ZORDER + 1,
+            **text_font_kwargs(fontsize=6.4, color="black"),
         )
-        if legend is not None:
-            legend.set_zorder(_ANNOTATION_ZORDER + 2)
 
 
 def _compute_adaptive_figsize(layout: _DecorationLayout) -> tuple[float, float]:
@@ -642,10 +862,13 @@ def _compute_adaptive_figsize(layout: _DecorationLayout) -> tuple[float, float]:
     结果裁剪到 [_MIN_FIGSIZE_CM, _MAX_FIGSIZE_CM] 区间。
     """
     target = _TARGET_SCALE_CM_PER_METER
-    # axes 物理尺寸 = 数据范围 × 目标比例尺
+    xlim, ylim = _decoration_limits(layout)
+    x_range = max(xlim[1] - xlim[0], _MIN_DATA_SPAN)
+    y_range = max(ylim[1] - ylim[0], _MIN_DATA_SPAN)
+    # 数据轴物理尺寸 = 数据范围 × 目标比例尺
     # figure 尺寸 = axes 尺寸 / axes 占 figure 的比例
-    fig_w = layout.x_span * target / _MAIN_AXES_FULL[2]
-    fig_h = layout.y_span * target / _MAIN_AXES_FULL[3]
+    fig_w = x_range * target / _TRACE_AXES_BOUNDS[2]
+    fig_h = y_range * target / _TRACE_AXES_BOUNDS[3]
 
     min_w, min_h = _MIN_FIGSIZE_CM
     max_w, max_h = _MAX_FIGSIZE_CM
@@ -697,7 +920,11 @@ def render_trace_plot(
     )
     effective_figsize = figsize_cm if figsize_cm is not None else _compute_adaptive_figsize(layout)
     fig, ax = new_figure(effective_figsize, dpi=dpi)
-    ax.set_position(_MAIN_AXES_FULL)
+    ax.remove()
+
+    layout_bounds = _resolve_layout(title)
+    _add_outer_frame(fig, layout_bounds["trace_outer_frame"])
+    ax = fig.add_axes(layout_bounds["trace_data"], label="trace_data")
 
     # 1. 底层：凸包或圆窗（二选一）
     if selected_hull is not None:
@@ -713,37 +940,30 @@ def render_trace_plot(
         zorder=_TRACE_ZORDER,
     )
 
-    _style_trace_axes(ax)
+    _style_trace_data_axes(ax)
     _apply_decoration_limits(ax, layout)
 
-    # 3. 装饰元素（全部在主图框内，自动选择最少遮挡迹线的角落）
-    xlim = (layout.data_x_min - layout.left_pad, layout.data_x_max + layout.right_pad)
-    ylim = (layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad)
-    positions = resolve_decoration_positions(
-        arr,
-        xlim=xlim,
-        ylim=ylim,
-        layout=_DEFAULT_LAYOUT,
-        stats_row_count=len(statistics_lines or ()),
-        has_compass=True,
-        scale_length_data=layout.scale_length,
-    )
-    legend_anchor = positions["legend"]
-    stats_rect = positions["stats"]
-    scale_data_x0, scale_data_y = positions["scale"]
+    # 3. 装饰元素放入同一外框内的独立信息区，不再覆盖数据轴。
+    xlim, _ylim = _decoration_limits(layout)
+    compass_ax = _blank_panel_axes(fig, layout_bounds["trace_compass"], "trace_compass")
+    _add_north_arrow(compass_ax, north_angle_deg, center=(0.50, 0.46), arrow_len=0.38)
 
-    _add_north_arrow(ax, north_angle_deg)
-    _add_scale_bar(ax, layout, data_x0=scale_data_x0, data_y=scale_data_y)
+    scale_ax = _blank_panel_axes(fig, layout_bounds["trace_scale"], "trace_scale")
+    _add_scale_bar_band(scale_ax, layout, xlim)
+
+    legend_ax = _blank_panel_axes(fig, layout_bounds["trace_legend"], "trace_legend")
     _add_legend(
-        ax,
+        legend_ax,
         area_source,
         has_hull,
         has_circles,
-        anchor_x=legend_anchor[0],
-        anchor_y=legend_anchor[1],
-        loc=legend_anchor[2],
+        anchor_x=0.02,
+        anchor_y=0.50,
+        loc="center left",
     )
-    _add_statistics_box(ax, statistics_lines, rect=stats_rect)
 
-    ax.set_title(title, pad=10, **text_font_kwargs(fontsize=12.0, fontweight="bold"))
-    return save_figure(fig, output_dir, filename, dpi=dpi)
+    stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
+    _add_statistics_box(stats_ax, statistics_lines, rect=(0.02, 0.02, 0.98, 0.98))
+
+    fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
+    return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.0, bbox_inches=None)

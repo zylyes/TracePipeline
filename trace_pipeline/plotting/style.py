@@ -142,14 +142,22 @@ def configure_style() -> None:
     matplotlib.rcParams["mathtext.it"] = f"{WESTERN_PRIMARY_FONT}:italic"
     matplotlib.rcParams["mathtext.bf"] = f"{WESTERN_PRIMARY_FONT}:bold"
     matplotlib.rcParams["mathtext.sf"] = WESTERN_PRIMARY_FONT
+    matplotlib.rcParams["mathtext.default"] = "regular"
 
     # 论文常用全局设置
     matplotlib.rcParams["axes.unicode_minus"] = False
-    matplotlib.rcParams["axes.linewidth"] = 0.8
-    matplotlib.rcParams["xtick.major.width"] = 0.6
-    matplotlib.rcParams["ytick.major.width"] = 0.6
-    matplotlib.rcParams["lines.linewidth"] = 1.0
-    matplotlib.rcParams["lines.markersize"] = 4
+    matplotlib.rcParams["font.size"] = 8.5
+    matplotlib.rcParams["axes.linewidth"] = 0.7
+    matplotlib.rcParams["xtick.major.width"] = 0.55
+    matplotlib.rcParams["ytick.major.width"] = 0.55
+    matplotlib.rcParams["xtick.major.size"] = 3.0
+    matplotlib.rcParams["ytick.major.size"] = 3.0
+    matplotlib.rcParams["xtick.labelsize"] = 8.0
+    matplotlib.rcParams["ytick.labelsize"] = 8.0
+    matplotlib.rcParams["lines.linewidth"] = 0.85
+    matplotlib.rcParams["lines.markersize"] = 3.5
     matplotlib.rcParams["figure.dpi"] = 300
+    matplotlib.rcParams["savefig.dpi"] = 300
+    matplotlib.rcParams["savefig.facecolor"] = "white"
 
     logger.debug("matplotlib 全局样式已配置（论文风格）")

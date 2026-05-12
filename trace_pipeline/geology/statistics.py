@@ -203,61 +203,6 @@ def _effective_trace_length_total(
     return math.nan, "unavailable"
 
 
-def _angle_weights(
-    strikes: np.ndarray,
-    scanline_azimuth: float,
-    min_angle: float,
-) -> np.ndarray:
-    """计算方向偏差角 α 及其截断后的 sin(α)。"""
-    alpha = np.abs(strikes - scanline_azimuth)
-    alpha = np.mod(alpha, 180.0)
-    alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
-    min_sin = math.sin(math.radians(min_angle))
-    sin_alpha = np.sin(np.radians(alpha))
-    return np.where(sin_alpha < min_sin, min_sin, sin_alpha)
-
-
-def _compute_weighted_mean_length(
-    lengths: np.ndarray,
-    strikes: np.ndarray,
-    scanline_azimuth: float,
-    min_angle: float,
-) -> float:
-    """方向偏差修正后的加权平均迹长。"""
-    if lengths.size == 0:
-        return math.nan
-    weights = 1.0 / _angle_weights(strikes, scanline_azimuth, min_angle)
-    numerator = float(np.sum(weights * lengths))
-    denominator = float(np.sum(weights))
-    return numerator / denominator if denominator > _EPS else math.nan
-
-
-def _compute_unbiased_mean_length(
-    lengths: np.ndarray,
-    strikes: np.ndarray,
-    scanline_azimuth: float,
-    min_angle: float,
-    min_length: float,
-) -> float:
-    """长度+方向双修正（IPW）后的无偏平均迹长。"""
-    if lengths.size == 0:
-        return math.nan
-    safe_lengths = np.where(lengths < min_length, min_length, lengths)
-    weights = 1.0 / (safe_lengths * _angle_weights(strikes, scanline_azimuth, min_angle))
-    numerator = float(np.sum(weights * lengths))
-    denominator = float(np.sum(weights))
-    return numerator / denominator if denominator > _EPS else math.nan
-
-
-def _terzaghi_p10_correction(p10: float, mean_sin_alpha: float) -> float:
-    """Terzaghi 方向修正：P10_Terzaghi = P10_observed / mean(|sin α|)。"""
-    if not math.isfinite(p10) or not math.isfinite(mean_sin_alpha):
-        return math.nan
-    if mean_sin_alpha < _EPS:
-        return math.nan
-    return p10 / mean_sin_alpha
-
-
 # ── 主入口 ────────────────────────────────────────────────────────────
 
 
@@ -344,48 +289,7 @@ def compute_trace_statistics(
     # 8. P10（观测线密度）
     p10 = trace.count / scanline_length if scanline_length > _EPS else math.nan
 
-    # 9. Terzaghi 方向修正
-    mean_sin_alpha = math.nan
-    p10_terzaghi = math.nan
-    if trace.count > 0:
-        alpha = np.abs(trace.joint_strikes - trace.scanline_azimuth)
-        alpha = np.mod(alpha, 180.0)
-        alpha = np.where(alpha > 90.0, 180.0 - alpha, alpha)
-        sin_alpha = np.sin(np.radians(alpha))
-        mean_sin_alpha = float(np.mean(sin_alpha)) if sin_alpha.size else math.nan
-        p10_terzaghi = _terzaghi_p10_correction(p10, mean_sin_alpha)
-
-    # 10. 迹长三级估计
-    weighted_mean = math.nan
-    unbiased_mean = math.nan
-    if trace.count > 0:
-        if observed_source == "segment":
-            lengths_for_correction = trace.segment_lengths
-        elif observed_source == "endpoint":
-            lengths_for_correction = trace.lengths
-        else:
-            lengths_for_correction = np.array([], dtype=float)
-
-        if (
-            lengths_for_correction.size > 0
-            and np.isfinite(lengths_for_correction).all()
-            and np.any(lengths_for_correction > _EPS)
-        ):
-            weighted_mean = _compute_weighted_mean_length(
-                lengths_for_correction,
-                trace.joint_strikes,
-                trace.scanline_azimuth,
-                config.weighted_length_min_angle,
-            )
-            unbiased_mean = _compute_unbiased_mean_length(
-                lengths_for_correction,
-                trace.joint_strikes,
-                trace.scanline_azimuth,
-                config.weighted_length_min_angle,
-                config.min_trace_length,
-            )
-
-    # 11. P20 / P21
+    # 9. P20 / P21
     if math.isfinite(effective_area) and effective_area > _EPS:
         p20 = trace.count / effective_area
         p20_source = area_source
@@ -406,7 +310,7 @@ def compute_trace_statistics(
         p21 = math.nan
         p21_source = "unavailable"
 
-    # 12. 一致性校验（自适应阈值）
+    # 10. 一致性校验（自适应阈值）
     consistency_threshold = _adaptive_consistency_threshold(trace.count)
     window_validation_warning = area_warning
     if not window_validation_warning and p20_source != "window" and p21_source != "window":
@@ -470,10 +374,6 @@ def compute_trace_statistics(
         window_outcrop_area=float(window_equivalent_area) if math.isfinite(window_equivalent_area) else math.nan,
         area_disagreement_ratio=float(disagreement_ratio) if math.isfinite(disagreement_ratio) else math.nan,
         window_validation_warning=window_validation_warning,
-        weighted_mean_trace_length=float(weighted_mean),
-        unbiased_mean_trace_length=float(unbiased_mean),
-        p10_terzaghi=float(p10_terzaghi),
-        mean_sin_alpha=float(mean_sin_alpha),
         hull_buffered_area=float(hull_buffered_area) if math.isfinite(hull_buffered_area) else math.nan,
         hull_buffer_ratio=float(config.hull_buffer_ratio),
     )

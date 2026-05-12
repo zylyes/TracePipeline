@@ -255,7 +255,8 @@ def test_full_statistics_chain_with_sources_and_formatting():
     lines = format_statistics_box_lines(stats)
     joined = "\n".join(lines)
     assert "测线走向: 90.0°" in lines
-    assert "平均迹线长度（端点）" in joined
+    assert "平均迹线长度: 2.750 m" in lines
+    assert "计算策略" not in joined
     assert "(W)" not in joined
 
 
@@ -340,11 +341,13 @@ def test_statistics_box_lines_show_only_selected_area_source():
 
     joined = "\n".join(format_statistics_box_lines(stats))
 
-    assert "露头面积（凸包）: 20.000 m²" in joined
+    assert "露头面积: 20.000 m²" in joined
+    assert "计算策略" not in joined
+    assert "露头面积（凸包）" not in joined
     assert "边界缓冲" not in joined
 
 
-def test_statistics_box_lines_label_buffered_area_source():
+def test_statistics_box_lines_show_buffered_area_in_strategy_only():
     stats = TraceStatistics(
         scanline_azimuth=90.0,
         total_count=5,
@@ -371,9 +374,144 @@ def test_statistics_box_lines_label_buffered_area_source():
 
     joined = "\n".join(format_statistics_box_lines(stats))
 
-    assert "露头面积（缓冲凸包）: 50.000 m²" in joined
+    assert "露头面积: 50.000 m²" in joined
+    assert "计算策略" not in joined
     assert "P20 面密度（缓冲凸包）" not in joined
-    assert "面密度（$P_{20}$）（缓冲凸包）: 0.100 m⁻²" in joined
+    assert "面密度（$P_{20}$）: 0.100 m⁻²" in joined
+    assert "面密度（$P_{20}$）（缓冲凸包）" not in joined
+
+
+def test_statistics_box_lines_keep_core_metrics_and_strategy_summary():
+    diagnostics = (
+        CircleWindowDiagnostic(
+            cut_position=1.0,
+            side="left",
+            center_x=1.0,
+            center_y=2.0,
+            radius=3.0,
+            intersection_count=6,
+            n0=1,
+            n1=2,
+            n2=1,
+            m=4,
+            q=4,
+            p20=0.1,
+            p21=0.2,
+            l_est=5.0,
+            strategy="hybrid",
+            group_key="hybrid:left",
+            valid=True,
+        ),
+        CircleWindowDiagnostic(
+            cut_position=2.0,
+            side="right",
+            center_x=2.0,
+            center_y=-2.0,
+            radius=3.0,
+            intersection_count=1,
+            n0=0,
+            n1=1,
+            n2=0,
+            m=1,
+            q=1,
+            p20=math.nan,
+            p21=math.nan,
+            l_est=math.nan,
+            strategy="hybrid",
+            group_key="hybrid:right",
+            valid=False,
+            invalid_reason="too few",
+        ),
+    )
+    stats = TraceStatistics(
+        scanline_azimuth=298.0,
+        total_count=8,
+        type_i_count=3,
+        type_ii_count=4,
+        type_iii_count=1,
+        scanline_length=12.0,
+        outcrop_area=40.0,
+        mean_trace_length=5.0,
+        trace_length_total=40.0,
+        p10=0.667,
+        p20=0.2,
+        p21=1.0,
+        scanline_length_source="measured",
+        outcrop_area_source="hull_buffered",
+        trace_length_source="segment",
+        p20_source="hull_buffered",
+        p21_source="hull_buffered",
+        window_strategy="hybrid",
+        trace_types=("I", "I", "I", "II", "II", "II", "II", "III"),
+        diagnostics=diagnostics,
+        window_outcrop_area=52.0,
+        area_disagreement_ratio=0.25,
+        window_validation_warning="P20 差异过大",
+        hull_buffered_area=40.0,
+    )
+
+    lines = format_statistics_box_lines(stats)
+    joined = "\n".join(lines)
+
+    assert "平均迹线长度: 5.000 m" in lines
+    assert "露头面积: 40.000 m²" in lines
+    assert "面密度（$P_{20}$）: 0.200 m⁻²" in joined
+    assert "计算策略" not in joined
+    assert "方向修正" not in joined
+    assert "IPW" not in joined
+    assert "无偏" not in joined
+    assert "Terzaghi" not in joined
+    assert "总迹长" not in joined
+    assert "圆窗策略" not in joined
+    assert "有效圆窗数" not in joined
+    assert "圆窗等效面积" not in joined
+    assert "缓冲凸包面积" not in joined
+    assert "面积差异比例" not in joined
+    assert "校验告警" not in joined
+    assert "（缓冲凸包）" not in joined
+
+
+def test_statistics_box_lines_format_unavailable_strategy_and_core_na_values():
+    stats = TraceStatistics(
+        scanline_azimuth=90.0,
+        total_count=1,
+        type_i_count=0,
+        type_ii_count=0,
+        type_iii_count=1,
+        scanline_length=0.0,
+        outcrop_area=math.nan,
+        mean_trace_length=math.nan,
+        trace_length_total=math.nan,
+        p10=math.nan,
+        p20=math.nan,
+        p21=math.nan,
+        scanline_length_source="estimated",
+        outcrop_area_source="unavailable",
+        trace_length_source="unavailable",
+        p20_source="unavailable",
+        p21_source="unavailable",
+        window_strategy="tangent",
+        trace_types=("III",),
+        diagnostics=(),
+    )
+
+    lines = format_statistics_box_lines(stats)
+
+    joined = "\n".join(lines)
+
+    assert "平均迹线长度: N/A" in lines
+    assert "露头面积: N/A" in lines
+    assert "计算策略" not in joined
+    assert "方向修正" not in joined
+    assert "IPW" not in joined
+    assert "无偏" not in joined
+    assert "Terzaghi" not in joined
+    assert "总迹长" not in joined
+    assert "圆窗策略" not in joined
+    assert "有效圆窗数" not in joined
+    assert "圆窗等效面积" not in joined
+    assert "面积差异比例" not in joined
+    assert "校验告警" not in joined
 
 
 def test_explicit_window_strategy_layouts_are_recorded():
@@ -1100,61 +1238,6 @@ def test_adaptive_disagreement_threshold_values(n, expected):
     assert _adaptive_disagreement_threshold(n) == expected
 
 
-# ── 新增测试：加权/无偏迹长 ──────────────────────────────────────────
-
-
-def test_weighted_mean_perpendicular_equals_arithmetic():
-    """全垂直迹线（α=90°）方向修正后等于算术平均。"""
-    from trace_pipeline.geology.statistics import _compute_weighted_mean_length
-
-    lengths = np.array([5.0, 10.0, 15.0])
-    strikes = np.array([0.0, 0.0, 0.0])
-    azimuth = 90.0
-    result = _compute_weighted_mean_length(lengths, strikes, azimuth, 20.0)
-    assert result == pytest.approx(10.0)
-
-
-def test_weighted_mean_parallel_truncated():
-    """全平行迹线（α=0°）应触发 min_angle 截断。"""
-    from trace_pipeline.geology.statistics import _compute_weighted_mean_length
-
-    lengths = np.array([5.0, 10.0])
-    strikes = np.array([0.0, 0.0])
-    azimuth = 0.0
-    result = _compute_weighted_mean_length(lengths, strikes, azimuth, 20.0)
-    # sin(20°) ≈ 0.342，权重相等，结果 = 算术平均
-    assert result == pytest.approx(7.5)
-
-
-def test_unbiased_mean_hand_calculated():
-    """两条迹线的 IPW 手算验证。
-
-    迹线1: l=6, α=90°(sin=1), weight=1/(6·1)=1/6
-    迹线2: l=3, α=30°(sin=0.5), weight=1/(3·0.5)=2/3
-    numerator = 6·(1/6) + 3·(2/3) = 3
-    denominator = 1/6 + 2/3 = 5/6
-    unbiased = 3 / (5/6) = 3.6
-    """
-    from trace_pipeline.geology.statistics import _compute_unbiased_mean_length
-
-    lengths = np.array([6.0, 3.0])
-    strikes = np.array([0.0, 60.0])
-    azimuth = 90.0
-    result = _compute_unbiased_mean_length(lengths, strikes, azimuth, 20.0, 0.3)
-    assert result == pytest.approx(3.6)
-
-
-# ── 新增测试：Terzaghi 修正 ──────────────────────────────────────────
-
-
-def test_terzaghi_p10_uniform_distribution():
-    """均匀分布优势组 mean_sin=2/π，Terzaghi P10 = P10·π/2。"""
-    from trace_pipeline.geology.statistics import _terzaghi_p10_correction
-
-    p10 = 1.0
-    mean_sin = 2.0 / math.pi
-    result = _terzaghi_p10_correction(p10, mean_sin)
-    assert result == pytest.approx(math.pi / 2.0)
 
 
 # ── 新增测试：面积选择方案 B ─────────────────────────────────────────

@@ -34,6 +34,23 @@ build/
 # VS Code
 .vscode/
 
+# Node.js
+frontend/node_modules/
+frontend/.env*.local
+
+# Build output
+backend/static/
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.swp
+*.swo
+
 # Project specific
 input/
 output/

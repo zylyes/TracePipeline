@@ -113,7 +113,8 @@ const chartOption = computed(() => {
   }
 
   const baseMax = Math.max(...data, 1)
-  const maxCount = Math.ceil(baseMax / zoomLevel.value)
+  // zoomLevel 只影响显示范围，不改变数据本身
+  const maxCount = Math.ceil(baseMax / Math.max(0.2, zoomLevel.value))
 
   return {
     title: {

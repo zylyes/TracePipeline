@@ -12,7 +12,7 @@
           v-for="item in menuItems"
           :key="item.path"
           :to="item.path"
-          :class="['menu-item', { active: $route.path === item.path }]"
+          :class="['menu-item', { active: route.path === item.path }]"
         >
           <el-icon :size="20"><component :is="item.icon" /></el-icon>
           <span class="menu-label">{{ item.label }}</span>
@@ -41,21 +41,38 @@
     <main class="main">
       <router-view />
       <footer class="status-bar">
-        <span>状态: {{ statusText }}</span>
-        <span>输入: {{ appStore.inputDir }}</span>
-        <span>输出: {{ appStore.outputDir }}</span>
+        <span class="status-item">
+          <el-icon :size="12"><Timer /></el-icon>
+          状态: {{ statusText }}
+        </span>
+        <span class="status-item">
+          <el-icon :size="12"><Files /></el-icon>
+          选中: {{ appStore.selectedFileCount }} 个文件
+        </span>
+        <span class="status-item">
+          <el-icon :size="12"><Folder /></el-icon>
+          输入: {{ appStore.inputDir }}
+        </span>
+        <span class="status-item">
+          <el-icon :size="12"><FolderOpened /></el-icon>
+          输出: {{ appStore.outputDir }}
+        </span>
+        <span v-if="appStore.lastOperationTime" class="status-item time">
+          <el-icon :size="12"><Clock /></el-icon>
+          {{ appStore.lastOperationTime }}
+        </span>
       </footer>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   HomeFilled, DataLine, DocumentCopy, List, Setting,
-  FolderOpened, Document
+  FolderOpened, Document, Timer, Files, Folder, Clock,
 } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
 import { useAppStore } from '@/stores/app'
@@ -73,7 +90,12 @@ const menuItems = [
 ]
 
 const statusText = computed(() => {
-  return '就绪'
+  switch (appStore.pipelineStatus) {
+    case 'running': return '处理中...'
+    case 'completed': return '处理完成'
+    case 'error': return '处理出错'
+    default: return '就绪'
+  }
 })
 
 async function openInputDir() {
@@ -201,10 +223,21 @@ onMounted(async () => {
   border-top: 1px solid #e4e7ed;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
   padding: 0 24px;
   font-size: 12px;
   color: #7f8c8d;
   flex-shrink: 0;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-item.time {
+  margin-left: auto;
+  color: #909399;
 }
 </style>

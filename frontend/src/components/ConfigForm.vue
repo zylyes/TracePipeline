@@ -1,7 +1,7 @@
 <template>
   <div class="config-form">
     <el-form :model="form" label-width="140px" size="small">
-      <h3>📁 路径</h3>
+      <h3>路径</h3>
       <el-form-item label="输入目录">
         <el-input v-model="form.input_dir">
           <template #append><el-button @click="browse('input')">浏览</el-button></template>
@@ -13,7 +13,7 @@
         </el-input>
       </el-form-item>
 
-      <h3>📊 输出控制</h3>
+      <h3>输出控制</h3>
       <el-form-item label="导出玫瑰图">
         <el-switch v-model="form.export_rose_plot" />
       </el-form-item>
@@ -38,7 +38,7 @@
         </el-select>
       </el-form-item>
 
-      <h3>🔬 圆窗策略</h3>
+      <h3>圆窗策略</h3>
       <el-form-item label="策略选择">
         <el-select v-model="form.window_strategy">
           <el-option label="auto" value="auto" />
@@ -54,7 +54,7 @@
         <el-input-number v-model="form.tangent_window_count" :min="1" :max="10" />
       </el-form-item>
 
-      <h3>🎨 绘图样式</h3>
+      <h3>绘图样式</h3>
       <el-form-item label="迹线颜色">
         <el-color-picker v-model="style.trace_line_color" @change="emitStyle" />
       </el-form-item>
@@ -92,22 +92,37 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import { api } from '@/api/pywebview'
+import type { ConfigData } from '@/types'
 
 const props = defineProps<{
-  modelValue: any
-  styleConfig: any
+  modelValue: ConfigData
+  styleConfig: ConfigData
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', val: any): void
-  (e: 'styleChange', val: any): void
+  (e: 'update:modelValue', val: ConfigData): void
+  (e: 'styleChange', val: ConfigData): void
 }>()
 
-const form = reactive({ ...props.modelValue })
-const style = reactive({ ...props.styleConfig })
+const defaultForm: ConfigData = {
+  input_dir: 'input',
+  output_dir: 'output',
+  process_all: true,
+  export_rose_plot: true,
+  rose_bin_width: 10,
+  rose_dpi: 400,
+  trace_dpi: 300,
+  rotated_trace_dpi: 600,
+  window_strategy: 'auto',
+  auto_density_threshold: 5.0,
+  tangent_window_count: 3,
+}
+
+const form = reactive<ConfigData>({ ...defaultForm, ...props.modelValue })
+const style = reactive<ConfigData>({ ...props.styleConfig })
 
 watch(() => props.modelValue, (val) => {
-  Object.assign(form, val)
+  Object.assign(form, { ...defaultForm, ...val })
 }, { deep: true })
 
 watch(() => props.styleConfig, (val) => {

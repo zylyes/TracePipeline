@@ -1,87 +1,93 @@
 <template>
   <div class="dev-panel">
-    <el-collapse v-model="activeNames">
-      <el-collapse-item title="📊 毕设报告导出" name="report">
-        <el-form label-width="100px" size="small">
-          <el-form-item label="导出范围">
-            <el-radio-group v-model="reportScope">
-              <el-radio-button label="selected">指定露头</el-radio-button>
-              <el-radio-button label="all">全部已处理</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item v-if="reportScope === 'selected'" label="选择露头">
-            <el-select
-              v-model="selectedOutcrops"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              placeholder="请选择要导出的露头"
-              style="width: 100%"
+    <el-collapse v-model="activeNames" @change="onCollapseChange">
+      <el-collapse-item title="毕设报告导出" name="report">
+        <div v-loading="loading.report">
+          <el-form label-width="100px" size="small">
+            <el-form-item label="导出范围">
+              <el-radio-group v-model="reportScope">
+                <el-radio-button label="selected">指定露头</el-radio-button>
+                <el-radio-button label="all">全部已处理</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item v-if="reportScope === 'selected'" label="选择露头">
+              <el-select
+                v-model="selectedOutcrops"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="请选择要导出的露头"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="oc in outcropOptions"
+                  :key="oc"
+                  :label="oc"
+                  :value="oc"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-if="reportScope === 'all'" label="包含露头">
+              <div class="outcrop-tags">
+                <el-tag v-for="oc in outcropOptions" :key="oc" size="small" class="oc-tag">{{ oc }}</el-tag>
+                <span v-if="outcropOptions.length === 0" class="oc-empty">暂无已完成露头</span>
+              </div>
+            </el-form-item>
+            <el-form-item label="报告类型">
+              <el-radio-group v-model="reportType">
+                <el-radio-button label="full">完整报告</el-radio-button>
+                <el-radio-button label="stats">仅统计</el-radio-button>
+                <el-radio-button label="plots">仅图表</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="格式">
+              <el-radio-group v-model="reportFmt">
+                <el-radio-button label="docx">Word</el-radio-button>
+                <el-radio-button label="pdf">PDF</el-radio-button>
+                <el-radio-button label="both">两者</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="reportLoading" @click="generateReport">
+                生成并导出报告
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-collapse-item>
+
+      <el-collapse-item title="数据溯源面板" name="provenance">
+        <div v-loading="loading.provenance">
+          <el-descriptions v-if="provenance" :column="1" border size="small">
+            <el-descriptions-item label="露头">{{ provenance.outcrop }}</el-descriptions-item>
+            <el-descriptions-item label="P10">{{ provenance.p10?.value }} [{{ provenance.p10?.source }}]</el-descriptions-item>
+            <el-descriptions-item label="P20">{{ provenance.p20?.value }} [{{ provenance.p20?.source }}]</el-descriptions-item>
+            <el-descriptions-item label="P21">{{ provenance.p21?.value }} [{{ provenance.p21?.source }}]</el-descriptions-item>
+            <el-descriptions-item label="面积来源">{{ provenance.area_source }}</el-descriptions-item>
+            <el-descriptions-item v-if="provenance.warning" label="警告">
+              <span style="color:#c0392b">{{ provenance.warning }}</span>
+            </el-descriptions-item>
+          </el-descriptions>
+          <el-empty v-else description="选择露头后查看溯源" />
+        </div>
+      </el-collapse-item>
+
+      <el-collapse-item title="操作审计日志" name="audit">
+        <div v-loading="loading.audit">
+          <el-timeline>
+            <el-timeline-item
+              v-for="item in auditLogs"
+              :key="item.timestamp"
+              :timestamp="item.timestamp"
             >
-              <el-option
-                v-for="oc in outcropOptions"
-                :key="oc"
-                :label="oc"
-                :value="oc"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item v-if="reportScope === 'all'" label="包含露头">
-            <div class="outcrop-tags">
-              <el-tag v-for="oc in outcropOptions" :key="oc" size="small" class="oc-tag">{{ oc }}</el-tag>
-              <span v-if="outcropOptions.length === 0" class="oc-empty">暂无已完成露头</span>
-            </div>
-          </el-form-item>
-          <el-form-item label="报告类型">
-            <el-radio-group v-model="reportType">
-              <el-radio-button label="full">完整报告</el-radio-button>
-              <el-radio-button label="stats">仅统计</el-radio-button>
-              <el-radio-button label="plots">仅图表</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="格式">
-            <el-radio-group v-model="reportFmt">
-              <el-radio-button label="docx">Word</el-radio-button>
-              <el-radio-button label="pdf">PDF</el-radio-button>
-              <el-radio-button label="both">两者</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="reportLoading" @click="generateReport">
-              生成并导出报告
-            </el-button>
-          </el-form-item>
-        </el-form>
+              {{ item.action }} — {{ item.result }}
+            </el-timeline-item>
+          </el-timeline>
+          <el-button size="small" @click="loadAudit">刷新</el-button>
+        </div>
       </el-collapse-item>
 
-      <el-collapse-item title="📋 数据溯源面板" name="provenance">
-        <el-descriptions v-if="provenance" :column="1" border size="small">
-          <el-descriptions-item label="露头">{{ provenance.outcrop }}</el-descriptions-item>
-          <el-descriptions-item label="P10">{{ provenance.p10?.value }} [{{ provenance.p10?.source }}]</el-descriptions-item>
-          <el-descriptions-item label="P20">{{ provenance.p20?.value }} [{{ provenance.p20?.source }}]</el-descriptions-item>
-          <el-descriptions-item label="P21">{{ provenance.p21?.value }} [{{ provenance.p21?.source }}]</el-descriptions-item>
-          <el-descriptions-item label="面积来源">{{ provenance.area_source }}</el-descriptions-item>
-          <el-descriptions-item v-if="provenance.warning" label="警告">
-            <span style="color:#c0392b">{{ provenance.warning }}</span>
-          </el-descriptions-item>
-        </el-descriptions>
-        <el-empty v-else description="选择露头后查看溯源" />
-      </el-collapse-item>
-
-      <el-collapse-item title="🔍 操作审计日志" name="audit">
-        <el-timeline>
-          <el-timeline-item
-            v-for="item in auditLogs"
-            :key="item.timestamp"
-            :timestamp="item.timestamp"
-          >
-            {{ item.action }} — {{ item.result }}
-          </el-timeline-item>
-        </el-timeline>
-        <el-button size="small" @click="loadAudit">刷新</el-button>
-      </el-collapse-item>
-
-      <el-collapse-item title="⚙️ 高级配置" name="advanced">
+      <el-collapse-item title="高级配置" name="advanced">
         <el-form label-width="140px" size="small">
           <el-form-item label="切分比例">
             <el-input v-model="advanced.split_ratios" />
@@ -105,16 +111,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api/pywebview'
-import { loadImageBase64 } from '@/utils/image'
 
 const props = defineProps<{
   outcrop: string
 }>()
 
-const activeNames = ref(['report'])
+const activeNames = ref<string[]>([])
 const reportScope = ref('selected')
 const reportType = ref('full')
 const reportFmt = ref('docx')
@@ -131,14 +136,33 @@ const advanced = ref({
   disagreement_threshold: '',
 })
 
+// 各面板的加载状态
+const loading = ref({
+  report: false,
+  provenance: false,
+  audit: false,
+})
+
+// 各面板是否已加载过（避免重复加载）
+const loaded = ref({
+  report: false,
+  provenance: false,
+  audit: false,
+})
+
 async function loadOutcrops() {
+  if (loaded.value.report) return
+  loading.value.report = true
   try {
     const files = await api.scan_files()
     outcropOptions.value = files
       .filter((f: any) => f.status === 'completed')
       .map((f: any) => f.outcrop)
+    loaded.value.report = true
   } catch (e) {
     console.error(e)
+  } finally {
+    loading.value.report = false
   }
 }
 
@@ -175,21 +199,50 @@ async function generateReport() {
 
 async function loadProvenance() {
   if (!props.outcrop) return
-  provenance.value = await api.get_provenance(props.outcrop)
+  if (loaded.value.provenance && provenance.value?.outcrop === props.outcrop) return
+  loading.value.provenance = true
+  try {
+    provenance.value = await api.get_provenance(props.outcrop)
+    loaded.value.provenance = true
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value.provenance = false
+  }
 }
 
 async function loadAudit() {
-  auditLogs.value = await api.get_audit_log(50)
+  loading.value.audit = true
+  try {
+    auditLogs.value = await api.get_audit_log(50)
+    loaded.value.audit = true
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value.audit = false
+  }
 }
 
-watch(() => props.outcrop, () => {
-  loadProvenance()
-})
+// 监听折叠面板展开，实现懒加载
+function onCollapseChange(active: string | string[]) {
+  const names = Array.isArray(active) ? active : [active]
+  if (names.includes('report') && !loaded.value.report) {
+    loadOutcrops()
+  }
+  if (names.includes('provenance') && (!loaded.value.provenance || provenance.value?.outcrop !== props.outcrop)) {
+    loadProvenance()
+  }
+  if (names.includes('audit') && !loaded.value.audit) {
+    loadAudit()
+  }
+}
 
-onMounted(() => {
-  loadAudit()
-  loadProvenance()
-  loadOutcrops()
+// 监听 outcrop 变化，如果溯源面板已展开则自动刷新
+watch(() => props.outcrop, () => {
+  loaded.value.provenance = false
+  if (activeNames.value.includes('provenance')) {
+    loadProvenance()
+  }
 })
 </script>
 

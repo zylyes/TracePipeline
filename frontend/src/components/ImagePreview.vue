@@ -6,8 +6,8 @@
         <img v-if="img.dataUrl" :src="img.dataUrl" class="preview-img" @click="previewImage(img.dataUrl)" />
         <el-empty v-else description="暂无图片" />
       </div>
-      <div class="preview-options" v-if="img.key !== 'rose'">
-        <el-checkbox v-model="showOverlays">显示覆盖层</el-checkbox>
+      <div class="preview-options" v-if="img.key !== 'rose' && img.key.indexOf('rose-') !== 0">
+        <el-checkbox v-model="img.showOverlay">显示覆盖层</el-checkbox>
       </div>
     </div>
   </div>
@@ -27,14 +27,13 @@ const props = defineProps<{
   images: ImageItem[]
 }>()
 
-const showOverlays = ref(true)
-const imageList = ref<{ key: string; title: string; dataUrl: string }[]>([])
+const imageList = ref<Array<{ key: string; title: string; dataUrl: string; showOverlay: boolean }>>([])
 
 async function loadImages() {
   const list = []
   for (const img of props.images) {
     const dataUrl = await loadImageBase64(img.src)
-    list.push({ key: img.key, title: img.title, dataUrl })
+    list.push({ key: img.key, title: img.title, dataUrl, showOverlay: true })
   }
   imageList.value = list
 }

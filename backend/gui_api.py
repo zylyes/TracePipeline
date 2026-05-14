@@ -81,6 +81,9 @@ class GuiApi:
     def get_results(self) -> list[dict[str, Any]]:
         """获取已完成的处理结果列表（通过扫描 output 目录）。"""
         out_dir = Path(self._config.get().get("output_dir", "output"))
+        if not out_dir.is_absolute():
+            out_dir = PROJECT_ROOT / out_dir
+        out_dir = out_dir.resolve()
         results = []
         for png in sorted(out_dir.glob("*_raw(n=*.png")):
             stem = png.stem.split("_raw")[0]

@@ -6,10 +6,10 @@
     <DevPanel v-if="appStore.isDevMode" :outcrop="selectedOutcrop" />
 
     <div class="action-bar">
-      <el-button type="primary" @click="saveConfig">💾 保存配置</el-button>
-      <el-button @click="loadConfig">📂 加载配置</el-button>
-      <el-button @click="exportJSON">📤 导出 JSON</el-button>
-      <el-button @click="resetConfig">↺ 重置为默认</el-button>
+      <el-button type="primary" :icon="Document" @click="saveConfig">保存配置</el-button>
+      <el-button :icon="Refresh" @click="loadConfig">加载配置</el-button>
+      <el-button :icon="Download" @click="exportJSON">导出 JSON</el-button>
+      <el-button :icon="RefreshRight" @click="resetConfig">重置为默认</el-button>
     </div>
 
   </div>
@@ -18,18 +18,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Document, Refresh, Download, RefreshRight } from '@element-plus/icons-vue'
 import ConfigForm from '@/components/ConfigForm.vue'
 import StylePreview from '@/components/StylePreview.vue'
 import DevPanel from '@/components/DevPanel.vue'
 import { useAppStore } from '@/stores/app'
 import { useConfigStore } from '@/stores/config'
 import { api } from '@/api/pywebview'
+import type { ConfigData } from '@/types'
 
 const appStore = useAppStore()
 const configStore = useConfigStore()
 
-const form = ref<any>({})
-const styleConfig = ref<any>({
+const form = ref<ConfigData>({})
+const styleConfig = ref<ConfigData>({
   trace_line_color: '#000000',
   trace_line_width: 0.85,
   hull_line_color: '#1565C0',
@@ -41,7 +43,19 @@ const styleConfig = ref<any>({
   rose_grid_color: '#d9d9d9',
   global_font_size: 8.5,
 })
-const selectedOutcrop = ref('O76')
+const selectedOutcrop = ref('')
+
+async function loadOutcrops() {
+  try {
+    const files = await api.scan_files()
+    const completed = files.filter((f: any) => f.status === 'completed')
+    if (completed.length > 0 && !selectedOutcrop.value) {
+      selectedOutcrop.value = completed[0].outcrop
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 async function loadConfig() {
   try {
@@ -86,11 +100,14 @@ function exportJSON() {
   URL.revokeObjectURL(url)
 }
 
-function onStyleChange(val: any) {
+function onStyleChange(val: ConfigData) {
   styleConfig.value = { ...val }
 }
 
-onMounted(loadConfig)
+onMounted(async () => {
+  await loadConfig()
+  await loadOutcrops()
+})
 </script>
 
 <style scoped lang="scss">

@@ -3,6 +3,7 @@
     <div class="toolbar">
       <el-checkbox v-model="selectAll" @change="toggleSelectAll" size="small">全选</el-checkbox>
       <el-button size="small" :icon="Refresh" @click="emit('refresh')">刷新</el-button>
+      <span v-if="files.length === 0" class="empty-hint">暂无迹线表文件，请检查 input 目录</span>
     </div>
     <el-table
       :data="files"
@@ -11,6 +12,8 @@
       @selection-change="handleSelectionChange"
       ref="tableRef"
       row-key="stem"
+      v-loading="loading"
+      empty-text="暂无数据"
     >
       <el-table-column type="selection" width="40" reserve-selection />
       <el-table-column prop="stem" label="文件名" min-width="140" />
@@ -37,13 +40,7 @@
 import { ref, watch, nextTick } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import type { ElTable } from 'element-plus'
-
-interface TraceFile {
-  stem: string
-  outcrop: string
-  path: string
-  status: string
-}
+import type { TraceFile } from '@/types'
 
 const props = defineProps<{
   files: TraceFile[]
@@ -59,6 +56,7 @@ const emit = defineEmits<{
 
 const tableRef = ref<InstanceType<typeof ElTable>>()
 const selectAll = ref(false)
+const loading = ref(false)
 
 function toggleSelectAll(val: boolean) {
   if (val) {
@@ -108,5 +106,10 @@ watch(() => props.files, () => {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+}
+.empty-hint {
+  color: #909399;
+  font-size: 13px;
+  margin-left: auto;
 }
 </style>

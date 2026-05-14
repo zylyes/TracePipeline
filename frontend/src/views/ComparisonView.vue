@@ -21,6 +21,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart } from 'echarts/charts'
@@ -28,10 +29,11 @@ import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from
 import VChart from 'vue-echarts'
 import ImageGrid from '@/components/ImageGrid.vue'
 import { api } from '@/api/pywebview'
+import type { ComparisonRow } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
 
-const tableData = ref<any[]>([])
+const tableData = ref<ComparisonRow[]>([])
 const gridImages = ref<any[]>([])
 const loading = ref(false)
 
@@ -83,6 +85,7 @@ async function loadComparison() {
     })).filter((r: any) => r.src)
   } catch (e) {
     console.error('对比页加载失败', e)
+    ElMessage.error('对比页加载失败')
   } finally {
     loading.value = false
   }

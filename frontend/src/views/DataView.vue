@@ -24,12 +24,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import DataTable from '@/components/DataTable.vue'
 import { api } from '@/api/pywebview'
+import type { StatsData } from '@/types'
 
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
-const basicInfo = ref<any>(null)
+const basicInfo = ref<StatsData | null>(null)
 
 async function loadOutcrops() {
   try {
@@ -41,6 +43,7 @@ async function loadOutcrops() {
     }
   } catch (e) {
     console.error(e)
+    ElMessage.error('加载露头列表失败')
   }
 }
 
@@ -51,6 +54,7 @@ async function onOutcropChange() {
     basicInfo.value = stats
   } catch (e) {
     console.error(e)
+    ElMessage.error('加载统计数据失败')
   }
 }
 

@@ -50,6 +50,7 @@ class PipelineService:
             self._queue.append(event)
 
     def _run_background(self, targets: list[str], config: dict[str, Any]) -> None:
+        completed_results: list[dict[str, Any]] = []
         try:
             input_dir = config.get("input_dir", "input")
             output_dir = config.get("output_dir", "output")
@@ -92,26 +93,28 @@ class PipelineService:
                 })
 
                 result = run_pipeline(cfg)
+                result_dict = {
+                    "outcrop": outcrop,
+                    "status": result.status,
+                    "trace_count": result.trace_count,
+                    "mean_length": result.mean_length,
+                    "scanline_azimuth": result.scanline_azimuth,
+                    "excel_path": result.excel_path,
+                    "raw_plot_path": result.raw_plot_path,
+                    "rotated_plot_path": result.rotated_plot_path,
+                    "rose_plot_path": result.rose_plot_path,
+                    "window_strategy": result.window_strategy,
+                    "area_source": result.area_source,
+                    "error": result.error,
+                }
+                completed_results.append(result_dict)
                 self._emit({
                     "type": "file_complete",
                     "current": idx,
                     "total": total,
                     "filename": table_stem,
                     "message": f"{outcrop} 处理完成" if result.status == "success" else f"{outcrop} 处理失败",
-                    "result": {
-                        "outcrop": outcrop,
-                        "status": result.status,
-                        "trace_count": result.trace_count,
-                        "mean_length": result.mean_length,
-                        "scanline_azimuth": result.scanline_azimuth,
-                        "excel_path": result.excel_path,
-                        "raw_plot_path": result.raw_plot_path,
-                        "rotated_plot_path": result.rotated_plot_path,
-                        "rose_plot_path": result.rose_plot_path,
-                        "window_strategy": result.window_strategy,
-                        "area_source": result.area_source,
-                        "error": result.error,
-                    },
+                    "result": result_dict,
                 })
 
             self._emit({
@@ -119,12 +122,17 @@ class PipelineService:
                 "current": total,
                 "total": total,
                 "message": "全部处理完成",
+                "results": completed_results,
             })
         except Exception as exc:
             logger.exception("后台流水线异常")
+            # 即使异常，也发送已完成的摘要
             self._emit({
                 "type": "error",
                 "message": f"{type(exc).__name__}: {exc}",
+                "completed_count": len(completed_results),
+                "total": len(targets),
+                "results": completed_results,
             })
         finally:
             self._running = False

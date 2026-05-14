@@ -27,60 +27,65 @@ import ProgressPanel from '@/components/ProgressPanel.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
 import { usePipelineStore } from '@/stores/pipeline'
 import { useConfigStore } from '@/stores/config'
+import { useAppStore } from '@/stores/app'
 import { api } from '@/api/pywebview'
+import type { TraceFile, PipelineResult } from '@/types'
 
 const pipelineStore = usePipelineStore()
 const configStore = useConfigStore()
+const appStore = useAppStore()
 
-const files = ref<any[]>([])
-const selectedFiles = ref<any[]>([])
+const files = ref<TraceFile[]>([])
+const selectedFiles = ref<TraceFile[]>([])
 const parallel = ref(1)
 const POLL_INTERVAL = 300
 
 const previewImages = computed(() => {
-  const last = pipelineStore.results[pipelineStore.results.length - 1]
-  if (!last || !last.result) return []
-  const r = last.result
-  return [
-    {
-      key: 'raw',
-      title: '原始迹线图',
-      src: r.raw_plot_path || '',
-    },
-    {
-      key: 'rotated',
-      title: '旋转迹线图',
-      src: r.rotated_plot_path || '',
-    },
-    {
-      key: 'rose',
-      title: '走向玫瑰图',
-      src: r.rose_plot_path || '',
-    },
-  ]
+  // 收集所有已完成结果中的最新图片
+  const images: Array<{ key: string; title: string; src: string }> = []
+  const seen = new Set<string>()
+  
+  for (const evt of pipelineStore.results) {
+    if (!evt.result) continue
+    const r = evt.result as PipelineResult
+    if (!seen.has('raw-' + r.outcrop)) {
+      images.push({ key: 'raw-' + r.outcrop, title: r.outcrop + ' 原始迹线图', src: r.raw_plot_path || '' })
+      seen.add('raw-' + r.outcrop)
+    }
+    if (!seen.has('rotated-' + r.outcrop)) {
+      images.push({ key: 'rotated-' + r.outcrop, title: r.outcrop + ' 旋转迹线图', src: r.rotated_plot_path || '' })
+      seen.add('rotated-' + r.outcrop)
+    }
+    if (!seen.has('rose-' + r.outcrop) && r.rose_plot_path) {
+      images.push({ key: 'rose-' + r.outcrop, title: r.outcrop + ' 走向玫瑰图', src: r.rose_plot_path })
+      seen.add('rose-' + r.outcrop)
+    }
+  }
+  return images.slice(-6) // 最多显示最近 6 张
 })
 
 async function loadFiles() {
   try {
     const data = await api.scan_files()
-    console.log('[ProcessingView] loadFiles received:', data.length, 'files')
-    files.value = data
+    files.value = data.map((f: any) => ({
+      stem: f.stem,
+      outcrop: f.outcrop,
+      path: f.path,
+      status: f.status === 'completed' ? 'completed' : 'pending',
+    })) as TraceFile[]
   } catch (e) {
     ElMessage.error('扫描文件失败')
     console.error('[ProcessingView] loadFiles error:', e)
   }
 }
 
-function handleSelect(val: any[]) {
+function handleSelect(val: TraceFile[]) {
   selectedFiles.value = val
+  appStore.selectedFileCount = val.length
 }
 
-function handleView(row: any) {
+function handleView(row: TraceFile) {
   if (row.status === 'completed') {
-    // 自动触发结果展示
-    const fakeEvent = { result: { raw_plot_path: '', rotated_plot_path: '', rose_plot_path: '' } }
-    pipelineStore.results.push(fakeEvent)
-    // 重新加载实际结果
     loadResults(row.outcrop)
   }
 }
@@ -94,15 +99,17 @@ async function loadResults(outcrop: string) {
     }
   } catch (e) {
     console.error(e)
+    ElMessage.error('加载结果失败')
   }
 }
 
-function handlePreview(row: any) {
+function handlePreview(row: TraceFile) {
   // 预览数据：可以跳转到数据页
 }
 
-function handleRunSingle(row: any) {
+function handleRunSingle(row: TraceFile) {
   selectedFiles.value = [row]
+  appStore.selectedFileCount = 1
   startPipeline()
 }
 
@@ -118,13 +125,16 @@ async function startPipeline() {
     const res = await api.run_pipeline(targets, config)
     if (res.status === 'started') {
       pipelineStore.running = true
+      appStore.pipelineStatus = 'running'
       pipelineStore.progress.total = res.total
       startPolling()
+      appStore.updateLastOperation('启动流水线')
     } else {
       ElMessage.warning(res.message || '启动失败')
     }
   } catch (e) {
     ElMessage.error('启动流水线失败')
+    appStore.pipelineStatus = 'error'
   }
 }
 
@@ -147,17 +157,22 @@ function startPolling() {
           break
         case 'file_complete':
           pipelineStore.results.push(evt)
+          appStore.updateLastOperation(`${evt.filename} 完成`)
           break
         case 'complete':
           pipelineStore.running = false
+          appStore.pipelineStatus = 'completed'
           stopPolling()
           ElMessage.success('处理完成')
+          appStore.updateLastOperation('处理完成')
           loadFiles()
           break
         case 'error':
           pipelineStore.running = false
+          appStore.pipelineStatus = 'error'
           stopPolling()
           ElMessage.error(evt.message)
+          appStore.updateLastOperation('处理出错')
           break
       }
     } catch (e) {

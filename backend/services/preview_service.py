@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import matplotlib
 import numpy as np
 
 from trace_pipeline.models import RunConfig
@@ -41,6 +42,9 @@ _STYLE_CONSTANTS = {
     "rose_grid_color": "rose_plot._ROSE_GRID_COLOR",
 }
 
+# 线程安全锁，保护 matplotlib 全局状态修改
+_PREVIEW_LOCK = threading.Lock()
+
 
 def _hash_style(style: dict[str, Any]) -> str:
     """计算样式配置的哈希值，用于缓存键。"""
@@ -58,7 +62,7 @@ class PreviewService:
 
     def generate(self, style_config: dict[str, Any]) -> dict[str, Any]:
         style_hash = _hash_style(style_config)
-        with threading.Lock():
+        with _PREVIEW_LOCK:
             if style_hash in self._cache:
                 ts, paths = self._cache[style_hash]
                 if time.time() - ts < CACHE_TTL:
@@ -66,7 +70,7 @@ class PreviewService:
 
         try:
             paths = self._generate_images(style_config, style_hash)
-            with threading.Lock():
+            with _PREVIEW_LOCK:
                 self._cache[style_hash] = (time.time(), paths)
             return {"status": "ready", "paths": paths}
         except Exception as exc:
@@ -74,81 +78,80 @@ class PreviewService:
             return {"status": "error", "message": str(exc)}
 
     def _generate_images(self, style: dict[str, Any], style_hash: str) -> dict[str, str]:
-        """临时修改 matplotlib 常量，生成预览图。"""
+        """临时修改 matplotlib 常量，生成预览图（线程安全）。"""
         import trace_pipeline.plotting.trace_plot as tp
         import trace_pipeline.plotting.rose_plot as rp
 
-        # 保存原始值
-        orig: dict[str, Any] = {}
-        for key, path in _STYLE_CONSTANTS.items():
-            module_path, attr = path.split(".")
-            mod = tp if module_path == "trace_plot" else rp
-            orig[key] = getattr(mod, attr)
+        with _PREVIEW_LOCK:
+            # 保存原始值
+            orig: dict[str, Any] = {}
+            for key, path in _STYLE_CONSTANTS.items():
+                module_path, attr = path.split(".")
+                mod = tp if module_path == "trace_plot" else rp
+                orig[key] = getattr(mod, attr)
 
-        try:
-            # 应用样式
-            for key, val in style.items():
-                if key in _STYLE_CONSTANTS:
-                    module_path, attr = _STYLE_CONSTANTS[key].split(".")
-                    mod = tp if module_path == "trace_plot" else rp
-                    # 颜色值可能是 hex，需要适配 matplotlib
-                    setattr(mod, attr, val)
+            try:
+                # 应用样式
+                for key, val in style.items():
+                    if key in _STYLE_CONSTANTS:
+                        module_path, attr = _STYLE_CONSTANTS[key].split(".")
+                        mod = tp if module_path == "trace_plot" else rp
+                        setattr(mod, attr, val)
 
-            # 全局字号
-            if "global_font_size" in style:
-                import matplotlib
-                matplotlib.rcParams["font.size"] = float(style["global_font_size"])
+                # 全局字号
+                if "global_font_size" in style:
+                    matplotlib.rcParams["font.size"] = float(style["global_font_size"])
 
-            # 加载样本数据
-            trace = load_trace_data("input", f"{self._sample}_process", self._sample)
-            rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
-            stats_config = TraceStatisticsConfig(
-                window_strategy=style.get("window_strategy", "auto"),
-            )
-            statistics = compute_trace_statistics(trace, stats_config)
+                # 加载样本数据
+                trace = load_trace_data("input", f"{self._sample}_process", self._sample)
+                rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
+                stats_config = TraceStatisticsConfig(
+                    window_strategy=style.get("window_strategy", "auto"),
+                )
+                statistics = compute_trace_statistics(trace, stats_config)
 
-            from trace_pipeline.pipeline import _raw_circle_overlays, _rotated_circle_overlays, _selected_hull_overlays
-            raw_circles = _raw_circle_overlays(trace, statistics)
-            rot_circles = _rotated_circle_overlays(trace, raw_circles)
-            raw_hull, rot_hull = _selected_hull_overlays(trace, statistics)
+                from trace_pipeline.pipeline import _raw_circle_overlays, _rotated_circle_overlays, _selected_hull_overlays
+                raw_circles = _raw_circle_overlays(trace, statistics)
+                rot_circles = _rotated_circle_overlays(trace, raw_circles)
+                raw_hull, rot_hull = _selected_hull_overlays(trace, statistics)
 
-            from trace_pipeline.geology.statistics import format_statistics_box_lines
-            stats_lines = format_statistics_box_lines(statistics)
+                from trace_pipeline.geology.statistics import format_statistics_box_lines
+                stats_lines = format_statistics_box_lines(statistics)
 
-            raw_path = PREVIEW_DIR / f"preview_{style_hash}_raw.png"
-            rose_path = PREVIEW_DIR / f"preview_{style_hash}_rose.png"
+                raw_path = PREVIEW_DIR / f"preview_{style_hash}_raw.png"
+                rose_path = PREVIEW_DIR / f"preview_{style_hash}_rose.png"
 
-            configure_style()
+                configure_style()
 
-            render_trace_plot(
-                trace.endpoints,
-                f"迹线长度图（预览）",
-                str(PREVIEW_DIR),
-                raw_path.name,
-                dpi=PREVIEW_DPI,
-                statistics_lines=stats_lines,
-                circle_windows=raw_circles,
-                hull_overlay=raw_hull,
-                area_source=statistics.outcrop_area_source,
-            )
-
-            if trace.joint_strikes.size:
-                render_rose_plot(
-                    trace.joint_strikes,
-                    f"产状玫瑰花瓣图（预览）",
+                render_trace_plot(
+                    trace.endpoints,
+                    "迹线长度图（预览）",
                     str(PREVIEW_DIR),
-                    rose_path.name,
-                    bin_width=style.get("rose_bin_width", 10.0),
+                    raw_path.name,
                     dpi=PREVIEW_DPI,
+                    statistics_lines=stats_lines,
+                    circle_windows=raw_circles,
+                    hull_overlay=raw_hull,
+                    area_source=statistics.outcrop_area_source,
                 )
 
-            return {
-                "raw": str(raw_path.resolve()),
-                "rose": str(rose_path.resolve()) if trace.joint_strikes.size else "",
-            }
-        finally:
-            # 恢复原始值
-            for key, val in orig.items():
-                module_path, attr = _STYLE_CONSTANTS[key].split(".")
-                mod = tp if module_path == "trace_plot" else rp
-                setattr(mod, attr, val)
+                if trace.joint_strikes.size:
+                    render_rose_plot(
+                        trace.joint_strikes,
+                        "产状玫瑰花瓣图（预览）",
+                        str(PREVIEW_DIR),
+                        rose_path.name,
+                        bin_width=style.get("rose_bin_width", 10.0),
+                        dpi=PREVIEW_DPI,
+                    )
+
+                return {
+                    "raw": str(raw_path.resolve()),
+                    "rose": str(rose_path.resolve()) if trace.joint_strikes.size else "",
+                }
+            finally:
+                # 恢复原始值
+                for key, val in orig.items():
+                    module_path, attr = _STYLE_CONSTANTS[key].split(".")
+                    mod = tp if module_path == "trace_plot" else rp
+                    setattr(mod, attr, val)

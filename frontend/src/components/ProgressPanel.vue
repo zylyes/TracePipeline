@@ -48,8 +48,10 @@ const percentage = computed(() => {
 })
 
 const progressStatus = computed(() => {
-  if (!props.running) return ''
-  return 'success'
+  if (!props.running && props.progress.current > 0 && props.progress.current >= props.progress.total) {
+    return 'success'
+  }
+  return undefined
 })
 </script>
 

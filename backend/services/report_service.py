@@ -14,6 +14,50 @@ logger = logging.getLogger(__name__)
 REPORT_DIR = Path("output/reports")
 
 
+def _find_system_font() -> tuple[str, str]:
+    """跨平台字体探测：返回 (font_path, font_name)。"""
+    import platform
+    system = platform.system()
+
+    # Windows 字体候选
+    windows_candidates = [
+        (r"C:\Windows\Fonts\simsun.ttc", "SimSun"),
+        (r"C:\Windows\Fonts\SimSun.ttf", "SimSun"),
+        (r"C:\Windows\Fonts\msyh.ttc", "MicrosoftYaHei"),
+        (r"C:\Windows\Fonts\msyhbd.ttc", "MicrosoftYaHei"),
+        (r"C:\Windows\Fonts\simhei.ttf", "SimHei"),
+    ]
+
+    # Linux/macOS 字体候选
+    unix_candidates = [
+        ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "WenQuanYiZenHei"),
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVuSans"),
+        ("/System/Library/Fonts/PingFang.ttc", "PingFang"),
+        ("/System/Library/Fonts/STHeiti Light.ttc", "STHeiti"),
+        ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", "LiberationSans"),
+    ]
+
+    candidates = windows_candidates if system == "Windows" else unix_candidates
+
+    for fp, fname in candidates:
+        if os.path.exists(fp):
+            return fp, fname
+
+    # 回退：尝试从 matplotlib 字体管理器查找
+    try:
+        import matplotlib.font_manager as fm
+        for font in fm.fontManager.ttflist:
+            if "song" in font.name.lower() or "hei" in font.name.lower() or "yahei" in font.name.lower():
+                return font.fname, font.name
+        # 最后回退到任意可用字体
+        if fm.fontManager.ttflist:
+            return fm.fontManager.ttflist[0].fname, fm.fontManager.ttflist[0].name
+    except Exception:
+        pass
+
+    return "", ""
+
+
 class ReportService:
     """生成 Word / PDF 报告。"""
 
@@ -129,22 +173,16 @@ class ReportService:
             logger.warning("reportlab 未安装")
             return ""
 
-        # 注册中文字体（优先 SimSun，其次微软雅黑）
-        font_name = "Times-Roman"
-        fallback_fonts = [
-            (r"C:\Windows\Fonts\simsun.ttc", "SimSun"),
-            (r"C:\Windows\Fonts\SimSun.ttf", "SimSun"),
-            (r"C:\Windows\Fonts\msyh.ttc", "MicrosoftYaHei"),
-            (r"C:\Windows\Fonts\msyhbd.ttc", "MicrosoftYaHei"),
-        ]
-        for fp, fname in fallback_fonts:
-            if os.path.exists(fp):
-                try:
-                    pdfmetrics.registerFont(TTFont(fname, fp))
-                    font_name = fname
-                    break
-                except Exception:
-                    continue
+        # 跨平台字体注册
+        font_path, font_name = _find_system_font()
+        if font_path and font_name:
+            try:
+                pdfmetrics.registerFont(TTFont(font_name, font_path))
+            except Exception as exc:
+                logger.warning("注册字体 %s 失败: %s", font_name, exc)
+                font_name = "Times-Roman"
+        else:
+            font_name = "Times-Roman"
 
         path = REPORT_DIR / f"{outcrop}_report.pdf"
         doc = SimpleDocTemplate(str(path), pagesize=A4)

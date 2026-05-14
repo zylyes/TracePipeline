@@ -24,15 +24,29 @@ export const useAppStore = defineStore('app', () => {
   const outputDir = ref(initial.outputDir || './output')
   const currentPage = ref(initial.currentPage || 'processing')
   const isDevMode = ref(initial.isDevMode || false)
+  const lastOperationTime = ref(initial.lastOperationTime || '')
+  const selectedFileCount = ref(0)
+  const pipelineStatus = ref<'idle' | 'running' | 'completed' | 'error'>('idle')
 
-  watch([isDevMode, currentPage], () => {
+  function updateLastOperation(action?: string) {
+    const now = new Date()
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    lastOperationTime.value = action ? `${action} (${timeStr})` : timeStr
+  }
+
+  watch([inputDir, outputDir, isDevMode, currentPage], () => {
     saveSettings({
       inputDir: inputDir.value,
       outputDir: outputDir.value,
       currentPage: currentPage.value,
       isDevMode: isDevMode.value,
+      lastOperationTime: lastOperationTime.value,
     })
   }, { deep: true })
 
-  return { inputDir, outputDir, currentPage, isDevMode }
+  return {
+    inputDir, outputDir, currentPage, isDevMode,
+    lastOperationTime, selectedFileCount, pipelineStatus,
+    updateLastOperation,
+  }
 })

@@ -71,8 +71,8 @@ export const api = {
   get_results: () => getApi().get_results(),
   get_stats: (outcrop: string) => getApi().get_stats(outcrop),
   get_comparison: (outcrops: string[]) => getApi().get_comparison(outcrops),
-  get_data: (outcrop: string, section: string, page: number, page_size: number) =>
-    getApi().get_data(outcrop, section, page, page_size),
+  get_data: (outcrop: string, section: string, page: number, page_size: number, source?: string) =>
+    getApi().get_data(outcrop, section, page, page_size, source),
   generate_preview: (style: any) => getApi().generate_preview(style),
   get_logs: (tail?: number, level?: string) => getApi().get_logs(tail, level),
   generate_report: (outcrop: string, report_type: string, fmt: string) =>

@@ -1,4 +1,4 @@
-"""Excel 四区数据读取服务。"""
+"""Excel 数据读取服务（支持多工作表格式）。"""
 from __future__ import annotations
 
 import logging
@@ -9,38 +9,65 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# 前端分区名 -> Excel 标题名 映射
+# 前端分区名 -> Excel Sheet 名 映射
 SECTION_MAP = {
     "基本信息": "基本信息",
     "原始坐标": "原始端点坐标",
     "旋转坐标": "旋转后端点坐标",
     "走向与长度": "走向与长度",
+    "裂隙情况": "裂隙情况",
+    "计算数据": "计算数据",
 }
+
+# 输入文件标准列名
+INPUT_HEADERS = [
+    "r1-沿测线位移",
+    "r2-垂直测线位移",
+    "倾向",
+    "r4-左侧迹长1",
+    "r5-左侧迹长2",
+    "r6-右侧迹长1",
+    "r7-右侧迹长2",
+    "测线走向",
+    "迹线条数",
+]
 
 
 class DataService:
-    """读取 output/{outcrop}_traces.xlsx 并分页返回。"""
+    """读取 output/{outcrop}_traces.xlsx（多工作表）或 input/{outcrop}_process.xlsx 并分页返回。"""
 
-    def __init__(self, output_dir: str = "output") -> None:
+    def __init__(self, output_dir: str = "output", input_dir: str = "input") -> None:
         self._output_dir = Path(output_dir)
+        self._input_dir = Path(input_dir)
 
-    def get_data(self, outcrop: str, section: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
+    def get_data(
+        self,
+        outcrop: str,
+        section: str,
+        page: int = 1,
+        page_size: int = 20,
+        source: str = "output",
+    ) -> dict[str, Any]:
         """读取指定露头 Excel 的指定分区。"""
+        if source == "input":
+            return self._get_input_data(outcrop, page, page_size)
+
+        # 读取 output 目录下的多工作表处理结果
         path = self._output_dir / f"{outcrop}_traces.xlsx"
         if not path.exists():
             return {"error": f"文件不存在: {path}"}
 
+        sheet_name = SECTION_MAP.get(section, section)
         try:
-            df = pd.read_excel(path, sheet_name=outcrop, header=None)
+            # header=1: 跳过第1行标题，将第2行作为表头
+            df = pd.read_excel(path, sheet_name=sheet_name, header=1)
+        except ValueError as exc:
+            # Sheet 不存在（旧格式单工作表文件）
+            return {"error": f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件"}
         except Exception as exc:
             return {"error": str(exc)}
 
-        sections = self._parse_sections(df)
-
-        if section not in sections:
-            return {"error": f"未知分区: {section}"}
-
-        data = sections[section]
+        data = df.to_dict("records")
         total = len(data)
         start = (page - 1) * page_size
         end = start + page_size
@@ -53,62 +80,32 @@ class DataService:
             "page_size": page_size,
             "total": total,
             "data": page_data,
-            "columns": list(data[0].keys()) if data else [],
+            "columns": list(df.columns),
         }
 
-    def _parse_sections(self, df: pd.DataFrame) -> dict[str, list[dict[str, Any]]]:
-        """解析 Excel 为四区数据。"""
-        sections: dict[str, list[dict[str, Any]]] = {
-            "基本信息": [],
-            "原始坐标": [],
-            "旋转坐标": [],
-            "走向与长度": [],
-        }
+    def _get_input_data(self, outcrop: str, page: int, page_size: int) -> dict[str, Any]:
+        """读取 input 目录下的原始输入 Excel。"""
+        table_stem = f"{outcrop}_process"
+        path = self._input_dir / f"{table_stem}.xlsx"
+        if not path.exists():
+            path = self._input_dir / f"{table_stem}.xls"
+            if not path.exists():
+                return {"error": f"输入文件不存在: {self._input_dir / table_stem}.xlsx/.xls"}
 
-        # 建立标题行索引：Excel标题 -> 行号
-        excel_titles: dict[str, int] = {}
-        for idx, row in df.iterrows():
-            val = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ""
-            if val in SECTION_MAP.values():
-                excel_titles[val] = idx
+        try:
+            df = pd.read_excel(path, sheet_name=outcrop, header=None)
+        except Exception:
+            try:
+                df = pd.read_excel(path, header=None)
+            except Exception as exc:
+                return {"error": str(exc)}
 
-        # 基本信息
-        if "基本信息" in excel_titles:
-            idx = excel_titles["基本信息"]
-            header_row = df.iloc[idx + 1]
-            data_row = df.iloc[idx + 2] if idx + 2 < len(df) else None
-            if data_row is not None:
-                sections["基本信息"] = [
-                    {
-                        str(header_row.iloc[i]): str(data_row.iloc[i]) if pd.notna(data_row.iloc[i]) else ""
-                        for i in range(len(header_row))
-                        if pd.notna(header_row.iloc[i])
-                    }
-                ]
+        if len(df) < 1:
+            return {"error": "输入文件为空"}
 
-        # 原始坐标
-        if "原始端点坐标" in excel_titles:
-            idx = excel_titles["原始端点坐标"]
-            sections["原始坐标"] = self._parse_data_block(df, idx)
-
-        # 旋转坐标
-        if "旋转后端点坐标" in excel_titles:
-            idx = excel_titles["旋转后端点坐标"]
-            sections["旋转坐标"] = self._parse_data_block(df, idx)
-
-        # 走向与长度
-        if "走向与长度" in excel_titles:
-            idx = excel_titles["走向与长度"]
-            sections["走向与长度"] = self._parse_data_block(df, idx)
-
-        return sections
-
-    def _parse_data_block(self, df: pd.DataFrame, title_idx: int) -> list[dict[str, Any]]:
-        """解析标题下方的数据块。"""
-        header_row = df.iloc[title_idx + 1]
-        headers = [str(h) if pd.notna(h) else f"col_{i}" for i, h in enumerate(header_row)]
-        results = []
-        for i in range(title_idx + 2, len(df)):
+        headers = INPUT_HEADERS
+        data = []
+        for i in range(len(df)):
             row = df.iloc[i]
             if row.isna().all():
                 continue
@@ -119,5 +116,23 @@ class DataService:
                 val = row.iloc[j]
                 record[h] = float(val) if pd.notna(val) and isinstance(val, (int, float)) else (str(val) if pd.notna(val) else "")
             if record:
-                results.append(record)
-        return results
+                data.append(record)
+
+        total = len(data)
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_data = data[start:end]
+
+        return {
+            "outcrop": outcrop,
+            "section": "原始输入",
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "data": page_data,
+            "columns": headers,
+        }
+
+    def set_input_dir(self, path: str) -> None:
+        """动态更新输入目录。"""
+        self._input_dir = Path(path)

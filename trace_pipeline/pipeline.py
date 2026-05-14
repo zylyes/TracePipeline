@@ -24,7 +24,7 @@ from .geology.transforms import (
     normalize_points_like_lines,
 )
 from .io.excel_reader import read_trace_excel
-from .io.excel_writer import build_excel_sections, write_excel_sections
+from .io.excel_writer import build_excel_sections, write_excel_multi_sheets
 from .models import RunConfig, RunResult, TraceData
 from .plotting.rose_plot import render_rose_plot
 from .plotting.trace_plot import CircleWindowOverlay, ConvexHullOverlay, render_trace_plot
@@ -175,7 +175,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         output_dir = Path(cfg.output_dir)
         excel_path = output_dir / f"{cfg.output_prefix}_traces.xlsx"
         sections = build_excel_sections(trace, rotated, statistics=statistics)
-        write_excel_sections(str(excel_path), cfg.outcrop, sections)
+        write_excel_multi_sheets(str(excel_path), sections)
         logger.info("Excel 导出至: %s", excel_path)
 
         # ---- 4. 绘制图片 ----

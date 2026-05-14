@@ -27,7 +27,6 @@
       </el-table-column>
       <el-table-column label="操作" width="160">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'completed'" link size="small" @click="emit('view', row)">查看</el-button>
           <el-button v-if="row.status === 'completed'" link size="small" @click="emit('preview', row)">预览数据</el-button>
           <el-button v-else link size="small" type="primary" @click="emit('run', row)">处理</el-button>
         </template>
@@ -49,7 +48,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'select', val: TraceFile[]): void
-  (e: 'view', row: TraceFile): void
   (e: 'preview', row: TraceFile): void
   (e: 'run', row: TraceFile): void
 }>()

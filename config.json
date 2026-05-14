@@ -12,5 +12,6 @@
   "rotated_trace_dpi": 600,
   "window_strategy": "auto",
   "auto_density_threshold": 5.0,
-  "tangent_window_count": 3
+  "tangent_window_count": 3,
+  "style": {}
 }

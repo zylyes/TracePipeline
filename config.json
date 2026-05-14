@@ -1,19 +1,15 @@
 {
-  "input_dir": "input",
-  "output_dir": "output",
-
+  "input_dir": "C:\\Users\\Chinese\\OneDrive\\code\\input",
+  "output_dir": "C:\\Users\\Chinese\\OneDrive\\code\\output",
   "output_prefix": "Outcrop",
   "table_stem": "O76_process",
   "outcrop": "O76",
-
   "process_all": true,
   "export_rose_plot": true,
-  "rose_bin_width": 10,
+  "rose_bin_width": 10.0,
   "rose_dpi": 400,
-
   "trace_dpi": 300,
   "rotated_trace_dpi": 600,
-
   "window_strategy": "auto",
   "auto_density_threshold": 5.0,
   "tangent_window_count": 3

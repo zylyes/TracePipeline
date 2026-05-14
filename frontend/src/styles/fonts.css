@@ -1,0 +1,50 @@
+:root {
+  --tp-font-western: "Times New Roman", "Liberation Serif", serif;
+  --tp-font-chinese: "SimSun", "STSong", "Noto Serif SC", serif;
+  --tp-font-stack: var(--tp-font-western), var(--tp-font-chinese);
+
+  /* Element Plus CSS 变量覆写（配合预构建 CSS 使用） */
+  --el-color-primary: #2c3e50;
+  --el-color-success: #2E7D5A;
+  --el-color-warning: #f39c12;
+  --el-color-danger: #c0392b;
+}
+
+html, body {
+  font-family: var(--tp-font-stack);
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+}
+
+/* 表单控件显式继承，防止浏览器默认字体 */
+button, input, select, textarea {
+  font-family: var(--tp-font-stack);
+}
+
+/* 数字 / 英文 / 代码强制 TNR */
+.tp-data, .tp-num, code, pre, .el-statistic__number {
+  font-family: "Times New Roman", serif !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Element Plus 全局深度覆盖 */
+.el-table, .el-form, .el-button, .el-input,
+.el-select, .el-dialog, .el-tabs__item,
+.el-pagination, .el-dropdown, .el-menu,
+.el-descriptions, .el-timeline, .el-card,
+.el-radio, .el-checkbox, .el-switch__label,
+.el-tag, .el-badge, .el-progress,
+.el-empty__description, .el-message__content {
+  font-family: var(--tp-font-stack) !important;
+}
+
+.el-table .cell {
+  font-family: var(--tp-font-stack) !important;
+}
+
+/* 标题：中文黑体 / 加粗宋体 + 英文 TNR */
+.tp-title, h1, h2, h3, h4, h5, h6 {
+  font-family: "SimHei", "Microsoft YaHei", var(--tp-font-stack);
+  font-weight: 600;
+}

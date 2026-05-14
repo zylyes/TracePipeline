@@ -49,6 +49,7 @@ class ConfigDict(TypedDict, total=False):
     window_strategy: str
     auto_density_threshold: float
     tangent_window_count: int
+    style: dict[str, Any]
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -66,6 +67,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "window_strategy": "auto",
     "auto_density_threshold": 5.0,
     "tangent_window_count": 3,
+    "style": {},
 }
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "table_stem", "outcrop")
@@ -114,12 +116,14 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
 
 
 def validate_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
-    """合并默认值、规范化类型并检查必填项；对未知键发出警告。"""
+    """合并默认值、规范化类型并检查必填项；保留 style 子对象，对其它未知键发出警告。"""
     merged = dict(DEFAULT_CONFIG)
-    unknown = [k for k in cfg if k not in merged]
+    # 保留 style 子对象，即使它在 DEFAULT_CONFIG 中为空 dict
+    allowed_keys = set(DEFAULT_CONFIG.keys())
+    unknown = [k for k in cfg if k not in allowed_keys]
     if unknown:
         logger.warning("忽略未知配置项: %s", ", ".join(sorted(unknown)))
-    merged.update({k: v for k, v in cfg.items() if k in merged})
+    merged.update({k: v for k, v in cfg.items() if k in allowed_keys})
 
     missing = [
         k for k in _REQUIRED_KEYS

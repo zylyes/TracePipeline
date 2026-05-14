@@ -85,6 +85,30 @@
       </div>
     </div>
 
+    <!-- 后端日志面板 -->
+    <el-collapse v-model="activeCollapse" class="backend-log-panel">
+      <el-collapse-item title="后端日志" name="backend-log">
+        <div class="log-controls">
+          <el-select v-model="backendLogLevel" size="small" style="width: 100px" @change="loadBackendLogs">
+            <el-option label="ALL" value="ALL" />
+            <el-option label="INFO" value="INFO" />
+            <el-option label="WARNING" value="WARNING" />
+            <el-option label="ERROR" value="ERROR" />
+          </el-select>
+          <el-select v-model="backendLogTail" size="small" style="width: 100px" @change="loadBackendLogs">
+            <el-option label="100 行" :value="100" />
+            <el-option label="300 行" :value="300" />
+            <el-option label="1000 行" :value="1000" />
+          </el-select>
+          <el-button size="small" :icon="Refresh" @click="loadBackendLogs">刷新</el-button>
+        </div>
+        <div class="backend-log-content" v-loading="backendLogLoading">
+          <pre v-if="backendLogs.length">{{ backendLogs.join('\n') }}</pre>
+          <el-empty v-else description="暂无日志" />
+        </div>
+      </el-collapse-item>
+    </el-collapse>
+
     <!-- 图片模态窗口 -->
     <ImageModal
       v-model:visible="modalVisible"
@@ -95,10 +119,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, Refresh } from '@element-plus/icons-vue'
 import FileList from '@/components/FileList.vue'
 import ProgressPanel from '@/components/ProgressPanel.vue'
 import ImageModal from '@/components/ImageModal.vue'
@@ -140,6 +164,26 @@ const processingLogs = ref<ProcessLog[]>([])
 const currentStatus = ref('')
 const logListRef = ref<HTMLDivElement>()
 const MAX_LOGS = 50
+const startTime = ref(0)
+
+// 后端日志面板
+const activeCollapse = ref<string[]>([])
+const backendLogLevel = ref('ALL')
+const backendLogTail = ref(100)
+const backendLogs = ref<string[]>([])
+const backendLogLoading = ref(false)
+
+async function loadBackendLogs() {
+  backendLogLoading.value = true
+  try {
+    const lines = await api.get_logs(backendLogTail.value, backendLogLevel.value)
+    backendLogs.value = lines || []
+  } catch (e) {
+    console.warn('加载后端日志失败', e)
+  } finally {
+    backendLogLoading.value = false
+  }
+}
 
 function addLog(type: ProcessLog['type'], message: string) {
   const now = new Date()
@@ -154,6 +198,21 @@ function addLog(type: ProcessLog['type'], message: string) {
     }
   })
 }
+
+// 监听全局配置变化，自动同步到处理参数
+watch(() => configStore.config, (newCfg) => {
+  if (!newCfg || Object.keys(newCfg).length === 0) return
+  params.value = {
+    export_rose_plot: newCfg.export_rose_plot ?? true,
+    rose_dpi: newCfg.rose_dpi ?? 400,
+    rose_bin_width: newCfg.rose_bin_width ?? 10,
+    trace_dpi: newCfg.trace_dpi ?? 300,
+    rotated_trace_dpi: newCfg.rotated_trace_dpi ?? 600,
+    window_strategy: newCfg.window_strategy ?? 'auto',
+    auto_density_threshold: newCfg.auto_density_threshold ?? 5.0,
+    tangent_window_count: newCfg.tangent_window_count ?? 3,
+  }
+}, { deep: true })
 
 // 模态窗口状态
 const modalVisible = ref(false)
@@ -246,21 +305,36 @@ async function startPipeline() {
   pipelineStore.reset()
   processingLogs.value = []
   currentStatus.value = ''
+  startTime.value = Date.now()
   const targets = selectedFiles.value.map((f) => f.outcrop)
-  // 合并本地参数和全局配置
-  const config = { ...configStore.config, ...params.value, parallel: parallel.value }
+
+  // 合并本地参数和全局配置，先保存再启动，保证后端事实源一致
+  const runConfig = { ...configStore.config, ...params.value }
+  addLog('info', `运行参数: 玫瑰图=${params.value.export_rose_plot ? '是' : '否'}, 玫瑰DPI=${params.value.rose_dpi}, 分箱=${params.value.rose_bin_width}°, 迹线DPI=${params.value.trace_dpi}, 策略=${params.value.window_strategy}`)
+
   try {
-    const res = await api.run_pipeline(targets, config)
+    // 先保存配置，使 config.json 与流水线实际参数一致
+    await configStore.saveConfig(runConfig)
+
+    // 再启动流水线（parallel 作为本次运行 UI 参数，不写入 config.json）
+    const res = await api.run_pipeline(targets, { ...runConfig, parallel: parallel.value })
+
     if (res.status === 'started') {
       pipelineStore.running = true
       appStore.pipelineStatus = 'running'
       pipelineStore.progress.total = res.total
       startPolling()
       appStore.updateLastOperation('启动流水线')
+    } else if (res.status === 'error') {
+      addLog('error', `启动失败: ${res.message || '配置校验错误'}`)
+      ElMessage.error(res.message || '启动失败')
+      appStore.pipelineStatus = 'error'
     } else {
+      addLog('error', `启动失败: ${res.message || '未知错误'}`)
       ElMessage.warning(res.message || '启动失败')
     }
   } catch (e) {
+    addLog('error', '启动流水线失败')
     ElMessage.error('启动流水线失败')
     appStore.pipelineStatus = 'error'
   }
@@ -290,7 +364,8 @@ function startPolling() {
           pipelineStore.results.push(evt)
           if (evt.result) {
             if (evt.result.status === 'success') {
-              addLog('success', `${evt.result.outcrop} 处理完成`)
+              const info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 走向=${evt.result.scanline_azimuth.toFixed(1)}°, 策略=${evt.result.window_strategy || 'auto'}`
+              addLog('success', info)
             } else {
               addLog('error', `${evt.result.outcrop} 处理失败：${evt.result.error || '未知错误'}`)
             }
@@ -302,25 +377,31 @@ function startPolling() {
           }
           appStore.updateLastOperation(`${evt.filename} 完成`)
           break
-        case 'complete':
+        case 'complete': {
+          const duration = ((Date.now() - startTime.value) / 1000).toFixed(1)
           pipelineStore.running = false
           appStore.pipelineStatus = 'completed'
           stopPolling()
-          addLog('success', '全部处理完成')
+          addLog('success', `全部处理完成 — 总耗时 ${duration}s`)
           currentStatus.value = ''
-          ElMessage.success('处理完成')
+          ElMessage.success(`处理完成（${duration}s）`)
           appStore.updateLastOperation('处理完成')
           loadFiles()
+          loadBackendLogs()
           break
-        case 'error':
+        }
+        case 'error': {
+          const duration = ((Date.now() - startTime.value) / 1000).toFixed(1)
           pipelineStore.running = false
           appStore.pipelineStatus = 'error'
           stopPolling()
-          addLog('error', `处理出错：${evt.message || '未知错误'}`)
+          addLog('error', `处理出错：${evt.message || '未知错误'} — 已运行 ${duration}s`)
           currentStatus.value = ''
           ElMessage.error(evt.message)
           appStore.updateLastOperation('处理出错')
+          loadBackendLogs()
           break
+        }
       }
     } catch (e) {
       // ignore
@@ -336,28 +417,28 @@ function stopPolling() {
 }
 
 onMounted(async () => {
-  // 加载配置到参数面板
-  if (Object.keys(configStore.config).length === 0) {
-    try {
-      const cfg = await api.get_config()
-      configStore.config = { ...cfg }
-    } catch (e) {
-      console.warn('加载配置失败', e)
-    }
+  // 无条件从后端加载最新配置，确保参数面板始终显示正确值
+  try {
+    await configStore.loadConfig()
+  } catch (e) {
+    console.warn('加载配置失败', e)
   }
   // 将配置中的参数同步到本地
   const cfg = configStore.config
-  params.value = {
-    export_rose_plot: cfg.export_rose_plot ?? true,
-    rose_dpi: cfg.rose_dpi ?? 400,
-    rose_bin_width: cfg.rose_bin_width ?? 10,
-    trace_dpi: cfg.trace_dpi ?? 300,
-    rotated_trace_dpi: cfg.rotated_trace_dpi ?? 600,
-    window_strategy: cfg.window_strategy ?? 'auto',
-    auto_density_threshold: cfg.auto_density_threshold ?? 5.0,
-    tangent_window_count: cfg.tangent_window_count ?? 3,
+  if (cfg && Object.keys(cfg).length > 0) {
+    params.value = {
+      export_rose_plot: cfg.export_rose_plot ?? true,
+      rose_dpi: cfg.rose_dpi ?? 400,
+      rose_bin_width: cfg.rose_bin_width ?? 10,
+      trace_dpi: cfg.trace_dpi ?? 300,
+      rotated_trace_dpi: cfg.rotated_trace_dpi ?? 600,
+      window_strategy: cfg.window_strategy ?? 'auto',
+      auto_density_threshold: cfg.auto_density_threshold ?? 5.0,
+      tangent_window_count: cfg.tangent_window_count ?? 3,
+    }
   }
   await loadFiles()
+  await loadBackendLogs()
 })
 
 onUnmounted(() => {
@@ -455,5 +536,39 @@ onUnmounted(() => {
 .log-error {
   background: #fef0f0;
   color: #f56c6c;
+}
+.backend-log-panel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
+  margin-top: 16px;
+}
+.backend-log-panel :deep(.el-collapse-item__header) {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+.log-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.backend-log-content {
+  max-height: 400px;
+  overflow-y: auto;
+  background: #f5f7fa;
+  border-radius: 4px;
+  padding: 12px;
+}
+.backend-log-content pre {
+  margin: 0;
+  font-family: 'Courier New', Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #303133;
 }
 </style>

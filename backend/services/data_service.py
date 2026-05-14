@@ -9,6 +9,8 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 # 前端分区名 -> Excel Sheet 名 映射
 SECTION_MAP = {
     "基本信息": "基本信息",
@@ -36,9 +38,16 @@ INPUT_HEADERS = [
 class DataService:
     """读取 output/{outcrop}_traces.xlsx（多工作表）或 input/{outcrop}_process.xlsx 并分页返回。"""
 
+    @staticmethod
+    def _resolve(p: str) -> Path:
+        path = Path(p)
+        if not path.is_absolute():
+            path = PROJECT_ROOT / p
+        return path.resolve()
+
     def __init__(self, output_dir: str = "output", input_dir: str = "input") -> None:
-        self._output_dir = Path(output_dir)
-        self._input_dir = Path(input_dir)
+        self._output_dir = self._resolve(output_dir)
+        self._input_dir = self._resolve(input_dir)
 
     def get_data(
         self,
@@ -135,4 +144,9 @@ class DataService:
 
     def set_input_dir(self, path: str) -> None:
         """动态更新输入目录。"""
-        self._input_dir = Path(path)
+        self._input_dir = self._resolve(path)
+
+    def update_dirs(self, output_dir: str, input_dir: str) -> None:
+        """同时更新输入/输出目录。"""
+        self._output_dir = self._resolve(output_dir)
+        self._input_dir = self._resolve(input_dir)

@@ -31,15 +31,15 @@ const option = computed(() => {
   return {
     title: { text: '迹长分布直方图', left: 'center', textStyle: { fontFamily: echartsFont } },
     tooltip: { trigger: 'axis', textStyle: { fontFamily: echartsFont } },
-    grid: { left: '10%', right: '10%', bottom: '15%' },
+    grid: { left: '10%', right: '10%', bottom: '24%' },
     xAxis: {
       type: 'category',
       data: xData,
       name: '迹长(m)',
       nameLocation: 'middle',
-      nameGap: 30,
+      nameGap: 38,
       nameTextStyle: { fontFamily: echartsFont },
-      axisLabel: { rotate: 30, fontFamily: echartsFont },
+      axisLabel: { rotate: 40, fontSize: 10, fontFamily: echartsFont },
     },
     yAxis: {
       type: 'value',

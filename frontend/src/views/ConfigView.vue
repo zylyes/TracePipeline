@@ -59,12 +59,14 @@ async function loadOutcrops() {
 
 async function loadConfig() {
   try {
-    const cfg = await api.get_config()
+    const cfg = await configStore.loadConfig()
     form.value = { ...cfg }
-    configStore.config = { ...cfg }
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
+    // 同步侧边栏路径
+    if (cfg.input_dir) appStore.inputDir = cfg.input_dir
+    if (cfg.output_dir) appStore.outputDir = cfg.output_dir
   } catch (e) {
     ElMessage.error('加载配置失败')
   }
@@ -73,7 +75,14 @@ async function loadConfig() {
 async function saveConfig() {
   try {
     const payload = { ...form.value, style: { ...styleConfig.value } }
-    await api.set_config(payload)
+    const saved = await configStore.saveConfig(payload)
+    form.value = { ...saved }
+    if (saved.style && typeof saved.style === 'object') {
+      styleConfig.value = { ...styleConfig.value, ...saved.style }
+    }
+    // 同步侧边栏路径
+    if (saved.input_dir) appStore.inputDir = saved.input_dir
+    if (saved.output_dir) appStore.outputDir = saved.output_dir
     ElMessage.success('配置已保存')
   } catch (e) {
     ElMessage.error('保存配置失败')
@@ -82,8 +91,14 @@ async function saveConfig() {
 
 async function resetConfig() {
   try {
-    const cfg = await api.reset_config()
+    const cfg = await configStore.resetConfig()
     form.value = { ...cfg }
+    if (cfg.style && typeof cfg.style === 'object') {
+      styleConfig.value = { ...styleConfig.value, ...cfg.style }
+    }
+    // 同步侧边栏路径
+    if (cfg.input_dir) appStore.inputDir = cfg.input_dir
+    if (cfg.output_dir) appStore.outputDir = cfg.output_dir
     ElMessage.success('已恢复默认配置')
   } catch (e) {
     ElMessage.error('重置失败')
@@ -91,7 +106,7 @@ async function resetConfig() {
 }
 
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(form.value, null, 2)], { type: 'application/json' })
+  const blob = new Blob([JSON.stringify(configStore.config, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -108,6 +123,13 @@ onMounted(async () => {
   await loadConfig()
   await loadOutcrops()
 })
+
+// 导出当前表单供外部使用
+function getForm() {
+  return form.value
+}
+
+defineExpose({ getForm })
 </script>
 
 <style scoped lang="scss">

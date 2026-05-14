@@ -57,6 +57,7 @@ class PipelineService:
             in_path, out_path = resolve_io_paths(input_dir, output_dir)
 
             total = len(targets)
+            logger.info("流水线启动: %d 个目标", total)
             self._emit({
                 "type": "start",
                 "total": total,
@@ -67,6 +68,7 @@ class PipelineService:
 
             for idx, outcrop in enumerate(targets, 1):
                 table_stem = f"{outcrop}_process"
+                logger.info("正在处理: %s (%d/%d)", outcrop, idx, total)
                 self._emit({
                     "type": "progress",
                     "current": idx,
@@ -81,7 +83,7 @@ class PipelineService:
                     "output_dir": out_path,
                     "table_stem": table_stem,
                     "outcrop": outcrop,
-                    "output_prefix": config.get("output_prefix") or outcrop,
+                    "output_prefix": outcrop,
                     "export_rose_plot": config.get("export_rose_plot", True),
                     "rose_bin_width": config.get("rose_bin_width", 10.0),
                     "rose_dpi": config.get("rose_dpi", 400),
@@ -108,6 +110,10 @@ class PipelineService:
                     "error": result.error,
                 }
                 completed_results.append(result_dict)
+                if result.status == "success":
+                    logger.info("%s 处理完成", outcrop)
+                else:
+                    logger.error("%s 处理失败: %s", outcrop, result.error)
                 self._emit({
                     "type": "file_complete",
                     "current": idx,
@@ -117,6 +123,7 @@ class PipelineService:
                     "result": result_dict,
                 })
 
+            logger.info("流水线全部完成")
             self._emit({
                 "type": "complete",
                 "current": total,

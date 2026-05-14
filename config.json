@@ -13,5 +13,16 @@
   "window_strategy": "auto",
   "auto_density_threshold": 5.0,
   "tangent_window_count": 3,
-  "style": {}
+  "style": {
+    "trace_line_color": "#000000",
+    "trace_line_width": 0.85,
+    "hull_line_color": "#1565C0",
+    "hull_fill_alpha": 0.08,
+    "circle_window_line_color": "#E65100",
+    "circle_window_fill_alpha": 0.08,
+    "rose_bar_color": "#C94C4C",
+    "rose_bar_edge": "#7A1F1F",
+    "rose_grid_color": "#d9d9d9",
+    "global_font_size": 8.5
+  }
 }

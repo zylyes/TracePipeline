@@ -12,16 +12,34 @@ matplotlib.use('Agg')
 
 import webview
 
+from trace_pipeline.cli.logging_setup import setup_logging
+
 from .gui_api import GuiApi
 from .webview2_checker import WebView2Checker
 
-# 日志配置
+# 先配置 trace_pipeline 双通道日志（控制台 + 文件）
+setup_logging()
+
+# 再为 backend 包追加同一日志文件，保证前后端日志统一落盘
+_log_dir = Path("logs")
+if _log_dir.is_dir():
+    _log_files = sorted(_log_dir.glob("pipeline_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if _log_files:
+        _latest_log = _log_files[0]
+        _backend_logger = logging.getLogger("backend")
+        _backend_logger.setLevel(logging.DEBUG)
+        if not any(isinstance(h, logging.FileHandler) for h in _backend_logger.handlers):
+            _fh = logging.FileHandler(str(_latest_log), encoding="utf-8")
+            _fh.setLevel(logging.DEBUG)
+            _fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+            _backend_logger.addHandler(_fh)
+
+# 控制台日志保留
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,
 )
 logger = logging.getLogger(__name__)
 

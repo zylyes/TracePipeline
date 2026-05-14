@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -32,6 +33,59 @@ from .plotting.trace_plot import CircleWindowOverlay, ConvexHullOverlay, render_
 logger = logging.getLogger(__name__)
 
 __all__ = ["load_trace_data", "run_pipeline"]
+
+# ── 样式应用/恢复 ─────────────────────────────────────────────
+
+_STYLE_CONSTANTS = {
+    "trace_line_color": ("trace_plot", "_TRACE_LINE_COLOR"),
+    "trace_line_width": ("trace_plot", "_TRACE_LINE_WIDTH"),
+    "hull_line_color": ("trace_plot", "_HULL_LINE_COLOR"),
+    "hull_fill_color": ("trace_plot", "_HULL_FILL_COLOR"),
+    "hull_fill_alpha": ("trace_plot", "_HULL_FILL_ALPHA"),
+    "circle_window_line_color": ("trace_plot", "_CIRCLE_WINDOW_LINE_COLOR"),
+    "circle_window_fill_color": ("trace_plot", "_CIRCLE_WINDOW_FILL_COLOR"),
+    "circle_window_fill_alpha": ("trace_plot", "_CIRCLE_WINDOW_FILL_ALPHA"),
+    "rose_bar_color": ("rose_plot", "_ROSE_BAR_COLOR"),
+    "rose_bar_edge": ("rose_plot", "_ROSE_BAR_EDGE"),
+    "rose_grid_color": ("rose_plot", "_ROSE_GRID_COLOR"),
+}
+
+
+def _apply_style(style: dict[str, Any]) -> dict[str, Any]:
+    """临时应用样式到绘图模块常量，返回原始值用于恢复。"""
+    import trace_pipeline.plotting.trace_plot as tp
+    import trace_pipeline.plotting.rose_plot as rp
+    import matplotlib
+
+    orig: dict[str, Any] = {}
+    for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
+        mod = tp if mod_name == "trace_plot" else rp
+        if hasattr(mod, attr):
+            orig[key] = getattr(mod, attr)
+
+    try:
+        for key, val in style.items():
+            if key in _STYLE_CONSTANTS:
+                mod_name, attr = _STYLE_CONSTANTS[key]
+                mod = tp if mod_name == "trace_plot" else rp
+                setattr(mod, attr, val)
+        if "global_font_size" in style:
+            matplotlib.rcParams["font.size"] = float(style["global_font_size"])
+    except Exception as exc:
+        logger.warning("样式应用失败: %s", exc)
+
+    return orig
+
+
+def _restore_style(orig: dict[str, Any]) -> None:
+    """恢复绘图模块常量到原始值。"""
+    import trace_pipeline.plotting.trace_plot as tp
+    import trace_pipeline.plotting.rose_plot as rp
+
+    for key, val in orig.items():
+        mod_name, attr = _STYLE_CONSTANTS[key]
+        mod = tp if mod_name == "trace_plot" else rp
+        setattr(mod, attr, val)
 
 
 def _raw_circle_overlays(
@@ -179,41 +233,45 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         logger.info("Excel 导出至: %s", excel_path)
 
         # ---- 4. 绘制图片 ----
-        raw_plot = render_trace_plot(
-            trace.endpoints,
-            "迹线长度图",
-            str(output_dir),
-            f"{cfg.outcrop}_raw(n={trace.count}).png",
-            dpi=cfg.trace_dpi,
-            statistics_lines=statistics_lines,
-            circle_windows=raw_circle_windows,
-            hull_overlay=raw_hull_overlay,
-            area_source=statistics.outcrop_area_source,
-        )
-        rot_plot = render_trace_plot(
-            rotated,
-            f"迹线长度图\n标尺（走向={trace.scanline_azimuth:.1f}°）",
-            str(output_dir),
-            f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
-            dpi=cfg.rotated_trace_dpi,
-            north_angle_deg=rotated_north_angle,
-            statistics_lines=statistics_lines,
-            circle_windows=rotated_circle_windows,
-            hull_overlay=rotated_hull_overlay,
-            area_source=statistics.outcrop_area_source,
-        )
-
-        rose_plot = ""
-        if cfg.export_rose_plot:
-            rose_plot = render_rose_plot(
-                trace.joint_strikes,
-                f"产状玫瑰花瓣图（数量={trace.count}，分箱={cfg.rose_bin_width}°）",
+        style_orig = _apply_style(cfg.style)
+        try:
+            raw_plot = render_trace_plot(
+                trace.endpoints,
+                "迹线长度图",
                 str(output_dir),
-                f"{cfg.outcrop}_rose(bin={cfg.rose_bin_width}).png",
-                bin_width=cfg.rose_bin_width,
-                dpi=cfg.rose_dpi,
+                f"{cfg.outcrop}_raw(n={trace.count}).png",
+                dpi=cfg.trace_dpi,
+                statistics_lines=statistics_lines,
+                circle_windows=raw_circle_windows,
+                hull_overlay=raw_hull_overlay,
+                area_source=statistics.outcrop_area_source,
             )
-            logger.info("玫瑰图导出至: %s", rose_plot)
+            rot_plot = render_trace_plot(
+                rotated,
+                f"迹线长度图\n标尺（走向={trace.scanline_azimuth:.1f}°）",
+                str(output_dir),
+                f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
+                dpi=cfg.rotated_trace_dpi,
+                north_angle_deg=rotated_north_angle,
+                statistics_lines=statistics_lines,
+                circle_windows=rotated_circle_windows,
+                hull_overlay=rotated_hull_overlay,
+                area_source=statistics.outcrop_area_source,
+            )
+
+            rose_plot = ""
+            if cfg.export_rose_plot:
+                rose_plot = render_rose_plot(
+                    trace.joint_strikes,
+                    f"产状玫瑰花瓣图（数量={trace.count}，分箱={cfg.rose_bin_width}°）",
+                    str(output_dir),
+                    f"{cfg.outcrop}_rose(bin={cfg.rose_bin_width}).png",
+                    bin_width=cfg.rose_bin_width,
+                    dpi=cfg.rose_dpi,
+                )
+                logger.info("玫瑰图导出至: %s", rose_plot)
+        finally:
+            _restore_style(style_orig)
 
         logger.info("处理完成: %s", cfg.outcrop)
         return RunResult.success(

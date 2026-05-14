@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import numpy as np
@@ -188,6 +188,7 @@ class RunConfig:
     window_strategy: str = "auto"
     auto_density_threshold: float = 5.0
     tangent_window_count: int = 3
+    style: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
@@ -218,7 +219,7 @@ class RunConfig:
             "input_dir", "output_dir", "output_prefix", "table_stem", "outcrop",
             "export_rose_plot", "rose_bin_width", "rose_dpi", "trace_dpi",
             "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
-            "tangent_window_count",
+            "tangent_window_count", "style",
         }
         return cls(**{k: cfg[k] for k in known if k in cfg})
 

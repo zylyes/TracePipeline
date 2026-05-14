@@ -76,10 +76,12 @@ import {
 } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
 import { useAppStore } from '@/stores/app'
+import { useConfigStore } from '@/stores/config'
 import { api } from '@/api/pywebview'
 
 const route = useRoute()
 const appStore = useAppStore()
+const configStore = useConfigStore()
 
 const menuItems = [
   { path: '/processing', label: '处理', icon: HomeFilled },
@@ -115,6 +117,7 @@ onMounted(async () => {
     const cfg = await api.get_config()
     appStore.inputDir = cfg.input_dir || 'input'
     appStore.outputDir = cfg.output_dir || 'output'
+    configStore.config = { ...cfg }
   } catch (e) {
     ElMessage.warning('无法加载配置')
   }

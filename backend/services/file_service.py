@@ -48,5 +48,9 @@ class FileService:
         logger.info("扫描结果: %d 个文件", len(results))
         return results
 
-    def set_input_dir(self, input_dir: str) -> None:
+    def set_output_dir(self, output_dir: str) -> None:
+        self._output_dir = self._resolve(output_dir)
+
+    def set_dirs(self, input_dir: str, output_dir: str) -> None:
         self.input_dir = self._resolve(input_dir)
+        self._output_dir = self._resolve(output_dir)

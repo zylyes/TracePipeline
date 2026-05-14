@@ -29,21 +29,29 @@ class GuiApi:
 
     def __init__(self) -> None:
         self._config = ConfigService()
-        self._file = FileService(self._config.get().get("input_dir", "input"))
+        self._file = FileService()
         self._pipeline = PipelineService()
         self._preview = PreviewService()
         self._stats = StatsService()
-        self._data = DataService(
-            self._config.get().get("output_dir", "output"),
-            self._config.get().get("input_dir", "input"),
-        )
+        self._data = DataService()
         self._log = LogService()
         self._report = ReportService()
         self._audit = AuditService()
         self._window: Any = None
+        self._sync_services_from_config(self._config.get())
 
     def set_window(self, window: Any) -> None:
         self._window = window
+
+    # ------------------------------------------------------------------
+    # 内部辅助
+    # ------------------------------------------------------------------
+    def _sync_services_from_config(self, cfg: dict[str, Any]) -> None:
+        """用校验后的统一配置同步 FileService / DataService 路径。"""
+        input_dir = cfg.get("input_dir", "input")
+        output_dir = cfg.get("output_dir", "output")
+        self._file.set_dirs(input_dir, output_dir)
+        self._data.update_dirs(output_dir, input_dir)
 
     # ------------------------------------------------------------------
     # 配置
@@ -53,14 +61,15 @@ class GuiApi:
 
     def set_config(self, config: dict[str, Any]) -> dict[str, Any]:
         self._audit.log("set_config", params=config)
-        self._file.set_input_dir(config.get("input_dir", "input"))
-        self._data = DataService(config.get("output_dir", "output"))
-        # 同步更新内部绝对路径引用
-        return self._config.set(config)
+        merged = self._config.set(config)
+        self._sync_services_from_config(merged)
+        return merged
 
     def reset_config(self) -> dict[str, Any]:
         self._audit.log("reset_config")
-        return self._config.reset()
+        default = self._config.reset()
+        self._sync_services_from_config(default)
+        return default
 
     # ------------------------------------------------------------------
     # 文件
@@ -73,7 +82,14 @@ class GuiApi:
     # ------------------------------------------------------------------
     def run_pipeline(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
         self._audit.log("run_pipeline", params={"targets": targets, "config": config})
-        return self._pipeline.run(targets, config)
+        try:
+            merged = {**self._config.get(), **config}
+            saved = self._config.set(merged)
+            self._sync_services_from_config(saved)
+            return self._pipeline.run(targets, saved)
+        except ValueError as exc:
+            logger.warning("流水线配置校验失败: %s", exc)
+            return {"status": "error", "message": str(exc)}
 
     def poll_progress(self) -> dict[str, Any] | None:
         return self._pipeline.poll_progress()

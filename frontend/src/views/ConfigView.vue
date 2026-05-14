@@ -3,7 +3,7 @@
     <h2 class="page-title">配置</h2>
     <ConfigForm v-model="form" :style-config="styleConfig" @style-change="onStyleChange" />
     <StylePreview :style-config="styleConfig" />
-    <DevPanel v-if="appStore.isDevMode" :outcrop="selectedOutcrop" />
+    <DevPanel v-show="appStore.isDevMode" :outcrop="selectedOutcrop" />
 
     <div class="action-bar">
       <el-button type="primary" :icon="Document" @click="saveConfig">保存配置</el-button>

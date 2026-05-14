@@ -1,4 +1,4 @@
-"""Excel 写入 — 四区布局单工作表输出。"""
+"""Excel 写入 — 多工作表输出（每区一个 sheet）。"""
 from __future__ import annotations
 
 import logging
@@ -25,6 +25,7 @@ __all__ = [
     "ExcelLayout",
     "ExcelSection",
     "build_excel_sections",
+    "write_excel_multi_sheets",
     "write_excel_sections",
 ]
 
@@ -343,6 +344,96 @@ def build_excel_sections(
     ]
 
 
+# ── 多工作表写入（新格式：每个分区一个 sheet）─────────────────────────
+
+def _write_sheet_title(ws, title: str, column_count: int) -> None:
+    """在 sheet 首行写入合并标题。"""
+    if not title:
+        return
+    cell = ws.cell(row=1, column=1, value=title)
+    _apply_cell_font(cell, bold=True, color="FFFFFF")
+    cell.fill = PatternFill("solid", fgColor="4F81BD")
+    cell.alignment = Alignment(horizontal="center", vertical="center")
+    if column_count > 1:
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=column_count)
+
+
+def _style_sheet(ws, df: pd.DataFrame, has_title: bool = True) -> None:
+    """对整个 sheet 应用样式。"""
+    title_offset = 1 if has_title else 0
+    header_row = title_offset + 1
+    first_data_row = header_row + 1
+    last_row = header_row + len(df)
+    first_col = 1
+    last_col = df.shape[1]
+    thin = Side(style="thin", color="D9E2F3")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # 表头样式
+    for row in ws.iter_rows(min_row=header_row, max_row=header_row, min_col=first_col, max_col=last_col):
+        for cell in row:
+            _apply_cell_font(cell, bold=True)
+            cell.fill = PatternFill("solid", fgColor="D9EAF7")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = border
+    ws.row_dimensions[header_row].height = 28
+
+    # 数据行样式
+    for row in ws.iter_rows(min_row=first_data_row, max_row=last_row, min_col=first_col, max_col=last_col):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            _apply_cell_font(cell, bold=False)
+            if isinstance(cell.value, numbers.Integral):
+                cell.number_format = "0"
+            elif isinstance(cell.value, numbers.Real):
+                cell.number_format = "0.0000"
+
+    # 列宽
+    for col_idx in range(first_col, last_col + 1):
+        max_width = 10
+        for column in ws.iter_cols(min_col=col_idx, max_col=col_idx, values_only=False):
+            for cell in column:
+                if cell.value is not None:
+                    max_width = max(max_width, len(str(cell.value)))
+        width = min(28, max(10, max_width * 1.1 + 2))
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    # 冻结窗格（冻结标题行+表头行）
+    ws.freeze_panes = f"A{header_row + 1}"
+
+
+def write_excel_multi_sheets(
+    excel_path: str,
+    sections: Sequence[ExcelSection],
+) -> None:
+    """将每个分区写入独立工作表（多 sheet 格式）。"""
+    output_dir = Path(excel_path).parent
+    if str(output_dir):
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        for section in sections:
+            sheet_name = section.title or "数据"
+            # DataFrame 从第2行开始写入（第1行留给标题）
+            title_offset = 1 if section.title else 0
+            section.df.to_excel(
+                writer,
+                sheet_name=sheet_name,
+                index=False,
+                header=section.header,
+                startrow=title_offset,
+                startcol=0,
+            )
+            ws = writer.sheets[sheet_name]
+            _write_sheet_title(ws, section.title, section.df.shape[1])
+            _style_sheet(ws, section.df, has_title=bool(section.title))
+
+    logger.debug("Excel 多工作表写入完成: %s", excel_path)
+
+
+# ── 单工作表写入（旧格式，向后兼容）───────────────────────────────────
+
 def _write_section_title(ws, title: str, startrow: int, startcol: int, column_count: int) -> None:
     if not title:
         return
@@ -476,7 +567,7 @@ def write_excel_sections(
     sections: Sequence[ExcelSection],
     layout: ExcelLayout = DEFAULT_LAYOUT,
 ) -> None:
-    """将多个 DataFrame 区段写入同一工作表。"""
+    """将多个 DataFrame 区段写入同一工作表（旧格式）。"""
     output_dir = Path(excel_path).parent
     if str(output_dir):
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -502,4 +593,4 @@ def write_excel_sections(
         ws.freeze_panes = _freeze_pane_for_sections(sections)
         _apply_column_widths(ws, sections, max_col, layout)
 
-    logger.debug("Excel 写入完成: %s", excel_path)
+    logger.debug("Excel 单工作表写入完成: %s", excel_path)

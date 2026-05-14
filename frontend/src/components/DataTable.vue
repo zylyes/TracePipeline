@@ -1,13 +1,17 @@
 <template>
   <div class="data-table">
-    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane label="基本信息" name="基本信息" />
-      <el-tab-pane label="原始坐标" name="原始坐标" />
-      <el-tab-pane label="旋转坐标" name="旋转坐标" />
-      <el-tab-pane label="走向与长度" name="走向与长度" />
+    <el-tabs v-if="source === 'output'" v-model="activeTab" @tab-change="handleTabChange">
+      <el-tab-pane label="统计信息" name="统计信息" />
+      <el-tab-pane label="裂隙情况" name="裂隙情况" />
+      <el-tab-pane label="计算数据" name="计算数据" />
+      <el-tab-pane label="原始端点" name="原始端点" />
+      <el-tab-pane label="旋转端点" name="旋转端点" />
+      <el-tab-pane label="走向与迹长" name="走向与迹长" />
     </el-tabs>
+    <div v-else class="source-hint">原始输入数据</div>
 
-    <el-table :data="tableData" size="small" stripe style="width: 100%" v-loading="loading">
+    <el-empty v-if="!loading && total === 0" description="该分区暂无数据" />
+    <el-table v-else :data="tableData" size="small" stripe style="width: 100%" v-loading="loading">
       <el-table-column
         v-for="col in columns"
         :key="col"
@@ -41,9 +45,10 @@ import { api } from '@/api/pywebview'
 
 const props = defineProps<{
   outcrop: string
+  source?: string
 }>()
 
-const activeTab = ref('基本信息')
+const activeTab = ref('统计信息')
 const tableData = ref<any[]>([])
 const columns = ref<string[]>([])
 const page = ref(1)
@@ -52,11 +57,23 @@ const total = ref(0)
 const loading = ref(false)
 const searchText = ref('')
 
+// 前端分区名 -> 后端 section 参数 映射
+const SECTION_MAP: Record<string, string> = {
+  '统计信息': '基本信息',
+  '裂隙情况': '裂隙情况',
+  '计算数据': '计算数据',
+  '原始端点': '原始坐标',
+  '旋转端点': '旋转坐标',
+  '走向与迹长': '走向与长度',
+}
+
 async function loadData() {
   if (!props.outcrop) return
   loading.value = true
   try {
-    const res = await api.get_data(props.outcrop, activeTab.value, page.value, pageSize.value)
+    const src = props.source || 'output'
+    const section = src === 'output' ? (SECTION_MAP[activeTab.value] || activeTab.value) : activeTab.value
+    const res = await api.get_data(props.outcrop, section, page.value, pageSize.value, src)
     if (res.error) {
       ElMessage.error(res.error)
       tableData.value = []
@@ -92,8 +109,21 @@ watch(() => props.outcrop, () => {
   loadData()
 })
 
+watch(() => props.source, () => {
+  page.value = 1
+  if (props.source === 'input') {
+    activeTab.value = '原始输入'
+  } else {
+    activeTab.value = '统计信息'
+  }
+  loadData()
+})
+
 onMounted(() => {
   if (props.outcrop) {
+    if (props.source === 'input') {
+      activeTab.value = '原始输入'
+    }
     loadData()
   }
 })
@@ -105,6 +135,14 @@ onMounted(() => {
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+}
+.source-hint {
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  border-bottom: 1px solid #e4e7ed;
+  margin-bottom: 12px;
 }
 .pagination-bar {
   display: flex;

@@ -33,7 +33,10 @@ class GuiApi:
         self._pipeline = PipelineService()
         self._preview = PreviewService()
         self._stats = StatsService()
-        self._data = DataService(self._config.get().get("output_dir", "output"))
+        self._data = DataService(
+            self._config.get().get("output_dir", "output"),
+            self._config.get().get("input_dir", "input"),
+        )
         self._log = LogService()
         self._report = ReportService()
         self._audit = AuditService()
@@ -106,8 +109,8 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 数据页
     # ------------------------------------------------------------------
-    def get_data(self, outcrop: str, section: str, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-        return self._data.get_data(outcrop, section, page, page_size)
+    def get_data(self, outcrop: str, section: str, page: int = 1, page_size: int = 20, source: str = "output") -> dict[str, Any]:
+        return self._data.get_data(outcrop, section, page, page_size, source)
 
     # ------------------------------------------------------------------
     # 预览

@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from trace_pipeline.models import RunConfig
-from trace_pipeline.pipeline import load_trace_data
+from trace_pipeline.pipeline import load_trace_data, _raw_circle_overlays, _rotated_circle_overlays, _selected_hull_overlays
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.geology.transforms import normalize_coordinates
 
@@ -53,6 +53,35 @@ class StatsService:
                     "radius": diag.radius,
                 })
 
+        # 覆盖层几何（用于前端 Canvas 叠加）
+        raw_circles = _raw_circle_overlays(trace, statistics)
+        rot_circles = _rotated_circle_overlays(trace, raw_circles)
+        raw_hull, rot_hull = _selected_hull_overlays(trace, statistics)
+
+        def _hull_data(hull):
+            if hull is None or hull.vertices.size == 0:
+                return []
+            return hull.vertices.tolist()
+
+        def _circle_data(circle_list):
+            return [
+                {"center_x": float(c.center_x), "center_y": float(c.center_y), "radius": float(c.radius)}
+                for c in circle_list
+            ]
+
+        # 计算数据边界（用于前端坐标映射）
+        endpoints = trace.endpoints
+        raw_xs = endpoints[:, [0, 2]].ravel()
+        raw_ys = endpoints[:, [1, 3]].ravel()
+        raw_x_min, raw_x_max = float(raw_xs.min()), float(raw_xs.max())
+        raw_y_min, raw_y_max = float(raw_ys.min()), float(raw_ys.max())
+
+        rotated = normalize_coordinates(endpoints, trace.scanline_azimuth)
+        rot_xs = rotated[:, [0, 2]].ravel()
+        rot_ys = rotated[:, [1, 3]].ravel()
+        rot_x_min, rot_x_max = float(rot_xs.min()), float(rot_xs.max())
+        rot_y_min, rot_y_max = float(rot_ys.min()), float(rot_ys.max())
+
         return {
             "outcrop": outcrop,
             "scanline_azimuth": round(trace.scanline_azimuth, 2),
@@ -75,6 +104,26 @@ class StatsService:
             "strikes": trace.joint_strikes.tolist(),
             "circles": circles,
             "warning": statistics.window_validation_warning,
+            "raw_plot_overlay": {
+                "data_x_min": raw_x_min,
+                "data_x_max": raw_x_max,
+                "data_y_min": raw_y_min,
+                "data_y_max": raw_y_max,
+                "has_hull": raw_hull is not None and len(raw_hull.vertices) > 0,
+                "hull_vertices": _hull_data(raw_hull),
+                "has_circles": len(raw_circles) > 0,
+                "circles": _circle_data(raw_circles),
+            },
+            "rotated_plot_overlay": {
+                "data_x_min": rot_x_min,
+                "data_x_max": rot_x_max,
+                "data_y_min": rot_y_min,
+                "data_y_max": rot_y_max,
+                "has_hull": rot_hull is not None and len(rot_hull.vertices) > 0,
+                "hull_vertices": _hull_data(rot_hull),
+                "has_circles": len(rot_circles) > 0,
+                "circles": _circle_data(rot_circles),
+            },
         }
 
     def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:

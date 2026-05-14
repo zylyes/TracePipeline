@@ -1,11 +1,12 @@
 <template>
   <div class="image-grid">
     <div
-      v-for="img in imageList"
+      v-for="(img, idx) in imageList"
       :key="img.key"
       class="grid-item"
       @mouseenter="hovered = img.key"
       @mouseleave="hovered = ''"
+      @click="emit('click', idx)"
     >
       <img v-if="img.dataUrl" :src="img.dataUrl" class="grid-img" :class="{ hover: hovered === img.key }" />
       <el-empty v-else description="加载中" />
@@ -20,6 +21,10 @@ import { loadImageBase64 } from '@/utils/image'
 
 const props = defineProps<{
   images: { key: string; src: string; label: string }[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'click', index: number): void
 }>()
 
 const hovered = ref('')

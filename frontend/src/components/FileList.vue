@@ -25,9 +25,12 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160">
+      <el-table-column label="操作" width="200">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'completed'" link size="small" @click="emit('preview', row)">预览数据</el-button>
+          <template v-if="row.status === 'completed'">
+            <el-button link size="small" @click="emit('preview', row)">预览数据</el-button>
+            <el-button link size="small" type="primary" @click="emit('open-image', row)">打开图片</el-button>
+          </template>
           <el-button v-else link size="small" type="primary" @click="emit('run', row)">处理</el-button>
         </template>
       </el-table-column>
@@ -49,6 +52,7 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'select', val: TraceFile[]): void
   (e: 'preview', row: TraceFile): void
+  (e: 'open-image', row: TraceFile): void
   (e: 'run', row: TraceFile): void
 }>()
 

@@ -52,6 +52,7 @@
       @refresh="loadFiles"
       @select="handleSelect"
       @preview="handlePreview"
+      @open-image="handleOpenImage"
       @run="handleRunSingle"
     />
 
@@ -63,42 +64,25 @@
       @run="startPipeline"
     />
 
-    <!-- 处理结果列表 -->
-    <div v-if="completedResults.length > 0" class="results-panel">
-      <h3>处理结果</h3>
-      <el-table :data="completedResults" size="small" style="width: 100%">
-        <el-table-column prop="outcrop" label="露头" width="80" />
-        <el-table-column prop="trace_count" label="迹线数" width="80" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">
-              {{ row.status === 'success' ? '完成' : '失败' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="mean_length" label="平均迹长" width="100">
-          <template #default="{ row }">
-            {{ row.mean_length ? row.mean_length.toFixed(2) + 'm' : '—' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="scanline_azimuth" label="走向" width="100">
-          <template #default="{ row }">
-            {{ row.scanline_azimuth ? row.scanline_azimuth.toFixed(1) + '°' : '—' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'success'"
-              size="small"
-              type="primary"
-              @click="openImageModal(row)"
-            >
-              打开图片
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <!-- 处理过程栏 -->
+    <div class="process-panel">
+      <h3>处理过程</h3>
+      <div v-if="currentStatus" class="current-status">
+        <el-icon><Loading /></el-icon>
+        <span>{{ currentStatus }}</span>
+      </div>
+      <div class="log-list" ref="logListRef">
+        <div
+          v-for="(log, idx) in processingLogs"
+          :key="idx"
+          class="log-item"
+          :class="`log-${log.type}`"
+        >
+          <span class="log-time">[{{ log.time }}]</span>
+          <span class="log-message">{{ log.message }}</span>
+        </div>
+        <el-empty v-if="processingLogs.length === 0" description="暂无处理记录" />
+      </div>
     </div>
 
     <!-- 图片模态窗口 -->
@@ -111,8 +95,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import FileList from '@/components/FileList.vue'
 import ProgressPanel from '@/components/ProgressPanel.vue'
 import ImageModal from '@/components/ImageModal.vue'
@@ -122,6 +108,7 @@ import { useAppStore } from '@/stores/app'
 import { api } from '@/api/pywebview'
 import type { TraceFile, PipelineResult } from '@/types'
 
+const router = useRouter()
 const pipelineStore = usePipelineStore()
 const configStore = useConfigStore()
 const appStore = useAppStore()
@@ -143,8 +130,30 @@ const params = ref({
   tangent_window_count: 3,
 })
 
-// 完成的结果列表（实时 + 历史）
-const completedResults = ref<PipelineResult[]>([])
+// 处理过程日志
+interface ProcessLog {
+  type: 'info' | 'success' | 'error'
+  time: string
+  message: string
+}
+const processingLogs = ref<ProcessLog[]>([])
+const currentStatus = ref('')
+const logListRef = ref<HTMLDivElement>()
+const MAX_LOGS = 50
+
+function addLog(type: ProcessLog['type'], message: string) {
+  const now = new Date()
+  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+  processingLogs.value.push({ type, time, message })
+  if (processingLogs.value.length > MAX_LOGS) {
+    processingLogs.value = processingLogs.value.slice(-MAX_LOGS)
+  }
+  nextTick(() => {
+    if (logListRef.value) {
+      logListRef.value.scrollTop = logListRef.value.scrollHeight
+    }
+  })
+}
 
 // 模态窗口状态
 const modalVisible = ref(false)
@@ -166,57 +175,51 @@ async function loadFiles() {
   }
 }
 
-async function loadHistoryResults() {
-  try {
-    const results = await api.get_results()
-    // 将结果转换为 PipelineResult 格式
-    for (const r of results) {
-      if (!completedResults.value.find((cr) => cr.outcrop === r.outcrop)) {
-        // 尝试获取统计信息补充数据
-        try {
-          const stats = await api.get_stats(r.outcrop)
-          completedResults.value.push({
-            outcrop: r.outcrop,
-            status: 'success',
-            trace_count: stats.trace_count || 0,
-            mean_length: stats.mean_trace_length || 0,
-            scanline_azimuth: stats.scanline_azimuth || 0,
-            excel_path: '',
-            raw_plot_path: r.raw_plot || '',
-            rotated_plot_path: r.rotated_plot || '',
-            rose_plot_path: r.rose_plot || '',
-            window_strategy: stats.window_strategy || '',
-            area_source: stats.area_source || '',
-          })
-        } catch {
-          completedResults.value.push({
-            outcrop: r.outcrop,
-            status: 'success',
-            trace_count: 0,
-            mean_length: 0,
-            scanline_azimuth: 0,
-            excel_path: '',
-            raw_plot_path: r.raw_plot || '',
-            rotated_plot_path: r.rotated_plot || '',
-            rose_plot_path: r.rose_plot || '',
-            window_strategy: '',
-            area_source: '',
-          })
-        }
-      }
-    }
-  } catch (e) {
-    console.error('加载历史结果失败', e)
-  }
-}
-
 function handleSelect(val: TraceFile[]) {
   selectedFiles.value = val
   appStore.selectedFileCount = val.length
 }
 
 function handlePreview(row: TraceFile) {
-  // 预览数据：可以跳转到数据页
+  router.push({ path: '/data', query: { outcrop: row.outcrop, source: 'input' } })
+}
+
+async function handleOpenImage(row: TraceFile) {
+  // 优先从 pipelineStore 缓存中查找
+  const cached = pipelineStore.results.find(
+    (r: any) => r.outcrop === row.outcrop && r.status === 'success'
+  )
+  if (cached) {
+    openImageModal(cached)
+    return
+  }
+
+  // 缓存未命中，扫描 output 目录
+  try {
+    const all = await api.get_results()
+    const found = all.find((r: any) => r.outcrop === row.outcrop)
+    if (found) {
+      const result: PipelineResult = {
+        outcrop: found.outcrop,
+        status: 'success',
+        trace_count: 0,
+        mean_length: 0,
+        scanline_azimuth: 0,
+        excel_path: '',
+        raw_plot_path: found.raw_plot || '',
+        rotated_plot_path: found.rotated_plot || '',
+        rose_plot_path: found.rose_plot || '',
+        window_strategy: '',
+        area_source: '',
+      }
+      openImageModal(result)
+    } else {
+      ElMessage.warning('未找到该露头的处理结果图片')
+    }
+  } catch (e) {
+    ElMessage.error('获取图片列表失败')
+    console.error(e)
+  }
 }
 
 function handleRunSingle(row: TraceFile) {
@@ -241,6 +244,8 @@ async function startPipeline() {
     return
   }
   pipelineStore.reset()
+  processingLogs.value = []
+  currentStatus.value = ''
   const targets = selectedFiles.value.map((f) => f.outcrop)
   // 合并本地参数和全局配置
   const config = { ...configStore.config, ...params.value, parallel: parallel.value }
@@ -269,6 +274,8 @@ function startPolling() {
       switch (evt.type) {
         case 'start':
           pipelineStore.progress.total = evt.total
+          addLog('info', `开始处理，共 ${evt.total} 个文件`)
+          currentStatus.value = ''
           break
         case 'progress':
           pipelineStore.progress = {
@@ -277,17 +284,20 @@ function startPolling() {
             filename: evt.filename,
             message: evt.message,
           }
+          currentStatus.value = `正在处理：${evt.filename}（${evt.current}/${evt.total}）`
           break
         case 'file_complete':
           pipelineStore.results.push(evt)
           if (evt.result) {
-            const existingIndex = completedResults.value.findIndex(
-              (r) => r.outcrop === evt.result.outcrop
-            )
-            if (existingIndex >= 0) {
-              completedResults.value[existingIndex] = evt.result
+            if (evt.result.status === 'success') {
+              addLog('success', `${evt.result.outcrop} 处理完成`)
             } else {
-              completedResults.value.push(evt.result)
+              addLog('error', `${evt.result.outcrop} 处理失败：${evt.result.error || '未知错误'}`)
+            }
+            // 更新文件列表中对应文件的状态
+            const fileIdx = files.value.findIndex((f) => f.outcrop === evt.result.outcrop)
+            if (fileIdx >= 0) {
+              files.value[fileIdx].status = evt.result.status === 'success' ? 'completed' : 'error'
             }
           }
           appStore.updateLastOperation(`${evt.filename} 完成`)
@@ -296,6 +306,8 @@ function startPolling() {
           pipelineStore.running = false
           appStore.pipelineStatus = 'completed'
           stopPolling()
+          addLog('success', '全部处理完成')
+          currentStatus.value = ''
           ElMessage.success('处理完成')
           appStore.updateLastOperation('处理完成')
           loadFiles()
@@ -304,6 +316,8 @@ function startPolling() {
           pipelineStore.running = false
           appStore.pipelineStatus = 'error'
           stopPolling()
+          addLog('error', `处理出错：${evt.message || '未知错误'}`)
+          currentStatus.value = ''
           ElMessage.error(evt.message)
           appStore.updateLastOperation('处理出错')
           break
@@ -344,7 +358,6 @@ onMounted(async () => {
     tangent_window_count: cfg.tangent_window_count ?? 3,
   }
   await loadFiles()
-  await loadHistoryResults()
 })
 
 onUnmounted(() => {
@@ -379,19 +392,68 @@ onUnmounted(() => {
   padding-bottom: 8px;
   border-bottom: 1px solid #e4e7ed;
 }
-.results-panel {
+.process-panel {
   background: #fff;
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
   margin-top: 16px;
 }
-.results-panel h3 {
+.process-panel h3 {
   font-size: 15px;
   font-weight: 600;
   color: #2c3e50;
   margin: 0 0 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #e4e7ed;
+}
+.current-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #409eff;
+}
+.current-status .el-icon {
+  animation: rotating 2s linear infinite;
+}
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.log-list {
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.log-item {
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+.log-item:last-child {
+  margin-bottom: 0;
+}
+.log-time {
+  color: #909399;
+  margin-right: 8px;
+  font-family: monospace;
+}
+.log-info {
+  background: #f4f4f5;
+  color: #606266;
+}
+.log-success {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+.log-error {
+  background: #fef0f0;
+  color: #f56c6c;
 }
 </style>

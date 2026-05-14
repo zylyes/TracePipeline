@@ -15,7 +15,13 @@
       <v-chart class="chart" :option="barOption" autoresize />
     </div>
 
-    <ImageGrid :images="gridImages" />
+    <ImageGrid :images="gridImages" @click="openViewer" />
+
+    <ImageViewer
+      v-model:visible="viewerVisible"
+      :images="viewerImages"
+      :initial-index="viewerInitialIndex"
+    />
   </div>
 </template>
 
@@ -28,6 +34,7 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import ImageGrid from '@/components/ImageGrid.vue'
+import ImageViewer from '@/components/ImageViewer.vue'
 import { api } from '@/api/pywebview'
 import type { ComparisonRow } from '@/types'
 
@@ -36,6 +43,19 @@ use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent,
 const tableData = ref<ComparisonRow[]>([])
 const gridImages = ref<any[]>([])
 const loading = ref(false)
+
+const viewerVisible = ref(false)
+const viewerImages = ref<Array<{ title: string; src: string }>>([])
+const viewerInitialIndex = ref(0)
+
+function openViewer(index: number) {
+  viewerImages.value = gridImages.value.map((g: any) => ({
+    title: g.label || '',
+    src: g.dataUrl || '',
+  })).filter((g: any) => g.src)
+  viewerInitialIndex.value = index
+  viewerVisible.value = true
+}
 
 const echartsFont = '"Times New Roman", "SimSun", serif'
 

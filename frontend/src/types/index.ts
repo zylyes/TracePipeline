@@ -95,3 +95,14 @@ export interface DataPageResult {
   columns: string[]
   error?: string
 }
+
+export interface PlotOverlay {
+  data_x_min: number
+  data_x_max: number
+  data_y_min: number
+  data_y_max: number
+  has_hull: boolean
+  hull_vertices: Array<[number, number]>
+  has_circles: boolean
+  circles: Array<{ center_x: number; center_y: number; radius: number }>
+}

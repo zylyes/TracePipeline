@@ -5,9 +5,13 @@
       <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="onOutcropChange">
         <el-option v-for="o in outcrops" :key="o" :label="o" :value="o" />
       </el-select>
+      <el-tabs v-model="source" type="border-card" class="source-tabs" @tab-change="onSourceChange">
+        <el-tab-pane label="输入数据" name="input" />
+        <el-tab-pane label="输出数据" name="output" />
+      </el-tabs>
     </div>
 
-    <div class="info-card" v-if="basicInfo">
+    <div class="info-card" v-if="basicInfo && source === 'output'">
       <el-descriptions :column="2" border size="small">
         <el-descriptions-item label="测线走向">{{ basicInfo.scanline_azimuth }}°</el-descriptions-item>
         <el-descriptions-item label="迹线条数">{{ basicInfo.trace_count }}</el-descriptions-item>
@@ -18,25 +22,44 @@
       </el-descriptions>
     </div>
 
-    <DataTable v-if="selectedOutcrop" :outcrop="selectedOutcrop" :key="selectedOutcrop" />
+    <DataTable
+      v-if="selectedOutcrop"
+      :outcrop="selectedOutcrop"
+      :source="source"
+      :key="selectedOutcrop + source"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import DataTable from '@/components/DataTable.vue'
 import { api } from '@/api/pywebview'
 import type { StatsData } from '@/types'
 
+const route = useRoute()
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
 const basicInfo = ref<StatsData | null>(null)
+
+// source 默认为 output，路由参数可覆盖初始值
+const source = ref((route.query.source as string) || 'output')
 
 async function loadOutcrops() {
   try {
     const files = await api.scan_files()
     outcrops.value = files.map((f: any) => f.outcrop)
+
+    // 检查路由参数中是否有指定的露头
+    const queryOutcrop = route.query.outcrop as string | undefined
+    if (queryOutcrop && outcrops.value.includes(queryOutcrop)) {
+      selectedOutcrop.value = queryOutcrop
+      await onOutcropChange()
+      return
+    }
+
     if (outcrops.value.length && !selectedOutcrop.value) {
       selectedOutcrop.value = outcrops.value[0]
       await onOutcropChange()
@@ -49,12 +72,24 @@ async function loadOutcrops() {
 
 async function onOutcropChange() {
   if (!selectedOutcrop.value) return
+  if (source.value === 'input') {
+    basicInfo.value = null
+    return
+  }
   try {
     const stats = await api.get_stats(selectedOutcrop.value)
     basicInfo.value = stats
   } catch (e) {
     console.error(e)
     ElMessage.error('加载统计数据失败')
+  }
+}
+
+function onSourceChange() {
+  if (source.value === 'input') {
+    basicInfo.value = null
+  } else {
+    onOutcropChange()
   }
 }
 
@@ -76,7 +111,16 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.source-tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: 0;
+  }
 }
 .info-card {
   background: #fff;

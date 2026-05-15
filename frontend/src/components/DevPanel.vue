@@ -87,6 +87,27 @@
         </div>
       </el-collapse-item>
 
+      <el-collapse-item title="后端日志" name="backend-log">
+        <div class="log-controls">
+          <el-select v-model="backendLogLevel" size="small" style="width: 100px" @change="loadBackendLogs">
+            <el-option label="ALL" value="ALL" />
+            <el-option label="INFO" value="INFO" />
+            <el-option label="WARNING" value="WARNING" />
+            <el-option label="ERROR" value="ERROR" />
+          </el-select>
+          <el-select v-model="backendLogTail" size="small" style="width: 100px" @change="loadBackendLogs">
+            <el-option label="100 行" :value="100" />
+            <el-option label="300 行" :value="300" />
+            <el-option label="1000 行" :value="1000" />
+          </el-select>
+          <el-button size="small" @click="loadBackendLogs">刷新</el-button>
+        </div>
+        <div class="backend-log-content" v-loading="backendLogLoading">
+          <pre v-if="backendLogs.length">{{ backendLogs.join('\n') }}</pre>
+          <el-empty v-else description="暂无日志" />
+        </div>
+      </el-collapse-item>
+
       <el-collapse-item title="高级配置" name="advanced">
         <el-form label-width="140px" size="small">
           <el-form-item label="切圆数量">
@@ -153,6 +174,7 @@ const loading = ref({
   report: false,
   provenance: false,
   audit: false,
+  backendLog: false,
 })
 
 // 各面板是否已加载过（避免重复加载）
@@ -160,7 +182,27 @@ const loaded = ref({
   report: false,
   provenance: false,
   audit: false,
+  backendLog: false,
 })
+
+// 后端日志
+const backendLogLevel = ref('ALL')
+const backendLogTail = ref(100)
+const backendLogs = ref<string[]>([])
+const backendLogLoading = ref(false)
+
+async function loadBackendLogs() {
+  backendLogLoading.value = true
+  try {
+    const lines = await api.get_logs(backendLogTail.value, backendLogLevel.value)
+    backendLogs.value = lines || []
+    loaded.value.backendLog = true
+  } catch (e) {
+    console.error(e)
+  } finally {
+    backendLogLoading.value = false
+  }
+}
 
 onMounted(async () => {
   // 从全局配置初始化高级配置字段
@@ -274,6 +316,9 @@ function onCollapseChange(active: string | string[]) {
   if (names.includes('audit') && !loaded.value.audit) {
     loadAudit()
   }
+  if (names.includes('backend-log') && !loaded.value.backendLog) {
+    loadBackendLogs()
+  }
 }
 
 // 监听 outcrop 变化，如果溯源面板已展开则自动刷新
@@ -304,5 +349,27 @@ watch(() => props.outcrop, () => {
 .oc-empty {
   color: #909399;
   font-size: 13px;
+}
+.log-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.backend-log-content {
+  background: #f5f7fa;
+  border-radius: 4px;
+  padding: 12px;
+  max-height: 350px;
+  overflow: auto;
+}
+.backend-log-content pre {
+  margin: 0;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #2c3e50;
 }
 </style>

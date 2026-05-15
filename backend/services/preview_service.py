@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import sys
 import threading
 import time
 from pathlib import Path
@@ -31,26 +32,15 @@ from trace_pipeline.plotting.trace_plot import render_trace_plot
 
 logger = logging.getLogger(__name__)
 
-PREVIEW_DIR = Path("output/preview")
+if getattr(sys, 'frozen', False):
+    _PREVIEW_BASE = Path(sys.executable).parent
+else:
+    _PREVIEW_BASE = Path(__file__).resolve().parent.parent.parent
+PREVIEW_DIR = _PREVIEW_BASE / "output" / "preview"
 PREVIEW_DPI = 150
 CACHE_TTL = 300  # 5分钟
 
-# 样式常量映射（与 trace_plot.py / rose_plot.py 对应）
-_STYLE_CONSTANTS = {
-    "trace_line_color": "trace_plot._TRACE_LINE_COLOR",
-    "trace_line_width": "trace_plot._TRACE_LINE_WIDTH",
-    "hull_line_color": "trace_plot._HULL_LINE_COLOR",
-    "hull_fill_color": "trace_plot._HULL_FILL_COLOR",
-    "hull_fill_alpha": "trace_plot._HULL_FILL_ALPHA",
-    "circle_window_line_color": "trace_plot._CIRCLE_WINDOW_LINE_COLOR",
-    "circle_window_fill_color": "trace_plot._CIRCLE_WINDOW_FILL_COLOR",
-    "circle_window_fill_alpha": "trace_plot._CIRCLE_WINDOW_FILL_ALPHA",
-    "rose_bar_color": "rose_plot._ROSE_BAR_COLOR",
-    "rose_bar_edge": "rose_plot._ROSE_BAR_EDGE",
-    "rose_grid_color": "rose_plot._ROSE_GRID_COLOR",
-}
-
-# 线程安全锁，保护 matplotlib 全局状态修改
+# 线程安全锁，保护缓存和预览生成串行化
 _PREVIEW_LOCK = threading.Lock()
 
 
@@ -101,34 +91,14 @@ class PreviewService:
         return images
 
     def _generate_images(self, config: dict[str, Any], style_hash: str) -> dict[str, str]:
-        """临时修改 matplotlib 常量，生成预览图（线程安全）。"""
-        import trace_pipeline.plotting.rose_plot as rp
-        import trace_pipeline.plotting.trace_plot as tp
+        """使用共享样式覆盖上下文管理器生成预览图（线程安全）。"""
+        from trace_pipeline.plotting.style import apply_style_overrides
 
         style = config.get("style", {})
+        configure_style()
 
         with _PREVIEW_LOCK:
-            # 保存原始值
-            orig: dict[str, Any] = {}
-            for key, path in _STYLE_CONSTANTS.items():
-                module_path, attr = path.split(".")
-                mod = tp if module_path == "trace_plot" else rp
-                orig[key] = getattr(mod, attr)
-
-            try:
-                configure_style()
-
-                # 应用样式
-                for key, val in style.items():
-                    if key in _STYLE_CONSTANTS:
-                        module_path, attr = _STYLE_CONSTANTS[key].split(".")
-                        mod = tp if module_path == "trace_plot" else rp
-                        setattr(mod, attr, val)
-
-                # 全局字号（在 configure_style 之后应用，确保不被覆盖）
-                if "global_font_size" in style:
-                    matplotlib.rcParams["font.size"] = float(style["global_font_size"])
-
+            with apply_style_overrides(style):
                 # 加载样本数据
                 trace = load_trace_data("input", f"{self._sample}_process", self._sample)
                 stats_config = TraceStatisticsConfig(
@@ -215,9 +185,3 @@ class PreviewService:
                     "rotated": str(rotated_path.resolve()),
                     "rose": rose_plot_path,
                 }
-            finally:
-                # 恢复原始值
-                for key, val in orig.items():
-                    module_path, attr = _STYLE_CONSTANTS[key].split(".")
-                    mod = tp if module_path == "trace_plot" else rp
-                    setattr(mod, attr, val)

@@ -1,8 +1,10 @@
 """config.json 读写服务。"""
 from __future__ import annotations
 
+import copy
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +17,10 @@ from trace_pipeline.config import (
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if getattr(sys, 'frozen', False):
+    PROJECT_ROOT = Path(sys.executable).parent
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class ConfigService:
@@ -33,7 +38,7 @@ class ConfigService:
 
     def get(self) -> dict[str, Any]:
         """返回当前配置字典（深拷贝，防止外部修改）。"""
-        return dict(self._config)
+        return copy.deepcopy(self._config)
 
     def set(self, cfg: dict[str, Any]) -> dict[str, Any]:
         """合并新配置，校验后写回磁盘。"""

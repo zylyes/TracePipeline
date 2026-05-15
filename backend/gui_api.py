@@ -5,21 +5,25 @@ import base64
 import contextlib
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
-from .services.audit_service import AuditService
-from .services.config_service import ConfigService
-from .services.data_service import DataService
-from .services.file_service import FileService
-from .services.log_service import LogService
-from .services.pipeline_service import PipelineService
-from .services.preview_service import PreviewService
-from .services.report_service import REPORT_DIR, ReportService
-from .services.stats_service import StatsService
+from backend.services.audit_service import AuditService
+from backend.services.config_service import ConfigService
+from backend.services.data_service import DataService
+from backend.services.file_service import FileService
+from backend.services.log_service import LogService
+from backend.services.pipeline_service import PipelineService
+from backend.services.preview_service import PreviewService
+from backend.services.report_service import REPORT_DIR, ReportService
+from backend.services.stats_service import StatsService
 
 logger = logging.getLogger(__name__)
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if getattr(sys, 'frozen', False):
+    PROJECT_ROOT = Path(sys.executable).parent
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class GuiApi:
@@ -102,7 +106,7 @@ class GuiApi:
             out_dir = PROJECT_ROOT / out_dir
         out_dir = out_dir.resolve()
         results = []
-        for png in sorted(out_dir.glob("*_raw(n=*.png")):
+        for png in sorted(out_dir.glob("*_raw(n=*).png")):
             stem = png.stem.split("_raw")[0]
             rot_files = list(out_dir.glob(f"{stem}_rotated*.png"))
             rose_files = list(out_dir.glob(f"{stem}_rose*.png"))
@@ -255,6 +259,6 @@ class GuiApi:
             return ""
 
     def check_webview2(self) -> dict[str, Any]:
-        from .webview2_checker import WebView2Checker
+        from backend.webview2_checker import WebView2Checker
         checker = WebView2Checker()
         return {"installed": checker.is_installed(), "url": checker.get_download_url()}

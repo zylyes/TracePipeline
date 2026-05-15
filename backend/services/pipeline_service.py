@@ -23,10 +23,11 @@ class PipelineService:
 
     def run(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
         """启动后台线程，非阻塞返回。"""
-        if self._running:
-            return {"status": "busy", "message": "已有任务正在运行"}
-        self._running = True
-        self._queue.clear()
+        with self._lock:
+            if self._running:
+                return {"status": "busy", "message": "已有任务正在运行"}
+            self._running = True
+            self._queue.clear()
         threading.Thread(
             target=self._run_background,
             args=(targets, config),

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,11 @@ from trace_pipeline.pipeline import load_trace_data
 
 logger = logging.getLogger(__name__)
 
-REPORT_DIR = Path("output/reports")
+if getattr(sys, 'frozen', False):
+    _REPORT_BASE = Path(sys.executable).parent
+else:
+    _REPORT_BASE = Path(__file__).resolve().parent.parent.parent
+REPORT_DIR = _REPORT_BASE / "output" / "reports"
 
 
 def _find_system_font() -> tuple[str, str]:

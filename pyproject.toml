@@ -1,2 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trace-pipeline"
+version = "1.0.1"
+description = "迹线统计分析与可视化工具"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "openpyxl>=3.1",
+    "Pillow>=9.0",
+    "scipy>=1.10",
+    "shapely>=2.0",
+    "webview>=0.5",
+]
+
+[project.scripts]
+trace-pipeline = "trace_pipeline.cli.dispatcher:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

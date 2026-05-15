@@ -88,30 +88,6 @@
       </div>
     </div>
 
-    <!-- 后端日志面板 -->
-    <el-collapse v-model="activeCollapse" class="backend-log-panel">
-      <el-collapse-item title="后端日志" name="backend-log">
-        <div class="log-controls">
-          <el-select v-model="backendLogLevel" size="small" style="width: 100px" @change="loadBackendLogs">
-            <el-option label="ALL" value="ALL" />
-            <el-option label="INFO" value="INFO" />
-            <el-option label="WARNING" value="WARNING" />
-            <el-option label="ERROR" value="ERROR" />
-          </el-select>
-          <el-select v-model="backendLogTail" size="small" style="width: 100px" @change="loadBackendLogs">
-            <el-option label="100 行" :value="100" />
-            <el-option label="300 行" :value="300" />
-            <el-option label="1000 行" :value="1000" />
-          </el-select>
-          <el-button size="small" :icon="Refresh" @click="loadBackendLogs">刷新</el-button>
-        </div>
-        <div class="backend-log-content" v-loading="backendLogLoading">
-          <pre v-if="backendLogs.length">{{ backendLogs.join('\n') }}</pre>
-          <el-empty v-else description="暂无日志" />
-        </div>
-      </el-collapse-item>
-    </el-collapse>
-
     <!-- 图片模态窗口 -->
     <ImageModal
       v-model:visible="modalVisible"
@@ -125,7 +101,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, Refresh } from '@element-plus/icons-vue'
+import { Loading } from '@element-plus/icons-vue'
 import FileList from '@/components/FileList.vue'
 import ProgressPanel from '@/components/ProgressPanel.vue'
 import ImageModal from '@/components/ImageModal.vue'
@@ -169,25 +145,6 @@ const currentStatus = ref('')
 const logListRef = ref<HTMLDivElement>()
 const MAX_LOGS = 50
 const startTime = ref(0)
-
-// 后端日志面板
-const activeCollapse = ref<string[]>([])
-const backendLogLevel = ref('ALL')
-const backendLogTail = ref(100)
-const backendLogs = ref<string[]>([])
-const backendLogLoading = ref(false)
-
-async function loadBackendLogs() {
-  backendLogLoading.value = true
-  try {
-    const lines = await api.get_logs(backendLogTail.value, backendLogLevel.value)
-    backendLogs.value = lines || []
-  } catch (e) {
-    console.warn('加载后端日志失败', e)
-  } finally {
-    backendLogLoading.value = false
-  }
-}
 
 function addLog(type: ProcessLog['type'], message: string) {
   const now = new Date()
@@ -354,10 +311,19 @@ async function startPipeline() {
   }
 }
 
+let pollTimer: number | null = null
+let pollAbortController: AbortController | null = null
+let pollErrorCount = 0
+const MAX_POLL_ERRORS = 5
+
 function startPolling() {
-  pipelineStore.pollTimer = window.setInterval(async () => {
+  pollErrorCount = 0
+  pollAbortController = new AbortController()
+  pollTimer = window.setInterval(async () => {
+    if (pollAbortController?.signal.aborted) return
     try {
       const evt = await api.poll_progress()
+      pollErrorCount = 0
       if (!evt) return
       switch (evt.type) {
         case 'start':
@@ -386,7 +352,6 @@ function startPolling() {
             } else {
               addLog('error', `${evt.result.outcrop} 处理失败：${evt.result.error || '未知错误'}`)
             }
-            // 更新文件列表中对应文件的状态
             const fileIdx = files.value.findIndex((f) => f.outcrop === evt.result.outcrop)
             if (fileIdx >= 0) {
               files.value[fileIdx].status = evt.result.status === 'success' ? 'completed' : 'error'
@@ -404,7 +369,6 @@ function startPolling() {
           ElMessage.success(`处理完成（${duration}s）`)
           appStore.updateLastOperation('处理完成')
           loadFiles()
-          loadBackendLogs()
           break
         }
         case 'error': {
@@ -416,20 +380,28 @@ function startPolling() {
           currentStatus.value = ''
           ElMessage.error(evt.message)
           appStore.updateLastOperation('处理出错')
-          loadBackendLogs()
           break
         }
       }
     } catch (e) {
-      // ignore
+      pollErrorCount++
+      if (pollErrorCount >= MAX_POLL_ERRORS) {
+        stopPolling()
+        pipelineStore.running = false
+        appStore.pipelineStatus = 'error'
+        addLog('error', `轮询失败（连续 ${MAX_POLL_ERRORS} 次），已停止`)
+        ElMessage.error('与后端通信失败，请检查后端是否仍在运行')
+      }
     }
   }, POLL_INTERVAL)
 }
 
 function stopPolling() {
-  if (pipelineStore.pollTimer) {
-    clearInterval(pipelineStore.pollTimer)
-    pipelineStore.pollTimer = null
+  pollAbortController?.abort()
+  pollAbortController = null
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
   }
 }
 
@@ -456,7 +428,6 @@ onMounted(async () => {
     }
   }
   await loadFiles()
-  await loadBackendLogs()
 })
 
 onUnmounted(() => {

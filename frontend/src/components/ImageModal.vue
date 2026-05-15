@@ -31,6 +31,11 @@
       </div>
     </div>
   </Teleport>
+  <Teleport to="body">
+    <div v-if="fullscreenSrc" class="fullscreen-viewer" @click="fullscreenSrc = ''">
+      <img :src="fullscreenSrc" class="fullscreen-img" />
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -56,6 +61,7 @@ const emit = defineEmits<{
 
 const imageList = ref<Array<{ key: string; title: string; dataUrl: string }>>([])
 const loading = ref(false)
+const fullscreenSrc = ref('')
 
 async function loadImages() {
   loading.value = true
@@ -73,25 +79,18 @@ async function loadImages() {
   }
 }
 
-watch(() => [props.visible, props.images], () => {
-  if (props.visible && props.images.length > 0) {
+watch([() => props.visible, () => props.images], ([visible, images]) => {
+  if (visible && images.length > 0) {
     loadImages()
   }
-}, { deep: true })
+})
 
 function close() {
   emit('update:visible', false)
 }
 
 function previewImage(src: string) {
-  const viewer = document.createElement('div')
-  viewer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:10000;cursor:zoom-out;'
-  const imgEl = document.createElement('img')
-  imgEl.src = src
-  imgEl.style.cssText = 'max-width:95%;max-height:95%;object-fit:contain;'
-  viewer.appendChild(imgEl)
-  viewer.onclick = () => document.body.removeChild(viewer)
-  document.body.appendChild(viewer)
+  fullscreenSrc.value = src
 }
 </script>
 
@@ -187,5 +186,25 @@ function previewImage(src: string) {
 
 .img-preview:hover {
   transform: scale(1.02);
+}
+
+.fullscreen-viewer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  cursor: zoom-out;
+}
+
+.fullscreen-img {
+  max-width: 95%;
+  max-height: 95%;
+  object-fit: contain;
 }
 </style>

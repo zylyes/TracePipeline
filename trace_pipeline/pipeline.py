@@ -37,61 +37,6 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["load_trace_data", "run_pipeline"]
 
-# ── 样式应用/恢复 ─────────────────────────────────────────────
-
-_STYLE_CONSTANTS = {
-    "trace_line_color": ("trace_plot", "_TRACE_LINE_COLOR"),
-    "trace_line_width": ("trace_plot", "_TRACE_LINE_WIDTH"),
-    "hull_line_color": ("trace_plot", "_HULL_LINE_COLOR"),
-    "hull_fill_color": ("trace_plot", "_HULL_FILL_COLOR"),
-    "hull_fill_alpha": ("trace_plot", "_HULL_FILL_ALPHA"),
-    "circle_window_line_color": ("trace_plot", "_CIRCLE_WINDOW_LINE_COLOR"),
-    "circle_window_fill_color": ("trace_plot", "_CIRCLE_WINDOW_FILL_COLOR"),
-    "circle_window_fill_alpha": ("trace_plot", "_CIRCLE_WINDOW_FILL_ALPHA"),
-    "rose_bar_color": ("rose_plot", "_ROSE_BAR_COLOR"),
-    "rose_bar_edge": ("rose_plot", "_ROSE_BAR_EDGE"),
-    "rose_grid_color": ("rose_plot", "_ROSE_GRID_COLOR"),
-}
-
-
-def _apply_style(style: dict[str, Any]) -> dict[str, Any]:
-    """临时应用样式到绘图模块常量，返回原始值用于恢复。"""
-    import matplotlib
-
-    import trace_pipeline.plotting.rose_plot as rp
-    import trace_pipeline.plotting.trace_plot as tp
-
-    orig: dict[str, Any] = {}
-    for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
-        mod = tp if mod_name == "trace_plot" else rp
-        if hasattr(mod, attr):
-            orig[key] = getattr(mod, attr)
-
-    try:
-        for key, val in style.items():
-            if key in _STYLE_CONSTANTS:
-                mod_name, attr = _STYLE_CONSTANTS[key]
-                mod = tp if mod_name == "trace_plot" else rp
-                setattr(mod, attr, val)
-        if "global_font_size" in style:
-            matplotlib.rcParams["font.size"] = float(style["global_font_size"])
-    except Exception as exc:
-        logger.warning("样式应用失败: %s", exc)
-
-    return orig
-
-
-def _restore_style(orig: dict[str, Any]) -> None:
-    """恢复绘图模块常量到原始值。"""
-    import trace_pipeline.plotting.rose_plot as rp
-    import trace_pipeline.plotting.trace_plot as tp
-
-    for key, val in orig.items():
-        mod_name, attr = _STYLE_CONSTANTS[key]
-        mod = tp if mod_name == "trace_plot" else rp
-        setattr(mod, attr, val)
-
-
 def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
     """读取迹线 Excel 表并解析为 TraceData。"""
     logger.info("加载迹线数据: %s/%s", input_dir, table_stem)
@@ -185,8 +130,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         logger.info("Excel 导出至: %s", excel_path)
 
         # ---- 5. 绘制图片 ----
-        style_orig = _apply_style(cfg.style)
-        try:
+        from trace_pipeline.plotting.style import apply_style_overrides
+
+        with apply_style_overrides(cfg.style):
             raw_plot = render_trace_plot(
                 trace.endpoints,
                 "迹线长度图",
@@ -226,8 +172,6 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     dpi=cfg.rose_dpi,
                 )
                 logger.info("玫瑰图导出至: %s", rose_plot)
-        finally:
-            _restore_style(style_orig)
 
         logger.info("处理完成: %s", cfg.outcrop)
         node_summary = {

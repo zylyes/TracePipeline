@@ -13,11 +13,9 @@ __all__ = [
 ]
 
 _NODE_TYPE_LABELS: dict[str, str] = {
-    "I": "自由端点",
+    "I": "孤立端点",
     "Y": "三叉节点",
-    "X": "相交节点",
-    "overlap": "重叠节点",
-    "multi": "多交汇点",
+    "X": "交叉节点",
 }
 
 
@@ -44,13 +42,10 @@ class TraceNode:
     node_id: int
     x: float
     y: float
-    node_type: str  # I/Y/X/overlap/multi
-    degree: int
+    node_type: str  # I/Y/X
+    degree: int  # 拓扑值（分支数）
     trace_indices: tuple[int, ...]
     event_count: int
-    is_endpoint: bool
-    is_intersection: bool
-    is_overlap: bool
 
     @property
     def type_label(self) -> str:

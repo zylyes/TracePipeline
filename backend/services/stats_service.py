@@ -133,15 +133,12 @@ class StatsService:
                 "node_i_count": tc.get("I", 0),
                 "node_y_count": tc.get("Y", 0),
                 "node_x_count": tc.get("X", 0),
-                "node_overlap_count": tc.get("overlap", 0),
-                "node_multi_count": tc.get("multi", 0),
                 "intersection_count": node_analysis.intersection_count,
                 "degenerate_skipped": node_analysis.degenerate_skipped,
             },
             "nodes": [
                 {"node_id": n.node_id, "x": round(n.x, 4), "y": round(n.y, 4), "type": n.type_label,
-                 "degree": n.degree, "trace_indices": list(n.trace_indices), "event_count": n.event_count,
-                 "is_endpoint": n.is_endpoint, "is_intersection": n.is_intersection, "is_overlap": n.is_overlap}
+                 "degree": n.degree, "trace_indices": list(n.trace_indices), "event_count": n.event_count}
                 for n in node_analysis.nodes
             ],
             "intersections": [

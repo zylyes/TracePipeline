@@ -16,25 +16,44 @@ const props = defineProps<{
     p10?: number | null
     p20?: number | null
     p21?: number | null
-    node_count?: number
-    node_x_count?: number
-    node_y_count?: number
-    node_i_count?: number
+    outcrop_area?: number | null
+    nodes_summary?: {
+      node_count: number
+      node_i_count: number
+      node_y_count: number
+      node_x_count: number
+      intersection_count: number
+      degenerate_skipped: number
+    }
   }
 }>()
+
+const ns = computed(() => props.stats?.nodes_summary)
+
+const nodeDensity = computed(() => {
+  const count = ns.value?.node_count
+  const area = props.stats?.outcrop_area
+  if (count == null || area == null || area <= 0) return null
+  return count / area
+})
 
 const cards = computed(() => [
   { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹' },
   { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²' },
   { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹' },
-  { label: '节点总数', value: props.stats?.node_count, unit: '个' },
-  { label: '相交节点 X', value: props.stats?.node_x_count, unit: '个' },
-  { label: '三叉节点 Y', value: props.stats?.node_y_count, unit: '个' },
+  { label: '节点总数', value: ns.value?.node_count, unit: '个' },
+  { label: '节点密度', value: nodeDensity.value, unit: '个/m²' },
+  { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条' },
+  { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个' },
+  { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个' },
+  { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个' },
 ])
 
 function formatValue(v: number | null | undefined) {
   if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return '—'
-  return Number(v).toFixed(2)
+  const n = Number(v)
+  if (Number.isInteger(n)) return String(n)
+  return n.toFixed(2)
 }
 </script>
 

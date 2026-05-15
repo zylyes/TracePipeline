@@ -358,11 +358,9 @@ def _build_node_sections(
     tc = node_analysis.type_counts
     stats_items = [
         ("节点总数", str(node_analysis.node_count)),
-        ("自由端点(I)", str(tc.get("I", 0))),
+        ("孤立端点(I)", str(tc.get("I", 0))),
         ("三叉节点(Y)", str(tc.get("Y", 0))),
-        ("相交节点(X)", str(tc.get("X", 0))),
-        ("重叠节点", str(tc.get("overlap", 0))),
-        ("多交汇点", str(tc.get("multi", 0))),
+        ("交叉节点(X)", str(tc.get("X", 0))),
         ("交点事件数", str(node_analysis.intersection_count)),
         ("节点密度", _format_excel_cell_value(node_analysis.node_density(trace.measured_outcrop_area), "个/m²")),
         ("合并容差", _format_excel_cell_value(node_analysis.nodes[0].x if node_analysis.nodes else None, "")),
@@ -377,12 +375,9 @@ def _build_node_sections(
             "X": round(node.x, 4),
             "Y": round(node.y, 4),
             "类型": node.type_label,
-            "度数": node.degree,
+            "拓扑值": node.degree,
             "连接迹线": ",".join(str(i) for i in node.trace_indices),
             "事件数": node.event_count,
-            "含端点": "是" if node.is_endpoint else "否",
-            "含相交": "是" if node.is_intersection else "否",
-            "含重叠": "是" if node.is_overlap else "否",
         })
     detail_df = pd.DataFrame(detail_records)
 

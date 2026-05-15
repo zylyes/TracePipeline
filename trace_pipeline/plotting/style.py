@@ -3,16 +3,36 @@ from __future__ import annotations
 
 import functools
 import logging
+import threading
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import matplotlib
 import matplotlib.font_manager as fm
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from matplotlib.axes import Axes
     from matplotlib.text import Text
 
 logger = logging.getLogger(__name__)
+
+# 绘图模块级样式常量映射（由 apply_style_overrides 使用）
+_STYLE_CONSTANTS: dict[str, tuple[str, str]] = {
+    "trace_line_color": ("trace_plot", "_TRACE_LINE_COLOR"),
+    "trace_line_width": ("trace_plot", "_TRACE_LINE_WIDTH"),
+    "hull_line_color": ("trace_plot", "_HULL_LINE_COLOR"),
+    "hull_fill_color": ("trace_plot", "_HULL_FILL_COLOR"),
+    "hull_fill_alpha": ("trace_plot", "_HULL_FILL_ALPHA"),
+    "circle_window_line_color": ("trace_plot", "_CIRCLE_WINDOW_LINE_COLOR"),
+    "circle_window_fill_color": ("trace_plot", "_CIRCLE_WINDOW_FILL_COLOR"),
+    "circle_window_fill_alpha": ("trace_plot", "_CIRCLE_WINDOW_FILL_ALPHA"),
+    "rose_bar_color": ("rose_plot", "_ROSE_BAR_COLOR"),
+    "rose_bar_edge": ("rose_plot", "_ROSE_BAR_EDGE"),
+    "rose_grid_color": ("rose_plot", "_ROSE_GRID_COLOR"),
+}
+
+_STYLE_LOCK = threading.Lock()
 
 WESTERN_PRIMARY_FONT = "Times New Roman"
 CJK_PRIMARY_FONT = "SimSun"
@@ -161,3 +181,40 @@ def configure_style() -> None:
     matplotlib.rcParams["savefig.facecolor"] = "white"
 
     logger.debug("matplotlib 全局样式已配置（论文风格）")
+
+
+@contextmanager
+def apply_style_overrides(style: dict[str, Any]) -> Generator[None, None, None]:
+    """线程安全地临时应用样式覆盖，退出时自动恢复。
+
+    Args:
+        style: 样式覆盖字典，仅处理 _STYLE_CONSTANTS 中已注册的键。
+    """
+    # 惰性导入避免循环依赖
+    from trace_pipeline.plotting import rose_plot as rp  # noqa: PLC0415
+    from trace_pipeline.plotting import trace_plot as tp  # noqa: PLC0415
+
+    orig: dict[str, Any] = {}
+    try:
+        with _STYLE_LOCK:
+            # 保存与覆盖
+            for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
+                mod = tp if mod_name == "trace_plot" else rp
+                if hasattr(mod, attr):
+                    orig[key] = getattr(mod, attr)
+                if key in style:
+                    setattr(mod, attr, style[key])
+
+            if "global_font_size" in style:
+                orig["_rc_font_size"] = matplotlib.rcParams.get("font.size")
+                matplotlib.rcParams["font.size"] = float(style["global_font_size"])
+
+            yield
+    finally:
+        with _STYLE_LOCK:
+            for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
+                mod = tp if mod_name == "trace_plot" else rp
+                if key in orig:
+                    setattr(mod, attr, orig[key])
+            if "_rc_font_size" in orig:
+                matplotlib.rcParams["font.size"] = orig["_rc_font_size"]

@@ -3,7 +3,15 @@
   --tp-font-chinese: "SimSun", "STSong", "Noto Serif SC", serif;
   --tp-font-stack: var(--tp-font-western), var(--tp-font-chinese);
 
-  /* Element Plus CSS 变量覆写（配合预构建 CSS 使用） */
+  /* 学术配色 */
+  --tp-color-primary: #2c3e50;
+  --tp-color-accent: #B85C38;
+  --tp-color-dark-bg: #1A2332;
+  --tp-color-border: #dde1e6;
+  --tp-color-bg: #f8f9fa;
+  --tp-color-text-secondary: #7f8c8d;
+
+  /* Element Plus CSS 变量覆写 */
   --el-color-primary: #2c3e50;
   --el-color-success: #2E7D5A;
   --el-color-warning: #f39c12;

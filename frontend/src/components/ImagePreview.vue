@@ -10,6 +10,11 @@
         <el-checkbox v-model="img.showOverlay">显示覆盖层</el-checkbox>
       </div>
     </div>
+    <Teleport to="body">
+      <div v-if="fullscreenSrc" class="fullscreen-viewer" @click="fullscreenSrc = ''">
+        <img :src="fullscreenSrc" class="fullscreen-img" />
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -28,6 +33,7 @@ const props = defineProps<{
 }>()
 
 const imageList = ref<Array<{ key: string; title: string; dataUrl: string; showOverlay: boolean }>>([])
+const fullscreenSrc = ref('')
 
 async function loadImages() {
   const list = []
@@ -41,14 +47,7 @@ async function loadImages() {
 watch(() => props.images, loadImages, { deep: true, immediate: true })
 
 function previewImage(src: string) {
-  const viewer = document.createElement('div')
-  viewer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:zoom-out;'
-  const imgEl = document.createElement('img')
-  imgEl.src = src
-  imgEl.style.cssText = 'max-width:90%;max-height:90%;'
-  viewer.appendChild(imgEl)
-  viewer.onclick = () => document.body.removeChild(viewer)
-  document.body.appendChild(viewer)
+  fullscreenSrc.value = src
 }
 </script>
 
@@ -89,5 +88,22 @@ function previewImage(src: string) {
 .preview-options {
   margin-top: 8px;
   text-align: center;
+}
+.fullscreen-viewer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  cursor: zoom-out;
+}
+.fullscreen-img {
+  max-width: 90%;
+  max-height: 90%;
 }
 </style>

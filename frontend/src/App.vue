@@ -5,7 +5,7 @@
       <div class="logo">
         <GeoIcon class="logo-icon" :size="22" color="#B85C38" />
         <span class="logo-text">TracePipeline</span>
-        <span class="logo-version">v1.0</span>
+        <span class="logo-version">v1.0.1</span>
       </div>
       <nav class="menu">
         <router-link
@@ -14,7 +14,7 @@
           :to="item.path"
           :class="['menu-item', { active: route.path === item.path }]"
         >
-          <el-icon :size="20"><component :is="item.icon" /></el-icon>
+          <component :is="item.icon" :size="20" class="menu-icon" />
           <span class="menu-label">{{ item.label }}</span>
         </router-link>
       </nav>
@@ -70,11 +70,14 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  House, HomeFilled, DataLine, DocumentCopy, List, Setting,
-  FolderOpened, Document, Timer, Files, Folder, Clock,
-} from '@element-plus/icons-vue'
+import { FolderOpened, Document, Timer, Files, Folder, Clock } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
+import HomeIcon from '@/components/icons/HomeIcon.vue'
+import ProcessIcon from '@/components/icons/ProcessIcon.vue'
+import StatsIcon from '@/components/icons/StatsIcon.vue'
+import CompareIcon from '@/components/icons/CompareIcon.vue'
+import DataIcon from '@/components/icons/DataIcon.vue'
+import ConfigIcon from '@/components/icons/ConfigIcon.vue'
 import { useAppStore } from '@/stores/app'
 import { useConfigStore } from '@/stores/config'
 import { api } from '@/api/pywebview'
@@ -84,12 +87,12 @@ const appStore = useAppStore()
 const configStore = useConfigStore()
 
 const menuItems = [
-  { path: '/', label: '首页', icon: House },
-  { path: '/processing', label: '处理', icon: HomeFilled },
-  { path: '/statistics', label: '统计', icon: DataLine },
-  { path: '/comparison', label: '对比', icon: DocumentCopy },
-  { path: '/data', label: '数据', icon: List },
-  { path: '/config', label: '配置', icon: Setting },
+  { path: '/', label: '首页', icon: HomeIcon },
+  { path: '/processing', label: '处理', icon: ProcessIcon },
+  { path: '/statistics', label: '统计', icon: StatsIcon },
+  { path: '/comparison', label: '对比', icon: CompareIcon },
+  { path: '/data', label: '数据', icon: DataIcon },
+  { path: '/config', label: '配置', icon: ConfigIcon },
 ]
 
 const statusText = computed(() => {
@@ -134,8 +137,8 @@ onMounted(async () => {
 }
 
 .sidebar {
-  width: 200px;
-  background: #1E2935;
+  width: 210px;
+  background: #1A2332;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -164,23 +167,36 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 0 20px;
-  height: 48px;
-  color: rgba(255,255,255,0.75);
+  height: 46px;
+  color: rgba(255,255,255,0.7);
   text-decoration: none;
   font-size: 14px;
   transition: all 0.2s;
-  border-left: 4px solid transparent;
+  border-left: 3px solid transparent;
+}
+
+.menu-icon {
+  flex-shrink: 0;
+  opacity: 0.8;
 }
 
 .menu-item:hover {
-  background: #243342;
+  background: #222d3a;
   color: #fff;
 }
 
+.menu-item:hover .menu-icon {
+  opacity: 1;
+}
+
 .menu-item.active {
-  background: #2c3e50;
+  background: #253544;
   color: #fff;
   border-left-color: #B85C38;
+}
+
+.menu-item.active .menu-icon {
+  opacity: 1;
 }
 
 .sidebar-footer {
@@ -217,14 +233,14 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background: #f8f9fa;
   overflow: hidden;
 }
 
 .status-bar {
   height: 32px;
   background: #fff;
-  border-top: 1px solid #e4e7ed;
+  border-top: 1px solid #dde1e6;
   display: flex;
   align-items: center;
   gap: 20px;

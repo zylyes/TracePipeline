@@ -14,14 +14,30 @@ import webview
 
 from trace_pipeline.cli.logging_setup import setup_logging
 
-from .gui_api import GuiApi
-from .webview2_checker import WebView2Checker
+from backend.gui_api import GuiApi
+from backend.webview2_checker import WebView2Checker
 
 # 先配置 trace_pipeline 双通道日志（控制台 + 文件）
 setup_logging()
 
-# 再为 backend 包追加同一日志文件，保证前后端日志统一落盘
-_log_dir = Path("logs")
+# 控制台日志保留
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,
+)
+logger = logging.getLogger(__name__)
+
+if getattr(sys, 'frozen', False):
+    PROJECT_ROOT = Path(sys._MEIPASS)
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+STATIC_DIR = PROJECT_ROOT / "backend" / "static"
+ICON_PATH = PROJECT_ROOT / "reference" / "ECUT.ico"
+
+# 为 backend 包追加同一日志文件，保证前后端日志统一落盘
+_log_dir = PROJECT_ROOT / "logs"
 if _log_dir.is_dir():
     _log_files = sorted(_log_dir.glob("pipeline_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
     if _log_files:
@@ -33,19 +49,6 @@ if _log_dir.is_dir():
             _fh.setLevel(logging.DEBUG)
             _fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
             _backend_logger.addHandler(_fh)
-
-# 控制台日志保留
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-    force=True,
-)
-logger = logging.getLogger(__name__)
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-STATIC_DIR = PROJECT_ROOT / "backend" / "static"
-ICON_PATH = PROJECT_ROOT / "reference" / "ECUT.ico"
 
 
 def main() -> None:
@@ -80,7 +83,7 @@ def main() -> None:
     url = str(index_html.resolve()) if index_html.exists() else str(STATIC_DIR.resolve())
 
     window = webview.create_window(
-        "TracePipeline v1.0",
+        "TracePipeline v1.0.1",
         url=url,
         width=1400,
         height=900,

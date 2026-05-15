@@ -58,6 +58,11 @@ const total = ref(0)
 const loading = ref(false)
 const searchText = ref('')
 
+function onSearch() {
+  page.value = 1
+  loadData()
+}
+
 // 前端分区名 -> 后端 section 参数 映射
 const SECTION_MAP: Record<string, string> = {
   '裂隙情况': '裂隙情况',
@@ -110,7 +115,7 @@ function exportExcel() {
 watch(() => props.outcrop, () => {
   page.value = 1
   loadData()
-})
+}, { immediate: false })
 
   watch(() => props.source, () => {
     page.value = 1

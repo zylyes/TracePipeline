@@ -3,73 +3,27 @@
     <!-- Hero 区域 -->
     <div class="hero-section">
       <div class="hero-content">
-        <GeoIcon class="hero-logo" :size="48" color="#B85C38" />
+        <GeoIcon class="hero-logo" :size="44" color="#B85C38" />
         <h1 class="hero-title">TracePipeline</h1>
-        <p class="hero-subtitle">岩体节理测线数据处理与可视化系统</p>
+        <p class="hero-subtitle">节理迹线数据处理与可视化系统</p>
         <p class="hero-desc">
-          面向地质工程领域的专业数据处理平台，支持节理迹线自动识别、走向玫瑰图生成、
-          节点拓扑分析、多露头对比统计等功能。
+          面向地质工程的专业数据处理平台，支持迹线自动识别、走向玫瑰图生成、
+          节点拓扑分析及多露头对比统计。
         </p>
-        <el-button type="primary" size="large" @click="$router.push('/processing')">
-          <el-icon><HomeFilled /></el-icon>
-          开始使用
-        </el-button>
       </div>
     </div>
 
-    <!-- 功能模块 -->
+    <!-- 功能模块 — 单行横向 -->
     <div class="modules-section">
-      <h2 class="section-title">功能模块</h2>
-      <div class="modules-grid">
-        <el-card class="module-card" shadow="hover" @click="$router.push('/processing')">
-          <div class="module-icon">
-            <el-icon :size="32" color="#B85C38"><HomeFilled /></el-icon>
+      <div class="modules-row">
+        <div v-for="mod in modules" :key="mod.path" class="module-card" @click="$router.push(mod.path)">
+          <div class="module-accent" :style="{ background: mod.color }" />
+          <div class="module-body">
+            <component :is="mod.icon" :size="36" :color="mod.color" class="module-icon" />
+            <h3 class="module-name">{{ mod.name }}</h3>
+            <p class="module-desc">{{ mod.desc }}</p>
           </div>
-          <h3 class="module-name">处理</h3>
-          <p class="module-desc">
-            批量处理露头数据，自动计算迹线参数，支持节点识别、走向玫瑰图生成与多种圆窗策略。
-          </p>
-        </el-card>
-
-        <el-card class="module-card" shadow="hover" @click="$router.push('/statistics')">
-          <div class="module-icon">
-            <el-icon :size="32" color="#2E7D5A"><DataLine /></el-icon>
-          </div>
-          <h3 class="module-name">统计</h3>
-          <p class="module-desc">
-            单露头统计指标展示，包含 P10/P20/P21 密度、迹长直方图、裂隙类型饼图与结果图浏览。
-          </p>
-        </el-card>
-
-        <el-card class="module-card" shadow="hover" @click="$router.push('/comparison')">
-          <div class="module-icon">
-            <el-icon :size="32" color="#2c3e50"><DocumentCopy /></el-icon>
-          </div>
-          <h3 class="module-name">对比</h3>
-          <p class="module-desc">
-            多露头参数对比表格与柱状图分析，直观比较不同露头的迹线密度、裂隙类型与节点指标。
-          </p>
-        </el-card>
-
-        <el-card class="module-card" shadow="hover" @click="$router.push('/data')">
-          <div class="module-icon">
-            <el-icon :size="32" color="#7B1FA2"><List /></el-icon>
-          </div>
-          <h3 class="module-name">数据</h3>
-          <p class="module-desc">
-            查看输入/输出数据明细，支持裂隙情况、计算数据、端点坐标、走向与迹长等多维度浏览。
-          </p>
-        </el-card>
-
-        <el-card class="module-card" shadow="hover" @click="$router.push('/config')">
-          <div class="module-icon">
-            <el-icon :size="32" color="#606266"><Setting /></el-icon>
-          </div>
-          <h3 class="module-name">配置</h3>
-          <p class="module-desc">
-            全局参数、绘图样式与开发者模式配置，灵活调整处理流程与可视化效果。
-          </p>
-        </el-card>
+        </div>
       </div>
     </div>
 
@@ -77,46 +31,80 @@
     <div class="quickstart-section">
       <h2 class="section-title">快速开始</h2>
       <div class="steps">
-        <div class="step-item">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <h4>选择露头文件</h4>
-            <p>在"处理"页面扫描并选择需要处理的露头 Excel 文件，配置处理参数。</p>
+        <div v-for="(step, i) in steps" :key="i" class="step-group">
+          <div class="step-item">
+            <span class="step-number">{{ i + 1 }}</span>
+            <div class="step-content">
+              <h4>{{ step.title }}</h4>
+              <p>{{ step.desc }}</p>
+            </div>
           </div>
-        </div>
-        <div class="step-arrow">
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        <div class="step-item">
-          <div class="step-number">2</div>
-          <div class="step-content">
-            <h4>运行处理流程</h4>
-            <p>点击"开始处理"启动流水线，系统将自动完成迹线计算、玫瑰图绘制与节点识别。</p>
-          </div>
-        </div>
-        <div class="step-arrow">
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        <div class="step-item">
-          <div class="step-number">3</div>
-          <div class="step-content">
-            <h4>查看分析结果</h4>
-            <p>在"统计"、"对比"或"数据"页面查看处理结果，支持图表交互与数据导出。</p>
-          </div>
+          <span v-if="i < steps.length - 1" class="step-arrow"><ArrowRight :size="18" /></span>
         </div>
       </div>
     </div>
 
-    <!-- 底部信息 -->
+    <!-- 底部 -->
     <footer class="intro-footer">
-      <p>TracePipeline v1.0 · 地质工程数据处理平台</p>
+      <p>TracePipeline v1.0.1 · 地质工程数据处理平台</p>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { HomeFilled, DataLine, DocumentCopy, List, Setting, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowRight } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
+import HomeIcon from '@/components/icons/HomeIcon.vue'
+import ProcessIcon from '@/components/icons/ProcessIcon.vue'
+import StatsIcon from '@/components/icons/StatsIcon.vue'
+import CompareIcon from '@/components/icons/CompareIcon.vue'
+import DataIcon from '@/components/icons/DataIcon.vue'
+import ConfigIcon from '@/components/icons/ConfigIcon.vue'
+
+const modules = [
+  {
+    name: '处理',
+    desc: '批量处理露头数据，自动计算迹线参数与节点识别',
+    path: '/processing',
+    icon: ProcessIcon,
+    color: '#B85C38',
+  },
+  {
+    name: '统计',
+    desc: '密度指标、迹长直方图、裂隙类型饼图与结果浏览',
+    path: '/statistics',
+    icon: StatsIcon,
+    color: '#2E7D5A',
+  },
+  {
+    name: '对比',
+    desc: '多露头参数对比表格与柱状图，直观比较差异',
+    path: '/comparison',
+    icon: CompareIcon,
+    color: '#4A5568',
+  },
+  {
+    name: '数据',
+    desc: '裂隙情况、端点坐标、走向与迹长等多维度浏览',
+    path: '/data',
+    icon: DataIcon,
+    color: '#7B1FA2',
+  },
+  {
+    name: '配置',
+    desc: '全局参数、绘图样式与开发者模式灵活调整',
+    path: '/config',
+    icon: ConfigIcon,
+    color: '#606266',
+  },
+]
+
+const steps = [
+  { title: '选择露头文件', desc: '扫描并选择需处理的露头 Excel 文件，配置处理参数。' },
+  { title: '运行处理流程', desc: '启动流水线，自动完成迹线计算、绘图与节点识别。' },
+  { title: '查看分析结果', desc: '在统计、对比或数据页面查看结果，支持图表交互。' },
+]
+
 </script>
 
 <style scoped lang="scss">
@@ -124,168 +112,208 @@ import GeoIcon from '@/components/GeoIcon.vue'
   padding: 24px;
   height: 100%;
   overflow-y: auto;
-  background: #f5f7fa;
+  background: #f8f9fa;
 }
 
-/* Hero 区域 */
+/* ── Hero ───────────────────────────────────────────── */
 .hero-section {
-  background: linear-gradient(135deg, #2c3e50 0%, #1E2935 100%);
-  border-radius: 12px;
-  padding: 48px 32px;
+  background: linear-gradient(135deg, #1a2332 0%, #2c3e50 100%);
+  border-radius: 10px;
+  padding: 36px 32px;
   text-align: center;
   color: #fff;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .hero-content {
-  max-width: 640px;
+  max-width: 560px;
   margin: 0 auto;
 }
 
 .hero-logo {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .hero-title {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-family: var(--tp-font-stack);
   letter-spacing: 1px;
 }
 
 .hero-subtitle {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 400;
-  opacity: 0.9;
-  margin: 0 0 16px;
+  opacity: 0.88;
+  margin: 0 0 12px;
   color: #e0e0e0;
 }
 
 .hero-desc {
-  font-size: 14px;
-  line-height: 1.8;
-  opacity: 0.75;
-  margin: 0 0 24px;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.7;
+  margin: 0;
   color: #c0c4cc;
 }
 
-/* 功能模块 */
+/* ── 功能模块（单行横向） ──────────────────────────── */
 .modules-section {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
-.section-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 20px;
-  text-align: center;
-}
-
-.modules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+.modules-row {
+  display: flex;
+  gap: 14px;
 }
 
 .module-card {
-  cursor: pointer;
-  transition: all 0.3s;
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #dde1e6;
   border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .module-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: #c8cdd3;
+}
+
+.module-accent {
+  height: 3px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.module-body {
+  padding: 16px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
 }
 
 .module-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  background: #f5f7fa;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .module-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
 }
 
 .module-desc {
-  font-size: 13px;
+  font-size: 12px;
   color: #7f8c8d;
-  line-height: 1.6;
+  line-height: 1.55;
   margin: 0;
 }
 
-/* 快速开始 */
+/* ── 快速开始 ──────────────────────────────────────── */
 .quickstart-section {
   background: #fff;
-  border-radius: 12px;
-  padding: 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #dde1e6;
+  border-radius: 10px;
+  padding: 24px 32px;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 18px;
+  text-align: center;
+  font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
 }
 
 .steps {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
+}
+
+.step-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .step-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  max-width: 260px;
+  gap: 10px;
+  flex: 1;
 }
 
 .step-number {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #B85C38;
   color: #fff;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-family: 'Times New Roman', serif;
+}
+
+.step-content {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .step-content h4 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
+  font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
 }
 
 .step-content p {
-  font-size: 13px;
+  font-size: 12px;
   color: #7f8c8d;
-  line-height: 1.6;
+  line-height: 1.5;
   margin: 0;
 }
 
 .step-arrow {
   color: #c0c4cc;
-  font-size: 20px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
 }
 
-/* 底部 */
+/* ── 底部 ──────────────────────────────────────────── */
 .intro-footer {
   text-align: center;
-  padding: 16px 0;
+  padding: 12px 0;
   color: #909399;
   font-size: 12px;
 }

@@ -1,6 +1,6 @@
 {
-  "input_dir": "C:\\Users\\Chinese\\OneDrive\\code\\input",
-  "output_dir": "C:\\Users\\Chinese\\OneDrive\\code\\output",
+  "input_dir": "input",
+  "output_dir": "output",
   "output_prefix": "Outcrop",
   "table_stem": "O76_process",
   "outcrop": "O76",

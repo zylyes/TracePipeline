@@ -9,6 +9,8 @@
       <el-table-column prop="mean_trace_length" label="平均迹长" />
       <el-table-column prop="scanline_azimuth" label="走向" />
       <el-table-column prop="type_ratio" label="I:II:III" />
+      <el-table-column prop="node_count" label="节点数" />
+      <el-table-column prop="node_ratio" label="X:Y:I" />
     </el-table>
 
     <div class="chart-area">
@@ -87,15 +89,20 @@ async function loadComparison() {
       return
     }
     const data = await api.get_comparison(outcrops)
-    tableData.value = data.map((d: any) => ({
-      outcrop: d.outcrop,
-      p10: d.p10 != null ? Number(d.p10).toFixed(2) : '—',
-      p20: d.p20 != null ? Number(d.p20).toFixed(2) : '—',
-      p21: d.p21 != null ? Number(d.p21).toFixed(2) : '—',
-      mean_trace_length: d.mean_trace_length != null ? Number(d.mean_trace_length).toFixed(2) + 'm' : '—',
-      scanline_azimuth: (d.scanline_azimuth ?? '—') + '°',
-      type_ratio: `${d.type_i ?? 0}:${d.type_ii ?? 0}:${d.type_iii ?? 0}`,
-    }))
+    tableData.value = data.map((d: any) => {
+      const ns = d.nodes_summary || {}
+      return {
+        outcrop: d.outcrop,
+        p10: d.p10 != null ? Number(d.p10).toFixed(2) : '—',
+        p20: d.p20 != null ? Number(d.p20).toFixed(2) : '—',
+        p21: d.p21 != null ? Number(d.p21).toFixed(2) : '—',
+        mean_trace_length: d.mean_trace_length != null ? Number(d.mean_trace_length).toFixed(2) + 'm' : '—',
+        scanline_azimuth: (d.scanline_azimuth ?? '—') + '°',
+        type_ratio: `${d.type_i ?? 0}:${d.type_ii ?? 0}:${d.type_iii ?? 0}`,
+        node_count: (ns.node_count ?? '—') + '',
+        node_ratio: `${ns.node_x_count ?? 0}:${ns.node_y_count ?? 0}:${ns.node_i_count ?? 0}`,
+      }
+    })
 
     const results = await api.get_results()
     gridImages.value = results.map((r: any) => ({

@@ -189,6 +189,10 @@ class RunConfig:
     auto_density_threshold: float = 5.0
     tangent_window_count: int = 3
     style: dict[str, Any] = field(default_factory=dict)
+    enable_node_recognition: bool = True
+    node_merge_tolerance: float = 1e-6
+    show_node_overlay: bool = True
+    node_label_mode: str = "type"
 
     def __post_init__(self) -> None:
         for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
@@ -201,11 +205,18 @@ class RunConfig:
             k: getattr(self, k)
             for k in ("export_rose_plot", "rose_bin_width", "rose_dpi",
                       "trace_dpi", "rotated_trace_dpi", "window_strategy",
-                      "auto_density_threshold", "tangent_window_count")
+                      "auto_density_threshold", "tangent_window_count",
+                      "enable_node_recognition", "node_merge_tolerance",
+                      "show_node_overlay")
         }
         coerce_scalar_config_fields(field_values)
         for k, v in field_values.items():
             object.__setattr__(self, k, v)
+
+        if self.node_merge_tolerance <= 0.0:
+            raise ValueError("node_merge_tolerance 必须大于 0")
+        if self.node_label_mode not in ("none", "type", "id"):
+            raise ValueError(f"node_label_mode 必须为 none/type/id 之一: {self.node_label_mode}")
 
     # ---- 工厂方法 ----
 
@@ -220,6 +231,8 @@ class RunConfig:
             "export_rose_plot", "rose_bin_width", "rose_dpi", "trace_dpi",
             "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
             "tangent_window_count", "style",
+            "enable_node_recognition", "node_merge_tolerance",
+            "show_node_overlay", "node_label_mode",
         }
         return cls(**{k: cfg[k] for k in known if k in cfg})
 
@@ -245,6 +258,14 @@ class RunResult:
     window_strategy: str = ""
     area_source: str = ""
     error: str = ""
+    node_count: int = 0
+    node_i_count: int = 0
+    node_y_count: int = 0
+    node_x_count: int = 0
+    node_overlap_count: int = 0
+    node_multi_count: int = 0
+    intersection_count: int = 0
+    endpoint_node_count: int = 0
 
     @classmethod
     def success(
@@ -259,6 +280,14 @@ class RunResult:
         rose_plot_path: str = "",
         window_strategy: str = "",
         area_source: str = "",
+        node_count: int = 0,
+        node_i_count: int = 0,
+        node_y_count: int = 0,
+        node_x_count: int = 0,
+        node_overlap_count: int = 0,
+        node_multi_count: int = 0,
+        intersection_count: int = 0,
+        endpoint_node_count: int = 0,
     ) -> RunResult:
         return cls(
             table_stem=table_stem,
@@ -272,6 +301,14 @@ class RunResult:
             rose_plot_path=rose_plot_path,
             window_strategy=window_strategy,
             area_source=area_source,
+            node_count=node_count,
+            node_i_count=node_i_count,
+            node_y_count=node_y_count,
+            node_x_count=node_x_count,
+            node_overlap_count=node_overlap_count,
+            node_multi_count=node_multi_count,
+            intersection_count=intersection_count,
+            endpoint_node_count=endpoint_node_count,
         )
 
     @classmethod

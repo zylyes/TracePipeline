@@ -3,13 +3,10 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from collections import deque
-from pathlib import Path
 from typing import Any
 
 from trace_pipeline.config import resolve_io_paths
-from trace_pipeline.io.discovery import find_trace_tables
 from trace_pipeline.models import RunConfig
 from trace_pipeline.pipeline import run_pipeline
 
@@ -108,6 +105,10 @@ class PipelineService:
                     "window_strategy": result.window_strategy,
                     "area_source": result.area_source,
                     "error": result.error,
+                    "node_count": result.node_count,
+                    "node_x_count": result.node_x_count,
+                    "node_y_count": result.node_y_count,
+                    "node_i_count": result.node_i_count,
                 }
                 completed_results.append(result_dict)
                 if result.status == "success":

@@ -364,7 +364,8 @@ function startPolling() {
           pipelineStore.results.push(evt)
           if (evt.result) {
             if (evt.result.status === 'success') {
-              const info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 走向=${evt.result.scanline_azimuth.toFixed(1)}°, 策略=${evt.result.window_strategy || 'auto'}`
+              const nodeInfo = evt.result.node_count != null ? `, 节点=${evt.result.node_count}(X${evt.result.node_x_count ?? 0}/Y${evt.result.node_y_count ?? 0}/I${evt.result.node_i_count ?? 0})` : ''
+              const info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 走向=${evt.result.scanline_azimuth.toFixed(1)}°, 策略=${evt.result.window_strategy || 'auto'}${nodeInfo}`
               addLog('success', info)
             } else {
               addLog('error', `${evt.result.outcrop} 处理失败：${evt.result.error || '未知错误'}`)

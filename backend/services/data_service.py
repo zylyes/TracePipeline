@@ -19,6 +19,9 @@ SECTION_MAP = {
     "走向与长度": "走向与长度",
     "裂隙情况": "裂隙情况",
     "计算数据": "计算数据",
+    "节点统计": "节点统计",
+    "节点明细": "节点明细",
+    "节点交点": "节点交点",
 }
 
 # 输入文件标准列名
@@ -70,7 +73,7 @@ class DataService:
         try:
             # header=1: 跳过第1行标题，将第2行作为表头
             df = pd.read_excel(path, sheet_name=sheet_name, header=1)
-        except ValueError as exc:
+        except ValueError:
             # Sheet 不存在（旧格式单工作表文件）
             return {"error": f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件"}
         except Exception as exc:

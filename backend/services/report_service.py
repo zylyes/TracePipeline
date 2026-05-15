@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from trace_pipeline.pipeline import load_trace_data
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
+from trace_pipeline.pipeline import load_trace_data
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +90,9 @@ class ReportService:
     def _gen_docx(self, outcrop: str, trace, statistics, report_type: str) -> str:
         try:
             from docx import Document
-            from docx.shared import Inches, Pt
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             from docx.oxml.ns import qn
+            from docx.shared import Inches, Pt
         except ImportError:
             logger.warning("python-docx 未安装")
             return ""
@@ -100,8 +100,10 @@ class ReportService:
         doc = Document()
 
         # 设置默认字体（英文 TNR，中文宋体；标题黑体）
-        def _set_style_font(style, western="Times New Roman", east_asia="SimSun", size=Pt(12), bold=False):
+        def _set_style_font(style, western="Times New Roman", east_asia="SimSun", size=None, bold=False):
             style.font.name = western
+            if size is None:
+                size = Pt(12)
             style.font.size = size
             style.font.bold = bold
             if style.element.rPr is not None:
@@ -163,12 +165,13 @@ class ReportService:
     # ------------------------------------------------------------------
     def _gen_pdf(self, outcrop: str, trace, statistics, report_type: str) -> str:
         try:
+            from reportlab.lib.enums import TA_CENTER
             from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
             from reportlab.pdfbase import pdfmetrics
             from reportlab.pdfbase.ttfonts import TTFont
-            from reportlab.lib.enums import TA_CENTER
+            from reportlab.platypus import Image as RLImage
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
         except ImportError:
             logger.warning("reportlab 未安装")
             return ""

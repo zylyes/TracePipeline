@@ -7,6 +7,9 @@
       <el-tab-pane label="原始端点" name="原始端点" />
       <el-tab-pane label="旋转端点" name="旋转端点" />
       <el-tab-pane label="走向与迹长" name="走向与迹长" />
+      <el-tab-pane label="节点统计" name="节点统计" />
+      <el-tab-pane label="节点明细" name="节点明细" />
+      <el-tab-pane label="节点交点" name="节点交点" />
     </el-tabs>
     <div v-else class="source-hint">原始输入数据</div>
 
@@ -32,8 +35,6 @@
         @change="loadData"
       />
       <el-input v-model="searchText" placeholder="搜索..." style="width:200px" size="small" clearable />
-      <el-button size="small" @click="exportCSV">导出CSV</el-button>
-      <el-button size="small" @click="exportExcel">导出Excel</el-button>
     </div>
   </div>
 </template>
@@ -65,6 +66,9 @@ const SECTION_MAP: Record<string, string> = {
   '原始端点': '原始坐标',
   '旋转端点': '旋转坐标',
   '走向与迹长': '走向与长度',
+  '节点统计': '节点统计',
+  '节点明细': '节点明细',
+  '节点交点': '节点交点',
 }
 
 async function loadData() {

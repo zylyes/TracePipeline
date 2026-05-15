@@ -18,7 +18,7 @@ from trace_pipeline.analysis.nodes import recognize_trace_nodes
 from trace_pipeline.geology.angles import fold_strike_angle
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.geology.transforms import normalize_coordinates
-from trace_pipeline.pipeline import load_trace_data
+from trace_pipeline.models import TraceData
 from trace_pipeline.plotting.overlays import (
     build_node_overlays,
     build_raw_circle_overlays,
@@ -58,6 +58,31 @@ class PreviewService:
         self._sample = sample_outcrop
         self._cache: dict[str, tuple[float, dict[str, str]]] = {}
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _create_demo_trace() -> TraceData:
+        """返回内置 demo 迹线数据，不依赖 input 文件夹。"""
+        endpoints = np.array([
+            [0.0, 0.0, 10.0, 5.0],
+            [2.0, 8.0, 12.0, 2.0],
+            [5.0, 0.0, 5.0, 10.0],
+            [0.0, 5.0, 10.0, 5.0],
+            [8.0, 0.0, 8.0, 8.0],
+            [3.0, 3.0, 10.0, 8.0],
+            [1.0, 7.0, 9.0, 1.0],
+            [6.0, 2.0, 6.0, 9.0],
+        ], dtype=float)
+        joint_strikes = np.array([63.43, 120.96, 0.0, 90.0, 0.0, 54.46, 126.87, 0.0])
+        segment_lengths = np.array([11.18, 11.66, 10.0, 10.0, 8.0, 8.60, 10.0, 7.0])
+        scanline_positions = np.array([0.0, 2.0, 5.0, 0.0, 8.0, 3.0, 1.0, 6.0])
+        return TraceData(
+            scanline_azimuth=298.0,
+            count=8,
+            endpoints=endpoints,
+            joint_strikes=joint_strikes,
+            segment_lengths=segment_lengths,
+            scanline_positions=scanline_positions,
+        )
 
     def generate(self, config: dict[str, Any]) -> dict[str, Any]:
         style_hash = _hash_config(config)
@@ -99,8 +124,8 @@ class PreviewService:
 
         with _PREVIEW_LOCK:
             with apply_style_overrides(style):
-                # 加载样本数据
-                trace = load_trace_data("input", f"{self._sample}_process", self._sample)
+                # 使用内置 demo 数据，不依赖 input 文件夹
+                trace = self._create_demo_trace()
                 stats_config = TraceStatisticsConfig(
                     window_strategy=config.get("window_strategy", "auto"),
                     auto_density_threshold=config.get("auto_density_threshold", 5.0),
@@ -115,21 +140,18 @@ class PreviewService:
                 from trace_pipeline.geology.statistics import format_statistics_box_lines
                 stats_lines = format_statistics_box_lines(statistics)
 
-                # 节点识别
-                raw_node_overlays = ()
-                rotated_node_overlays = ()
-                if config.get("enable_node_recognition", True):
-                    node_config = NodeRecognitionConfig(
-                        enabled=True,
-                        merge_tolerance=config.get("node_merge_tolerance", 1e-6),
-                        show_overlay=config.get("show_node_overlay", True),
-                        label_mode=config.get("node_label_mode", "type"),
-                    )
-                    node_analysis = recognize_trace_nodes(trace.endpoints, node_config)
-                    raw_node_overlays = build_node_overlays(node_analysis)
-                    rotated_node_overlays = build_rotated_node_overlays(
-                        node_analysis, trace.endpoints, trace.scanline_azimuth
-                    )
+                # 节点识别（预览始终启用，不受设置影响）
+                node_config = NodeRecognitionConfig(
+                    enabled=True,
+                    merge_tolerance=config.get("node_merge_tolerance", 1e-6),
+                    show_overlay=True,
+                    label_mode=config.get("node_label_mode", "type"),
+                )
+                node_analysis = recognize_trace_nodes(trace.endpoints, node_config)
+                raw_node_overlays = build_node_overlays(node_analysis)
+                rotated_node_overlays = build_rotated_node_overlays(
+                    node_analysis, trace.endpoints, trace.scanline_azimuth
+                )
 
                 raw_path = PREVIEW_DIR / f"preview_{style_hash}_raw.png"
                 rotated_path = PREVIEW_DIR / f"preview_{style_hash}_rotated.png"
@@ -149,7 +171,7 @@ class PreviewService:
                     circle_windows=raw_circles,
                     hull_overlay=raw_hull,
                     area_source=statistics.outcrop_area_source,
-                    node_overlays=raw_node_overlays if config.get("show_node_overlay", True) else None,
+                    node_overlays=raw_node_overlays,
                     node_label_mode=config.get("node_label_mode", "type"),
                 )
 
@@ -164,12 +186,12 @@ class PreviewService:
                     circle_windows=rotated_circles,
                     hull_overlay=rot_hull,
                     area_source=statistics.outcrop_area_source,
-                    node_overlays=rotated_node_overlays if config.get("show_node_overlay", True) else None,
+                    node_overlays=rotated_node_overlays,
                     node_label_mode=config.get("node_label_mode", "type"),
                 )
 
                 rose_plot_path = ""
-                if trace.joint_strikes.size and config.get("export_rose_plot", True):
+                if trace.joint_strikes.size:
                     rose_plot_path = str(rose_path.resolve())
                     render_rose_plot(
                         trace.joint_strikes,

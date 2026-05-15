@@ -80,6 +80,7 @@ import DataIcon from '@/components/icons/DataIcon.vue'
 import ConfigIcon from '@/components/icons/ConfigIcon.vue'
 import { useAppStore } from '@/stores/app'
 import { useConfigStore } from '@/stores/config'
+import { usePipelineStore } from '@/stores/pipeline'
 import { api } from '@/api/pywebview'
 
 const route = useRoute()
@@ -122,6 +123,18 @@ onMounted(async () => {
     appStore.inputDir = cfg.input_dir || 'input'
     appStore.outputDir = cfg.output_dir || 'output'
     configStore.config = { ...cfg }
+
+    // 若 localStorage 中无 UI 状态记录（首次启动或已清空），
+    // 将 config.json 中的开关状态同步到 pipelineStore，确保前后端一致
+    const pipelineStore = usePipelineStore()
+    const hasStoredRose = localStorage.getItem('tp_last_export_rose_plot') !== null
+    const hasStoredNode = localStorage.getItem('tp_last_enable_node_recognition') !== null
+    if (!hasStoredRose || !hasStoredNode) {
+      pipelineStore.setLastRunConfig(
+        cfg.enable_node_recognition ?? true,
+        cfg.export_rose_plot ?? true
+      )
+    }
   } catch (e) {
     ElMessage.warning('无法加载配置')
   }

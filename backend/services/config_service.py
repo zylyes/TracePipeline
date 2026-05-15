@@ -22,6 +22,23 @@ if getattr(sys, 'frozen', False):
 else:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+# 处理参数键（不含路径和样式）
+PROCESSING_KEYS = (
+    "process_all",
+    "export_rose_plot",
+    "rose_dpi",
+    "rose_bin_width",
+    "trace_dpi",
+    "rotated_trace_dpi",
+    "window_strategy",
+    "auto_density_threshold",
+    "tangent_window_count",
+    "enable_node_recognition",
+    "node_merge_tolerance",
+    "show_node_overlay",
+    "node_label_mode",
+)
+
 
 class ConfigService:
     """封装配置文件的读写，提供前端友好的字典接口。"""
@@ -51,6 +68,21 @@ class ConfigService:
     def reset(self) -> dict[str, Any]:
         """恢复为默认配置。"""
         self._config = validate_config(dict(DEFAULT_CONFIG))
+        self._save()
+        return self._config
+
+    def reset_processing(self) -> dict[str, Any]:
+        """仅重置处理参数为默认值，保留路径和样式。"""
+        for key in PROCESSING_KEYS:
+            self._config[key] = DEFAULT_CONFIG[key]
+        self._config = validate_config(self._config)
+        self._save()
+        return self._config
+
+    def reset_style(self) -> dict[str, Any]:
+        """仅重置样式为空（默认值），保留路径和处理参数。"""
+        self._config["style"] = {}
+        self._config = validate_config(self._config)
         self._save()
         return self._config
 

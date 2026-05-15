@@ -4,7 +4,10 @@
 
     <!-- 处理参数面板 -->
     <div class="params-panel">
-      <h3>处理参数</h3>
+      <div class="params-header">
+        <h3>处理参数</h3>
+        <el-button type="primary" size="small" :icon="Document" @click="saveParams">保存参数</el-button>
+      </div>
       <el-form :model="params" inline size="small">
         <el-form-item label="导出玫瑰图">
           <el-switch v-model="params.export_rose_plot" />
@@ -101,7 +104,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, Document } from '@element-plus/icons-vue'
 import FileList from '@/components/FileList.vue'
 import ProgressPanel from '@/components/ProgressPanel.vue'
 import ImageModal from '@/components/ImageModal.vue'
@@ -121,18 +124,27 @@ const selectedFiles = ref<TraceFile[]>([])
 const parallel = ref(1)
 const POLL_INTERVAL = 300
 
-// 处理参数（本地状态，默认从配置加载）
-const params = ref({
-  export_rose_plot: true,
-  rose_dpi: 400,
-  rose_bin_width: 10,
-  trace_dpi: 300,
-  rotated_trace_dpi: 600,
-  window_strategy: 'auto',
-  auto_density_threshold: 5.0,
-  tangent_window_count: 3,
-  enable_node_recognition: true,
-})
+  // 处理参数（本地状态，默认从配置加载）
+  const params = ref({
+    export_rose_plot: true,
+    rose_dpi: 400,
+    rose_bin_width: 10,
+    trace_dpi: 300,
+    rotated_trace_dpi: 600,
+    window_strategy: 'auto',
+    auto_density_threshold: 5.0,
+    tangent_window_count: 3,
+    enable_node_recognition: true,
+  })
+
+  // 监听开关变化，实时持久化到全局 store（localStorage）
+  watch(
+    () => [params.value.export_rose_plot, params.value.enable_node_recognition],
+    ([rose, node]) => {
+      pipelineStore.setLastRunConfig(node, rose)
+    },
+    { immediate: false }
+  )
 
 // 处理过程日志
 interface ProcessLog {
@@ -260,6 +272,26 @@ function openImageModal(result: PipelineResult) {
   }
   modalImages.value = images
   modalVisible.value = true
+}
+
+async function saveParams() {
+  try {
+    const payload = {
+      export_rose_plot: params.value.export_rose_plot,
+      rose_dpi: params.value.rose_dpi,
+      rose_bin_width: params.value.rose_bin_width,
+      trace_dpi: params.value.trace_dpi,
+      rotated_trace_dpi: params.value.rotated_trace_dpi,
+      window_strategy: params.value.window_strategy,
+      auto_density_threshold: params.value.auto_density_threshold,
+      tangent_window_count: params.value.tangent_window_count,
+      enable_node_recognition: params.value.enable_node_recognition,
+    }
+    await configStore.saveConfig(payload)
+    ElMessage.success('处理参数已保存')
+  } catch (e) {
+    ElMessage.error('保存处理参数失败')
+  }
 }
 
 async function startPipeline() {
@@ -427,6 +459,10 @@ onMounted(async () => {
       enable_node_recognition: cfg.enable_node_recognition ?? true,
     }
   }
+
+  // 将当前参数同步到 pipelineStore，确保 UI 显隐与设置一致
+  pipelineStore.setLastRunConfig(params.value.enable_node_recognition, params.value.export_rose_plot)
+
   await loadFiles()
 })
 
@@ -458,9 +494,16 @@ onUnmounted(() => {
   font-size: 15px;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 12px;
+  margin: 0;
   padding-bottom: 8px;
   border-bottom: 1px solid #e4e7ed;
+  flex: 1;
+}
+.params-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 .process-panel {
   background: #fff;

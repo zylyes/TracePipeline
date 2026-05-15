@@ -104,14 +104,6 @@ function handleTabChange() {
   loadData()
 }
 
-function exportCSV() {
-  ElMessage.info('导出功能开发中')
-}
-
-function exportExcel() {
-  ElMessage.info('导出功能开发中')
-}
-
 watch(() => props.outcrop, () => {
   page.value = 1
   loadData()

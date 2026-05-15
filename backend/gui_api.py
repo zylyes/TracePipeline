@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import json
 import logging
 import os
 import sys
@@ -50,6 +51,20 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 内部辅助
     # ------------------------------------------------------------------
+    def _safe_path(self, path: str, base: Path | None = None) -> Path | None:
+        """解析并校验路径在项目根目录内，防止路径遍历攻击。"""
+        p = Path(path)
+        if not p.is_absolute():
+            p = PROJECT_ROOT / p
+        p = p.resolve()
+        base = (base or PROJECT_ROOT).resolve()
+        try:
+            p.relative_to(base)
+        except ValueError:
+            logger.warning("拒绝越权路径: %s", p)
+            return None
+        return p
+
     def _sync_services_from_config(self, cfg: dict[str, Any]) -> None:
         """用校验后的统一配置同步 FileService / DataService 路径。"""
         input_dir = cfg.get("input_dir", "input")
@@ -64,7 +79,7 @@ class GuiApi:
         return self._config.get()
 
     def set_config(self, config: dict[str, Any]) -> dict[str, Any]:
-        self._audit.log("set_config", params=config)
+        self._audit.log("set_config")
         merged = self._config.set(config)
         self._sync_services_from_config(merged)
         return merged
@@ -97,7 +112,7 @@ class GuiApi:
     # 流水线
     # ------------------------------------------------------------------
     def run_pipeline(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
-        self._audit.log("run_pipeline", params={"targets": targets, "config": config})
+        self._audit.log("run_pipeline", params={"targets": targets, "input_dir": config.get("input_dir", "")})
         try:
             merged = {**self._config.get(), **config}
             saved = self._config.set(merged)
@@ -189,11 +204,15 @@ class GuiApi:
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
         zip_name = f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
         zip_path = REPORT_DIR / zip_name
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for f in files:
-                zf.write(f, arcname=Path(f).name)
+        try:
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for f in files:
+                    zf.write(f, arcname=Path(f).name)
+        except Exception as exc:
+            logger.warning("ZIP 创建失败: %s", exc)
+            return {"error": f"ZIP 创建失败: {exc}"}
 
-        # 清理中间单文件，仅保留 zip
+        # ZIP 创建成功后才清理中间单文件
         for f in files:
             with contextlib.suppress(Exception):
                 os.remove(f)
@@ -227,12 +246,9 @@ class GuiApi:
     # 系统
     # ------------------------------------------------------------------
     def open_directory(self, path: str) -> bool:
-        """打开指定目录（支持相对路径）。"""
-        target = Path(path)
-        if not target.is_absolute():
-            target = PROJECT_ROOT / path
-        target = target.resolve()
-        if not target.exists():
+        """打开指定目录（支持相对路径，限制在项目根目录内）。"""
+        target = self._safe_path(path)
+        if target is None or not target.exists():
             return False
         try:
             os.startfile(str(target))
@@ -242,15 +258,19 @@ class GuiApi:
             return False
 
     def get_image(self, path: str) -> str:
-        """读取图片文件并返回 base64 data URL。"""
+        """读取图片文件并返回 base64 data URL。限制在输出目录内。"""
         try:
-            p = Path(path)
-            if not p.exists():
+            out_dir = Path(self._config.get().get("output_dir", "output"))
+            if not out_dir.is_absolute():
+                out_dir = PROJECT_ROOT / out_dir
+            out_dir = out_dir.resolve()
+            p = self._safe_path(path, base=out_dir)
+            if p is None or not p.exists():
                 return ""
             with open(p, "rb") as f:
                 data = f.read()
             ext = p.suffix.lower()
-            mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(ext, "image/png")
+            mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(ext, "image/png")
             b64 = base64.b64encode(data).decode("utf-8")
             return f"data:{mime};base64,{b64}"
         except Exception as exc:
@@ -273,6 +293,21 @@ class GuiApi:
         except Exception as exc:
             logger.warning("浏览文件夹失败: %s", exc)
             return ""
+
+    def export_config_json(self, folder: str, content: str) -> bool:
+        """将 JSON 内容写入指定文件夹的 config.json 文件。限制在项目根目录内。"""
+        try:
+            folder_path = self._safe_path(folder)
+            if folder_path is None:
+                return False
+            path = folder_path / "config.json"
+            parsed = json.loads(content)
+            path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._audit.log("export_config_json", params={"path": str(path)})
+            return True
+        except Exception as exc:
+            logger.warning("导出配置失败: %s", exc)
+            return False
 
     def check_webview2(self) -> dict[str, Any]:
         from backend.webview2_checker import WebView2Checker

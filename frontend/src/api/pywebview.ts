@@ -73,7 +73,9 @@ function mockApi(): any {
     get_audit_log: async () => [],
     open_directory: async () => true,
     browse_folder: async () => 'C:\\mock\\folder',
+    export_config_json: async (folder: string, content: string) => true,
     check_webview2: async () => ({ installed: true }),
+    get_image: async (_path: string) => '',
   }
 }
 
@@ -101,6 +103,7 @@ export const api = {
   get_audit_log: (limit?: number) => getApi().get_audit_log(limit),
   open_directory: (path: string) => getApi().open_directory(path),
   browse_folder: () => getApi().browse_folder(),
+  export_config_json: (folder: string, content: string) => getApi().export_config_json(folder, content),
   get_image: (path: string) => getApi().get_image(path),
   check_webview2: () => getApi().check_webview2(),
 }

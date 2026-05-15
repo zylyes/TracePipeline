@@ -125,6 +125,9 @@ onMounted(async () => {
   :deep(.el-tabs__header) {
     margin-bottom: 0;
   }
+  :deep(.el-tabs__content) {
+    display: none;
+  }
 }
 .info-card {
   background: #fff;

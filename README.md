@@ -1,6 +1,6 @@
 # 岩体节理测线坐标计算与绘图工具
 
-> **版本**: v1.0.1 | **语言**: Python >= 3.9 | **许可证**: MIT
+> **版本**: v2.1.0 | **语言**: Python >= 3.10 | **许可证**: MIT
 
 基于 Python 的岩体节理测线法数据处理与可视化系统。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原型算法完整移植为工程化 Python 代码。适用于高放废物地质处置场址的节理几何特征分析。
 
@@ -118,7 +118,7 @@ graph TD
 
 ### 系统要求
 
-- **Python** >= 3.9
+- **Python** >= 3.10
 - **pip** >= 21.0
 
 ### 依赖
@@ -602,7 +602,7 @@ pytest --cov --cov-report=term --cov-report=html
 
 | 工具 | 配置位置 | 要点 |
 |------|----------|------|
-| ruff | `pyproject.toml [tool.ruff]` | Python 3.9 target, 100 列行宽, 规则集 E/F/I/N/UP/B/SIM |
+| ruff | `pyproject.toml [tool.ruff]` | Python 3.10 target, 100 列行宽, 规则集 E/F/I/N/UP/B/SIM |
 | mypy | `pyproject.toml [tool.mypy]` | Python 3.10 target, `warn_return_any=true` |
 | pytest | `pyproject.toml [tool.pytest]` | testpaths = `tests/`, 文件匹配 `test_*.py` |
 | coverage | `pyproject.toml [tool.coverage]` | 源 = `trace_pipeline/`, 排除 `tests/` |

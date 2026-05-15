@@ -10,6 +10,11 @@
           面向地质工程的专业数据处理平台，支持迹线自动识别、走向玫瑰图生成、
           节点拓扑分析及多露头对比统计。
         </p>
+        <div class="hero-badges">
+          <span class="badge">Python</span>
+          <span class="badge">Vue 3</span>
+          <span class="badge">PyWebView</span>
+        </div>
       </div>
     </div>
 
@@ -46,13 +51,15 @@
 
     <!-- 底部 -->
     <footer class="intro-footer">
-      <p>TracePipeline v1.0.1 · 地质工程数据处理平台</p>
+      <p>TracePipeline v{{ appVersion }} · 地质工程数据处理平台</p>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ArrowRight } from '@element-plus/icons-vue'
+
+const appVersion = __APP_VERSION__
 import GeoIcon from '@/components/GeoIcon.vue'
 import HomeIcon from '@/components/icons/HomeIcon.vue'
 import ProcessIcon from '@/components/icons/ProcessIcon.vue'
@@ -103,13 +110,14 @@ const steps = [
   { title: '选择露头文件', desc: '扫描并选择需处理的露头 Excel 文件，配置处理参数。' },
   { title: '运行处理流程', desc: '启动流水线，自动完成迹线计算、绘图与节点识别。' },
   { title: '查看分析结果', desc: '在统计、对比或数据页面查看结果，支持图表交互。' },
+  { title: '导出报告', desc: '生成 Word/PDF 格式分析报告，便于存档与汇报。' },
 ]
 
 </script>
 
 <style scoped lang="scss">
 .intro-view {
-  padding: 24px;
+  padding: 16px 24px;
   height: 100%;
   overflow-y: auto;
   background: #f8f9fa;
@@ -119,10 +127,10 @@ const steps = [
 .hero-section {
   background: linear-gradient(135deg, #1a2332 0%, #2c3e50 100%);
   border-radius: 10px;
-  padding: 36px 32px;
+  padding: 28px 32px;
   text-align: center;
   color: #fff;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .hero-content {
@@ -131,14 +139,14 @@ const steps = [
 }
 
 .hero-logo {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   display: block;
   margin-left: auto;
   margin-right: auto;
 }
 
 .hero-title {
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 700;
   margin: 0 0 6px;
   font-family: var(--tp-font-stack);
@@ -146,24 +154,40 @@ const steps = [
 }
 
 .hero-subtitle {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
   opacity: 0.88;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: #e0e0e0;
 }
 
 .hero-desc {
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.6;
   opacity: 0.7;
   margin: 0;
   color: #c0c4cc;
 }
 
+.hero-badges {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.badge {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e0e0e0;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 /* ── 功能模块（单行横向） ──────────────────────────── */
 .modules-section {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .modules-row {
@@ -175,18 +199,19 @@ const steps = [
   flex: 1;
   min-width: 0;
   background: #fff;
-  border: 1px solid #dde1e6;
+  border: 1px solid #e4e7ed;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.25s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .module-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   border-color: #c8cdd3;
 }
 
@@ -197,7 +222,7 @@ const steps = [
 }
 
 .module-body {
-  padding: 16px 14px 18px;
+  padding: 14px 12px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -206,39 +231,40 @@ const steps = [
 }
 
 .module-icon {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 
 .module-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
 }
 
 .module-desc {
   font-size: 12px;
   color: #7f8c8d;
-  line-height: 1.55;
+  line-height: 1.5;
   margin: 0;
 }
 
 /* ── 快速开始 ──────────────────────────────────────── */
 .quickstart-section {
   background: #fff;
-  border: 1px solid #dde1e6;
+  border: 1px solid #e4e7ed;
   border-radius: 10px;
-  padding: 24px 32px;
-  margin-bottom: 20px;
+  padding: 20px 28px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .section-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   text-align: center;
   font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
 }
@@ -254,10 +280,10 @@ const steps = [
 .step-group {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   min-width: 220px;
-  max-width: 320px;
+  max-width: 300px;
 }
 
 .step-item {
@@ -265,21 +291,26 @@ const steps = [
   align-items: flex-start;
   gap: 10px;
   flex: 1;
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1px solid #ebeef5;
 }
 
 .step-number {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #B85C38;
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   font-family: 'Times New Roman', serif;
+  margin-top: 2px;
 }
 
 .step-content {
@@ -307,13 +338,13 @@ const steps = [
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  margin-top: 5px;
+  margin-top: 18px;
 }
 
 /* ── 底部 ──────────────────────────────────────────── */
 .intro-footer {
   text-align: center;
-  padding: 12px 0;
+  padding: 8px 0;
   color: #909399;
   font-size: 12px;
 }

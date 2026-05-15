@@ -368,9 +368,23 @@ function onCollapseChange(active: string | string[]) {
 .dev-panel {
   background: #fff;
   border-radius: 8px;
-  padding: 16px;
+  padding: 16px 20px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
   margin-top: 16px;
+}
+:deep(.el-collapse) {
+  border-top: none;
+  border-bottom: none;
+}
+:deep(.el-collapse-item__header) {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2c3e50;
+  height: 44px;
+  line-height: 44px;
+}
+:deep(.el-collapse-item__content) {
+  padding-bottom: 4px;
 }
 .outcrop-tags {
   display: flex;
@@ -392,7 +406,8 @@ function onCollapseChange(active: string | string[]) {
 }
 .backend-log-content {
   background: #f5f7fa;
-  border-radius: 4px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
   padding: 12px;
   max-height: 350px;
   overflow: auto;
@@ -412,6 +427,7 @@ function onCollapseChange(active: string | string[]) {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid #e4e7ed;
+  justify-content: flex-end;
 }
 .audit-scroll-container {
   max-height: 300px;
@@ -420,14 +436,15 @@ function onCollapseChange(active: string | string[]) {
 .audit-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .audit-item {
   display: flex;
   gap: 12px;
-  padding: 6px 8px;
+  padding: 6px 10px;
   border-radius: 4px;
-  background: #f9f9f9;
+  background: #f5f7fa;
+  border: 1px solid #ebeef5;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -464,11 +481,26 @@ function onCollapseChange(active: string | string[]) {
   margin-bottom: 0;
 }
 .adv-section-title {
-  font-size: 13px;
+  position: relative;
+  font-size: 15px;
   font-weight: 600;
-  color: #606266;
-  margin-bottom: 8px;
-  padding-left: 8px;
-  border-left: 3px solid #409eff;
+  color: #2c3e50;
+  margin: 16px 0 12px;
+  padding-bottom: 8px;
+  padding-left: 10px;
+  border-bottom: 1px solid #e4e7ed;
+}
+.adv-section:first-child .adv-section-title {
+  margin-top: 0;
+}
+.adv-section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 10px;
+  width: 3px;
+  background: #409eff;
+  border-radius: 2px;
 }
 </style>

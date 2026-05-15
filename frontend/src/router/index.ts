@@ -13,6 +13,7 @@ const routes = [
   { path: '/comparison', name: 'Comparison', component: ComparisonView },
   { path: '/data', name: 'Data', component: DataView },
   { path: '/config', name: 'Config', component: ConfigView },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 const router = createRouter({

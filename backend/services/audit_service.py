@@ -10,6 +10,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 AUDIT_PATH = Path("logs/audit.jsonl")
+MAX_AUDIT_SIZE = 10 * 1024 * 1024  # 10 MB 上限
 
 
 class AuditService:
@@ -20,7 +21,7 @@ class AuditService:
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def log(self, action: str, params: dict[str, Any] | None = None, result: str = "") -> None:
-        """写入一条审计记录。"""
+        """写入一条审计记录，超过 10MB 则轮换。"""
         entry = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "action": action,
@@ -28,6 +29,11 @@ class AuditService:
             "result": result,
         }
         try:
+            if self._path.exists() and self._path.stat().st_size > MAX_AUDIT_SIZE:
+                rotated = self._path.with_suffix(".jsonl.old")
+                rotated.unlink(missing_ok=True)
+                self._path.rename(rotated)
+                logger.info("审计日志已轮换")
             with self._path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except OSError as exc:

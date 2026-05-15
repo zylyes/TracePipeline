@@ -19,6 +19,7 @@
     </el-table>
 
     <div class="chart-area" v-if="tableData.length > 0">
+      <div class="chart-tip">点击图例可控制显示/隐藏</div>
       <div class="chart-toolbar">
         <el-radio-group v-model="chartMetric" size="small">
           <el-radio-button label="density">密度指标</el-radio-button>
@@ -136,11 +137,16 @@ const barOption = computed(() => {
   if (metric === 'type') {
     return {
       ...base,
-      legend: { data: ['I型', 'II型', 'III型'], bottom: 0, textStyle: { fontFamily: echartsFont } },
+      legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: { fontFamily: echartsFont } },
       series: [
         { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#2c3e50' } },
         { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#B85C38' } },
         { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#2E7D5A' } },
+        { name: '总裂隙数', type: 'bar', data: tableData.value.map(d => {
+          const parts = d.type_ratio.split(':')
+          const sum = (safeFloat(parts[0]) ?? 0) + (safeFloat(parts[1]) ?? 0) + (safeFloat(parts[2]) ?? 0)
+          return sum
+        }), itemStyle: { color: '#5B8FF9' } },
       ],
     }
   }
@@ -264,6 +270,11 @@ onMounted(loadComparison)
   display: flex;
   justify-content: center;
   margin-bottom: 12px;
+}
+.chart-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 8px;
 }
 .chart {
   height: 300px;

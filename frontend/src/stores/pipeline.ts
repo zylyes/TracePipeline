@@ -12,6 +12,10 @@ export const usePipelineStore = defineStore('pipeline', () => {
   const results = ref<any[]>([])
   const pollTimer = ref<number | null>(null)
 
+  // 最近一次处理时的配置状态（用于控制其他页面的显示）
+  const lastEnableNodeRecognition = ref(true)
+  const lastExportRosePlot = ref(true)
+
   const isRunning = computed(() => running.value)
 
   function reset() {
@@ -24,5 +28,13 @@ export const usePipelineStore = defineStore('pipeline', () => {
     }
   }
 
-  return { running, progress, results, pollTimer, isRunning, reset }
+  function setLastRunConfig(enableNode: boolean, exportRose: boolean) {
+    lastEnableNodeRecognition.value = enableNode
+    lastExportRosePlot.value = exportRose
+  }
+
+  return {
+    running, progress, results, pollTimer, isRunning, reset,
+    lastEnableNodeRecognition, lastExportRosePlot, setLastRunConfig,
+  }
 })

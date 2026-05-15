@@ -9,6 +9,9 @@
         <el-form-item label="导出玫瑰图">
           <el-switch v-model="params.export_rose_plot" />
         </el-form-item>
+        <el-form-item label="启用节点识别">
+          <el-switch v-model="params.enable_node_recognition" />
+        </el-form-item>
         <el-form-item label="玫瑰图 DPI">
           <el-select v-model="params.rose_dpi" style="width:90px">
             <el-option v-for="d in [200,300,400,600]" :key="d" :label="d" :value="d" />
@@ -152,6 +155,7 @@ const params = ref({
   window_strategy: 'auto',
   auto_density_threshold: 5.0,
   tangent_window_count: 3,
+  enable_node_recognition: true,
 })
 
 // 处理过程日志
@@ -211,6 +215,7 @@ watch(() => configStore.config, (newCfg) => {
     window_strategy: newCfg.window_strategy ?? 'auto',
     auto_density_threshold: newCfg.auto_density_threshold ?? 5.0,
     tangent_window_count: newCfg.tangent_window_count ?? 3,
+    enable_node_recognition: newCfg.enable_node_recognition ?? true,
   }
 }, { deep: true })
 
@@ -265,9 +270,9 @@ async function handleOpenImage(row: TraceFile) {
         mean_length: 0,
         scanline_azimuth: 0,
         excel_path: '',
-        raw_plot_path: found.raw_plot || '',
-        rotated_plot_path: found.rotated_plot || '',
-        rose_plot_path: found.rose_plot || '',
+        raw_plot: found.raw_plot || '',
+        rotated_plot: found.rotated_plot || '',
+        rose_plot: found.rose_plot || '',
         window_strategy: '',
         area_source: '',
       }
@@ -289,11 +294,14 @@ function handleRunSingle(row: TraceFile) {
 
 function openImageModal(result: PipelineResult) {
   modalOutcrop.value = result.outcrop
-  modalImages.value = [
-    { key: 'raw', title: '原始迹线图', src: result.raw_plot_path },
-    { key: 'rotated', title: '旋转迹线图', src: result.rotated_plot_path },
-    { key: 'rose', title: '走向玫瑰图', src: result.rose_plot_path },
+  const images = [
+    { key: 'raw', title: '原始迹线图', src: result.raw_plot },
+    { key: 'rotated', title: '旋转迹线图', src: result.rotated_plot },
   ]
+  if (params.value.export_rose_plot) {
+    images.push({ key: 'rose', title: '走向玫瑰图', src: result.rose_plot })
+  }
+  modalImages.value = images
   modalVisible.value = true
 }
 
@@ -308,9 +316,15 @@ async function startPipeline() {
   startTime.value = Date.now()
   const targets = selectedFiles.value.map((f) => f.outcrop)
 
+  // 保存最近一次运行配置到全局状态（用于控制其他页面显示）
+  pipelineStore.setLastRunConfig(
+    params.value.enable_node_recognition,
+    params.value.export_rose_plot
+  )
+
   // 合并本地参数和全局配置，先保存再启动，保证后端事实源一致
   const runConfig = { ...configStore.config, ...params.value }
-  addLog('info', `运行参数: 玫瑰图=${params.value.export_rose_plot ? '是' : '否'}, 玫瑰DPI=${params.value.rose_dpi}, 分箱=${params.value.rose_bin_width}°, 迹线DPI=${params.value.trace_dpi}, 策略=${params.value.window_strategy}`)
+  addLog('info', `运行参数: 玫瑰图=${params.value.export_rose_plot ? '是' : '否'}, 节点识别=${params.value.enable_node_recognition ? '是' : '否'}, 玫瑰DPI=${params.value.rose_dpi}, 分箱=${params.value.rose_bin_width}°, 迹线DPI=${params.value.trace_dpi}, 策略=${params.value.window_strategy}`)
 
   try {
     // 先保存配置，使 config.json 与流水线实际参数一致
@@ -364,8 +378,10 @@ function startPolling() {
           pipelineStore.results.push(evt)
           if (evt.result) {
             if (evt.result.status === 'success') {
-              const nodeInfo = evt.result.node_count != null ? `, 节点=${evt.result.node_count}(X${evt.result.node_x_count ?? 0}/Y${evt.result.node_y_count ?? 0}/I${evt.result.node_i_count ?? 0})` : ''
-              const info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 走向=${evt.result.scanline_azimuth.toFixed(1)}°, 策略=${evt.result.window_strategy || 'auto'}${nodeInfo}`
+              let info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 走向=${evt.result.scanline_azimuth.toFixed(1)}°, 策略=${evt.result.window_strategy || 'auto'}`
+              if (params.value.enable_node_recognition && evt.result.node_count != null) {
+                info += `, 节点=${evt.result.node_count}(X${evt.result.node_x_count ?? 0}/Y${evt.result.node_y_count ?? 0}/I${evt.result.node_i_count ?? 0})`
+              }
               addLog('success', info)
             } else {
               addLog('error', `${evt.result.outcrop} 处理失败：${evt.result.error || '未知错误'}`)
@@ -436,6 +452,7 @@ onMounted(async () => {
       window_strategy: cfg.window_strategy ?? 'auto',
       auto_density_threshold: cfg.auto_density_threshold ?? 5.0,
       tangent_window_count: cfg.tangent_window_count ?? 3,
+      enable_node_recognition: cfg.enable_node_recognition ?? true,
     }
   }
   await loadFiles()

@@ -1,15 +1,14 @@
 <template>
   <div class="data-table">
     <el-tabs v-if="source === 'output'" v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane label="统计信息" name="统计信息" />
       <el-tab-pane label="裂隙情况" name="裂隙情况" />
       <el-tab-pane label="计算数据" name="计算数据" />
       <el-tab-pane label="原始端点" name="原始端点" />
       <el-tab-pane label="旋转端点" name="旋转端点" />
       <el-tab-pane label="走向与迹长" name="走向与迹长" />
-      <el-tab-pane label="节点统计" name="节点统计" />
-      <el-tab-pane label="节点明细" name="节点明细" />
-      <el-tab-pane label="节点交点" name="节点交点" />
+      <el-tab-pane v-if="showNodeTabs !== false" label="节点统计" name="节点统计" />
+      <el-tab-pane v-if="showNodeTabs !== false" label="节点明细" name="节点明细" />
+      <el-tab-pane v-if="showNodeTabs !== false" label="节点交点" name="节点交点" />
     </el-tabs>
     <div v-else class="source-hint">原始输入数据</div>
 
@@ -47,9 +46,10 @@ import { api } from '@/api/pywebview'
 const props = defineProps<{
   outcrop: string
   source?: string
+  showNodeTabs?: boolean
 }>()
 
-const activeTab = ref('统计信息')
+const activeTab = ref('裂隙情况')
 const tableData = ref<any[]>([])
 const columns = ref<string[]>([])
 const page = ref(1)
@@ -60,7 +60,6 @@ const searchText = ref('')
 
 // 前端分区名 -> 后端 section 参数 映射
 const SECTION_MAP: Record<string, string> = {
-  '统计信息': '基本信息',
   '裂隙情况': '裂隙情况',
   '计算数据': '计算数据',
   '原始端点': '原始坐标',
@@ -113,20 +112,22 @@ watch(() => props.outcrop, () => {
   loadData()
 })
 
-watch(() => props.source, () => {
-  page.value = 1
-  if (props.source === 'input') {
-    activeTab.value = '原始输入'
-  } else {
-    activeTab.value = '统计信息'
-  }
-  loadData()
-})
+  watch(() => props.source, () => {
+    page.value = 1
+    if (props.source === 'input') {
+      activeTab.value = '原始输入'
+    } else {
+      activeTab.value = '裂隙情况'
+    }
+    loadData()
+  })
 
 onMounted(() => {
   if (props.outcrop) {
     if (props.source === 'input') {
       activeTab.value = '原始输入'
+    } else {
+      activeTab.value = '裂隙情况'
     }
     loadData()
   }

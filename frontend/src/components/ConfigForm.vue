@@ -14,6 +14,16 @@
       </el-form-item>
 
       <h3>绘图样式</h3>
+      <el-form-item label="节点合并容差">
+        <el-input-number v-model="form.node_merge_tolerance" :min="1e-9" :max="1" :step="1e-6" />
+      </el-form-item>
+      <el-form-item label="节点标签模式">
+        <el-select v-model="form.node_label_mode" style="width: 200px">
+          <el-option label="类型" value="type" />
+          <el-option label="ID" value="id" />
+          <el-option label="无" value="none" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="迹线颜色">
         <el-color-picker v-model="style.trace_line_color" @change="emitStyle" />
       </el-form-item>
@@ -67,6 +77,8 @@ const defaultForm: ConfigData = {
   input_dir: 'input',
   output_dir: 'output',
   process_all: true,
+  node_merge_tolerance: 1e-6,
+  node_label_mode: 'type',
 }
 
 const form = reactive<ConfigData>({ ...defaultForm, ...props.modelValue })

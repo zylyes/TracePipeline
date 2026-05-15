@@ -50,6 +50,10 @@ class ConfigDict(TypedDict, total=False):
     auto_density_threshold: float
     tangent_window_count: int
     style: dict[str, Any]
+    enable_node_recognition: bool
+    node_merge_tolerance: float
+    show_node_overlay: bool
+    node_label_mode: str
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -68,6 +72,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "auto_density_threshold": 5.0,
     "tangent_window_count": 3,
     "style": {},
+    "enable_node_recognition": True,
+    "node_merge_tolerance": 1e-6,
+    "show_node_overlay": True,
+    "node_label_mode": "type",
 }
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "table_stem", "outcrop")

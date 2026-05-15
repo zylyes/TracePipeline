@@ -26,6 +26,7 @@ const props = defineProps<{
       degenerate_skipped: number
     }
   }
+  showNodes?: boolean
 }>()
 
 const ns = computed(() => props.stats?.nodes_summary)
@@ -37,17 +38,24 @@ const nodeDensity = computed(() => {
   return count / area
 })
 
-const cards = computed(() => [
-  { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹' },
-  { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²' },
-  { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹' },
-  { label: '节点总数', value: ns.value?.node_count, unit: '个' },
-  { label: '节点密度', value: nodeDensity.value, unit: '个/m²' },
-  { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条' },
-  { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个' },
-  { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个' },
-  { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个' },
-])
+const cards = computed(() => {
+  const base = [
+    { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹' },
+    { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²' },
+    { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹' },
+  ]
+  if (props.showNodes !== false && ns.value) {
+    base.push(
+      { label: '节点总数', value: ns.value?.node_count, unit: '个' },
+      { label: '节点密度', value: nodeDensity.value, unit: '个/m²' },
+      { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条' },
+      { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个' },
+      { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个' },
+      { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个' },
+    )
+  }
+  return base
+})
 
 function formatValue(v: number | null | undefined) {
   if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return '—'
@@ -63,6 +71,12 @@ function formatValue(v: number | null | undefined) {
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 16px;
+}
+.stat-cards:has(> :nth-child(6):last-child) {
+  grid-template-columns: repeat(3, 1fr);
+}
+.stat-cards:has(> :nth-child(9):last-child) {
+  grid-template-columns: repeat(3, 1fr);
 }
 .stat-card {
   background: #fff;

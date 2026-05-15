@@ -2,21 +2,21 @@
   <div class="style-preview">
     <h3>预览</h3>
     <div class="preview-grid">
-      <div class="preview-box">
-        <div class="preview-label">原始迹线图</div>
+      <div class="preview-box" v-for="(img, idx) in previewImages" :key="img.key" @click="openViewer(idx)">
+        <div class="preview-label">{{ img.label }}</div>
         <div class="preview-img-wrapper" v-loading="loading">
-          <img v-if="rawUrl" :src="rawUrl" class="preview-img" />
-          <el-empty v-else description="修改样式后自动生成预览" />
-        </div>
-      </div>
-      <div class="preview-box">
-        <div class="preview-label">走向玫瑰图</div>
-        <div class="preview-img-wrapper" v-loading="loading">
-          <img v-if="roseUrl" :src="roseUrl" class="preview-img" />
-          <el-empty v-else description="修改样式后自动生成预览" />
+          <img v-if="img.url" :src="img.url" class="preview-img" />
+          <el-empty v-else description="修改配置后自动生成预览" />
         </div>
       </div>
     </div>
+    <el-alert v-if="errorMsg" :title="errorMsg" type="error" :closable="false" show-icon style="margin-top: 12px" />
+
+    <ImageViewer
+      v-model:visible="viewerVisible"
+      :images="viewerImages"
+      :initial-index="viewerInitialIndex"
+    />
   </div>
 </template>
 
@@ -24,31 +24,78 @@
 import { ref, watch } from 'vue'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
+import ImageViewer from '@/components/ImageViewer.vue'
+
+interface PreviewImage {
+  key: string
+  label: string
+  path: string
+  url: string
+}
 
 const props = defineProps<{
-  styleConfig: any
+  previewConfig: any
 }>()
 
-const rawUrl = ref('')
-const roseUrl = ref('')
+const previewImages = ref<PreviewImage[]>([
+  { key: 'raw', label: '原始迹线图', path: '', url: '' },
+  { key: 'rotated', label: '旋转迹线图', path: '', url: '' },
+  { key: 'rose', label: '走向玫瑰图', path: '', url: '' },
+])
 const loading = ref(false)
+const errorMsg = ref('')
+
+const viewerVisible = ref(false)
+const viewerImages = ref<Array<{ title: string; src: string }>>([])
+const viewerInitialIndex = ref(0)
+
+function openViewer(index: number) {
+  viewerImages.value = previewImages.value
+    .filter((img) => img.url)
+    .map((img) => ({ title: img.label, src: img.url }))
+  viewerInitialIndex.value = index
+  viewerVisible.value = true
+}
 
 let debounceTimer: number | null = null
 
 async function doGenerate() {
   loading.value = true
+  errorMsg.value = ''
   try {
-    const res = await api.generate_preview(props.styleConfig)
+    const res = await api.generate_preview(props.previewConfig)
     if (res.status === 'ready') {
-      rawUrl.value = await loadImageBase64(res.paths.raw)
-      roseUrl.value = await loadImageBase64(res.paths.rose)
-    } else {
-      rawUrl.value = ''
-      roseUrl.value = ''
+      const images = res.images || []
+      for (const img of previewImages.value) {
+        const match = images.find((item: any) => item.key === img.key)
+        if (match && match.path) {
+          img.path = match.path
+          img.url = await loadImageBase64(match.path)
+        } else {
+          // 兼容旧版 paths 接口
+          const legacyPath = res.paths?.[img.key]
+          if (legacyPath) {
+            img.path = legacyPath
+            img.url = await loadImageBase64(legacyPath)
+          } else {
+            img.path = ''
+            img.url = ''
+          }
+        }
+      }
+    } else if (res.status === 'error') {
+      errorMsg.value = res.message || '预览生成失败'
+      for (const img of previewImages.value) {
+        img.path = ''
+        img.url = ''
+      }
     }
-  } catch (e) {
-    rawUrl.value = ''
-    roseUrl.value = ''
+  } catch (e: any) {
+    errorMsg.value = e?.message || '预览生成失败'
+    for (const img of previewImages.value) {
+      img.path = ''
+      img.url = ''
+    }
   } finally {
     loading.value = false
   }
@@ -59,7 +106,7 @@ function generatePreview() {
   debounceTimer = window.setTimeout(doGenerate, 500)
 }
 
-watch(() => props.styleConfig, () => {
+watch(() => props.previewConfig, () => {
   generatePreview()
 }, { deep: true })
 </script>
@@ -74,7 +121,7 @@ watch(() => props.styleConfig, () => {
 }
 .preview-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-top: 12px;
 }
@@ -82,6 +129,11 @@ watch(() => props.styleConfig, () => {
   border: 1px solid #e4e7ed;
   border-radius: 6px;
   overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.preview-box:hover {
+  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.1);
 }
 .preview-label {
   padding: 8px;
@@ -92,12 +144,20 @@ watch(() => props.styleConfig, () => {
 }
 .preview-img-wrapper {
   position: relative;
-  aspect-ratio: 4/3;
+  min-height: 180px;
   background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .preview-img {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 240px;
   object-fit: contain;
+}
+@media (max-width: 768px) {
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

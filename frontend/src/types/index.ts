@@ -14,9 +14,9 @@ export interface PipelineResult {
   mean_length: number
   scanline_azimuth: number
   excel_path: string
-  raw_plot_path: string
-  rotated_plot_path: string
-  rose_plot_path: string
+  raw_plot: string
+  rotated_plot: string
+  rose_plot: string
   window_strategy: string
   area_source: string
   error?: string
@@ -91,6 +91,7 @@ export interface ImageItem {
   key: string
   title: string
   src: string
+  dataUrl?: string
 }
 
 export interface ConfigData {
@@ -116,13 +117,6 @@ export interface DataPageResult {
   error?: string
 }
 
-export interface DataPageResult {
-  data: any[]
-  total: number
-  columns: string[]
-  error?: string
-}
-
 export interface PlotOverlay {
   data_x_min: number
   data_x_max: number
@@ -138,6 +132,7 @@ export interface PlotOverlay {
 
 export interface ComparisonRow {
   outcrop: string
+  trace_count: string
   p10: string
   p20: string
   p21: string
@@ -146,4 +141,5 @@ export interface ComparisonRow {
   type_ratio: string
   node_count: string
   node_ratio: string
+  node_density: string
 }

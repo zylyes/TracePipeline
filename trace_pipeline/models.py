@@ -262,10 +262,7 @@ class RunResult:
     node_i_count: int = 0
     node_y_count: int = 0
     node_x_count: int = 0
-    node_overlap_count: int = 0
-    node_multi_count: int = 0
     intersection_count: int = 0
-    endpoint_node_count: int = 0
 
     @classmethod
     def success(
@@ -284,10 +281,7 @@ class RunResult:
         node_i_count: int = 0,
         node_y_count: int = 0,
         node_x_count: int = 0,
-        node_overlap_count: int = 0,
-        node_multi_count: int = 0,
         intersection_count: int = 0,
-        endpoint_node_count: int = 0,
     ) -> RunResult:
         return cls(
             table_stem=table_stem,
@@ -305,10 +299,7 @@ class RunResult:
             node_i_count=node_i_count,
             node_y_count=node_y_count,
             node_x_count=node_x_count,
-            node_overlap_count=node_overlap_count,
-            node_multi_count=node_multi_count,
             intersection_count=intersection_count,
-            endpoint_node_count=endpoint_node_count,
         )
 
     @classmethod

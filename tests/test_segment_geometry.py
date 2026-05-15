@@ -55,8 +55,9 @@ class TestCollinearOverlap:
     def test_overlap(self):
         pts = collinear_overlap((0, 0), (4, 0), (2, 0), (6, 0), tol=1e-9)
         assert len(pts) == 2
-        assert pytest.approx(pts[0][0], abs=1e-9) == 2.0
-        assert pytest.approx(pts[1][0], abs=1e-9) == 4.0
+        # pts[0] = ((x, y), t_a, t_b)
+        assert pytest.approx(pts[0][0][0], abs=1e-9) == 2.0
+        assert pytest.approx(pts[1][0][0], abs=1e-9) == 4.0
 
     def test_no_overlap(self):
         pts = collinear_overlap((0, 0), (1, 0), (2, 0), (3, 0), tol=1e-9)

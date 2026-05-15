@@ -68,7 +68,7 @@ _COMPASS_H = 0.095
 _STATS_W = 0.285
 _STATS_H = 0.46
 _LEGEND_W = 0.285
-_LEGEND_H = 0.095
+_LEGEND_H = 0.14
 _LEGEND_BOTTOM_MARGIN = 0.010
 _HARD_GAP = 0.020
 _SINGLE_FRAME_TOP = 0.900
@@ -759,11 +759,9 @@ def _add_convex_hull_overlay(ax: plt.Axes, hull_overlay: ConvexHullOverlay) -> N
 
 
 _NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
-    "I": {"marker": "o", "markerfacecolor": "white", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "Y": {"marker": "^", "markerfacecolor": "#FFC107", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "X": {"marker": "X", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "overlap": {"marker": "s", "markerfacecolor": "#9C27B0", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "multi": {"marker": "D", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
 }
 
 
@@ -772,34 +770,19 @@ def _add_node_overlays(
     node_overlays: Sequence[NodeOverlay],
     label_mode: str = "type",
 ) -> None:
-    """在数据轴上绘制节点符号与可选标注。"""
-    if not node_overlays:
+    """在数据轴上绘制节点符号（不标注文字）。"""
+    if not node_overlays or label_mode == "none":
         return
     for node in node_overlays:
         style = _NODE_MARKER_STYLE.get(node.node_type, _NODE_MARKER_STYLE["I"])
-        label = ""
-        if label_mode == "type":
-            label = node.node_type
-        elif label_mode == "id":
-            label = str(node.node_id)
         ax.plot(
             node.x,
             node.y,
             linestyle="none",
-            markersize=6,
+            markersize=4,
             zorder=_TRACE_ZORDER + 2,
             **style,
         )
-        if label:
-            ax.annotate(
-                label,
-                (node.x, node.y),
-                textcoords="offset points",
-                xytext=(6, 4),
-                fontsize=6.5,
-                color="0.25",
-                zorder=_TRACE_ZORDER + 3,
-            )
 
 
 def _add_legend(
@@ -808,6 +791,7 @@ def _add_legend(
     has_hull: bool,
     has_circles: bool,
     has_nodes: bool = False,
+    node_overlays: Sequence[NodeOverlay] | None = None,
     *,
     anchor_x: float | None = None,
     anchor_y: float | None = None,
@@ -828,8 +812,20 @@ def _add_legend(
         items.append(("measured", "面积: 实测"))
     elif has_circles and area_source in ("window", "window_equivalent"):
         items.append(("circle", "面积: 圆窗"))
-    if has_nodes:
-        items.append(("nodes", "节点"))
+
+    # 节点类型图例：只展示存在的类型
+    if has_nodes and node_overlays:
+        type_counts: dict[str, int] = {}
+        for n in node_overlays:
+            type_counts[n.node_type] = type_counts.get(n.node_type, 0) + 1
+        type_labels = {
+            "I": "孤立端点 (I)",
+            "Y": "三叉节点 (Y)",
+            "X": "交叉节点 (X)",
+        }
+        for key in ("I", "Y", "X"):
+            if key in type_counts:
+                items.append((f"node_{key}", f"{type_labels[key]} — {type_counts[key]}"))
 
     ax.add_patch(
         Rectangle(
@@ -846,7 +842,11 @@ def _add_legend(
         )
     )
 
-    y_positions = (0.68, 0.28) if len(items) > 1 else (0.50,)
+    n_items = len(items)
+    if n_items == 1:
+        y_positions = (0.50,)
+    else:
+        y_positions = tuple(0.88 - i * (0.76 / (n_items - 1)) for i in range(n_items))
     icon_h = 0.12
     icon_half = icon_h / 2.0
     for (kind, label), y in zip(items, y_positions, strict=False):
@@ -892,19 +892,18 @@ def _add_legend(
                     zorder=_ANNOTATION_ZORDER + 1,
                 )
             )
-        elif kind == "nodes":
+        elif kind.startswith("node_"):
+            node_type = kind.replace("node_", "")
+            style = _NODE_MARKER_STYLE.get(node_type, _NODE_MARKER_STYLE["I"])
             ax.plot(
                 0.16,
                 y,
                 linestyle="none",
-                marker="o",
-                markerfacecolor="white",
-                markeredgecolor="black",
-                markeredgewidth=0.8,
-                markersize=4,
+                markersize=3.5,
                 transform=ax.transAxes,
                 clip_on=True,
                 zorder=_ANNOTATION_ZORDER + 1,
+                **style,
             )
         else:
             ax.plot(
@@ -925,7 +924,7 @@ def _add_legend(
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=6.4, color="black"),
+            **text_font_kwargs(fontsize=5.8, color="black"),
         )
 
 
@@ -1040,6 +1039,7 @@ def render_trace_plot(
         has_hull,
         has_circles,
         has_nodes=has_nodes,
+        node_overlays=node_overlays,
         anchor_x=0.02,
         anchor_y=0.50,
         loc="center left",

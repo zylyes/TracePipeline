@@ -9,18 +9,6 @@
     </div>
 
     <StatCards :stats="stats" />
-    <div v-if="stats.nodes_summary" class="node-summary">
-      <el-descriptions :column="4" border size="small">
-        <el-descriptions-item label="节点总数">{{ stats.nodes_summary.node_count }}</el-descriptions-item>
-        <el-descriptions-item label="自由端点 I">{{ stats.nodes_summary.node_i_count }}</el-descriptions-item>
-        <el-descriptions-item label="三叉节点 Y">{{ stats.nodes_summary.node_y_count }}</el-descriptions-item>
-        <el-descriptions-item label="相交节点 X">{{ stats.nodes_summary.node_x_count }}</el-descriptions-item>
-        <el-descriptions-item label="重叠节点">{{ stats.nodes_summary.node_overlap_count }}</el-descriptions-item>
-        <el-descriptions-item label="多交汇点">{{ stats.nodes_summary.node_multi_count }}</el-descriptions-item>
-        <el-descriptions-item label="交点事件数">{{ stats.nodes_summary.intersection_count }}</el-descriptions-item>
-        <el-descriptions-item label="退化跳过">{{ stats.nodes_summary.degenerate_skipped }}</el-descriptions-item>
-      </el-descriptions>
-    </div>
 
     <div class="charts-row">
       <HistogramChart :histogram="stats.histogram || { bins: [], edges: [] }" />

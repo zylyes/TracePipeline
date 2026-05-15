@@ -98,10 +98,10 @@ def collinear_overlap(
     b1: tuple[float, float],
     b2: tuple[float, float],
     tol: float = 1e-9,
-) -> list[tuple[float, float]]:
+) -> list[tuple[tuple[float, float], float, float]]:
     """对两条共线线段计算重叠边界点。
 
-    返回重叠区间的两个端点（若存在重叠）。
+    返回重叠区间的两个端点（若存在重叠），每个端点附带其在两条线段上的投影参数。
     若完全无重叠，返回空列表。
     """
     x1, y1 = a1
@@ -133,7 +133,22 @@ def collinear_overlap(
     if ov_max - ov_min > tol:
         p_min = (x1 + ov_min * dir_vec[0], y1 + ov_min * dir_vec[1])
         p_max = (x1 + ov_max * dir_vec[0], y1 + ov_max * dir_vec[1])
-        return [p_min, p_max]
+        # 边界点在迹线 A 上的参数
+        t_min_a = ov_min
+        t_max_a = ov_max
+        # 边界点在迹线 B 上的参数：通过点到 b1 的向量与 b2-b1 的点积计算
+        b_dir = (x4 - x3, y4 - y3)
+        b_norm2 = b_dir[0] * b_dir[0] + b_dir[1] * b_dir[1]
+        if b_norm2 < tol * tol:
+            t_min_b = 0.0
+            t_max_b = 1.0
+        else:
+            t_min_b = ((p_min[0] - x3) * b_dir[0] + (p_min[1] - y3) * b_dir[1]) / b_norm2
+            t_max_b = ((p_max[0] - x3) * b_dir[0] + (p_max[1] - y3) * b_dir[1]) / b_norm2
+        return [
+            (p_min, t_min_a, t_min_b),
+            (p_max, t_max_a, t_max_b),
+        ]
     return []
 
 

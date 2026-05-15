@@ -64,8 +64,6 @@ export interface StatsData {
     node_i_count: number
     node_y_count: number
     node_x_count: number
-    node_overlap_count: number
-    node_multi_count: number
     intersection_count: number
     degenerate_skipped: number
   }
@@ -77,9 +75,6 @@ export interface StatsData {
     degree: number
     trace_indices: number[]
     event_count: number
-    is_endpoint: boolean
-    is_intersection: boolean
-    is_overlap: boolean
   }>
   intersections?: Array<{
     trace_a: number

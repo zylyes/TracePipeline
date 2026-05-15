@@ -1,6 +1,9 @@
 """节点识别主算法。
 
-基于迹线端点坐标，识别端点节点、迹线交点、搭接节点、共线重叠节点。
+基于迹线端点坐标，按文献标准识别三种节点类型：
+  - I 型（孤立端点）：端点不与任何其他迹线接触
+  - Y 型（三叉节点）：一条迹线的端点落在另一条迹线的内部
+  - X 型（交叉节点）：两条迹线在各自的内部位置相交
 """
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ import numpy as np
 
 from ..geometry.segments import (
     collinear_overlap,
+    cross2d,
     is_degenerate_segment,
     segment_intersection,
 )
@@ -27,9 +31,29 @@ class _Candidate:
     x: float
     y: float
     trace_idx: int
-    event_type: str  # endpoint / intersection / overlap
-    param: float = 0.0  # 在线段上的参数 [0,1]，端点为 0 或 1
-    partner_trace: int | None = None
+    event_type: str  # "I" | "Y" | "X"
+    param: float = 0.0  # 在线段上的参数 [0,1]
+
+
+def _point_on_segment_interior(
+    px: float, py: float,
+    x1: float, y1: float,
+    x2: float, y2: float,
+    tol: float,
+) -> bool:
+    """判断点是否落在线段内部（不包括端点邻域），且垂距在容差内。"""
+    dx = x2 - x1
+    dy = y2 - y1
+    if dx == 0.0 and dy == 0.0:
+        return False
+    t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)
+    if not (tol < t < 1.0 - tol):
+        return False
+    # 检查垂距
+    proj_x = x1 + t * dx
+    proj_y = y1 + t * dy
+    dist_sq = (px - proj_x) ** 2 + (py - proj_y) ** 2
+    return dist_sq <= tol * tol
 
 
 def _build_spatial_grid(candidates: list[_Candidate], cell_size: float) -> dict[tuple[int, int], list[int]]:
@@ -63,7 +87,6 @@ def _merge_candidates(
         cx = int(np.floor(cand.x / cell_size))
         cy = int(np.floor(cand.y / cell_size))
 
-        # 搜索邻域 3x3 网格
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 for j in grid.get((cx + dx, cy + dy), []):
@@ -77,21 +100,61 @@ def _merge_candidates(
     return merged
 
 
-def _classify_node_type(
-    degree: int,
-    has_endpoint: bool,
-    has_intersection: bool,
-    has_overlap: bool,
-) -> str:
-    """根据连接关系分类节点类型（中文化）。"""
-    if has_overlap:
-        return "overlap"
-    if degree >= 4:
-        return "multi"
-    if degree == 3:
+def _compute_topological_value(cluster: list[_Candidate], tol: float) -> int:
+    """按 trace_idx 分组计算拓扑值（分支数）。
+
+    规则：
+    - 迹线在节点上有内部 candidate（0 < param < 1）→ 2 分支
+    - 迹线在节点上只有端点 candidate（param ≈ 0 或 1）：
+      - 该迹线在节点上有 ≥2 个不同端点 candidate → 2 分支（V 型环）
+      - 否则 → 1 分支
+    """
+    trace_params: dict[int, list[float]] = defaultdict(list)
+    for cand in cluster:
+        trace_params[cand.trace_idx].append(cand.param)
+
+    tv = 0
+    for params in trace_params.values():
+        # 容差范围内去重（避免重复候选导致误判）
+        unique_params: list[float] = []
+        for p in params:
+            if not any(abs(p - up) <= tol for up in unique_params):
+                unique_params.append(p)
+
+        has_internal = any(tol < p < 1.0 - tol for p in unique_params)
+        if has_internal:
+            tv += 2
+        else:
+            # 只有端点
+            n_endpoints = sum(1 for p in unique_params if p <= tol or p >= 1.0 - tol)
+            tv += 2 if n_endpoints >= 2 else 1
+    return tv
+
+
+def _classify_merged_node(cluster: list[_Candidate], tol: float) -> str:
+    """合并后节点类型判定。
+
+    真正的 X 型：至少两条迹线在内部交叉（各有内部 X 候选）。
+    Y 型：存在端点落在其他迹线内部，或拓扑值≥3（多条端点重合）。
+    I 型：其他情况（孤立端点或 V 型）。
+    """
+    # 统计有内部 X 事件的迹线（param 在 (0,1) 内）
+    x_internal_traces: set[int] = set()
+    for c in cluster:
+        if c.event_type == "X" and tol < c.param < 1.0 - tol:
+            x_internal_traces.add(c.trace_idx)
+    if len(x_internal_traces) >= 2:
+        return "X"
+
+    event_types = {c.event_type for c in cluster}
+    if "Y" in event_types:
         return "Y"
-    if degree == 2 and has_intersection:
-        return "Y" if has_endpoint else "X"
+
+    # 多条端点重合（拓扑值≥3）→ Y
+    tv = _compute_topological_value(cluster, tol)
+    if tv >= 3:
+        return "Y"
+
     return "I"
 
 
@@ -119,16 +182,43 @@ def recognize_trace_nodes(
     warnings_list: list[str] = []
     degenerate_count = 0
 
-    # 1. 收集所有端点作为候选
+    # 1. 端点分析：遍历每条迹线的两个端点
     for i in range(n):
         x1, y1, x2, y2 = endpoints[i]
         if is_degenerate_segment(x1, y1, x2, y2, tol):
             degenerate_count += 1
             continue
-        candidates.append(_Candidate(x=x1, y=y1, trace_idx=i, event_type="endpoint", param=0.0))
-        candidates.append(_Candidate(x=x2, y=y2, trace_idx=i, event_type="endpoint", param=1.0))
 
-    # 2. 两两相交检测
+        for end, (px, py) in enumerate(((x1, y1), (x2, y2))):
+            param = float(end)  # 0 或 1
+            is_y = False
+            for j in range(n):
+                if j == i:
+                    continue
+                x1_j, y1_j, x2_j, y2_j = endpoints[j]
+                if is_degenerate_segment(x1_j, y1_j, x2_j, y2_j, tol):
+                    continue
+                if _point_on_segment_interior(px, py, x1_j, y1_j, x2_j, y2_j, tol):
+                    # 检查是否共线：共线情况由 collinear_overlap 统一处理，避免重复候选
+                    dx_i = x2 - x1
+                    dy_i = y2 - y1
+                    dx_j = x2_j - x1_j
+                    dy_j = y2_j - y1_j
+                    if abs(cross2d(dx_i, dy_i, dx_j, dy_j)) < tol:
+                        continue  # 共线重叠由 collinear_overlap 处理
+                    # 端点 i 落在迹线 j 的内部 → Y
+                    candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="Y", param=param))
+                    # 迹线 j 在该点被穿过（内部），贡献 2 分支
+                    if dx_j != 0.0 or dy_j != 0.0:
+                        t_j = ((px - x1_j) * dx_j + (py - y1_j) * dy_j) / (dx_j * dx_j + dy_j * dy_j)
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="X", param=t_j))
+                    is_y = True
+                    break
+            if not is_y:
+                # 端点悬空 → I
+                candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="I", param=param))
+
+    # 2. 内部相交分析：两两迹线在各自内部相交 → X
     for i in range(n):
         x1_i, y1_i, x2_i, y2_i = endpoints[i]
         if is_degenerate_segment(x1_i, y1_i, x2_i, y2_i, tol):
@@ -138,13 +228,12 @@ def recognize_trace_nodes(
             if is_degenerate_segment(x1_j, y1_j, x2_j, y2_j, tol):
                 continue
 
-            # 非平行相交
             result = segment_intersection(
                 (x1_i, y1_i), (x2_i, y2_i),
                 (x1_j, y1_j), (x2_j, y2_j),
                 tol,
             )
-            if result is not None:
+            if result is not None and result.kind == "internal":
                 intersections.append(
                     TraceIntersection(
                         trace_a=i,
@@ -153,69 +242,42 @@ def recognize_trace_nodes(
                         y=result.py,
                         t=result.t,
                         u=result.u,
-                        kind=result.kind,
+                        kind="internal",
                     )
                 )
                 candidates.append(
-                    _Candidate(
-                        x=result.px,
-                        y=result.py,
-                        trace_idx=i,
-                        event_type="intersection",
-                        param=result.t,
-                        partner_trace=j,
-                    )
+                    _Candidate(x=result.px, y=result.py, trace_idx=i, event_type="X", param=result.t)
                 )
                 candidates.append(
-                    _Candidate(
-                        x=result.px,
-                        y=result.py,
-                        trace_idx=j,
-                        event_type="intersection",
-                        param=result.u,
-                        partner_trace=i,
-                    )
+                    _Candidate(x=result.px, y=result.py, trace_idx=j, event_type="X", param=result.u)
                 )
             else:
-                # 检查共线重叠
-                ov_pts = collinear_overlap(
+                # 共线重叠：边界节点可能是 Y 或 I（V 型）
+                ov_result = collinear_overlap(
                     (x1_i, y1_i), (x2_i, y2_i),
                     (x1_j, y1_j), (x2_j, y2_j),
                     tol,
                 )
-                for k, (px, py) in enumerate(ov_pts):
-                    candidates.append(
-                        _Candidate(
-                            x=px,
-                            y=py,
-                            trace_idx=i,
-                            event_type="overlap",
-                            param=0.0,  # 重叠边界点参数暂记为 0
-                            partner_trace=j,
-                        )
-                    )
-                    candidates.append(
-                        _Candidate(
-                            x=px,
-                            y=py,
-                            trace_idx=j,
-                            event_type="overlap",
-                            param=0.0,
-                            partner_trace=i,
-                        )
-                    )
-                if len(ov_pts) == 2:
-                    intersections.append(
-                        TraceIntersection(
-                            trace_a=i,
-                            trace_b=j,
-                            x=(ov_pts[0][0] + ov_pts[1][0]) / 2.0,
-                            y=(ov_pts[0][1] + ov_pts[1][1]) / 2.0,
-                            t=0.5,
-                            u=0.5,
-                            kind="overlap",
-                        )
-                    )
+                for (px, py), t_a, t_b in ov_result:
+                    is_endpoint_a = t_a <= tol or t_a >= 1.0 - tol
+                    is_endpoint_b = t_b <= tol or t_b >= 1.0 - tol
+                    if is_endpoint_a and not is_endpoint_b:
+                        # A 的端点落在 B 内部 → Y（A 贡献 1 分支，B 贡献 2 分支）
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="Y", param=t_a))
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="X", param=t_b))
+                    elif is_endpoint_b and not is_endpoint_a:
+                        # B 的端点落在 A 内部 → Y（B 贡献 1 分支，A 贡献 2 分支）
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="Y", param=t_b))
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="X", param=t_a))
+                    elif is_endpoint_a and is_endpoint_b:
+                        # 两端点重合（V 型）→ I（两个悬空端点合并，各贡献 1 分支）
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="I", param=t_a))
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="I", param=t_b))
+                    else:
+                        # 内部点重合（理论上不应发生，因为共线重叠边界只会在端点处）
+                        # 按 X 处理（各贡献 2 分支）
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="X", param=t_a))
+                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="X", param=t_b))
 
     # 3. 聚类合并候选点
     clusters = _merge_candidates(candidates, tol)
@@ -225,23 +287,9 @@ def recognize_trace_nodes(
         cx = float(np.mean([c.x for c in cluster]))
         cy = float(np.mean([c.y for c in cluster]))
 
-        trace_set: set[int] = set()
-        has_endpoint = False
-        has_intersection = False
-        has_overlap = False
-        event_count = len(cluster)
-
-        for cand in cluster:
-            trace_set.add(cand.trace_idx)
-            if cand.event_type == "endpoint":
-                has_endpoint = True
-            elif cand.event_type == "intersection":
-                has_intersection = True
-            elif cand.event_type == "overlap":
-                has_overlap = True
-
-        degree = len(trace_set)
-        node_type = _classify_node_type(degree, has_endpoint, has_intersection, has_overlap)
+        trace_set: set[int] = {c.trace_idx for c in cluster}
+        node_type = _classify_merged_node(cluster, tol)
+        tv = _compute_topological_value(cluster, tol)
 
         nodes.append(
             TraceNode(
@@ -249,12 +297,9 @@ def recognize_trace_nodes(
                 x=cx,
                 y=cy,
                 node_type=node_type,
-                degree=degree,
+                degree=tv,
                 trace_indices=tuple(sorted(trace_set)),
-                event_count=event_count,
-                is_endpoint=has_endpoint,
-                is_intersection=has_intersection,
-                is_overlap=has_overlap,
+                event_count=len(cluster),
             )
         )
 

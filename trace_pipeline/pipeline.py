@@ -235,10 +235,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             "node_i_count": 0,
             "node_y_count": 0,
             "node_x_count": 0,
-            "node_overlap_count": 0,
-            "node_multi_count": 0,
             "intersection_count": 0,
-            "endpoint_node_count": 0,
         }
         if node_analysis is not None:
             tc = node_analysis.type_counts
@@ -247,10 +244,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 "node_i_count": tc.get("I", 0),
                 "node_y_count": tc.get("Y", 0),
                 "node_x_count": tc.get("X", 0),
-                "node_overlap_count": tc.get("overlap", 0),
-                "node_multi_count": tc.get("multi", 0),
                 "intersection_count": node_analysis.intersection_count,
-                "endpoint_node_count": sum(1 for n in node_analysis.nodes if n.is_endpoint),
             }
         return RunResult.success(
             table_stem=cfg.table_stem,

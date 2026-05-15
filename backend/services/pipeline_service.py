@@ -12,6 +12,9 @@ from trace_pipeline.pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
 
+# 保护 matplotlib 全局状态，防止并发绘制时竞争
+_EXECUTION_LOCK = threading.Lock()
+
 
 class PipelineService:
     """后台线程执行流水线，前端通过轮询获取进度。"""
@@ -92,7 +95,8 @@ class PipelineService:
                     "tangent_window_count": config.get("tangent_window_count", 3),
                 })
 
-                result = run_pipeline(cfg)
+                with _EXECUTION_LOCK:
+                    result = run_pipeline(cfg)
                 result_dict = {
                     "outcrop": outcrop,
                     "status": result.status,

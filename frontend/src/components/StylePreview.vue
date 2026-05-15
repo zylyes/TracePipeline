@@ -30,10 +30,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
 import ImageViewer from '@/components/ImageViewer.vue'
+
+const emit = defineEmits<{
+  (e: 'save-style'): void
+  (e: 'reset-style'): void
+}>()
 
 interface PreviewImage {
   key: string
@@ -72,6 +77,10 @@ function openViewer(index: number) {
 }
 
 let debounceTimer: number | null = null
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 async function doGenerate() {
   loading.value = true
@@ -118,11 +127,6 @@ function generatePreview() {
   debounceTimer = window.setTimeout(doGenerate, 500)
 }
 
-watch(() => props.styleConfig, () => {
-  generatePreview()
-}, { deep: true })
-
-// 初始加载
 watch(() => props.styleConfig, (val) => {
   if (val && Object.keys(val).length > 0) {
     generatePreview()
@@ -134,35 +138,38 @@ watch(() => props.styleConfig, (val) => {
 .style-preview {
   background: #fff;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px 16px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
   margin-top: 16px;
 }
 .preview-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   margin-bottom: 12px;
 }
 .preview-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #2c3e50;
+  white-space: nowrap;
 }
 .overlay-controls {
   display: flex;
-  gap: 20px;
-  padding: 8px 12px;
+  gap: 18px;
+  padding: 6px 14px;
   background: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-top: 12px;
+  gap: 14px;
+  margin-top: 10px;
 }
 .preview-box {
   border: 1px solid #e4e7ed;
@@ -175,7 +182,7 @@ watch(() => props.styleConfig, (val) => {
   box-shadow: 0 4px 12px 0 rgba(0,0,0,0.1);
 }
 .preview-label {
-  padding: 8px;
+  padding: 6px 8px;
   background: #f5f7fa;
   font-size: 13px;
   font-weight: 600;
@@ -183,7 +190,7 @@ watch(() => props.styleConfig, (val) => {
 }
 .preview-img-wrapper {
   position: relative;
-  min-height: 260px;
+  min-height: 240px;
   background: #fff;
   display: flex;
   align-items: center;
@@ -191,9 +198,14 @@ watch(() => props.styleConfig, (val) => {
 }
 .preview-img {
   max-width: 100%;
-  max-height: 360px;
+  max-height: 340px;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
+}
+@media (max-width: 900px) {
+  .preview-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 @media (max-width: 768px) {
   .preview-grid {

@@ -1,11 +1,16 @@
 <template>
   <div class="app-container">
-    <!-- 侧边栏 -->
-    <aside class="sidebar">
+    <!-- 启动界面 -->
+    <SplashScreen v-if="showSplash" @complete="onSplashComplete" />
+    
+    <!-- 主应用界面 -->
+    <template v-else>
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
       <div class="logo">
         <GeoIcon class="logo-icon" :size="22" color="#B85C38" />
         <span class="logo-text">TracePipeline</span>
-        <span class="logo-version">v1.0.1</span>
+        <span class="logo-version">v{{ appVersion }}</span>
       </div>
       <nav class="menu">
         <router-link
@@ -63,15 +68,19 @@
         </span>
       </footer>
     </main>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+
+const appVersion = __APP_VERSION__
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Timer, Files, Folder, Clock } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
+import SplashScreen from '@/components/SplashScreen.vue'
 import HomeIcon from '@/components/icons/HomeIcon.vue'
 import ProcessIcon from '@/components/icons/ProcessIcon.vue'
 import StatsIcon from '@/components/icons/StatsIcon.vue'
@@ -82,6 +91,12 @@ import { useAppStore } from '@/stores/app'
 import { useConfigStore } from '@/stores/config'
 import { usePipelineStore } from '@/stores/pipeline'
 import { api } from '@/api/pywebview'
+
+const showSplash = ref(true)
+
+function onSplashComplete() {
+  showSplash.value = false
+}
 
 const route = useRoute()
 const appStore = useAppStore()

@@ -63,6 +63,6 @@ def select_targets_interactive(discovered: Sequence[TraceFile]) -> list[TraceFil
             return chosen
         except ValueError as exc:
             print(f"输入无效: {exc}，请重新输入")
-        except (EOFError, KeyboardInterrupt):
+        except (EOFError, KeyboardInterrupt, OSError):
             print("\n已取消")
             return []

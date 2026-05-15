@@ -1,17 +1,17 @@
 <template>
   <div class="config-view">
     <h2 class="page-title">配置</h2>
-    <ConfigForm v-model="form" :style-config="styleConfig" @style-change="onStyleChange" />
-    <StylePreview :style-config="styleConfig" />
-    <DevPanel v-show="appStore.isDevMode" :outcrop="selectedOutcrop" @saved="loadConfig" @reset="loadConfig" />
+    <ConfigForm v-model="form" :style-config="styleConfig" @style-change="onStyleChange" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
+    <StylePreview :style-config="styleConfig" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
+    <DevPanel v-show="appStore.isDevMode" @saved="loadConfig" @reset="loadConfig" />
 
     <div class="action-bar">
-      <el-button type="primary" :icon="Brush" @click="saveStyleConfig">保存样式设置</el-button>
-      <el-button :icon="Refresh" @click="loadConfig">加载配置</el-button>
+      <el-button :icon="Refresh" @click="reloadConfig">重新加载配置</el-button>
+      <el-button :icon="Upload" @click="triggerImportJSON">导入 JSON</el-button>
       <el-button :icon="Download" @click="exportJSON">导出 JSON</el-button>
       <el-button :icon="Setting" @click="resetProcessingConfig">重置处理设置</el-button>
-      <el-button :icon="Brush" @click="resetStyleConfig">重置样式设置</el-button>
       <el-button :icon="RefreshRight" @click="resetAllConfig">重置所有设置</el-button>
+      <input ref="fileInputRef" type="file" accept=".json" style="display: none" @change="importJSON" />
     </div>
 
   </div>
@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Download, RefreshRight, Setting, Brush } from '@element-plus/icons-vue'
+import { Refresh, Download, RefreshRight, Setting, Upload } from '@element-plus/icons-vue'
 import ConfigForm from '@/components/ConfigForm.vue'
 import StylePreview from '@/components/StylePreview.vue'
 import DevPanel from '@/components/DevPanel.vue'
@@ -46,34 +46,25 @@ const styleConfig = ref<ConfigData>({
   title_font_size: 10.4,
   node_style: 'default',
 })
-const selectedOutcrop = ref('')
+const fileInputRef = ref<HTMLInputElement>()
 
-async function loadOutcrops() {
-  try {
-    const files = await api.scan_files()
-    const completed = files.filter((f: any) => f.status === 'completed')
-    if (completed.length > 0 && !selectedOutcrop.value) {
-      selectedOutcrop.value = completed[0].outcrop
-    }
-  } catch (e) {
-    // ignore
-  }
-}
-
-async function loadConfig() {
+async function reloadConfig() {
   try {
     const cfg = await configStore.loadConfig()
     form.value = { ...cfg }
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
-    // 同步侧边栏路径
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+    ElMessage.success('配置已重新加载')
   } catch (e) {
-    ElMessage.error('加载配置失败')
+    ElMessage.error('重新加载配置失败')
   }
 }
+
+// 保持 loadConfig 别名供其他地方（如 DevPanel 回调）使用
+const loadConfig = reloadConfig
 
 async function saveStyleConfig() {
   try {
@@ -160,14 +151,42 @@ async function resetAllConfig() {
   }
 }
 
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(configStore.config, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'config.json'
-  a.click()
-  URL.revokeObjectURL(url)
+async function exportJSON() {
+  try {
+    const folder = await api.browse_folder()
+    if (!folder) return
+    const jsonStr = JSON.stringify(configStore.config, null, 2)
+    await api.export_config_json(folder, jsonStr)
+    ElMessage.success(`配置已导出到 ${folder}`)
+  } catch (e) {
+    ElMessage.error('导出配置失败')
+  }
+}
+
+function triggerImportJSON() {
+  fileInputRef.value?.click()
+}
+
+async function importJSON(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    const text = await file.text()
+    const imported = JSON.parse(text)
+    form.value = { ...imported }
+    if (imported.style && typeof imported.style === 'object') {
+      styleConfig.value = { ...styleConfig.value, ...imported.style }
+    }
+    if (imported.input_dir) appStore.inputDir = imported.input_dir
+    if (imported.output_dir) appStore.outputDir = imported.output_dir
+    ElMessage.success(`已导入配置: ${file.name}`)
+  } catch (e) {
+    ElMessage.error('导入失败：无效的 JSON 文件')
+  } finally {
+    // 重置 input 以允许重复选择同一文件
+    input.value = ''
+  }
 }
 
 function onStyleChange(val: ConfigData) {
@@ -176,7 +195,6 @@ function onStyleChange(val: ConfigData) {
 
 onMounted(async () => {
   await loadConfig()
-  await loadOutcrops()
 })
 
 // 导出当前表单供外部使用
@@ -203,7 +221,7 @@ defineExpose({ getForm })
   display: flex;
   gap: 12px;
   margin-top: 24px;
-  padding: 16px;
+  padding: 16px 20px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);

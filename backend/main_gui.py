@@ -12,6 +12,7 @@ matplotlib.use('Agg')
 
 import webview
 
+from trace_pipeline import __version__
 from trace_pipeline.cli.logging_setup import setup_logging
 
 from backend.gui_api import GuiApi
@@ -83,7 +84,7 @@ def main() -> None:
     url = str(index_html.resolve()) if index_html.exists() else str(STATIC_DIR.resolve())
 
     window = webview.create_window(
-        "TracePipeline v1.0.1",
+        f"TracePipeline v{__version__}",
         url=url,
         width=1400,
         height=900,

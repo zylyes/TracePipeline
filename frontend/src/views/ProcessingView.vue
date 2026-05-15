@@ -163,9 +163,10 @@ function addLog(type: ProcessLog['type'], message: string) {
   })
 }
 
-// 监听全局配置变化，自动同步到处理参数
+// 监听全局配置变化，自动同步到处理参数（排除本地保存触发的更新）
+let syncingParams = false
 watch(() => configStore.config, (newCfg) => {
-  if (!newCfg || Object.keys(newCfg).length === 0) return
+  if (syncingParams || !newCfg || Object.keys(newCfg).length === 0) return
   params.value = {
     export_rose_plot: newCfg.export_rose_plot ?? true,
     rose_dpi: newCfg.rose_dpi ?? 400,
@@ -263,6 +264,7 @@ function openImageModal(result: PipelineResult) {
 }
 
 async function saveParams() {
+  syncingParams = true
   try {
     const payload = {
       export_rose_plot: params.value.export_rose_plot,
@@ -276,6 +278,8 @@ async function saveParams() {
     ElMessage.success('处理参数已保存')
   } catch (e) {
     ElMessage.error('保存处理参数失败')
+  } finally {
+    syncingParams = false
   }
 }
 

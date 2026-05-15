@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections import deque
 from typing import Any
 
 from trace_pipeline.config import resolve_io_paths
+from trace_pipeline.logging import LogContext
 from trace_pipeline.models import RunConfig
 from trace_pipeline.pipeline import run_pipeline
 
@@ -52,100 +54,124 @@ class PipelineService:
 
     def _run_background(self, targets: list[str], config: dict[str, Any]) -> None:
         completed_results: list[dict[str, Any]] = []
-        try:
-            input_dir = config.get("input_dir", "input")
-            output_dir = config.get("output_dir", "output")
-            in_path, out_path = resolve_io_paths(input_dir, output_dir)
+        batch_start = time.perf_counter()
+        batch_req_id = f"batch-{int(batch_start * 1000)}"
+        with LogContext(request_id=batch_req_id):
+            try:
+                input_dir = config.get("input_dir", "input")
+                output_dir = config.get("output_dir", "output")
+                in_path, out_path = resolve_io_paths(input_dir, output_dir)
 
-            total = len(targets)
-            logger.info("流水线启动: %d 个目标", total)
-            self._emit({
-                "type": "start",
-                "total": total,
-                "current": 0,
-                "filename": "",
-                "message": "开始处理",
-            })
-
-            for idx, outcrop in enumerate(targets, 1):
-                table_stem = f"{outcrop}_process"
-                logger.info("正在处理: %s (%d/%d)", outcrop, idx, total)
+                total = len(targets)
+                logger.info(
+                    "流水线启动: %d 个目标", total,
+                    extra={"stage": "batch_start", "target_count": total, "targets": targets},
+                )
                 self._emit({
-                    "type": "progress",
-                    "current": idx,
+                    "type": "start",
                     "total": total,
-                    "filename": table_stem,
-                    "message": f"正在处理 {outcrop}...",
+                    "current": 0,
+                    "filename": "",
+                    "message": "开始处理",
                 })
 
-                cfg = RunConfig.from_mapping({
-                    **config,
-                    "input_dir": in_path,
-                    "output_dir": out_path,
-                    "table_stem": table_stem,
-                    "outcrop": outcrop,
-                    "output_prefix": outcrop,
-                    "export_rose_plot": config.get("export_rose_plot", True),
-                    "rose_bin_width": config.get("rose_bin_width", 10.0),
-                    "rose_dpi": config.get("rose_dpi", 400),
-                    "trace_dpi": config.get("trace_dpi", 300),
-                    "rotated_trace_dpi": config.get("rotated_trace_dpi", 600),
-                    "window_strategy": config.get("window_strategy", "auto"),
-                    "auto_density_threshold": config.get("auto_density_threshold", 5.0),
-                    "tangent_window_count": config.get("tangent_window_count", 3),
-                })
+                for idx, outcrop in enumerate(targets, 1):
+                    table_stem = f"{outcrop}_process"
+                    item_start = time.perf_counter()
+                    logger.info(
+                        "正在处理: %s (%d/%d)", outcrop, idx, total,
+                        extra={"stage": "item_start", "outcrop": outcrop, "idx": idx, "total": total},
+                    )
+                    self._emit({
+                        "type": "progress",
+                        "current": idx,
+                        "total": total,
+                        "filename": table_stem,
+                        "message": f"正在处理 {outcrop}...",
+                    })
 
-                with _EXECUTION_LOCK:
-                    result = run_pipeline(cfg)
-                result_dict = {
-                    "outcrop": outcrop,
-                    "status": result.status,
-                    "trace_count": result.trace_count,
-                    "mean_length": result.mean_length,
-                    "scanline_azimuth": result.scanline_azimuth,
-                    "excel_path": result.excel_path,
-                    "raw_plot_path": result.raw_plot_path,
-                    "rotated_plot_path": result.rotated_plot_path,
-                    "rose_plot_path": result.rose_plot_path,
-                    "window_strategy": result.window_strategy,
-                    "area_source": result.area_source,
-                    "error": result.error,
-                    "node_count": result.node_count,
-                    "node_x_count": result.node_x_count,
-                    "node_y_count": result.node_y_count,
-                    "node_i_count": result.node_i_count,
-                }
-                completed_results.append(result_dict)
-                if result.status == "success":
-                    logger.info("%s 处理完成", outcrop)
-                else:
-                    logger.error("%s 处理失败: %s", outcrop, result.error)
+                    cfg = RunConfig.from_mapping({
+                        **config,
+                        "input_dir": in_path,
+                        "output_dir": out_path,
+                        "table_stem": table_stem,
+                        "outcrop": outcrop,
+                        "output_prefix": outcrop,
+                        "export_rose_plot": config.get("export_rose_plot", True),
+                        "rose_bin_width": config.get("rose_bin_width", 10.0),
+                        "rose_dpi": config.get("rose_dpi", 400),
+                        "trace_dpi": config.get("trace_dpi", 300),
+                        "rotated_trace_dpi": config.get("rotated_trace_dpi", 600),
+                        "window_strategy": config.get("window_strategy", "auto"),
+                        "auto_density_threshold": config.get("auto_density_threshold", 5.0),
+                        "tangent_window_count": config.get("tangent_window_count", 3),
+                    })
+
+                    with _EXECUTION_LOCK:
+                        result = run_pipeline(cfg)
+                    item_duration = (time.perf_counter() - item_start) * 1000
+                    result_dict = {
+                        "outcrop": outcrop,
+                        "status": result.status,
+                        "trace_count": result.trace_count,
+                        "mean_length": result.mean_length,
+                        "scanline_azimuth": result.scanline_azimuth,
+                        "excel_path": result.excel_path,
+                        "raw_plot_path": result.raw_plot_path,
+                        "rotated_plot_path": result.rotated_plot_path,
+                        "rose_plot_path": result.rose_plot_path,
+                        "window_strategy": result.window_strategy,
+                        "area_source": result.area_source,
+                        "error": result.error,
+                        "node_count": result.node_count,
+                        "node_x_count": result.node_x_count,
+                        "node_y_count": result.node_y_count,
+                        "node_i_count": result.node_i_count,
+                    }
+                    completed_results.append(result_dict)
+                    if result.status == "success":
+                        logger.info(
+                            "%s 处理完成 (%.3f ms)", outcrop, item_duration,
+                            extra={"stage": "item_end", "outcrop": outcrop, "duration_ms": round(item_duration, 3)},
+                        )
+                    else:
+                        logger.error(
+                            "%s 处理失败: %s (%.3f ms)", outcrop, result.error, item_duration,
+                            extra={"stage": "item_end", "outcrop": outcrop, "error": result.error, "duration_ms": round(item_duration, 3)},
+                        )
+                    self._emit({
+                        "type": "file_complete",
+                        "current": idx,
+                        "total": total,
+                        "filename": table_stem,
+                        "message": f"{outcrop} 处理完成" if result.status == "success" else f"{outcrop} 处理失败",
+                        "result": result_dict,
+                    })
+
+                batch_duration = (time.perf_counter() - batch_start) * 1000
+                logger.info(
+                    "流水线全部完成 (%.3f ms)", batch_duration,
+                    extra={"stage": "batch_end", "duration_ms": round(batch_duration, 3), "completed": len(completed_results)},
+                )
                 self._emit({
-                    "type": "file_complete",
-                    "current": idx,
+                    "type": "complete",
+                    "current": total,
                     "total": total,
-                    "filename": table_stem,
-                    "message": f"{outcrop} 处理完成" if result.status == "success" else f"{outcrop} 处理失败",
-                    "result": result_dict,
+                    "message": "全部处理完成",
+                    "results": completed_results,
                 })
-
-            logger.info("流水线全部完成")
-            self._emit({
-                "type": "complete",
-                "current": total,
-                "total": total,
-                "message": "全部处理完成",
-                "results": completed_results,
-            })
-        except Exception as exc:
-            logger.exception("后台流水线异常")
-            # 即使异常，也发送已完成的摘要
-            self._emit({
-                "type": "error",
-                "message": f"{type(exc).__name__}: {exc}",
-                "completed_count": len(completed_results),
-                "total": len(targets),
-                "results": completed_results,
-            })
-        finally:
-            self._running = False
+            except Exception as exc:
+                batch_duration = (time.perf_counter() - batch_start) * 1000
+                logger.exception(
+                    "后台流水线异常 (%.3f ms)", batch_duration,
+                    extra={"stage": "batch_error", "duration_ms": round(batch_duration, 3)},
+                )
+                self._emit({
+                    "type": "error",
+                    "message": f"{type(exc).__name__}: {exc}",
+                    "completed_count": len(completed_results),
+                    "total": len(targets),
+                    "results": completed_results,
+                })
+            finally:
+                self._running = False

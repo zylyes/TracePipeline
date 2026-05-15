@@ -65,15 +65,35 @@ class PreviewService:
             if style_hash in self._cache:
                 ts, paths = self._cache[style_hash]
                 if time.time() - ts < CACHE_TTL:
+                    logger.info(
+                        "预览缓存命中 [%s] (TTL剩余 %.0f秒)", style_hash[:8], CACHE_TTL - (time.time() - ts),
+                        extra={"stage": "preview_cache_hit", "hash": style_hash, "ttl_remaining": round(CACHE_TTL - (time.time() - ts))},
+                    )
                     return {"status": "ready", "paths": paths, "images": self._to_images(paths)}
+                else:
+                    logger.debug("预览缓存过期 [%s]", style_hash[:8], extra={"stage": "preview_cache_expired", "hash": style_hash})
 
+        start = time.perf_counter()
         try:
             paths = self._generate_images(config, style_hash)
             with _PREVIEW_LOCK:
                 self._cache[style_hash] = (time.time(), paths)
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "预览生成完成 [%s]: %d 张图 (%.3f ms)",
+                style_hash[:8], len(paths), duration,
+                extra={
+                    "stage": "preview_generate",
+                    "hash": style_hash,
+                    "image_count": len(paths),
+                    "paths": paths,
+                    "duration_ms": round(duration, 3),
+                },
+            )
             return {"status": "ready", "paths": paths, "images": self._to_images(paths)}
         except Exception as exc:
-            logger.exception("预览生成失败")
+            duration = (time.perf_counter() - start) * 1000
+            logger.exception("预览生成失败 (%.3f ms)", duration, extra={"stage": "preview_error", "hash": style_hash, "duration_ms": round(duration, 3)})
             return {"status": "error", "message": str(exc)}
 
     def _to_images(self, paths: dict[str, str]) -> list[dict[str, str]]:

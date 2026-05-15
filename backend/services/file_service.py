@@ -31,7 +31,10 @@ class FileService:
 
     def scan(self) -> list[dict[str, Any]]:
         """扫描 input_dir，返回文件列表。"""
-        logger.info("扫描输入目录: %s", self.input_dir)
+        logger.info(
+            "扫描输入目录: %s", self.input_dir,
+            extra={"stage": "file_scan", "input_dir": str(self.input_dir), "output_dir": str(self._output_dir)},
+        )
         tables = find_trace_tables(str(self.input_dir))
         results: list[dict[str, Any]] = []
         for tf in tables:
@@ -46,7 +49,22 @@ class FileService:
                 "path": str(self.input_dir / tf.stem),
                 "status": status,
             })
-        logger.info("扫描结果: %d 个文件", len(results))
+            logger.debug(
+                "  发现迹线表: %s [%s]", outcrop, status,
+                extra={"stage": "file_scan_item", "outcrop": outcrop, "stem": tf.stem, "status": status},
+            )
+        logger.info(
+            "扫描完成: %d 个文件 (待处理 %d / 已完成 %d)",
+            len(results),
+            sum(1 for r in results if r["status"] == "pending"),
+            sum(1 for r in results if r["status"] == "completed"),
+            extra={
+                "stage": "file_scan_done",
+                "total": len(results),
+                "pending": sum(1 for r in results if r["status"] == "pending"),
+                "completed": sum(1 for r in results if r["status"] == "completed"),
+            },
+        )
         return results
 
     def set_output_dir(self, output_dir: str) -> None:

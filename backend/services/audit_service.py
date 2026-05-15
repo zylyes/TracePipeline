@@ -1,63 +1,75 @@
-"""操作审计日志服务（毕设功能）。"""
+"""操作审计日志服务 — 合并到统一结构化日志流。
+
+保留对外接口 ``log()`` / ``get()``，内部通过统一 logger 输出，
+日志随主日志文件一起按天归档。
+"""
 from __future__ import annotations
 
 import json
 import logging
-import time
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("backend.audit")
 
-AUDIT_PATH = Path("logs/audit.jsonl")
-MAX_AUDIT_SIZE = 10 * 1024 * 1024  # 10 MB 上限
+if getattr(sys, "frozen", False):
+    _PROJECT_ROOT = Path(sys.executable).parent
+else:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class AuditService:
-    """记录用户操作到 jsonl 文件，支持查询。"""
-
-    def __init__(self, path: str | Path = AUDIT_PATH) -> None:
-        self._path = Path(path)
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+    """记录用户操作到统一日志流，通过 event_type="audit" 区分。"""
 
     def log(self, action: str, params: dict[str, Any] | None = None, result: str = "") -> None:
-        """写入一条审计记录，超过 10MB 则轮换。"""
-        entry = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "action": action,
-            "params": params or {},
-            "result": result,
-        }
-        try:
-            if self._path.exists() and self._path.stat().st_size > MAX_AUDIT_SIZE:
-                rotated = self._path.with_suffix(".jsonl.old")
-                rotated.unlink(missing_ok=True)
-                self._path.rename(rotated)
-                logger.info("审计日志已轮换")
-            with self._path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        except OSError as exc:
-            logger.warning("审计日志写入失败: %s", exc)
+        """写入一条审计记录到统一 JSON 日志。"""
+        logger.info(
+            "audit: %s",
+            action,
+            extra={
+                "event_type": "audit",
+                "action": action,
+                "params": params or {},
+                "result": result,
+            },
+        )
 
     def get(self, limit: int = 50) -> list[dict[str, Any]]:
-        """读取最近 N 条审计记录。"""
-        if not self._path.exists():
+        """从当天统一日志中读取最近 N 条审计记录。"""
+        log_dir = _PROJECT_ROOT / "logs"
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        day_dir = log_dir / today
+        if not day_dir.is_dir():
             return []
-        lines = []
-        try:
-            with self._path.open("r", encoding="utf-8") as f:
-                lines = f.readlines()
-        except OSError:
-            return []
+
         records: list[dict[str, Any]] = []
-        for line in reversed(lines):
-            line = line.strip()
-            if not line:
-                continue
+        for f in sorted(day_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True):
             try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
+                with f.open("r", encoding="utf-8") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if rec.get("event_type") == "audit" or (
+                            rec.get("extra", {}).get("event_type") == "audit"
+                        ):
+                            # 兼容旧格式
+                            audit_rec: dict[str, Any] = {
+                                "timestamp": rec.get("timestamp", ""),
+                                "action": rec.get("extra", {}).get("action", ""),
+                                "params": rec.get("extra", {}).get("params", {}),
+                                "result": rec.get("extra", {}).get("result", ""),
+                            }
+                            records.append(audit_rec)
+            except OSError:
                 continue
             if len(records) >= limit:
                 break
-        return list(reversed(records))
+
+        return records[:limit]

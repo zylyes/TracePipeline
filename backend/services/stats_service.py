@@ -28,6 +28,9 @@ class StatsService:
 
     def get_stats(self, outcrop: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """计算并返回指定露头的统计数据。"""
+        import time
+        start = time.perf_counter()
+
         cfg = config or {}
         input_dir = cfg.get("input_dir", "input")
         table_stem = f"{outcrop}_process"
@@ -35,7 +38,7 @@ class StatsService:
         try:
             trace = load_trace_data(input_dir, table_stem, outcrop)
         except Exception as exc:
-            logger.warning("加载 %s 失败: %s", outcrop, exc)
+            logger.warning("加载 %s 失败: %s", outcrop, exc, extra={"stage": "stats_load", "outcrop": outcrop, "error": str(exc)})
             return {"error": str(exc)}
 
         stats_config = TraceStatisticsConfig(
@@ -106,7 +109,7 @@ class StatsService:
                 for n in node_list
             ]
 
-        return {
+        result = {
             "outcrop": outcrop,
             "scanline_azimuth": round(trace.scanline_azimuth, 2),
             "trace_count": trace.count,
@@ -171,6 +174,29 @@ class StatsService:
                 "nodes": _node_data(rot_nodes),
             },
         }
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "stats 计算完成 [%s]: trace_count=%d, P10=%.4f, P20=%.4f, P21=%.4f, nodes=%d (%.3f ms)",
+            outcrop, trace.count, result["p10"] or 0, result["p20"] or 0, result["p21"] or 0,
+            node_analysis.node_count, duration,
+            extra={
+                "stage": "stats_complete",
+                "outcrop": outcrop,
+                "trace_count": trace.count,
+                "p10": result["p10"],
+                "p20": result["p20"],
+                "p21": result["p21"],
+                "window_strategy": result["window_strategy"],
+                "node_count": node_analysis.node_count,
+                "node_i_count": tc.get("I", 0),
+                "node_y_count": tc.get("Y", 0),
+                "node_x_count": tc.get("X", 0),
+                "intersection_count": node_analysis.intersection_count,
+                "area_source": result["area_source"],
+                "duration_ms": round(duration, 3),
+            },
+        )
+        return result
 
     def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """返回多露头对比数据。"""

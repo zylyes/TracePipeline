@@ -68,11 +68,18 @@ class ReportService:
 
     def generate(self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]) -> dict[str, Any]:
         """生成报告并返回文件路径。"""
+        import time
+        start = time.perf_counter()
+
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
         results = {}
 
         input_dir = config.get("input_dir", "input")
         table_stem = f"{outcrop}_process"
+        logger.info(
+            "报告生成开始 [%s]: type=%s, fmt=%s", outcrop, report_type, fmt,
+            extra={"stage": "report_start", "outcrop": outcrop, "report_type": report_type, "fmt": fmt},
+        )
         try:
             trace = load_trace_data(input_dir, table_stem, outcrop)
             stats_config = TraceStatisticsConfig(
@@ -80,13 +87,34 @@ class ReportService:
             )
             statistics = compute_trace_statistics(trace, stats_config)
         except Exception as exc:
+            logger.warning("报告 [%s] 数据加载失败: %s", outcrop, exc, extra={"stage": "report_error", "outcrop": outcrop, "error": str(exc)})
             return {"error": str(exc)}
 
         if fmt in ("docx", "both"):
-            results["docx"] = self._gen_docx(outcrop, trace, statistics, report_type)
+            docx_path = self._gen_docx(outcrop, trace, statistics, report_type)
+            results["docx"] = docx_path
+            if docx_path:
+                logger.info("DOCX 报告生成: %s", docx_path, extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_path})
         if fmt in ("pdf", "both"):
-            results["pdf"] = self._gen_pdf(outcrop, trace, statistics, report_type)
+            pdf_path = self._gen_pdf(outcrop, trace, statistics, report_type)
+            results["pdf"] = pdf_path
+            if pdf_path:
+                logger.info("PDF 报告生成: %s", pdf_path, extra={"stage": "report_pdf", "outcrop": outcrop, "path": pdf_path})
 
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "报告生成完成 [%s]: docx=%s, pdf=%s (%.3f ms)",
+            outcrop, bool(results.get("docx")), bool(results.get("pdf")), duration,
+            extra={
+                "stage": "report_complete",
+                "outcrop": outcrop,
+                "report_type": report_type,
+                "fmt": fmt,
+                "has_docx": bool(results.get("docx")),
+                "has_pdf": bool(results.get("pdf")),
+                "duration_ms": round(duration, 3),
+            },
+        )
         return results
 
     # ------------------------------------------------------------------

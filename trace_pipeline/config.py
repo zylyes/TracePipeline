@@ -112,17 +112,33 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
     if not path.is_file():
         raise ValueError(f"配置路径 {path} 不是文件")
 
-    logger.info("加载配置文件: %s", path)
+    logger.info("加载配置文件: %s", path, extra={"stage": "config_load", "config_path": str(path)})
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
+        logger.error(
+            "配置文件 JSON 解析失败: %s", exc,
+            extra={"stage": "config_load", "config_path": str(path), "error_type": "JSONDecodeError"},
+        )
         raise ValueError(f"配置文件 {path} 不是合法 JSON: {exc}") from exc
     except OSError as exc:
+        logger.error(
+            "配置文件读取失败: %s", exc,
+            extra={"stage": "config_load", "config_path": str(path), "error_type": "OSError"},
+        )
         raise OSError(f"无法读取配置文件 {path}: {exc}") from exc
 
     if not isinstance(data, dict):
+        logger.error(
+            "配置文件格式错误: 必须为 JSON 对象",
+            extra={"stage": "config_load", "config_path": str(path)},
+        )
         raise ValueError(f"配置文件 {path} 必须包含一个 JSON 对象")
 
+    logger.info(
+        "配置文件加载成功: %s", path,
+        extra={"stage": "config_load", "config_path": str(path), "keys": list(data.keys())},
+    )
     return validate_config(data)
 
 

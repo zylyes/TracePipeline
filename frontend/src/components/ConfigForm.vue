@@ -14,35 +14,57 @@
       </el-form-item>
 
       <h3>绘图样式</h3>
-      <el-form-item label="迹线颜色">
-        <el-color-picker v-model="style.trace_line_color" @change="emitStyle" />
+      <el-form-item label="颜色">
+        <div class="color-picker-group">
+          <div class="color-picker-item">
+            <span class="color-label">迹线</span>
+            <el-color-picker v-model="style.trace_line_color" @change="emitStyle" />
+          </div>
+          <div class="color-picker-item">
+            <span class="color-label">凸包</span>
+            <el-color-picker v-model="style.hull_line_color" @change="emitStyle" />
+          </div>
+          <div class="color-picker-item">
+            <span class="color-label">圆窗</span>
+            <el-color-picker v-model="style.circle_window_line_color" @change="emitStyle" />
+          </div>
+          <div class="color-picker-item">
+            <span class="color-label">玫瑰柱</span>
+            <el-color-picker v-model="style.rose_bar_color" @change="emitStyle" />
+          </div>
+          <div class="color-picker-item">
+            <span class="color-label">玫瑰边</span>
+            <el-color-picker v-model="style.rose_bar_edge" @change="emitStyle" />
+          </div>
+          <div class="color-picker-item">
+            <span class="color-label">网格</span>
+            <el-color-picker v-model="style.rose_grid_color" @change="emitStyle" />
+          </div>
+        </div>
       </el-form-item>
       <el-form-item label="线宽">
-        <el-slider v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" @change="emitStyle" />
-      </el-form-item>
-      <el-form-item label="凸包颜色">
-        <el-color-picker v-model="style.hull_line_color" @change="emitStyle" />
+        <div class="slider-input-combo">
+          <el-slider v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" @change="emitStyle" />
+          <el-input-number v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+        </div>
       </el-form-item>
       <el-form-item label="凸包透明度">
-        <el-slider v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" @change="emitStyle" />
-      </el-form-item>
-      <el-form-item label="圆窗颜色">
-        <el-color-picker v-model="style.circle_window_line_color" @change="emitStyle" />
+        <div class="slider-input-combo">
+          <el-slider v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" @change="emitStyle" />
+          <el-input-number v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+        </div>
       </el-form-item>
       <el-form-item label="圆窗透明度">
-        <el-slider v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" @change="emitStyle" />
-      </el-form-item>
-      <el-form-item label="玫瑰柱体">
-        <el-color-picker v-model="style.rose_bar_color" @change="emitStyle" />
-      </el-form-item>
-      <el-form-item label="玫瑰边框">
-        <el-color-picker v-model="style.rose_bar_edge" @change="emitStyle" />
-      </el-form-item>
-      <el-form-item label="网格颜色">
-        <el-color-picker v-model="style.rose_grid_color" @change="emitStyle" />
+        <div class="slider-input-combo">
+          <el-slider v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" @change="emitStyle" />
+          <el-input-number v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+        </div>
       </el-form-item>
       <el-form-item label="全局字号">
-        <el-slider v-model="style.global_font_size" :min="6" :max="14" :step="0.5" @change="emitStyle" />
+        <div class="slider-input-combo">
+          <el-slider v-model="style.global_font_size" :min="6" :max="14" :step="0.5" @change="emitStyle" />
+          <el-input-number v-model="style.global_font_size" :min="6" :max="14" :step="0.5" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+        </div>
       </el-form-item>
       <el-form-item label="节点标签模式">
         <el-select v-model="form.node_label_mode" style="width: 200px">
@@ -140,5 +162,29 @@ async function browse(type: string) {
   margin: 16px 0 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #e4e7ed;
+}
+.slider-input-combo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.slider-input-combo .el-slider {
+  flex: 1;
+}
+.color-picker-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.color-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.color-label {
+  font-size: 12px;
+  color: #606266;
+  white-space: nowrap;
 }
 </style>

@@ -6,8 +6,11 @@
       </el-button>
       <div class="parallel-control">
         <span>并行进程:</span>
-        <el-slider v-model="parallel" :min="1" :max="maxParallel" style="width:160px;margin:0 8px;" />
-        <span>{{ parallel }}/{{ maxParallel }}</span>
+        <div class="slider-input-combo" style="width:220px;margin:0 8px;">
+          <el-slider v-model="parallel" :min="1" :max="maxParallel" />
+          <el-input-number v-model="parallel" :min="1" :max="maxParallel" :controls="false" size="small" style="width: 60px; flex-shrink: 0;" />
+        </div>
+        <span>上限 {{ maxParallel }}</span>
       </div>
     </div>
     <div class="progress-area">
@@ -20,8 +23,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { VideoPlay } from '@element-plus/icons-vue'
+
+const STORAGE_KEY_PARALLEL = 'tp_last_parallel'
 
 const props = defineProps<{
   running: boolean
@@ -41,6 +46,25 @@ const emit = defineEmits<{
 const maxParallel = Math.max(4, Math.min((navigator.hardwareConcurrency || 4) * 2, 32))
 
 const parallel = defineModel<number>('parallel', { default: 4 })
+
+// 数值变化时持久化到 localStorage
+watch(parallel, (val) => {
+  localStorage.setItem(STORAGE_KEY_PARALLEL, String(val))
+})
+
+// 挂载时从 localStorage 恢复（上限受当前 maxParallel 限制）
+onMounted(() => {
+  const raw = localStorage.getItem(STORAGE_KEY_PARALLEL)
+  if (raw !== null) {
+    const saved = Number(raw)
+    if (Number.isFinite(saved)) {
+      const clamped = Math.max(1, Math.min(saved, maxParallel))
+      if (clamped !== parallel.value) {
+        parallel.value = clamped
+      }
+    }
+  }
+})
 
 const percentage = computed(() => {
   if (!props.progress.total) return 0
@@ -79,5 +103,13 @@ const progressStatus = computed(() => {
   margin-top: 8px;
   font-size: 13px;
   color: #606266;
+}
+.slider-input-combo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.slider-input-combo .el-slider {
+  flex: 1;
 }
 </style>

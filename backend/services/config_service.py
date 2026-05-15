@@ -52,6 +52,10 @@ class ConfigService:
     def reload(self) -> dict[str, Any]:
         """从磁盘重新加载配置。"""
         self._config = load_config(self._path)
+        logger.debug(
+            "配置已重新加载: %s (%d 个字段)", self._path, len(self._config),
+            extra={"stage": "config_reload", "path": str(self._path), "field_count": len(self._config)},
+        )
         return self._config
 
     def get(self) -> dict[str, Any]:

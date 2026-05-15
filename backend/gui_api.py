@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from backend.services.pipeline_service import PipelineService
 from backend.services.preview_service import PreviewService
 from backend.services.report_service import REPORT_DIR, ReportService
 from backend.services.stats_service import StatsService
+from trace_pipeline.logging import LogContext
 
 logger = logging.getLogger(__name__)
 if getattr(sys, 'frozen', False):
@@ -33,6 +35,8 @@ class GuiApi:
     """pywebview JS API 入口。所有 public 方法均可被前端调用。"""
 
     def __init__(self) -> None:
+        import time
+        t0 = time.perf_counter()
         self._config = ConfigService()
         self._file = FileService()
         self._pipeline = PipelineService()
@@ -44,6 +48,19 @@ class GuiApi:
         self._audit = AuditService()
         self._window: Any = None
         self._sync_services_from_config(self._config.get())
+        cfg = self._config.get()
+        logger.info(
+            "GuiApi 就绪 (%.3f ms): input=%s, output=%s",
+            (time.perf_counter() - t0) * 1000,
+            cfg.get("input_dir", ""), cfg.get("output_dir", ""),
+            extra={
+                "stage": "gui_api_init_done",
+                "config_fields": list(cfg.keys()),
+                "input_dir": cfg.get("input_dir"),
+                "output_dir": cfg.get("output_dir"),
+                "duration_ms": round((time.perf_counter() - t0) * 1000, 3),
+            },
+        )
 
     def set_window(self, window: Any) -> None:
         self._window = window
@@ -76,54 +93,119 @@ class GuiApi:
     # 配置
     # ------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
-        return self._config.get()
+        cfg = self._config.get()
+        logger.debug(
+            "get_config → %d 个字段", len(cfg),
+            extra={"stage": "api_get_config", "field_count": len(cfg)},
+        )
+        return cfg
 
     def set_config(self, config: dict[str, Any]) -> dict[str, Any]:
-        self._audit.log("set_config")
+        start = time.perf_counter()
+        self._audit.log("set_config", params={"keys": list(config.keys())})
         merged = self._config.set(config)
         self._sync_services_from_config(merged)
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "set_config 完成 → %d 个字段 (%.3f ms)",
+            len(merged), duration,
+            extra={"stage": "api_set_config", "field_count": len(merged), "changed_keys": list(config.keys()), "duration_ms": round(duration, 3)},
+        )
         return merged
 
     def reset_config(self) -> dict[str, Any]:
+        start = time.perf_counter()
         self._audit.log("reset_config")
         default = self._config.reset()
         self._sync_services_from_config(default)
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "reset_config 完成 → 恢复默认 (%.3f ms)", duration,
+            extra={"stage": "api_reset_config", "duration_ms": round(duration, 3)},
+        )
         return default
 
     def reset_processing_config(self) -> dict[str, Any]:
+        start = time.perf_counter()
         self._audit.log("reset_processing_config")
         cfg = self._config.reset_processing()
         self._sync_services_from_config(cfg)
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "reset_processing_config 完成 (%.3f ms)", duration,
+            extra={"stage": "api_reset_processing", "duration_ms": round(duration, 3)},
+        )
         return cfg
 
     def reset_style_config(self) -> dict[str, Any]:
+        start = time.perf_counter()
         self._audit.log("reset_style_config")
         cfg = self._config.reset_style()
         self._sync_services_from_config(cfg)
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "reset_style_config 完成 (%.3f ms)", duration,
+            extra={"stage": "api_reset_style", "duration_ms": round(duration, 3)},
+        )
         return cfg
 
     # ------------------------------------------------------------------
     # 文件
     # ------------------------------------------------------------------
     def scan_files(self) -> list[dict[str, Any]]:
-        return self._file.scan()
+        start = time.perf_counter()
+        results = self._file.scan()
+        duration = (time.perf_counter() - start) * 1000
+        pending = sum(1 for r in results if r.get("status") == "pending")
+        completed = sum(1 for r in results if r.get("status") == "completed")
+        logger.info(
+            "scan_files 完成: 共 %d 个文件 (待处理 %d / 已完成 %d) (%.3f ms)",
+            len(results), pending, completed, duration,
+            extra={
+                "stage": "api_scan_files",
+                "total": len(results),
+                "pending": pending,
+                "completed": completed,
+                "duration_ms": round(duration, 3),
+            },
+        )
+        return results
 
     # ------------------------------------------------------------------
     # 流水线
     # ------------------------------------------------------------------
     def run_pipeline(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
-        self._audit.log("run_pipeline", params={"targets": targets, "input_dir": config.get("input_dir", "")})
-        try:
-            merged = {**self._config.get(), **config}
-            saved = self._config.set(merged)
-            self._sync_services_from_config(saved)
-            return self._pipeline.run(targets, saved)
-        except ValueError as exc:
-            logger.warning("流水线配置校验失败: %s", exc)
-            return {"status": "error", "message": str(exc)}
+        req_id = f"api-run-{int(time.perf_counter() * 1000)}"
+        with LogContext(request_id=req_id):
+            start = time.perf_counter()
+            self._audit.log("run_pipeline", params={"targets": targets, "input_dir": config.get("input_dir", "")})
+            try:
+                merged = {**self._config.get(), **config}
+                saved = self._config.set(merged)
+                self._sync_services_from_config(saved)
+                result = self._pipeline.run(targets, saved)
+                duration = (time.perf_counter() - start) * 1000
+                logger.info(
+                    "run_pipeline 完成 (%.3f ms)", duration,
+                    extra={"stage": "api_run_pipeline", "targets": targets, "duration_ms": round(duration, 3)},
+                )
+                return result
+            except ValueError as exc:
+                duration = (time.perf_counter() - start) * 1000
+                logger.warning(
+                    "流水线配置校验失败: %s (%.3f ms)", exc, duration,
+                    extra={"stage": "api_run_pipeline", "error": str(exc), "duration_ms": round(duration, 3)},
+                )
+                return {"status": "error", "message": str(exc)}
 
     def poll_progress(self) -> dict[str, Any] | None:
-        return self._pipeline.poll_progress()
+        event = self._pipeline.poll_progress()
+        if event:
+            logger.debug(
+                "进度轮询 → %s: %s", event.get("type"), event.get("message", ""),
+                extra={"stage": "poll_progress", "event": event},
+            )
+        return event
 
     # ------------------------------------------------------------------
     # 结果与统计
@@ -145,27 +227,101 @@ class GuiApi:
                 "rotated_plot": str(rot_files[0].resolve()) if rot_files else "",
                 "rose_plot": str(rose_files[0].resolve()) if rose_files else "",
             })
+        logger.debug(
+            "get_results → %d 个结果", len(results),
+            extra={"stage": "api_get_results", "result_count": len(results), "out_dir": str(out_dir)},
+        )
         return results
 
     def get_stats(self, outcrop: str) -> dict[str, Any]:
-        return self._stats.get_stats(outcrop, self._config.get())
+        start = time.perf_counter()
+        result = self._stats.get_stats(outcrop, self._config.get())
+        duration = (time.perf_counter() - start) * 1000
+        if "error" in result:
+            logger.warning(
+                "get_stats [%s] 失败: %s (%.3f ms)", outcrop, result["error"], duration,
+                extra={"stage": "api_get_stats", "outcrop": outcrop, "duration_ms": round(duration, 3)},
+            )
+        else:
+            logger.info(
+                "get_stats [%s] 完成: trace_count=%s, P10=%.4f, P20=%.4f, P21=%.4f (%.3f ms)",
+                outcrop, result.get("trace_count"), result.get("p10"), result.get("p20"), result.get("p21"), duration,
+                extra={
+                    "stage": "api_get_stats",
+                    "outcrop": outcrop,
+                    "trace_count": result.get("trace_count"),
+                    "p10": result.get("p10"),
+                    "p20": result.get("p20"),
+                    "p21": result.get("p21"),
+                    "window_strategy": result.get("window_strategy"),
+                    "duration_ms": round(duration, 3),
+                },
+            )
+        return result
 
     def get_comparison(self, outcrops: list[str]) -> list[dict[str, Any]]:
-        return self._stats.get_comparison(outcrops, self._config.get())
+        start = time.perf_counter()
+        results = self._stats.get_comparison(outcrops, self._config.get())
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "get_comparison [%s] 完成: %d/%d 个露头 (%.3f ms)",
+            outcrops, len(results), len(outcrops), duration,
+            extra={"stage": "api_get_comparison", "outcrops": outcrops, "result_count": len(results), "duration_ms": round(duration, 3)},
+        )
+        return results
 
     # ------------------------------------------------------------------
     # 数据页
     # ------------------------------------------------------------------
     def get_data(self, outcrop: str, section: str, page: int = 1, page_size: int = 20, source: str = "output") -> dict[str, Any]:
-        return self._data.get_data(outcrop, section, page, page_size, source)
+        start = time.perf_counter()
+        result = self._data.get_data(outcrop, section, page, page_size, source)
+        duration = (time.perf_counter() - start) * 1000
+        if "error" in result:
+            logger.warning(
+                "get_data [%s/%s] 失败: %s (%.3f ms)", outcrop, section, result["error"], duration,
+                extra={"stage": "api_get_data", "outcrop": outcrop, "section": section, "source": source, "duration_ms": round(duration, 3)},
+            )
+        else:
+            logger.debug(
+                "get_data [%s/%s] page=%d: %d/%d 条记录 (%.3f ms)",
+                outcrop, section, page, len(result.get("data", [])), result.get("total", 0), duration,
+                extra={
+                    "stage": "api_get_data",
+                    "outcrop": outcrop,
+                    "section": section,
+                    "source": source,
+                    "page": page,
+                    "page_size": page_size,
+                    "total": result.get("total", 0),
+                    "returned": len(result.get("data", [])),
+                    "duration_ms": round(duration, 3),
+                },
+            )
+        return result
 
     # ------------------------------------------------------------------
     # 预览
     # ------------------------------------------------------------------
     def generate_preview(self, config: dict[str, Any]) -> dict[str, Any]:
-        # 合并当前统一配置与前端传入的配置（样式等）
+        start = time.perf_counter()
         merged = {**self._config.get(), **config}
-        return self._preview.generate(merged)
+        result = self._preview.generate(merged)
+        duration = (time.perf_counter() - start) * 1000
+        status = result.get("status", "unknown")
+        img_count = len(result.get("images", []))
+        logger.info(
+            "generate_preview → status=%s, %d 张预览图 (%.3f ms)",
+            status, img_count, duration,
+            extra={
+                "stage": "api_preview",
+                "status": status,
+                "image_count": img_count,
+                "style_keys": list(merged.get("style", {}).keys()),
+                "duration_ms": round(duration, 3),
+            },
+        )
+        return result
 
     # ------------------------------------------------------------------
     # 日志
@@ -177,13 +333,21 @@ class GuiApi:
     # 毕设功能（开发者选项）
     # ------------------------------------------------------------------
     def generate_report(self, outcrop: str, report_type: str, fmt: str) -> dict[str, Any]:
+        start = time.perf_counter()
         self._audit.log("generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt})
-        return self._report.generate(outcrop, report_type, fmt, self._config.get())
+        result = self._report.generate(outcrop, report_type, fmt, self._config.get())
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "generate_report 完成: %s (%.3f ms)", outcrop, duration,
+            extra={"stage": "api_report", "outcrop": outcrop, "duration_ms": round(duration, 3)},
+        )
+        return result
 
     def generate_reports_zip(self, targets: list[str], report_type: str, fmt: str) -> dict[str, Any]:
         import zipfile
         from datetime import datetime
 
+        start = time.perf_counter()
         self._audit.log("generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt})
         cfg = self._config.get()
         files = []
@@ -217,6 +381,11 @@ class GuiApi:
             with contextlib.suppress(Exception):
                 os.remove(f)
 
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "generate_reports_zip 完成: %d 个文件 (%.3f ms)", len(files), duration,
+            extra={"stage": "api_reports_zip", "file_count": len(files), "duration_ms": round(duration, 3)},
+        )
         return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
 
     def get_provenance(self, outcrop: str) -> dict[str, Any]:
@@ -225,6 +394,10 @@ class GuiApi:
         if "error" in stats:
             return stats
         ns = stats.get("nodes_summary", {})
+        logger.debug(
+            "get_provenance [%s]", outcrop,
+            extra={"stage": "api_provenance", "outcrop": outcrop, "area_source": stats.get("area_source")},
+        )
         return {
             "outcrop": outcrop,
             "p10": {"value": stats.get("p10"), "source": "实测测线"},
@@ -240,7 +413,9 @@ class GuiApi:
         }
 
     def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
-        return self._audit.get(limit)
+        logs = self._audit.get(limit)
+        logger.debug("get_audit_log → %d 条记录", len(logs), extra={"stage": "api_audit_log", "count": len(logs), "limit": limit})
+        return logs
 
     # ------------------------------------------------------------------
     # 系统
@@ -249,12 +424,14 @@ class GuiApi:
         """打开指定目录（支持相对路径，限制在项目根目录内）。"""
         target = self._safe_path(path)
         if target is None or not target.exists():
+            logger.warning("open_directory 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_open_dir", "path": path})
             return False
         try:
             os.startfile(str(target))
+            logger.info("open_directory → %s", target, extra={"stage": "api_open_dir", "path": str(target)})
             return True
         except Exception as exc:
-            logger.warning("打开目录失败: %s", exc)
+            logger.warning("打开目录失败: %s → %s", path, exc, extra={"stage": "api_open_dir", "path": path, "error": str(exc)})
             return False
 
     def get_image(self, path: str) -> str:
@@ -266,32 +443,38 @@ class GuiApi:
             out_dir = out_dir.resolve()
             p = self._safe_path(path, base=out_dir)
             if p is None or not p.exists():
+                logger.warning("get_image 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_get_image", "path": path})
                 return ""
             with open(p, "rb") as f:
                 data = f.read()
             ext = p.suffix.lower()
             mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(ext, "image/png")
             b64 = base64.b64encode(data).decode("utf-8")
+            logger.debug("get_image → %s (%d bytes)", path, len(data), extra={"stage": "api_get_image", "path": path, "size_bytes": len(data)})
             return f"data:{mime};base64,{b64}"
         except Exception as exc:
-            logger.warning("读取图片失败: %s", exc)
+            logger.warning("读取图片失败: %s → %s", path, exc, extra={"stage": "api_get_image", "path": path, "error": str(exc)})
             return ""
 
     def browse_folder(self) -> str:
         """打开系统文件夹选择对话框，返回选中的路径。"""
         if self._window is None:
+            logger.warning("browse_folder 失败: window 未初始化", extra={"stage": "api_browse_folder"})
             return ""
         try:
             result = self._window.create_file_dialog(
                 webview.FileDialog.FOLDER, allow_multiple=False
             )
             if isinstance(result, list) and result:
+                logger.info("browse_folder → %s", result[0], extra={"stage": "api_browse_folder", "selected": str(result[0])})
                 return str(result[0])
             if isinstance(result, str):
+                logger.info("browse_folder → %s", result, extra={"stage": "api_browse_folder", "selected": result})
                 return result
+            logger.debug("browse_folder → 用户取消选择", extra={"stage": "api_browse_folder"})
             return ""
         except Exception as exc:
-            logger.warning("浏览文件夹失败: %s", exc)
+            logger.warning("浏览文件夹失败: %s", exc, extra={"stage": "api_browse_folder", "error": str(exc)})
             return ""
 
     def export_config_json(self, folder: str, content: str) -> bool:
@@ -299,17 +482,24 @@ class GuiApi:
         try:
             folder_path = self._safe_path(folder)
             if folder_path is None:
+                logger.warning("export_config_json 失败: 路径越权 → %s", folder, extra={"stage": "api_export_config", "folder": folder})
                 return False
             path = folder_path / "config.json"
             parsed = json.loads(content)
             path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
             self._audit.log("export_config_json", params={"path": str(path)})
+            logger.info("export_config_json → %s", path, extra={"stage": "api_export_config", "path": str(path), "field_count": len(parsed)})
             return True
         except Exception as exc:
-            logger.warning("导出配置失败: %s", exc)
+            logger.warning("导出配置失败: %s → %s", folder, exc, extra={"stage": "api_export_config", "folder": folder, "error": str(exc)})
             return False
 
     def check_webview2(self) -> dict[str, Any]:
         from backend.webview2_checker import WebView2Checker
         checker = WebView2Checker()
-        return {"installed": checker.is_installed(), "url": checker.get_download_url()}
+        installed = checker.is_installed()
+        logger.debug(
+            "check_webview2 → installed=%s", installed,
+            extra={"stage": "api_check_webview2", "installed": installed},
+        )
+        return {"installed": installed, "url": checker.get_download_url()}

@@ -71,6 +71,10 @@ class DataService:
         # 读取 output 目录下的多工作表处理结果
         path = self._output_dir / f"{outcrop}_traces.xlsx"
         if not path.exists():
+            logger.warning(
+                "get_data [%s/%s] 失败: 文件不存在", outcrop, section,
+                extra={"stage": "data_get", "outcrop": outcrop, "section": section, "source": source, "path": str(path)},
+            )
             return {"error": f"文件不存在: {path}"}
 
         sheet_name = SECTION_MAP.get(section, section)
@@ -79,8 +83,16 @@ class DataService:
             df = pd.read_excel(path, sheet_name=sheet_name, header=1)
         except ValueError:
             # Sheet 不存在（旧格式单工作表文件）
+            logger.warning(
+                "get_data [%s/%s] 失败: 工作表不存在", outcrop, section,
+                extra={"stage": "data_get", "outcrop": outcrop, "section": section, "sheet": sheet_name},
+            )
             return {"error": f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件"}
         except Exception as exc:
+            logger.warning(
+                "get_data [%s/%s] 失败: %s", outcrop, section, exc,
+                extra={"stage": "data_get", "outcrop": outcrop, "section": section, "error": str(exc)},
+            )
             return {"error": str(exc)}
 
         data = df.to_dict("records")
@@ -89,6 +101,21 @@ class DataService:
         end = start + page_size
         page_data = data[start:end]
 
+        logger.debug(
+            "get_data [%s/%s] page=%d: %d/%d 条",
+            outcrop, section, page, len(page_data), total,
+            extra={
+                "stage": "data_get",
+                "outcrop": outcrop,
+                "section": section,
+                "source": source,
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "returned": len(page_data),
+                "column_count": len(df.columns),
+            },
+        )
         return {
             "outcrop": outcrop,
             "section": section,

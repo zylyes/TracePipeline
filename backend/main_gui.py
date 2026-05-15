@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from pathlib import Path
 
 # 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
@@ -18,18 +19,6 @@ from trace_pipeline.cli.logging_setup import setup_logging
 from backend.gui_api import GuiApi
 from backend.webview2_checker import WebView2Checker
 
-# 先配置 trace_pipeline 双通道日志（控制台 + 文件）
-setup_logging()
-
-# 控制台日志保留
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-    force=True,
-)
-logger = logging.getLogger(__name__)
-
 if getattr(sys, 'frozen', False):
     PROJECT_ROOT = Path(sys._MEIPASS)
 else:
@@ -37,26 +26,34 @@ else:
 STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 ICON_PATH = PROJECT_ROOT / "reference" / "ECUT.ico"
 
-# 为 backend 包追加同一日志文件，保证前后端日志统一落盘
-_log_dir = PROJECT_ROOT / "logs"
-if _log_dir.is_dir():
-    _log_files = sorted(_log_dir.glob("pipeline_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if _log_files:
-        _latest_log = _log_files[0]
-        _backend_logger = logging.getLogger("backend")
-        _backend_logger.setLevel(logging.DEBUG)
-        if not any(isinstance(h, logging.FileHandler) for h in _backend_logger.handlers):
-            _fh = logging.FileHandler(str(_latest_log), encoding="utf-8")
-            _fh.setLevel(logging.DEBUG)
-            _fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-            _backend_logger.addHandler(_fh)
+# 初始化统一结构化日志系统（控制台 + JSON Lines 文件）
+start_time = time.perf_counter()
+setup_logging()
+init_duration = (time.perf_counter() - start_time) * 1000
+
+logger = logging.getLogger(__name__)
+logger.info(
+    "=== 应用程序启动 ===",
+    extra={
+        "stage": "app_start",
+        "version": __version__,
+        "project_root": str(PROJECT_ROOT),
+        "static_dir": str(STATIC_DIR),
+        "icon_path": str(ICON_PATH),
+        "init_duration_ms": round(init_duration, 3),
+    },
+)
 
 
 def main() -> None:
+    start = time.perf_counter()
     api = GuiApi()
+    logger.info("GuiApi 初始化完成 (%.3f ms)", (time.perf_counter() - start) * 1000, extra={"stage": "gui_api_init"})
+
     checker = WebView2Checker()
 
     if not checker.is_installed():
+        logger.warning("WebView2 Runtime 未安装，提示用户下载", extra={"stage": "webview2_missing"})
         html = f"""
         <html>
         <head><meta charset="utf-8"><title>WebView2 未安装</title></head>
@@ -82,6 +79,7 @@ def main() -> None:
     # 确定入口文件
     index_html = STATIC_DIR / "index.html"
     url = str(index_html.resolve()) if index_html.exists() else str(STATIC_DIR.resolve())
+    logger.info("前端入口: %s", url, extra={"stage": "window_create", "url": url})
 
     window = webview.create_window(
         f"TracePipeline v{__version__}",
@@ -93,7 +91,18 @@ def main() -> None:
     )
     api.set_window(window)
     icon = str(ICON_PATH.resolve()) if ICON_PATH.exists() else None
+    logger.info(
+        "窗口已创建，等待关闭",
+        extra={
+            "stage": "window_open",
+            "title": f"TracePipeline v{__version__}",
+            "width": 1400,
+            "height": 900,
+            "icon": icon,
+        },
+    )
     webview.start(debug=False, icon=icon)
+    logger.info("=== 应用程序退出 ===", extra={"stage": "app_exit"})
 
 
 if __name__ == "__main__":

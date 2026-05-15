@@ -2,7 +2,7 @@
   <div class="config-view">
     <h2 class="page-title">配置</h2>
     <ConfigForm v-model="form" :style-config="styleConfig" @style-change="onStyleChange" />
-    <StylePreview :preview-config="previewConfig" />
+    <StylePreview :style-config="styleConfig" />
     <DevPanel v-show="appStore.isDevMode" :outcrop="selectedOutcrop" @saved="loadConfig" @reset="loadConfig" />
 
     <div class="action-bar">
@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Download, RefreshRight, Setting, Brush } from '@element-plus/icons-vue'
 import ConfigForm from '@/components/ConfigForm.vue'
@@ -46,11 +46,6 @@ const styleConfig = ref<ConfigData>({
   global_font_size: 8.5,
 })
 const selectedOutcrop = ref('')
-
-const previewConfig = computed(() => ({
-  ...form.value,
-  style: { ...styleConfig.value },
-}))
 
 async function loadOutcrops() {
   try {

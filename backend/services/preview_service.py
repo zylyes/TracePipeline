@@ -1,4 +1,10 @@
-"""样式预览图生成服务（150 DPI + 缓存）。"""
+"""样式预览图生成服务（完全解耦版）。
+
+预览模块与正式绘图程序彻底解耦：
+- 不依赖 trace_pipeline 的任何业务逻辑（统计、节点识别、覆盖层构建等）
+- 所有几何数据来自 preview_plot.PreviewDemoData 硬编码常量
+- 预览仅用于观察样式参数在固定数据上的真实表现
+"""
 from __future__ import annotations
 
 import hashlib
@@ -10,81 +16,50 @@ import time
 from pathlib import Path
 from typing import Any
 
-import matplotlib
-import numpy as np
-
-from trace_pipeline.analysis.models import NodeRecognitionConfig
-from trace_pipeline.analysis.nodes import recognize_trace_nodes
-from trace_pipeline.geology.angles import fold_strike_angle
-from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
-from trace_pipeline.geology.transforms import normalize_coordinates
-from trace_pipeline.models import TraceData
-from trace_pipeline.plotting.overlays import (
-    build_node_overlays,
-    build_raw_circle_overlays,
-    build_rotated_circle_overlays,
-    build_rotated_node_overlays,
-    build_selected_hull_overlays,
-)
-from trace_pipeline.plotting.rose_plot import render_rose_plot
-from trace_pipeline.plotting.style import configure_style
-from trace_pipeline.plotting.trace_plot import render_trace_plot
-
 logger = logging.getLogger(__name__)
 
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     _PREVIEW_BASE = Path(sys.executable).parent
 else:
     _PREVIEW_BASE = Path(__file__).resolve().parent.parent.parent
 PREVIEW_DIR = _PREVIEW_BASE / "output" / "preview"
-PREVIEW_DPI = 150
-CACHE_TTL = 300  # 5分钟
+PREVIEW_DPI = 300
+CACHE_TTL = 300  # 5 分钟
 
-# 线程安全锁，保护缓存和预览生成串行化
+# 线程安全锁
 _PREVIEW_LOCK = threading.Lock()
 
 
 def _hash_config(config: dict[str, Any]) -> str:
-    """计算样式配置的哈希值，用于缓存键。"""
-    style = config.get("style", {})
-    normalized = json.dumps(style, sort_keys=True, ensure_ascii=False)
+    """计算样式 + overlay 状态的哈希值，用于缓存键。"""
+    # 提取影响预览的所有参数
+    keys = ("style", "show_hull", "show_circles", "show_nodes")
+    payload = {k: config.get(k) for k in keys}
+    normalized = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.md5(normalized.encode("utf-8")).hexdigest()
 
 
 class PreviewService:
-    """使用样本数据（O76）生成 150 DPI 预览图，支持缓存。"""
+    """使用预设演示数据生成样式预览图，支持缓存。"""
 
-    def __init__(self, sample_outcrop: str = "O76") -> None:
-        self._sample = sample_outcrop
+    def __init__(self, sample_outcrop: str = "", **kwargs: Any) -> None:
+        # sample_outcrop 参数已废弃，仅保留兼容性
+        _ = sample_outcrop, kwargs
         self._cache: dict[str, tuple[float, dict[str, str]]] = {}
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 
-    @staticmethod
-    def _create_demo_trace() -> TraceData:
-        """返回内置 demo 迹线数据，不依赖 input 文件夹。"""
-        endpoints = np.array([
-            [0.0, 0.0, 10.0, 5.0],
-            [2.0, 8.0, 12.0, 2.0],
-            [5.0, 0.0, 5.0, 10.0],
-            [0.0, 5.0, 10.0, 5.0],
-            [8.0, 0.0, 8.0, 8.0],
-            [3.0, 3.0, 10.0, 8.0],
-            [1.0, 7.0, 9.0, 1.0],
-            [6.0, 2.0, 6.0, 9.0],
-        ], dtype=float)
-        joint_strikes = np.array([63.43, 120.96, 0.0, 90.0, 0.0, 54.46, 126.87, 0.0])
-        segment_lengths = np.array([11.18, 11.66, 10.0, 10.0, 8.0, 8.60, 10.0, 7.0])
-        scanline_positions = np.array([0.0, 2.0, 5.0, 0.0, 8.0, 3.0, 1.0, 6.0])
-        return TraceData(
-            scanline_azimuth=298.0,
-            count=8,
-            endpoints=endpoints,
-            joint_strikes=joint_strikes,
-            segment_lengths=segment_lengths,
-            scanline_positions=scanline_positions,
-        )
-
     def generate(self, config: dict[str, Any]) -> dict[str, Any]:
+        """生成预览图。
+
+        Args:
+            config: 必须包含 ``style`` 字典，以及可选的
+                    ``show_hull`` / ``show_circles`` / ``show_nodes`` 布尔开关。
+                    其他字段（路径、处理参数等）会被忽略。
+
+        Returns:
+            {"status": "ready", "paths": {...}, "images": [...]}
+            或 {"status": "error", "message": ...}
+        """
         style_hash = _hash_config(config)
         with _PREVIEW_LOCK:
             if style_hash in self._cache:
@@ -103,107 +78,77 @@ class PreviewService:
 
     def _to_images(self, paths: dict[str, str]) -> list[dict[str, str]]:
         """将路径字典转为结构化 images 数组。"""
+        label_map = {
+            "raw": "原始迹线图",
+            "rotated": "旋转迹线图",
+            "rose": "走向玫瑰图",
+        }
         images = []
-        for key in ("raw", "rotated", "rose"):
+        for key, label in label_map.items():
             path = paths.get(key, "")
             if path:
-                label_map = {
-                    "raw": "原始迹线图",
-                    "rotated": "旋转迹线图",
-                    "rose": "走向玫瑰图",
-                }
-                images.append({"key": key, "label": label_map.get(key, key), "path": path})
+                images.append({"key": key, "label": label, "path": path})
         return images
 
     def _generate_images(self, config: dict[str, Any], style_hash: str) -> dict[str, str]:
-        """使用共享样式覆盖上下文管理器生成预览图（线程安全）。"""
-        from trace_pipeline.plotting.style import apply_style_overrides
+        """使用完全独立的 preview_plot 模块生成预览图。"""
+        from trace_pipeline.plotting.preview_plot import (
+            PreviewDemoData,
+            render_preview_rose,
+            render_preview_trace,
+        )
+        from trace_pipeline.plotting.style import configure_style
 
         style = config.get("style", {})
+        show_hull = config.get("show_hull", True)
+        show_circles = config.get("show_circles", True)
+        show_nodes = config.get("show_nodes", True)
+
         configure_style()
 
-        with _PREVIEW_LOCK:
-            with apply_style_overrides(style):
-                # 使用内置 demo 数据，不依赖 input 文件夹
-                trace = self._create_demo_trace()
-                stats_config = TraceStatisticsConfig(
-                    window_strategy=config.get("window_strategy", "auto"),
-                    auto_density_threshold=config.get("auto_density_threshold", 5.0),
-                    tangent_window_count=config.get("tangent_window_count", 3),
-                )
-                statistics = compute_trace_statistics(trace, stats_config)
+        demo = PreviewDemoData()
 
-                raw_circles = build_raw_circle_overlays(trace, statistics)
-                rotated_circles = build_rotated_circle_overlays(trace, raw_circles)
-                raw_hull, rot_hull = build_selected_hull_overlays(trace, statistics)
+        raw_path = PREVIEW_DIR / f"preview_{style_hash}_raw.png"
+        rotated_path = PREVIEW_DIR / f"preview_{style_hash}_rotated.png"
+        rose_path = PREVIEW_DIR / f"preview_{style_hash}_rose.png"
 
-                from trace_pipeline.geology.statistics import format_statistics_box_lines
-                stats_lines = format_statistics_box_lines(statistics)
+        render_preview_trace(
+            str(PREVIEW_DIR),
+            raw_path.name,
+            style,
+            show_hull=show_hull,
+            show_circles=show_circles,
+            show_nodes=show_nodes,
+            is_rotated=False,
+            dpi=PREVIEW_DPI,
+            demo=demo,
+        )
 
-                # 节点识别（预览始终启用，不受设置影响）
-                node_config = NodeRecognitionConfig(
-                    enabled=True,
-                    merge_tolerance=config.get("node_merge_tolerance", 1e-6),
-                    show_overlay=True,
-                    label_mode=config.get("node_label_mode", "type"),
-                )
-                node_analysis = recognize_trace_nodes(trace.endpoints, node_config)
-                raw_node_overlays = build_node_overlays(node_analysis)
-                rotated_node_overlays = build_rotated_node_overlays(
-                    node_analysis, trace.endpoints, trace.scanline_azimuth
-                )
+        render_preview_trace(
+            str(PREVIEW_DIR),
+            rotated_path.name,
+            style,
+            show_hull=show_hull,
+            show_circles=show_circles,
+            show_nodes=show_nodes,
+            is_rotated=True,
+            dpi=PREVIEW_DPI,
+            demo=demo,
+        )
 
-                raw_path = PREVIEW_DIR / f"preview_{style_hash}_raw.png"
-                rotated_path = PREVIEW_DIR / f"preview_{style_hash}_rotated.png"
-                rose_path = PREVIEW_DIR / f"preview_{style_hash}_rose.png"
+        rose_plot_path = ""
+        if demo.joint_strikes.size:
+            rose_plot_path = str(rose_path.resolve())
+            render_preview_rose(
+                str(PREVIEW_DIR),
+                rose_path.name,
+                style,
+                dpi=PREVIEW_DPI,
+                demo=demo,
+            )
 
-                # 旋转坐标与正北角度（与 pipeline.py 一致）
-                rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
-                rotated_north_angle = 90.0 + float(np.degrees(fold_strike_angle(trace.scanline_azimuth)))
-
-                render_trace_plot(
-                    trace.endpoints,
-                    "迹线长度图（预览）",
-                    str(PREVIEW_DIR),
-                    raw_path.name,
-                    dpi=PREVIEW_DPI,
-                    statistics_lines=stats_lines,
-                    circle_windows=raw_circles,
-                    hull_overlay=raw_hull,
-                    area_source=statistics.outcrop_area_source,
-                    node_overlays=raw_node_overlays,
-                    node_label_mode=config.get("node_label_mode", "type"),
-                )
-
-                render_trace_plot(
-                    rotated,
-                    f"迹线长度图\n标尺（走向={trace.scanline_azimuth:.1f}°）（预览）",
-                    str(PREVIEW_DIR),
-                    rotated_path.name,
-                    dpi=PREVIEW_DPI,
-                    north_angle_deg=rotated_north_angle,
-                    statistics_lines=stats_lines,
-                    circle_windows=rotated_circles,
-                    hull_overlay=rot_hull,
-                    area_source=statistics.outcrop_area_source,
-                    node_overlays=rotated_node_overlays,
-                    node_label_mode=config.get("node_label_mode", "type"),
-                )
-
-                rose_plot_path = ""
-                if trace.joint_strikes.size:
-                    rose_plot_path = str(rose_path.resolve())
-                    render_rose_plot(
-                        trace.joint_strikes,
-                        f"产状玫瑰花瓣图（预览）",
-                        str(PREVIEW_DIR),
-                        rose_path.name,
-                        bin_width=config.get("rose_bin_width", 10.0),
-                        dpi=PREVIEW_DPI,
-                    )
-
-                return {
-                    "raw": str(raw_path.resolve()),
-                    "rotated": str(rotated_path.resolve()),
-                    "rose": rose_plot_path,
-                }
+        return {
+            "raw": str(raw_path.resolve()),
+            "rotated": str(rotated_path.resolve()),
+            "rose": rose_plot_path,
+        }

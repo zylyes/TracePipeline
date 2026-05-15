@@ -32,18 +32,25 @@ def save_figure(
     pad_inches: float = 0.12,
     bbox_inches: str | None = "tight",
 ) -> str:
-    """保存并关闭图形，返回完整输出路径。"""
+    """保存并关闭图形，返回完整输出路径。
+
+    若 figure 已设为透明背景（alpha == 0.0），保存时保持透明。
+    """
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     full_path = str(out / filename)
     try:
-        fig.savefig(
-            full_path,
-            dpi=dpi,
-            facecolor="white",
-            bbox_inches=bbox_inches,
-            pad_inches=pad_inches,
-        )
+        transparent = fig.patch.get_alpha() == 0.0
+        kwargs: dict = {
+            "dpi": dpi,
+            "bbox_inches": bbox_inches,
+            "pad_inches": pad_inches,
+        }
+        if transparent:
+            kwargs["transparent"] = True
+        else:
+            kwargs["facecolor"] = "white"
+        fig.savefig(full_path, **kwargs)
     finally:
         plt.close(fig)
     return full_path

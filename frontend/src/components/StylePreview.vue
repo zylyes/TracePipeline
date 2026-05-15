@@ -1,6 +1,14 @@
 <template>
   <div class="style-preview">
-    <h3>预览</h3>
+    <div class="preview-header">
+      <h3>预览</h3>
+      <div class="overlay-controls">
+        <el-checkbox v-model="showHull" size="small" @change="generatePreview">显示凸包</el-checkbox>
+        <el-checkbox v-model="showCircles" size="small" @change="generatePreview">显示圆窗</el-checkbox>
+        <el-checkbox v-model="showNodes" size="small" @change="generatePreview">显示节点</el-checkbox>
+      </div>
+    </div>
+
     <div class="preview-grid">
       <div class="preview-box" v-for="(img, idx) in previewImages" :key="img.key" @click="openViewer(idx)">
         <div class="preview-label">{{ img.label }}</div>
@@ -10,6 +18,7 @@
         </div>
       </div>
     </div>
+
     <el-alert v-if="errorMsg" :title="errorMsg" type="error" :closable="false" show-icon style="margin-top: 12px" />
 
     <ImageViewer
@@ -34,7 +43,7 @@ interface PreviewImage {
 }
 
 const props = defineProps<{
-  previewConfig: any
+  styleConfig: Record<string, any>
 }>()
 
 const previewImages = ref<PreviewImage[]>([
@@ -42,8 +51,13 @@ const previewImages = ref<PreviewImage[]>([
   { key: 'rotated', label: '旋转迹线图', path: '', url: '' },
   { key: 'rose', label: '走向玫瑰图', path: '', url: '' },
 ])
+
 const loading = ref(false)
 const errorMsg = ref('')
+
+const showHull = ref(true)
+const showCircles = ref(true)
+const showNodes = ref(true)
 
 const viewerVisible = ref(false)
 const viewerImages = ref<Array<{ title: string; src: string }>>([])
@@ -63,7 +77,12 @@ async function doGenerate() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const res = await api.generate_preview(props.previewConfig)
+    const res = await api.generate_preview({
+      style: { ...props.styleConfig },
+      show_hull: showHull.value,
+      show_circles: showCircles.value,
+      show_nodes: showNodes.value,
+    })
     if (res.status === 'ready') {
       const images = res.images || []
       for (const img of previewImages.value) {
@@ -72,15 +91,8 @@ async function doGenerate() {
           img.path = match.path
           img.url = await loadImageBase64(match.path)
         } else {
-          // 兼容旧版 paths 接口
-          const legacyPath = res.paths?.[img.key]
-          if (legacyPath) {
-            img.path = legacyPath
-            img.url = await loadImageBase64(legacyPath)
-          } else {
-            img.path = ''
-            img.url = ''
-          }
+          img.path = ''
+          img.url = ''
         }
       }
     } else if (res.status === 'error') {
@@ -106,9 +118,16 @@ function generatePreview() {
   debounceTimer = window.setTimeout(doGenerate, 500)
 }
 
-watch(() => props.previewConfig, () => {
+watch(() => props.styleConfig, () => {
   generatePreview()
 }, { deep: true })
+
+// 初始加载
+watch(() => props.styleConfig, (val) => {
+  if (val && Object.keys(val).length > 0) {
+    generatePreview()
+  }
+}, { immediate: true, deep: true })
 </script>
 
 <style scoped lang="scss">
@@ -118,6 +137,26 @@ watch(() => props.previewConfig, () => {
   padding: 16px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
   margin-top: 16px;
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.preview-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+.overlay-controls {
+  display: flex;
+  gap: 20px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
 }
 .preview-grid {
   display: grid;
@@ -144,7 +183,7 @@ watch(() => props.previewConfig, () => {
 }
 .preview-img-wrapper {
   position: relative;
-  min-height: 180px;
+  min-height: 260px;
   background: #fff;
   display: flex;
   align-items: center;
@@ -152,8 +191,9 @@ watch(() => props.previewConfig, () => {
 }
 .preview-img {
   max-width: 100%;
-  max-height: 240px;
+  max-height: 360px;
   object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
 }
 @media (max-width: 768px) {
   .preview-grid {

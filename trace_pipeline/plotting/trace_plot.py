@@ -965,11 +965,21 @@ def render_trace_plot(
     area_source: str = "",
     node_overlays: Sequence[NodeOverlay] | None = None,
     node_label_mode: str = "type",
+    *,
+    include_trace: bool = True,
+    include_hull: bool = True,
+    include_circles: bool = True,
+    include_nodes: bool = True,
+    include_decorations: bool = True,
+    background_color: str = "white",
 ) -> str:
     """绘制并保存单张迹线长度图。
 
     ``figsize_cm`` 为 ``None`` 时，figure 尺寸会根据数据范围自适应，
     确保不同图之间 1m 的物理长度尽量一致，面积具有可比性。
+
+    新增图层控制参数（``include_*``）与背景透明支持，便于生成
+    可叠加的独立视觉层 PNG。
 
     Returns:
         输出文件的完整路径。
@@ -999,54 +1009,66 @@ def render_trace_plot(
     fig, ax = new_figure(effective_figsize, dpi=dpi)
     ax.remove()
 
+    # 背景透明支持
+    if background_color.lower() in ("none", "transparent"):
+        fig.patch.set_alpha(0.0)
+    else:
+        fig.patch.set_facecolor(background_color)
+
     layout_bounds = _resolve_layout(title)
-    _add_outer_frame(fig, layout_bounds["trace_outer_frame"])
+
+    if include_decorations:
+        _add_outer_frame(fig, layout_bounds["trace_outer_frame"])
+
     ax = fig.add_axes(layout_bounds["trace_data"], label="trace_data")
 
     # 1. 底层：凸包或圆窗（二选一）
-    if selected_hull is not None:
+    if include_hull and selected_hull is not None:
         _add_convex_hull_overlay(ax, selected_hull)
-    elif has_circles:
+    elif include_circles and has_circles:
         _add_circle_window_overlays(ax, selected_circles)
 
     # 2. 顶层：迹线
-    ax.plot(
-        x_plot, y_plot, "-",
-        color=_TRACE_LINE_COLOR,
-        linewidth=_TRACE_LINE_WIDTH,
-        zorder=_TRACE_ZORDER,
-    )
+    if include_trace:
+        ax.plot(
+            x_plot, y_plot, "-",
+            color=_TRACE_LINE_COLOR,
+            linewidth=_TRACE_LINE_WIDTH,
+            zorder=_TRACE_ZORDER,
+        )
 
     # 2.5 节点覆盖层
-    if node_overlays:
+    if include_nodes and node_overlays:
         _add_node_overlays(ax, node_overlays, label_mode=node_label_mode)
 
     _style_trace_data_axes(ax)
     _apply_decoration_limits(ax, layout)
 
-    # 3. 装饰元素放入同一外框内的独立信息区，不再覆盖数据轴。
-    xlim, _ylim = _decoration_limits(layout)
-    compass_ax = _blank_panel_axes(fig, layout_bounds["trace_compass"], "trace_compass")
-    _add_north_arrow(compass_ax, north_angle_deg, center=(0.50, 0.46), arrow_len=0.38)
+    if include_decorations:
+        # 3. 装饰元素放入同一外框内的独立信息区，不再覆盖数据轴。
+        xlim, _ylim = _decoration_limits(layout)
+        compass_ax = _blank_panel_axes(fig, layout_bounds["trace_compass"], "trace_compass")
+        _add_north_arrow(compass_ax, north_angle_deg, center=(0.50, 0.46), arrow_len=0.38)
 
-    scale_ax = _blank_panel_axes(fig, layout_bounds["trace_scale"], "trace_scale")
-    _add_scale_bar_band(scale_ax, layout, xlim)
+        scale_ax = _blank_panel_axes(fig, layout_bounds["trace_scale"], "trace_scale")
+        _add_scale_bar_band(scale_ax, layout, xlim)
 
-    legend_ax = _blank_panel_axes(fig, layout_bounds["trace_legend"], "trace_legend")
-    _add_legend(
-        legend_ax,
-        area_source,
-        has_hull,
-        has_circles,
-        has_nodes=has_nodes,
-        node_overlays=node_overlays,
-        anchor_x=0.02,
-        anchor_y=0.50,
-        loc="center left",
-    )
+        legend_ax = _blank_panel_axes(fig, layout_bounds["trace_legend"], "trace_legend")
+        _add_legend(
+            legend_ax,
+            area_source,
+            has_hull,
+            has_circles,
+            has_nodes=has_nodes,
+            node_overlays=node_overlays,
+            anchor_x=0.02,
+            anchor_y=0.50,
+            loc="center left",
+        )
 
-    stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
-    _add_statistics_box(stats_ax, statistics_lines, rect=(0.02, 0.02, 0.98, 0.98))
+        stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
+        _add_statistics_box(stats_ax, statistics_lines, rect=(0.02, 0.02, 0.98, 0.98))
 
-    fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
+        fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
+
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.0, bbox_inches=None)

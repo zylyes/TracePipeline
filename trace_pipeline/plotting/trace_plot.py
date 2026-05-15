@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
-__all__ = ["CircleWindowOverlay", "ConvexHullOverlay", "render_trace_plot", "segments_to_xy"]
+__all__ = ["CircleWindowOverlay", "ConvexHullOverlay", "NodeOverlay", "render_trace_plot", "segments_to_xy"]
 
 _DEFAULT_TRACE_DPI = 300
 _TARGET_SCALE_CM_PER_METER: float = 0.35
@@ -111,6 +111,17 @@ class ConvexHullOverlay:
     """绘图层使用的凸包多边形数据。"""
 
     vertices: np.ndarray  # (N, 2) 按顺序的凸包顶点
+
+
+@dataclass(frozen=True)
+class NodeOverlay:
+    """绘图层使用的节点覆盖层数据。"""
+
+    x: float
+    y: float
+    node_type: str  # I/Y/X/overlap/multi
+    node_id: int
+    degree: int
 
 
 @dataclass(frozen=True)
@@ -229,6 +240,7 @@ def _data_bounds(
     segments: np.ndarray,
     circle_windows: Sequence[CircleWindowOverlay] | None = None,
     hull_overlay: ConvexHullOverlay | None = None,
+    node_overlays: Sequence[NodeOverlay] | None = None,
 ) -> tuple[float, float, float, float]:
     circles = _valid_circles(circle_windows)
     circle_xs, circle_ys = _circle_extents(circles)
@@ -250,6 +262,12 @@ def _data_bounds(
         hull_vertices = np.asarray(hull_overlay.vertices, dtype=float)
         seg_xs = np.concatenate([seg_xs, hull_vertices[:, 0]])
         seg_ys = np.concatenate([seg_ys, hull_vertices[:, 1]])
+
+    if node_overlays:
+        node_xs = np.array([n.x for n in node_overlays], dtype=float)
+        node_ys = np.array([n.y for n in node_overlays], dtype=float)
+        seg_xs = np.concatenate([seg_xs, node_xs])
+        seg_ys = np.concatenate([seg_ys, node_ys])
 
     return float(seg_xs.min()), float(seg_xs.max()), float(seg_ys.min()), float(seg_ys.max())
 
@@ -279,9 +297,10 @@ def _build_decoration_layout(
     segments: np.ndarray,
     circle_windows: Sequence[CircleWindowOverlay] | None = None,
     hull_overlay: ConvexHullOverlay | None = None,
+    node_overlays: Sequence[NodeOverlay] | None = None,
 ) -> _DecorationLayout:
     x_min, x_max, y_min, y_max = _data_bounds(
-        segments, circle_windows=circle_windows, hull_overlay=hull_overlay
+        segments, circle_windows=circle_windows, hull_overlay=hull_overlay, node_overlays=node_overlays
     )
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
@@ -332,10 +351,7 @@ def _add_scale_bar(
 
     若未提供 ``data_x0`` / ``data_y``，则回退到原左下角硬编码位置。
     """
-    if data_x0 is None:
-        x0 = layout.data_x_min + layout.base_span * 0.03
-    else:
-        x0 = data_x0
+    x0 = layout.data_x_min + layout.base_span * 0.03 if data_x0 is None else data_x0
     x1 = x0 + layout.scale_length
     if data_y is None:
         y = layout.data_y_min + layout.base_span * _DEFAULT_LAYOUT.scale_bar_y_offset_ratio
@@ -518,10 +534,7 @@ def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
     统计框、图例、指北针之间保留硬间距，全部落在 frame 内部。
     """
     title_lines = title.count("\n") + 1 if title else 1
-    if title_lines >= 2:
-        frame_top = _DOUBLE_FRAME_TOP
-    else:
-        frame_top = _SINGLE_FRAME_TOP
+    frame_top = _DOUBLE_FRAME_TOP if title_lines >= 2 else _SINGLE_FRAME_TOP
     frame_h = frame_top - _FRAME_BOTTOM
 
     # 从 frame 顶边向下排布
@@ -745,11 +758,56 @@ def _add_convex_hull_overlay(ax: plt.Axes, hull_overlay: ConvexHullOverlay) -> N
     ax.add_patch(patch)
 
 
+_NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
+    "I": {"marker": "o", "markerfacecolor": "white", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "Y": {"marker": "^", "markerfacecolor": "#FFC107", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "X": {"marker": "X", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "overlap": {"marker": "s", "markerfacecolor": "#9C27B0", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    "multi": {"marker": "D", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
+}
+
+
+def _add_node_overlays(
+    ax: plt.Axes,
+    node_overlays: Sequence[NodeOverlay],
+    label_mode: str = "type",
+) -> None:
+    """在数据轴上绘制节点符号与可选标注。"""
+    if not node_overlays:
+        return
+    for node in node_overlays:
+        style = _NODE_MARKER_STYLE.get(node.node_type, _NODE_MARKER_STYLE["I"])
+        label = ""
+        if label_mode == "type":
+            label = node.node_type
+        elif label_mode == "id":
+            label = str(node.node_id)
+        ax.plot(
+            node.x,
+            node.y,
+            linestyle="none",
+            markersize=6,
+            zorder=_TRACE_ZORDER + 2,
+            **style,
+        )
+        if label:
+            ax.annotate(
+                label,
+                (node.x, node.y),
+                textcoords="offset points",
+                xytext=(6, 4),
+                fontsize=6.5,
+                color="0.25",
+                zorder=_TRACE_ZORDER + 3,
+            )
+
+
 def _add_legend(
     ax: plt.Axes,
     area_source: str,
     has_hull: bool,
     has_circles: bool,
+    has_nodes: bool = False,
     *,
     anchor_x: float | None = None,
     anchor_y: float | None = None,
@@ -770,6 +828,8 @@ def _add_legend(
         items.append(("measured", "面积: 实测"))
     elif has_circles and area_source in ("window", "window_equivalent"):
         items.append(("circle", "面积: 圆窗"))
+    if has_nodes:
+        items.append(("nodes", "节点"))
 
     ax.add_patch(
         Rectangle(
@@ -832,6 +892,20 @@ def _add_legend(
                     zorder=_ANNOTATION_ZORDER + 1,
                 )
             )
+        elif kind == "nodes":
+            ax.plot(
+                0.16,
+                y,
+                linestyle="none",
+                marker="o",
+                markerfacecolor="white",
+                markeredgecolor="black",
+                markeredgewidth=0.8,
+                markersize=4,
+                transform=ax.transAxes,
+                clip_on=True,
+                zorder=_ANNOTATION_ZORDER + 1,
+            )
         else:
             ax.plot(
                 [0.08, 0.24],
@@ -890,6 +964,8 @@ def render_trace_plot(
     circle_windows: Sequence[CircleWindowOverlay] | None = None,
     hull_overlay: ConvexHullOverlay | None = None,
     area_source: str = "",
+    node_overlays: Sequence[NodeOverlay] | None = None,
+    node_label_mode: str = "type",
 ) -> str:
     """绘制并保存单张迹线长度图。
 
@@ -913,10 +989,12 @@ def render_trace_plot(
     selected_circles = valid_circles if area_source in {"window", "window_equivalent"} else []
     has_hull = selected_hull is not None
     has_circles = bool(selected_circles)
+    has_nodes = bool(node_overlays)
     layout = _build_decoration_layout(
         arr,
         circle_windows=selected_circles,
         hull_overlay=selected_hull,
+        node_overlays=node_overlays,
     )
     effective_figsize = figsize_cm if figsize_cm is not None else _compute_adaptive_figsize(layout)
     fig, ax = new_figure(effective_figsize, dpi=dpi)
@@ -940,6 +1018,10 @@ def render_trace_plot(
         zorder=_TRACE_ZORDER,
     )
 
+    # 2.5 节点覆盖层
+    if node_overlays:
+        _add_node_overlays(ax, node_overlays, label_mode=node_label_mode)
+
     _style_trace_data_axes(ax)
     _apply_decoration_limits(ax, layout)
 
@@ -957,6 +1039,7 @@ def render_trace_plot(
         area_source,
         has_hull,
         has_circles,
+        has_nodes=has_nodes,
         anchor_x=0.02,
         anchor_y=0.50,
         loc="center left",

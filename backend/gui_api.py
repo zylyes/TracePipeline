@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import base64
-import json
+import contextlib
 import logging
 import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -177,10 +175,8 @@ class GuiApi:
 
         # 清理中间单文件，仅保留 zip
         for f in files:
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(f)
-            except Exception:
-                pass
 
         return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
 
@@ -189,6 +185,7 @@ class GuiApi:
         stats = self._stats.get_stats(outcrop, self._config.get())
         if "error" in stats:
             return stats
+        ns = stats.get("nodes_summary", {})
         return {
             "outcrop": outcrop,
             "p10": {"value": stats.get("p10"), "source": "实测测线"},
@@ -196,6 +193,11 @@ class GuiApi:
             "p21": {"value": stats.get("p21"), "source": stats.get("area_source", "unknown")},
             "area_source": stats.get("area_source"),
             "warning": stats.get("warning"),
+            "nodes": {
+                "merge_tolerance": ns.get("merge_tolerance") if isinstance(ns, dict) else None,
+                "node_count": ns.get("node_count") if isinstance(ns, dict) else None,
+                "intersection_count": ns.get("intersection_count") if isinstance(ns, dict) else None,
+            },
         }
 
     def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:

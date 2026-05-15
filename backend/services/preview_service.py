@@ -10,16 +10,14 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
-import numpy as np
 
-from trace_pipeline.models import RunConfig
+from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.pipeline import load_trace_data
 from trace_pipeline.plotting.rose_plot import render_rose_plot
-from trace_pipeline.plotting.trace_plot import CircleWindowOverlay, ConvexHullOverlay, render_trace_plot
-from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
-from trace_pipeline.geology.transforms import normalize_coordinates
-from trace_pipeline.geology.angles import azimuth_to_cartesian_deg, fold_strike_angle
 from trace_pipeline.plotting.style import configure_style
+from trace_pipeline.plotting.trace_plot import (
+    render_trace_plot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +77,8 @@ class PreviewService:
 
     def _generate_images(self, style: dict[str, Any], style_hash: str) -> dict[str, str]:
         """临时修改 matplotlib 常量，生成预览图（线程安全）。"""
-        import trace_pipeline.plotting.trace_plot as tp
         import trace_pipeline.plotting.rose_plot as rp
+        import trace_pipeline.plotting.trace_plot as tp
 
         with _PREVIEW_LOCK:
             # 保存原始值
@@ -104,16 +102,17 @@ class PreviewService:
 
                 # 加载样本数据
                 trace = load_trace_data("input", f"{self._sample}_process", self._sample)
-                rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
                 stats_config = TraceStatisticsConfig(
                     window_strategy=style.get("window_strategy", "auto"),
                 )
                 statistics = compute_trace_statistics(trace, stats_config)
 
-                from trace_pipeline.pipeline import _raw_circle_overlays, _rotated_circle_overlays, _selected_hull_overlays
-                raw_circles = _raw_circle_overlays(trace, statistics)
-                rot_circles = _rotated_circle_overlays(trace, raw_circles)
-                raw_hull, rot_hull = _selected_hull_overlays(trace, statistics)
+                from trace_pipeline.plotting.overlays import (
+                    build_raw_circle_overlays,
+                    build_selected_hull_overlays,
+                )
+                raw_circles = build_raw_circle_overlays(trace, statistics)
+                raw_hull, rot_hull = build_selected_hull_overlays(trace, statistics)
 
                 from trace_pipeline.geology.statistics import format_statistics_box_lines
                 stats_lines = format_statistics_box_lines(statistics)

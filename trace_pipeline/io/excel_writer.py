@@ -15,6 +15,7 @@ from openpyxl.cell.text import InlineFont
 from openpyxl.styles import Alignment, Border, Color, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from ..analysis.models import NodeAnalysis
 from ..geology.statistics import TraceStatistics
 from ..models import TraceData
 
@@ -25,8 +26,8 @@ __all__ = [
     "ExcelLayout",
     "ExcelSection",
     "build_excel_sections",
+    "build_result_workbook_sections",
     "write_excel_multi_sheets",
-    "write_excel_sections",
 ]
 
 _SUMMARY_TITLES = {"基本信息", "裂隙情况", "计算数据"}
@@ -293,13 +294,14 @@ def _section_row_count(section: ExcelSection) -> int:
     return (1 if section.title else 0) + (1 if section.header else 0) + len(section.df)
 
 
-def build_excel_sections(
+def build_result_workbook_sections(
     trace: TraceData,
     rotated_xy: np.ndarray,
     statistics: TraceStatistics | None = None,
+    node_analysis: NodeAnalysis | None = None,
     layout: ExcelLayout = DEFAULT_LAYOUT,
 ) -> list[ExcelSection]:
-    """构建单工作表导出的 DataFrame 区段。"""
+    """构建多工作表导出的 DataFrame 区段（含节点统计）。"""
     if rotated_xy.shape != trace.endpoints.shape:
         raise ValueError(
             f"旋转坐标形状 {rotated_xy.shape} 与原始坐标 {trace.endpoints.shape} 不一致"
@@ -331,16 +333,76 @@ def build_excel_sections(
             )
         orient_df["迹线类型"] = list(statistics.trace_types)
 
-    summary_rows = max(
-        _section_row_count(section)
-        for section in summary_sections
-    )
-    data_row = layout.base_info_row + summary_rows + layout.data_gap
-    return [
+    sections: list[ExcelSection] = [
         *summary_sections,
-        ExcelSection(raw_df, data_row, layout.raw_col_start, True, "原始端点坐标"),
-        ExcelSection(rot_df, data_row, layout.rot_col_start, True, "旋转后端点坐标"),
-        ExcelSection(orient_df, data_row, layout.orient_col_start, True, "走向与长度"),
+        ExcelSection(raw_df, 0, 0, True, "原始端点坐标"),
+        ExcelSection(rot_df, 0, 0, True, "旋转后端点坐标"),
+        ExcelSection(orient_df, 0, 0, True, "走向与长度"),
+    ]
+
+    if node_analysis is not None:
+        sections.extend(_build_node_sections(node_analysis, trace))
+
+    return sections
+
+
+# 保留旧别名
+build_excel_sections = build_result_workbook_sections
+
+
+def _build_node_sections(
+    node_analysis: NodeAnalysis,
+    trace: TraceData,
+) -> list[ExcelSection]:
+    """构建节点相关的 Excel 区段。"""
+    tc = node_analysis.type_counts
+    stats_items = [
+        ("节点总数", str(node_analysis.node_count)),
+        ("自由端点(I)", str(tc.get("I", 0))),
+        ("三叉节点(Y)", str(tc.get("Y", 0))),
+        ("相交节点(X)", str(tc.get("X", 0))),
+        ("重叠节点", str(tc.get("overlap", 0))),
+        ("多交汇点", str(tc.get("multi", 0))),
+        ("交点事件数", str(node_analysis.intersection_count)),
+        ("节点密度", _format_excel_cell_value(node_analysis.node_density(trace.measured_outcrop_area), "个/m²")),
+        ("合并容差", _format_excel_cell_value(node_analysis.nodes[0].x if node_analysis.nodes else None, "")),
+        ("跳过退化线段数", str(node_analysis.degenerate_skipped)),
+    ]
+    stats_df = _one_row_df(stats_items)
+
+    detail_records = []
+    for node in node_analysis.nodes:
+        detail_records.append({
+            "节点ID": node.node_id,
+            "X": round(node.x, 4),
+            "Y": round(node.y, 4),
+            "类型": node.type_label,
+            "度数": node.degree,
+            "连接迹线": ",".join(str(i) for i in node.trace_indices),
+            "事件数": node.event_count,
+            "含端点": "是" if node.is_endpoint else "否",
+            "含相交": "是" if node.is_intersection else "否",
+            "含重叠": "是" if node.is_overlap else "否",
+        })
+    detail_df = pd.DataFrame(detail_records)
+
+    inter_records = []
+    for ev in node_analysis.intersections:
+        inter_records.append({
+            "迹线A": ev.trace_a,
+            "迹线B": ev.trace_b,
+            "交点X": round(ev.x, 4),
+            "交点Y": round(ev.y, 4),
+            "参数t": round(ev.t, 4),
+            "参数u": round(ev.u, 4),
+            "事件类型": "相交" if ev.kind == "internal" else ("端点接触" if ev.kind == "endpoint" else "重叠"),
+        })
+    inter_df = pd.DataFrame(inter_records) if inter_records else pd.DataFrame(columns=["迹线A", "迹线B", "交点X", "交点Y", "参数t", "参数u", "事件类型"])
+
+    return [
+        ExcelSection(stats_df, 0, 0, True, "节点统计"),
+        ExcelSection(detail_df, 0, 0, True, "节点明细"),
+        ExcelSection(inter_df, 0, 0, True, "节点交点"),
     ]
 
 
@@ -432,165 +494,3 @@ def write_excel_multi_sheets(
     logger.debug("Excel 多工作表写入完成: %s", excel_path)
 
 
-# ── 单工作表写入（旧格式，向后兼容）───────────────────────────────────
-
-def _write_section_title(ws, title: str, startrow: int, startcol: int, column_count: int) -> None:
-    if not title:
-        return
-    row = startrow + 1
-    col = startcol + 1
-    cell = ws.cell(row=row, column=col, value=title)
-    _apply_cell_font(cell, bold=True, color="FFFFFF")
-    cell.fill = PatternFill("solid", fgColor="4F81BD")
-    cell.alignment = Alignment(horizontal="center", vertical="center")
-    if column_count > 1:
-        ws.merge_cells(
-            start_row=row,
-            start_column=col,
-            end_row=row,
-            end_column=startcol + column_count,
-        )
-
-
-def _style_section(ws, section: ExcelSection) -> None:
-    title_offset = 1 if section.title else 0
-    header_row = section.startrow + title_offset + 1 if section.header else None
-    first_data_row = section.startrow + title_offset + (2 if section.header else 1)
-    last_row = section.startrow + title_offset + (1 if section.header else 0) + len(section.df)
-    first_col = section.startcol + 1
-    last_col = section.startcol + section.df.shape[1]
-    thin = Side(style="thin", color="D9E2F3")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    if section.header and header_row is not None:
-        for row in ws.iter_rows(min_row=header_row, max_row=header_row, min_col=first_col, max_col=last_col):
-            for cell in row:
-                _apply_cell_font(cell, bold=True)
-                cell.fill = PatternFill("solid", fgColor="D9EAF7")
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                cell.border = border
-        ws.row_dimensions[header_row].height = 36 if _is_summary_section(section) else 28
-
-    for row in ws.iter_rows(min_row=first_data_row, max_row=last_row, min_col=first_col, max_col=last_col):
-        for cell in row:
-            cell.border = border
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-            _apply_cell_font(cell, bold=False)
-            if isinstance(cell.value, numbers.Integral):
-                cell.number_format = "0"
-            elif isinstance(cell.value, numbers.Real):
-                cell.number_format = "0.0000"
-    if _is_summary_section(section) and first_data_row <= last_row:
-        ws.row_dimensions[first_data_row].height = 22
-
-
-def _content_width(value) -> int:
-    if value is None:
-        return 0
-    return len(str(value))
-
-
-def _bounded_content_width(ws, col_idx: int, min_width: int, max_width: int) -> float:
-    max_width_seen = 0
-    for column in ws.iter_cols(min_col=col_idx, max_col=col_idx, values_only=False):
-        for cell in column:
-            max_width_seen = max(max_width_seen, _content_width(cell.value))
-    return min(max_width, max(min_width, max_width_seen * 1.1 + 2))
-
-
-def _summary_column_has_label(ws, col_idx: int, sections: Sequence[ExcelSection]) -> bool:
-    for section in sections:
-        first_col = section.startcol + 1
-        last_col = section.startcol + section.df.shape[1]
-        if section.header and _is_summary_section(section) and first_col <= col_idx <= last_col:
-            header_row = section.startrow + (1 if section.title else 0) + 1
-            value = ws.cell(row=header_row, column=col_idx).value
-            return bool(value)
-    return False
-
-
-def _apply_column_widths(ws, sections: Sequence[ExcelSection], max_col: int, layout: ExcelLayout) -> None:
-    for col_idx in range(1, max_col + 1):
-        zero_based = col_idx - 1
-        summary_width = None
-        if _summary_column_has_label(ws, col_idx, sections):
-            summary_width = _bounded_content_width(
-                ws,
-                col_idx,
-                layout.summary_min_width,
-                layout.summary_max_width,
-            )
-
-        if zero_based in {
-            layout.raw_col_start + 4,
-            layout.raw_col_start + 5,
-            layout.rot_col_start + 4,
-            layout.rot_col_start + 5,
-        }:
-            structural_width: float = layout.gap_column_width
-        elif layout.raw_col_start <= zero_based < layout.raw_col_start + 4:
-            structural_width = layout.raw_column_width
-        elif layout.rot_col_start <= zero_based < layout.rot_col_start + 4:
-            structural_width = layout.rotated_column_width
-        elif zero_based == layout.orient_col_start or zero_based == layout.orient_col_start + 1:
-            structural_width = layout.orientation_column_width
-        elif zero_based == layout.orient_col_start + 2:
-            structural_width = layout.segment_length_column_width
-        elif zero_based == layout.orient_col_start + 3:
-            structural_width = layout.trace_type_column_width
-        else:
-            structural_width = _bounded_content_width(
-                ws,
-                col_idx,
-                layout.min_column_width,
-                layout.max_column_width,
-            )
-        width = max(summary_width, structural_width) if summary_width is not None else structural_width
-        ws.column_dimensions[get_column_letter(col_idx)].width = width
-
-
-def _freeze_pane_for_sections(sections: Sequence[ExcelSection]) -> str:
-    data_starts = [
-        section.startrow
-        for section in sections
-        if section.header and not _is_summary_section(section)
-    ]
-    if not data_starts:
-        return "A1"
-    first_data_start = min(data_starts)
-    return f"A{first_data_start + 3}"
-
-
-def write_excel_sections(
-    excel_path: str,
-    sheet_name: str,
-    sections: Sequence[ExcelSection],
-    layout: ExcelLayout = DEFAULT_LAYOUT,
-) -> None:
-    """将多个 DataFrame 区段写入同一工作表（旧格式）。"""
-    output_dir = Path(excel_path).parent
-    if str(output_dir):
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-    max_col = 0
-    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-        for section in sections:
-            title_offset = 1 if section.title else 0
-            section.df.to_excel(
-                writer,
-                sheet_name=sheet_name,
-                index=False,
-                header=section.header,
-                startrow=section.startrow + title_offset,
-                startcol=section.startcol,
-            )
-            ws = writer.sheets[sheet_name]
-            _write_section_title(ws, section.title, section.startrow, section.startcol, section.df.shape[1])
-            _style_section(ws, section)
-            max_col = max(max_col, section.startcol + section.df.shape[1])
-
-        ws = writer.sheets[sheet_name]
-        ws.freeze_panes = _freeze_pane_for_sections(sections)
-        _apply_column_widths(ws, sections, max_col, layout)
-
-    logger.debug("Excel 单工作表写入完成: %s", excel_path)

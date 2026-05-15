@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import logging
 import sys
-import webbrowser
 from pathlib import Path
 
 # 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
 import matplotlib
+
 matplotlib.use('Agg')
 
 import webview

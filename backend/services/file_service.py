@@ -35,10 +35,7 @@ class FileService:
             # 检查 output 中是否已有结果（通配匹配）
             has_raw = bool(list(self._output_dir.glob(f"{outcrop}_raw*.png")))
             has_rotated = bool(list(self._output_dir.glob(f"{outcrop}_rotated*.png")))
-            if has_raw and has_rotated:
-                status = "completed"
-            else:
-                status = "pending"
+            status = "completed" if has_raw and has_rotated else "pending"
             results.append({
                 "stem": tf.stem,
                 "outcrop": outcrop,

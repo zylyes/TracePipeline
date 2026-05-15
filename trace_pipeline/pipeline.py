@@ -5,30 +5,33 @@
 from __future__ import annotations
 
 import logging
-import math
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from .geology._convex_hull import _buffered_hull_vertices, _compute_convex_hull
-from .geology.angles import azimuth_to_cartesian_deg, fold_strike_angle
+from .analysis.models import NodeRecognitionConfig
+from .analysis.nodes import recognize_trace_nodes
+from .geology.angles import fold_strike_angle
 from .geology.endpoints import compute_endpoints
 from .geology.statistics import (
-    TraceStatistics,
     TraceStatisticsConfig,
     compute_trace_statistics,
     format_statistics_box_lines,
 )
-from .geology.transforms import (
-    normalize_coordinates,
-    normalize_points_like_lines,
-)
+from .geology.transforms import normalize_coordinates
 from .io.excel_reader import read_trace_excel
-from .io.excel_writer import build_excel_sections, write_excel_multi_sheets
+from .io.excel_writer import build_result_workbook_sections, write_excel_multi_sheets
 from .models import RunConfig, RunResult, TraceData
+from .plotting.overlays import (
+    build_node_overlays,
+    build_raw_circle_overlays,
+    build_rotated_circle_overlays,
+    build_rotated_node_overlays,
+    build_selected_hull_overlays,
+)
 from .plotting.rose_plot import render_rose_plot
-from .plotting.trace_plot import CircleWindowOverlay, ConvexHullOverlay, render_trace_plot
+from .plotting.trace_plot import render_trace_plot
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +56,10 @@ _STYLE_CONSTANTS = {
 
 def _apply_style(style: dict[str, Any]) -> dict[str, Any]:
     """临时应用样式到绘图模块常量，返回原始值用于恢复。"""
-    import trace_pipeline.plotting.trace_plot as tp
-    import trace_pipeline.plotting.rose_plot as rp
     import matplotlib
+
+    import trace_pipeline.plotting.rose_plot as rp
+    import trace_pipeline.plotting.trace_plot as tp
 
     orig: dict[str, Any] = {}
     for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
@@ -79,88 +83,13 @@ def _apply_style(style: dict[str, Any]) -> dict[str, Any]:
 
 def _restore_style(orig: dict[str, Any]) -> None:
     """恢复绘图模块常量到原始值。"""
-    import trace_pipeline.plotting.trace_plot as tp
     import trace_pipeline.plotting.rose_plot as rp
+    import trace_pipeline.plotting.trace_plot as tp
 
     for key, val in orig.items():
         mod_name, attr = _STYLE_CONSTANTS[key]
         mod = tp if mod_name == "trace_plot" else rp
         setattr(mod, attr, val)
-
-
-def _raw_circle_overlays(
-    trace: TraceData,
-    statistics: TraceStatistics,
-) -> tuple[CircleWindowOverlay, ...]:
-    centers: list[tuple[float, float]] = []
-    radii: list[float] = []
-    for diagnostic in statistics.diagnostics:
-        geometry = np.array(
-            [diagnostic.center_x, diagnostic.center_y, diagnostic.radius],
-            dtype=float,
-        )
-        if diagnostic.valid and np.isfinite(geometry).all() and diagnostic.radius > 0.0:
-            centers.append((diagnostic.center_x, diagnostic.center_y))
-            radii.append(float(diagnostic.radius))
-
-    if not centers:
-        return ()
-
-    angle = math.radians(azimuth_to_cartesian_deg(trace.scanline_azimuth))
-    along = np.array([math.cos(angle), math.sin(angle)], dtype=float)
-    left = np.array([-math.sin(angle), math.cos(angle)], dtype=float)
-    pts = np.array(centers, dtype=float)
-    global_centers = pts[:, [0]] * along + pts[:, [1]] * left
-    return tuple(
-        CircleWindowOverlay(float(center[0]), float(center[1]), radius)
-        for center, radius in zip(global_centers, radii)
-    )
-
-
-def _rotated_circle_overlays(
-    trace: TraceData,
-    raw_overlays: tuple[CircleWindowOverlay, ...],
-) -> tuple[CircleWindowOverlay, ...]:
-    if not raw_overlays:
-        return ()
-
-    centers = np.array(
-        [(overlay.center_x, overlay.center_y) for overlay in raw_overlays],
-        dtype=float,
-    )
-    rotated_centers = normalize_points_like_lines(centers, trace.endpoints, trace.scanline_azimuth)
-    return tuple(
-        CircleWindowOverlay(float(center[0]), float(center[1]), overlay.radius)
-        for center, overlay in zip(rotated_centers, raw_overlays)
-    )
-
-
-def _selected_hull_overlays(
-    trace: TraceData,
-    statistics: TraceStatistics,
-) -> tuple[ConvexHullOverlay | None, ConvexHullOverlay | None]:
-    """返回与露头面积来源一致的原始/旋转凸包覆盖物。"""
-    if statistics.outcrop_area_source not in {"hull", "hull_buffered"}:
-        return None, None
-
-    raw_hull = _compute_convex_hull(trace.endpoints)
-    if raw_hull is None:
-        return None, None
-
-    selected_vertices = raw_hull
-    if statistics.outcrop_area_source == "hull_buffered":
-        buffer_distance = statistics.hull_buffer_ratio * statistics.mean_trace_length
-        buffered_vertices = _buffered_hull_vertices(raw_hull, buffer_distance)
-        if buffered_vertices is None:
-            return None, None
-        selected_vertices = buffered_vertices
-
-    rotated_vertices = normalize_points_like_lines(
-        selected_vertices,
-        trace.endpoints,
-        trace.scanline_azimuth,
-    )
-    return ConvexHullOverlay(selected_vertices), ConvexHullOverlay(rotated_vertices)
 
 
 def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
@@ -216,23 +145,46 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         )
         statistics = compute_trace_statistics(trace, statistics_config)
         statistics_lines = format_statistics_box_lines(statistics)
-        raw_circle_windows = _raw_circle_overlays(trace, statistics)
-        rotated_circle_windows = _rotated_circle_overlays(trace, raw_circle_windows)
+        raw_circle_windows = build_raw_circle_overlays(trace, statistics)
+        rotated_circle_windows = build_rotated_circle_overlays(trace, raw_circle_windows)
 
         # 即时终端告警
         if statistics.window_validation_warning:
             print(f"\n[{cfg.outcrop}] 警告: {statistics.window_validation_warning}")
 
-        raw_hull_overlay, rotated_hull_overlay = _selected_hull_overlays(trace, statistics)
+        raw_hull_overlay, rotated_hull_overlay = build_selected_hull_overlays(trace, statistics)
 
-        # ---- 3. 导出 Excel ----
+        # ---- 3. 节点识别 ----
+        node_analysis = None
+        raw_node_overlays = ()
+        rotated_node_overlays = ()
+        if cfg.enable_node_recognition:
+            node_config = NodeRecognitionConfig(
+                enabled=True,
+                merge_tolerance=cfg.node_merge_tolerance,
+                show_overlay=cfg.show_node_overlay,
+                label_mode=cfg.node_label_mode,
+            )
+            node_analysis = recognize_trace_nodes(trace.endpoints, node_config)
+            raw_node_overlays = build_node_overlays(node_analysis)
+            rotated_node_overlays = build_rotated_node_overlays(
+                node_analysis, trace.endpoints, trace.scanline_azimuth
+            )
+            logger.info(
+                "节点识别完成: %s — %d 个节点, %d 个交点事件",
+                cfg.outcrop, node_analysis.node_count, node_analysis.intersection_count,
+            )
+
+        # ---- 4. 导出 Excel ----
         output_dir = Path(cfg.output_dir)
         excel_path = output_dir / f"{cfg.output_prefix}_traces.xlsx"
-        sections = build_excel_sections(trace, rotated, statistics=statistics)
+        sections = build_result_workbook_sections(
+            trace, rotated, statistics=statistics, node_analysis=node_analysis
+        )
         write_excel_multi_sheets(str(excel_path), sections)
         logger.info("Excel 导出至: %s", excel_path)
 
-        # ---- 4. 绘制图片 ----
+        # ---- 5. 绘制图片 ----
         style_orig = _apply_style(cfg.style)
         try:
             raw_plot = render_trace_plot(
@@ -245,6 +197,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 circle_windows=raw_circle_windows,
                 hull_overlay=raw_hull_overlay,
                 area_source=statistics.outcrop_area_source,
+                node_overlays=raw_node_overlays if cfg.show_node_overlay else None,
+                node_label_mode=cfg.node_label_mode,
             )
             rot_plot = render_trace_plot(
                 rotated,
@@ -257,6 +211,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 circle_windows=rotated_circle_windows,
                 hull_overlay=rotated_hull_overlay,
                 area_source=statistics.outcrop_area_source,
+                node_overlays=rotated_node_overlays if cfg.show_node_overlay else None,
+                node_label_mode=cfg.node_label_mode,
             )
 
             rose_plot = ""
@@ -274,6 +230,28 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             _restore_style(style_orig)
 
         logger.info("处理完成: %s", cfg.outcrop)
+        node_summary = {
+            "node_count": 0,
+            "node_i_count": 0,
+            "node_y_count": 0,
+            "node_x_count": 0,
+            "node_overlap_count": 0,
+            "node_multi_count": 0,
+            "intersection_count": 0,
+            "endpoint_node_count": 0,
+        }
+        if node_analysis is not None:
+            tc = node_analysis.type_counts
+            node_summary = {
+                "node_count": node_analysis.node_count,
+                "node_i_count": tc.get("I", 0),
+                "node_y_count": tc.get("Y", 0),
+                "node_x_count": tc.get("X", 0),
+                "node_overlap_count": tc.get("overlap", 0),
+                "node_multi_count": tc.get("multi", 0),
+                "intersection_count": node_analysis.intersection_count,
+                "endpoint_node_count": sum(1 for n in node_analysis.nodes if n.is_endpoint),
+            }
         return RunResult.success(
             table_stem=cfg.table_stem,
             trace_count=trace.count,
@@ -285,6 +263,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             rose_plot_path=rose_plot,
             window_strategy=statistics.window_strategy,
             area_source=statistics.outcrop_area_source,
+            **node_summary,
         )
 
     except (FileNotFoundError, ValueError, OSError) as exc:

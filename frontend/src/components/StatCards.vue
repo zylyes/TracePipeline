@@ -16,6 +16,10 @@ const props = defineProps<{
     p10?: number | null
     p20?: number | null
     p21?: number | null
+    node_count?: number
+    node_x_count?: number
+    node_y_count?: number
+    node_i_count?: number
   }
 }>()
 
@@ -23,6 +27,9 @@ const cards = computed(() => [
   { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹' },
   { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²' },
   { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹' },
+  { label: '节点总数', value: props.stats?.node_count, unit: '个' },
+  { label: '相交节点 X', value: props.stats?.node_x_count, unit: '个' },
+  { label: '三叉节点 Y', value: props.stats?.node_y_count, unit: '个' },
 ])
 
 function formatValue(v: number | null | undefined) {

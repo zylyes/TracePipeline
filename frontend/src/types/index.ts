@@ -20,6 +20,10 @@ export interface PipelineResult {
   window_strategy: string
   area_source: string
   error?: string
+  node_count?: number
+  node_x_count?: number
+  node_y_count?: number
+  node_i_count?: number
 }
 
 export interface PipelineProgress {
@@ -55,6 +59,37 @@ export interface StatsData {
     radius: number
   }>
   warning?: string
+  nodes_summary?: {
+    node_count: number
+    node_i_count: number
+    node_y_count: number
+    node_x_count: number
+    node_overlap_count: number
+    node_multi_count: number
+    intersection_count: number
+    degenerate_skipped: number
+  }
+  nodes?: Array<{
+    node_id: number
+    x: number
+    y: number
+    type: string
+    degree: number
+    trace_indices: number[]
+    event_count: number
+    is_endpoint: boolean
+    is_intersection: boolean
+    is_overlap: boolean
+  }>
+  intersections?: Array<{
+    trace_a: number
+    trace_b: number
+    x: number
+    y: number
+    t: number
+    u: number
+    kind: string
+  }>
 }
 
 export interface ImageItem {
@@ -79,14 +114,11 @@ export interface ConfigData {
   [key: string]: any
 }
 
-export interface ComparisonRow {
-  outcrop: string
-  p10: string
-  p20: string
-  p21: string
-  mean_trace_length: string
-  scanline_azimuth: string
-  type_ratio: string
+export interface DataPageResult {
+  data: any[]
+  total: number
+  columns: string[]
+  error?: string
 }
 
 export interface DataPageResult {
@@ -105,4 +137,18 @@ export interface PlotOverlay {
   hull_vertices: Array<[number, number]>
   has_circles: boolean
   circles: Array<{ center_x: number; center_y: number; radius: number }>
+  has_nodes: boolean
+  nodes: Array<{ x: number; y: number; node_type: string; node_id: number; degree: number }>
+}
+
+export interface ComparisonRow {
+  outcrop: string
+  p10: string
+  p20: string
+  p21: string
+  mean_trace_length: string
+  scanline_azimuth: string
+  type_ratio: string
+  node_count: string
+  node_ratio: string
 }

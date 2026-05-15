@@ -36,10 +36,7 @@ class WebView2Checker:
             Path(r"C:\Program Files (x86)\Microsoft\EdgeWebView\Application"),
             Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft\\EdgeWebView\\Application",
         ]
-        for dp in dll_paths:
-            if dp.exists() and any(dp.iterdir()):
-                return True
-        return False
+        return any(dp.exists() and any(dp.iterdir()) for dp in dll_paths)
 
     def get_download_url(self) -> str:
         return _DOWNLOAD_URL

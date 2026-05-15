@@ -1,18 +1,24 @@
 """统计数据服务。"""
 from __future__ import annotations
 
-import json
 import logging
 import math
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from trace_pipeline.models import RunConfig
-from trace_pipeline.pipeline import load_trace_data, _raw_circle_overlays, _rotated_circle_overlays, _selected_hull_overlays
+from trace_pipeline.analysis.models import NodeRecognitionConfig
+from trace_pipeline.analysis.nodes import recognize_trace_nodes
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.geology.transforms import normalize_coordinates
+from trace_pipeline.pipeline import load_trace_data
+from trace_pipeline.plotting.overlays import (
+    build_node_overlays,
+    build_raw_circle_overlays,
+    build_rotated_circle_overlays,
+    build_rotated_node_overlays,
+    build_selected_hull_overlays,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +60,9 @@ class StatsService:
                 })
 
         # 覆盖层几何（用于前端 Canvas 叠加）
-        raw_circles = _raw_circle_overlays(trace, statistics)
-        rot_circles = _rotated_circle_overlays(trace, raw_circles)
-        raw_hull, rot_hull = _selected_hull_overlays(trace, statistics)
+        raw_circles = build_raw_circle_overlays(trace, statistics)
+        rot_circles = build_rotated_circle_overlays(trace, raw_circles)
+        raw_hull, rot_hull = build_selected_hull_overlays(trace, statistics)
 
         def _hull_data(hull):
             if hull is None or hull.vertices.size == 0:
@@ -68,6 +74,18 @@ class StatsService:
                 {"center_x": float(c.center_x), "center_y": float(c.center_y), "radius": float(c.radius)}
                 for c in circle_list
             ]
+
+        # 节点识别
+        node_config = NodeRecognitionConfig(
+            enabled=cfg.get("enable_node_recognition", True),
+            merge_tolerance=cfg.get("node_merge_tolerance", 1e-6),
+            show_overlay=cfg.get("show_node_overlay", True),
+            label_mode=cfg.get("node_label_mode", "type"),
+        )
+        node_analysis = recognize_trace_nodes(trace.endpoints, node_config)
+        raw_nodes = build_node_overlays(node_analysis)
+        rot_nodes = build_rotated_node_overlays(node_analysis, trace.endpoints, trace.scanline_azimuth)
+        tc = node_analysis.type_counts
 
         # 计算数据边界（用于前端坐标映射）
         endpoints = trace.endpoints
@@ -81,6 +99,12 @@ class StatsService:
         rot_ys = rotated[:, [1, 3]].ravel()
         rot_x_min, rot_x_max = float(rot_xs.min()), float(rot_xs.max())
         rot_y_min, rot_y_max = float(rot_ys.min()), float(rot_ys.max())
+
+        def _node_data(node_list):
+            return [
+                {"x": float(n.x), "y": float(n.y), "node_type": n.node_type, "node_id": n.node_id, "degree": n.degree}
+                for n in node_list
+            ]
 
         return {
             "outcrop": outcrop,
@@ -104,6 +128,27 @@ class StatsService:
             "strikes": trace.joint_strikes.tolist(),
             "circles": circles,
             "warning": statistics.window_validation_warning,
+            "nodes_summary": {
+                "node_count": node_analysis.node_count,
+                "node_i_count": tc.get("I", 0),
+                "node_y_count": tc.get("Y", 0),
+                "node_x_count": tc.get("X", 0),
+                "node_overlap_count": tc.get("overlap", 0),
+                "node_multi_count": tc.get("multi", 0),
+                "intersection_count": node_analysis.intersection_count,
+                "degenerate_skipped": node_analysis.degenerate_skipped,
+            },
+            "nodes": [
+                {"node_id": n.node_id, "x": round(n.x, 4), "y": round(n.y, 4), "type": n.type_label,
+                 "degree": n.degree, "trace_indices": list(n.trace_indices), "event_count": n.event_count,
+                 "is_endpoint": n.is_endpoint, "is_intersection": n.is_intersection, "is_overlap": n.is_overlap}
+                for n in node_analysis.nodes
+            ],
+            "intersections": [
+                {"trace_a": ev.trace_a, "trace_b": ev.trace_b, "x": round(ev.x, 4), "y": round(ev.y, 4),
+                 "t": round(ev.t, 4), "u": round(ev.u, 4), "kind": ev.kind}
+                for ev in node_analysis.intersections
+            ],
             "raw_plot_overlay": {
                 "data_x_min": raw_x_min,
                 "data_x_max": raw_x_max,
@@ -113,6 +158,8 @@ class StatsService:
                 "hull_vertices": _hull_data(raw_hull),
                 "has_circles": len(raw_circles) > 0,
                 "circles": _circle_data(raw_circles),
+                "has_nodes": len(raw_nodes) > 0,
+                "nodes": _node_data(raw_nodes),
             },
             "rotated_plot_overlay": {
                 "data_x_min": rot_x_min,
@@ -123,6 +170,8 @@ class StatsService:
                 "hull_vertices": _hull_data(rot_hull),
                 "has_circles": len(rot_circles) > 0,
                 "circles": _circle_data(rot_circles),
+                "has_nodes": len(rot_nodes) > 0,
+                "nodes": _node_data(rot_nodes),
             },
         }
 

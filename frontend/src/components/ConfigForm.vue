@@ -42,35 +42,36 @@
           </div>
         </div>
       </el-form-item>
-      <el-form-item label="线宽">
+      <el-form-item label="迹线线宽">
         <div class="slider-input-combo">
-          <el-slider v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" @change="emitStyle" />
-          <el-input-number v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+          <el-slider v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" :format-tooltip="(v: number) => v.toFixed(2)" @change="emitStyle" />
+          <el-input-number v-model="style.trace_line_width" :min="0.1" :max="3" :step="0.05" :precision="2" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
         </div>
       </el-form-item>
       <el-form-item label="凸包透明度">
         <div class="slider-input-combo">
-          <el-slider v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" @change="emitStyle" />
-          <el-input-number v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+          <el-slider v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" :format-tooltip="(v: number) => Math.round(v * 100) + '%'" @change="emitStyle" />
+          <el-input-number :model-value="Math.round(style.hull_fill_alpha * 100)" :min="0" :max="100" :step="1" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @update:model-value="(val: number) => { style.hull_fill_alpha = val / 100; emitStyle() }" />
         </div>
       </el-form-item>
       <el-form-item label="圆窗透明度">
         <div class="slider-input-combo">
-          <el-slider v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" @change="emitStyle" />
-          <el-input-number v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+          <el-slider v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" :format-tooltip="(v: number) => Math.round(v * 100) + '%'" @change="emitStyle" />
+          <el-input-number :model-value="Math.round(style.circle_window_fill_alpha * 100)" :min="0" :max="100" :step="1" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @update:model-value="(val: number) => { style.circle_window_fill_alpha = val / 100; emitStyle() }" />
         </div>
       </el-form-item>
-      <el-form-item label="全局字号">
+      <el-form-item label="标题字号">
         <div class="slider-input-combo">
-          <el-slider v-model="style.global_font_size" :min="6" :max="14" :step="0.5" @change="emitStyle" />
-          <el-input-number v-model="style.global_font_size" :min="6" :max="14" :step="0.5" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
+          <el-slider v-model="style.title_font_size" :min="8" :max="16" :step="0.5" @change="emitStyle" />
+          <el-input-number v-model="style.title_font_size" :min="8" :max="16" :step="0.5" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @change="emitStyle" />
         </div>
       </el-form-item>
-      <el-form-item label="节点标签模式">
-        <el-select v-model="form.node_label_mode" style="width: 200px">
-          <el-option label="类型" value="type" />
-          <el-option label="ID" value="id" />
-          <el-option label="无" value="none" />
+      <el-form-item label="节点样式">
+        <el-select v-model="style.node_style" style="width: 200px" @change="emitStyle">
+          <el-option label="默认" value="default" />
+          <el-option label="实心" value="solid" />
+          <el-option label="空心" value="hollow" />
+          <el-option label="深色" value="dark" />
         </el-select>
       </el-form-item>
     </el-form>
@@ -107,6 +108,7 @@ watch(() => props.modelValue, (val) => {
 }, { deep: true })
 
 watch(() => props.styleConfig, (val) => {
+  Object.keys(style).forEach(k => delete (style as any)[k])
   Object.assign(style, val)
 }, { deep: true })
 

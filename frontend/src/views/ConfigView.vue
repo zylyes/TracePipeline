@@ -43,7 +43,8 @@ const styleConfig = ref<ConfigData>({
   rose_bar_color: '#C94C4C',
   rose_bar_edge: '#7A1F1F',
   rose_grid_color: '#d9d9d9',
-  global_font_size: 8.5,
+  title_font_size: 10.4,
+  node_style: 'default',
 })
 const selectedOutcrop = ref('')
 
@@ -78,14 +79,10 @@ async function saveStyleConfig() {
   try {
     const payload = {
       style: { ...styleConfig.value },
-      node_label_mode: form.value.node_label_mode,
     }
     const saved = await configStore.saveConfig(payload)
     if (saved.style && typeof saved.style === 'object') {
       styleConfig.value = { ...saved.style }
-    }
-    if (saved.node_label_mode) {
-      form.value.node_label_mode = saved.node_label_mode
     }
     ElMessage.success('样式设置已保存')
   } catch (e) {
@@ -110,8 +107,22 @@ async function resetProcessingConfig() {
 async function resetStyleConfig() {
   try {
     const cfg = await configStore.resetStyleConfig()
+    // 强制用本地默认值覆盖，避免空对象导致组件不同步
+    styleConfig.value = {
+      trace_line_color: '#000000',
+      trace_line_width: 0.85,
+      hull_line_color: '#1565C0',
+      hull_fill_alpha: 0.08,
+      circle_window_line_color: '#E65100',
+      circle_window_fill_alpha: 0.08,
+      rose_bar_color: '#C94C4C',
+      rose_bar_edge: '#7A1F1F',
+      rose_grid_color: '#d9d9d9',
+      title_font_size: 10.4,
+      node_style: 'default',
+    }
     if (cfg.style && typeof cfg.style === 'object') {
-      styleConfig.value = { ...cfg.style }
+      styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
     ElMessage.success('样式设置已重置为默认')
   } catch (e) {
@@ -123,8 +134,22 @@ async function resetAllConfig() {
   try {
     const cfg = await configStore.resetConfig()
     form.value = { ...cfg }
+    // 强制用本地默认值覆盖，避免空对象导致组件不同步
+    styleConfig.value = {
+      trace_line_color: '#000000',
+      trace_line_width: 0.85,
+      hull_line_color: '#1565C0',
+      hull_fill_alpha: 0.08,
+      circle_window_line_color: '#E65100',
+      circle_window_fill_alpha: 0.08,
+      rose_bar_color: '#C94C4C',
+      rose_bar_edge: '#7A1F1F',
+      rose_grid_color: '#d9d9d9',
+      title_font_size: 10.4,
+      node_style: 'default',
+    }
     if (cfg.style && typeof cfg.style === 'object') {
-      styleConfig.value = { ...cfg.style }
+      styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
     // 同步侧边栏路径
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir

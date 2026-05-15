@@ -192,7 +192,6 @@ class RunConfig:
     enable_node_recognition: bool = True
     node_merge_tolerance: float = 1e-6
     show_node_overlay: bool = True
-    node_label_mode: str = "type"
 
     def __post_init__(self) -> None:
         for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
@@ -215,8 +214,6 @@ class RunConfig:
 
         if self.node_merge_tolerance <= 0.0:
             raise ValueError("node_merge_tolerance 必须大于 0")
-        if self.node_label_mode not in ("none", "type", "id"):
-            raise ValueError(f"node_label_mode 必须为 none/type/id 之一: {self.node_label_mode}")
 
     # ---- 工厂方法 ----
 
@@ -232,9 +229,19 @@ class RunConfig:
             "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
             "tangent_window_count", "style",
             "enable_node_recognition", "node_merge_tolerance",
-            "show_node_overlay", "node_label_mode",
+            "show_node_overlay",
         }
         return cls(**{k: cfg[k] for k in known if k in cfg})
+
+    @property
+    def node_label_mode(self) -> str:
+        """从 style 字典中读取节点标签模式，向后兼容。"""
+        return self.style.get("node_label_mode", "type")
+
+    @property
+    def node_style(self) -> str:
+        """从 style 字典中读取节点样式预设。"""
+        return self.style.get("node_style", "default")
 
 
 # ===========================================================================

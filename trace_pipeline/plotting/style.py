@@ -32,6 +32,9 @@ _STYLE_CONSTANTS: dict[str, tuple[str, str]] = {
     "rose_grid_color": ("rose_plot", "_ROSE_GRID_COLOR"),
 }
 
+# 字号相关配置键（向后兼容：global_font_size 映射到 label_font_size）
+_FONT_SIZE_KEYS = ("title_font_size", "label_font_size", "tick_font_size")
+
 _STYLE_LOCK = threading.Lock()
 
 WESTERN_PRIMARY_FONT = "Times New Roman"
@@ -205,9 +208,11 @@ def apply_style_overrides(style: dict[str, Any]) -> Generator[None, None, None]:
                 if key in style:
                     setattr(mod, attr, style[key])
 
-            if "global_font_size" in style:
+            # 字号覆盖（向后兼容 global_font_size）
+            _font_size = style.get("label_font_size") or style.get("global_font_size")
+            if _font_size is not None:
                 orig["_rc_font_size"] = matplotlib.rcParams.get("font.size")
-                matplotlib.rcParams["font.size"] = float(style["global_font_size"])
+                matplotlib.rcParams["font.size"] = float(_font_size)
 
             yield
     finally:

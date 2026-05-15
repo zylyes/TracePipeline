@@ -57,7 +57,8 @@ class ConfigDict(TypedDict, total=False):
     enable_node_recognition: bool
     node_merge_tolerance: float
     show_node_overlay: bool
-    node_label_mode: str
+    is_dev_mode: bool
+    min_intersections: int
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -79,7 +80,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "enable_node_recognition": True,
     "node_merge_tolerance": 1e-6,
     "show_node_overlay": True,
-    "node_label_mode": "type",
+    "is_dev_mode": False,
+    "min_intersections": 5,
 }
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "table_stem", "outcrop")

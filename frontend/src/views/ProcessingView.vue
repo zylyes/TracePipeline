@@ -35,20 +35,6 @@
             <el-option v-for="d in [300,400,600,800]" :key="d" :label="d" :value="d" />
           </el-select>
         </el-form-item>
-        <el-form-item label="圆窗策略">
-          <el-select v-model="params.window_strategy" style="width:110px">
-            <el-option label="auto" value="auto" />
-            <el-option label="tangent" value="tangent" />
-            <el-option label="hybrid" value="hybrid" />
-            <el-option label="concentric" value="concentric" />
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="params.window_strategy === 'auto'" label="密度阈值">
-          <el-input-number v-model="params.auto_density_threshold" :min="1" :max="20" :step="0.5" style="width:100px" />
-        </el-form-item>
-        <el-form-item v-if="params.window_strategy === 'tangent'" label="切圆数量">
-          <el-input-number v-model="params.tangent_window_count" :min="1" :max="10" style="width:100px" />
-        </el-form-item>
       </el-form>
     </div>
 
@@ -131,9 +117,6 @@ const POLL_INTERVAL = 300
     rose_bin_width: 10,
     trace_dpi: 300,
     rotated_trace_dpi: 600,
-    window_strategy: 'auto',
-    auto_density_threshold: 5.0,
-    tangent_window_count: 3,
     enable_node_recognition: true,
   })
 
@@ -158,6 +141,14 @@ const logListRef = ref<HTMLDivElement>()
 const MAX_LOGS = 50
 const startTime = ref(0)
 
+const AREA_SOURCE_LABELS: Record<string, string> = {
+  measured: '实测',
+  hull: '凸包',
+  hull_buffered: '缓冲凸包',
+  window_equivalent: '圆窗等效',
+  unavailable: '不可用',
+}
+
 function addLog(type: ProcessLog['type'], message: string) {
   const now = new Date()
   const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
@@ -181,9 +172,6 @@ watch(() => configStore.config, (newCfg) => {
     rose_bin_width: newCfg.rose_bin_width ?? 10,
     trace_dpi: newCfg.trace_dpi ?? 300,
     rotated_trace_dpi: newCfg.rotated_trace_dpi ?? 600,
-    window_strategy: newCfg.window_strategy ?? 'auto',
-    auto_density_threshold: newCfg.auto_density_threshold ?? 5.0,
-    tangent_window_count: newCfg.tangent_window_count ?? 3,
     enable_node_recognition: newCfg.enable_node_recognition ?? true,
   }
 }, { deep: true })
@@ -282,9 +270,6 @@ async function saveParams() {
       rose_bin_width: params.value.rose_bin_width,
       trace_dpi: params.value.trace_dpi,
       rotated_trace_dpi: params.value.rotated_trace_dpi,
-      window_strategy: params.value.window_strategy,
-      auto_density_threshold: params.value.auto_density_threshold,
-      tangent_window_count: params.value.tangent_window_count,
       enable_node_recognition: params.value.enable_node_recognition,
     }
     await configStore.saveConfig(payload)
@@ -313,7 +298,7 @@ async function startPipeline() {
 
   // 合并本地参数和全局配置，先保存再启动，保证后端事实源一致
   const runConfig = { ...configStore.config, ...params.value }
-  addLog('info', `运行参数: 玫瑰图=${params.value.export_rose_plot ? '是' : '否'}, 节点识别=${params.value.enable_node_recognition ? '是' : '否'}, 玫瑰DPI=${params.value.rose_dpi}, 分箱=${params.value.rose_bin_width}°, 迹线DPI=${params.value.trace_dpi}, 策略=${params.value.window_strategy}`)
+  addLog('info', `运行参数: 玫瑰图=${params.value.export_rose_plot ? '是' : '否'}, 节点识别=${params.value.enable_node_recognition ? '是' : '否'}, 玫瑰DPI=${params.value.rose_dpi}, 分箱=${params.value.rose_bin_width}°, 迹线DPI=${params.value.trace_dpi}, 旋转图DPI=${params.value.rotated_trace_dpi}`)
 
   try {
     // 先保存配置，使 config.json 与流水线实际参数一致
@@ -376,7 +361,7 @@ function startPolling() {
           pipelineStore.results.push(evt)
           if (evt.result) {
             if (evt.result.status === 'success') {
-              let info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 走向=${evt.result.scanline_azimuth.toFixed(1)}°, 策略=${evt.result.window_strategy || 'auto'}`
+              let info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 测线走向=${evt.result.scanline_azimuth.toFixed(1)}°, 采用策略=${AREA_SOURCE_LABELS[evt.result.area_source] || evt.result.area_source || 'unavailable'}`
               if (params.value.enable_node_recognition && evt.result.node_count != null) {
                 info += `, 节点=${evt.result.node_count}(X${evt.result.node_x_count ?? 0}/Y${evt.result.node_y_count ?? 0}/I${evt.result.node_i_count ?? 0})`
               }
@@ -438,6 +423,13 @@ function stopPolling() {
 }
 
 onMounted(async () => {
+  // 若上次运行已结束，清空进度与日志，避免切换回来后仍显示旧状态
+  if (!pipelineStore.running && pipelineStore.progress.total > 0 && pipelineStore.progress.current >= pipelineStore.progress.total) {
+    pipelineStore.reset()
+    processingLogs.value = []
+    currentStatus.value = ''
+  }
+
   // 无条件从后端加载最新配置，确保参数面板始终显示正确值
   try {
     await configStore.loadConfig()
@@ -453,9 +445,6 @@ onMounted(async () => {
       rose_bin_width: cfg.rose_bin_width ?? 10,
       trace_dpi: cfg.trace_dpi ?? 300,
       rotated_trace_dpi: cfg.rotated_trace_dpi ?? 600,
-      window_strategy: cfg.window_strategy ?? 'auto',
-      auto_density_threshold: cfg.auto_density_threshold ?? 5.0,
-      tangent_window_count: cfg.tangent_window_count ?? 3,
       enable_node_recognition: cfg.enable_node_recognition ?? true,
     }
   }

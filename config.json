@@ -1,6 +1,6 @@
 {
-  "input_dir": "input",
-  "output_dir": "output",
+  "input_dir": "C:\\Users\\Chinese\\OneDrive\\code\\input",
+  "output_dir": "C:\\Users\\Chinese\\OneDrive\\code\\output",
   "output_prefix": "Outcrop",
   "table_stem": "O76_process",
   "outcrop": "O76",
@@ -15,7 +15,8 @@
   "tangent_window_count": 3,
   "style": {},
   "enable_node_recognition": false,
-  "node_merge_tolerance": 1e-06,
+  "node_merge_tolerance": 0.01,
   "show_node_overlay": true,
-  "node_label_mode": "type"
+  "is_dev_mode": true,
+  "min_intersections": 5
 }

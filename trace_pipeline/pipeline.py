@@ -145,6 +145,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 area_source=statistics.outcrop_area_source,
                 node_overlays=raw_node_overlays if cfg.show_node_overlay else None,
                 node_label_mode=cfg.node_label_mode,
+                style=cfg.style,
             )
             rot_plot = render_trace_plot(
                 rotated,
@@ -159,6 +160,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 area_source=statistics.outcrop_area_source,
                 node_overlays=rotated_node_overlays if cfg.show_node_overlay else None,
                 node_label_mode=cfg.node_label_mode,
+                style=cfg.style,
             )
 
             rose_plot = ""

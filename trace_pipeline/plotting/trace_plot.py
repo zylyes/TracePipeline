@@ -54,21 +54,16 @@ _CIRCLE_WINDOW_ZORDER = 2
 _FRAME_AXES_BOUNDS = (0.035, 0.055, 0.93, 0.86)
 _TRACE_AXES_BOUNDS = (0.065, 0.205, 0.57, 0.645)
 _STATS_AXES_BOUNDS = (0.66, 0.155, 0.285, 0.61)
-_COMPASS_AXES_BOUNDS = (0.76, 0.765, 0.12, 0.095)
 _SCALE_AXES_BOUNDS = (0.065, 0.075, 0.57, 0.09)
-_LEGEND_AXES_BOUNDS = (0.66, 0.065, 0.285, 0.075)
 _MAIN_AXES_FULL = _TRACE_AXES_BOUNDS
 
 # ── 动态布局常量 ─────────────────────────────────────────
 _FRAME_BOTTOM = 0.055
 _FRAME_LEFT = 0.035
 _FRAME_WIDTH = 0.93
-_COMPASS_W = 0.12
-_COMPASS_H = 0.095
 _STATS_W = 0.285
 _STATS_H = 0.46
 _LEGEND_W = 0.285
-_LEGEND_H = 0.14
 _LEGEND_BOTTOM_MARGIN = 0.010
 _HARD_GAP = 0.020
 _SINGLE_FRAME_TOP = 0.900
@@ -530,39 +525,32 @@ def _style_trace_data_axes(ax: plt.Axes) -> None:
 def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
     """根据标题行数动态解析各轴在 figure 中的位置。
 
-    单行标题外框顶边不高于 0.900；双行标题外框顶边不高于 0.875。
-    统计框、图例、指北针之间保留硬间距，全部落在 frame 内部。
+    与 preview_plot.py 保持完全一致的布局策略：
+    - 统计框占据指北针位置（frame 右上区域），不做独立指北针面板。
+    - 图例框高度根据内容自适应，底边固定。
+    - 指北针直接绘制在数据轴左上角。
     """
     title_lines = title.count("\n") + 1 if title else 1
     frame_top = _DOUBLE_FRAME_TOP if title_lines >= 2 else _SINGLE_FRAME_TOP
     frame_h = frame_top - _FRAME_BOTTOM
 
-    # 从 frame 顶边向下排布
-    compass_y1 = frame_top - _LEGEND_BOTTOM_MARGIN
-    compass_y0 = compass_y1 - _COMPASS_H
-
-    stats_y1 = compass_y0 - _HARD_GAP
+    # 统计框整体上移，占据原指北针位置
+    stats_y1 = frame_top - _LEGEND_BOTTOM_MARGIN
     stats_y0 = stats_y1 - _STATS_H
 
+    # 图例放在统计框下方，动态高度，底边余量 0.055
     legend_y1 = stats_y0 - _HARD_GAP
-    legend_y0 = legend_y1 - _LEGEND_H
+    legend_y0 = _FRAME_BOTTOM + 0.055
+    legend_h = legend_y1 - legend_y0
 
-    # 指北针水平居中于右侧信息区
-    info_left = _STATS_AXES_BOUNDS[0]  # 0.66
-    info_right = info_left + _STATS_W  # 0.945
-    compass_x0 = (info_left + info_right - _COMPASS_W) / 2.0  # ~0.7425
-
-    # 数据轴保持原样，但确保不超出 frame
-    data_bounds = _TRACE_AXES_BOUNDS
-    scale_bounds = _SCALE_AXES_BOUNDS
+    info_left = _STATS_AXES_BOUNDS[0]
 
     return {
         "trace_outer_frame": (_FRAME_LEFT, _FRAME_BOTTOM, _FRAME_WIDTH, frame_h),
-        "trace_data": data_bounds,
+        "trace_data": _TRACE_AXES_BOUNDS,
         "trace_statistics": (info_left, stats_y0, _STATS_W, _STATS_H),
-        "trace_legend": (info_left, legend_y0, _LEGEND_W, _LEGEND_H),
-        "trace_compass": (compass_x0, compass_y0, _COMPASS_W, _COMPASS_H),
-        "trace_scale": scale_bounds,
+        "trace_legend": (info_left, legend_y0, _LEGEND_W, legend_h),
+        "trace_scale": _SCALE_AXES_BOUNDS,
     }
 
 
@@ -764,24 +752,56 @@ _NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
     "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
 }
 
+_NODE_STYLE_PRESETS: dict[str, dict[str, dict[str, object]]] = {
+    "default": {
+        "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    },
+    "solid": {
+        "I": {"marker": "o", "markerfacecolor": "#2E7D32", "markeredgecolor": "#1B5E20", "markeredgewidth": 1.0},
+        "Y": {"marker": "^", "markerfacecolor": "#C62828", "markeredgecolor": "#B71C1C", "markeredgewidth": 1.0},
+        "X": {"marker": "X", "markerfacecolor": "#1565C0", "markeredgecolor": "#0D47A1", "markeredgewidth": 1.0},
+    },
+    "hollow": {
+        "I": {"marker": "o", "markerfacecolor": "none", "markeredgecolor": "#4CAF50", "markeredgewidth": 1.2},
+        "Y": {"marker": "^", "markerfacecolor": "none", "markeredgecolor": "#F44336", "markeredgewidth": 1.2},
+        "X": {"marker": "X", "markerfacecolor": "none", "markeredgecolor": "#2196F3", "markeredgewidth": 1.2},
+    },
+    "dark": {
+        "I": {"marker": "o", "markerfacecolor": "#1B5E20", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "Y": {"marker": "^", "markerfacecolor": "#B71C1C", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "X": {"marker": "X", "markerfacecolor": "#0D47A1", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    },
+}
+
+
+def _resolve_node_style(style: dict[str, Any]) -> dict[str, dict[str, object]]:
+    """根据 style 中的 node_style 预设名返回对应的节点标记样式字典。"""
+    preset_name = style.get("node_style", "default")
+    if preset_name in _NODE_STYLE_PRESETS:
+        return _NODE_STYLE_PRESETS[preset_name]
+    return _NODE_STYLE_PRESETS["default"]
+
 
 def _add_node_overlays(
     ax: plt.Axes,
     node_overlays: Sequence[NodeOverlay],
-    label_mode: str = "type",
+    style: dict[str, Any] | None = None,
 ) -> None:
     """在数据轴上绘制节点符号（不标注文字）。"""
-    if not node_overlays or label_mode == "none":
+    if not node_overlays:
         return
+    node_ms = _resolve_node_style(style or {})
     for node in node_overlays:
-        style = _NODE_MARKER_STYLE.get(node.node_type, _NODE_MARKER_STYLE["I"])
+        ms = node_ms.get(node.node_type, node_ms["I"])
         ax.plot(
             node.x,
             node.y,
             linestyle="none",
             markersize=4,
             zorder=_TRACE_ZORDER + 2,
-            **style,
+            **ms,
         )
 
 
@@ -797,7 +817,7 @@ def _add_legend(
     anchor_y: float | None = None,
     loc: str | None = None,
 ) -> None:
-    """在独立信息区中绘制固定尺寸图例，避免 Matplotlib legend 自动越界。"""
+    """绘制自适应图例 — 布局与 preview_plot.py 完全一致。"""
     _ = (anchor_x, anchor_y, loc)
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
@@ -827,11 +847,19 @@ def _add_legend(
             if key in type_counts:
                 items.append((f"node_{key}", f"{type_labels[key]} — {type_counts[key]}"))
 
+    # 自适应图例框高度（与 preview_plot.py 一致）
+    row_spacing = 0.18
+    top_margin = 0.06
+    bottom_margin = 0.06
+    n_items = len(items)
+    box_height = min(top_margin + n_items * row_spacing + bottom_margin, 0.94)
+    box_bottom = 0.04  # 贴底部上方，留 4% 余量
+
     ax.add_patch(
         Rectangle(
-            (0.02, 0.06),
+            (0.02, box_bottom),
             0.96,
-            0.88,
+            box_height,
             facecolor="white",
             edgecolor="0.68",
             linewidth=0.6,
@@ -842,11 +870,8 @@ def _add_legend(
         )
     )
 
-    n_items = len(items)
-    if n_items == 1:
-        y_positions = (0.50,)
-    else:
-        y_positions = tuple(0.88 - i * (0.76 / (n_items - 1)) for i in range(n_items))
+    first_row_y = box_bottom + box_height - top_margin - 0.08
+    y_positions = tuple(first_row_y - i * row_spacing for i in range(n_items))
     icon_h = 0.12
     icon_half = icon_h / 2.0
     for (kind, label), y in zip(items, y_positions, strict=False):
@@ -894,7 +919,8 @@ def _add_legend(
             )
         elif kind.startswith("node_"):
             node_type = kind.replace("node_", "")
-            style = _NODE_MARKER_STYLE.get(node_type, _NODE_MARKER_STYLE["I"])
+            node_ms = _resolve_node_style({})
+            ms = node_ms.get(node_type, node_ms["I"])
             ax.plot(
                 0.16,
                 y,
@@ -903,7 +929,7 @@ def _add_legend(
                 transform=ax.transAxes,
                 clip_on=True,
                 zorder=_ANNOTATION_ZORDER + 1,
-                **style,
+                **ms,
             )
         else:
             ax.plot(
@@ -965,6 +991,7 @@ def render_trace_plot(
     area_source: str = "",
     node_overlays: Sequence[NodeOverlay] | None = None,
     node_label_mode: str = "type",
+    style: dict[str, Any] | None = None,
     *,
     include_trace: bool = True,
     include_hull: bool = True,
@@ -1039,16 +1066,44 @@ def render_trace_plot(
 
     # 2.5 节点覆盖层
     if include_nodes and node_overlays:
-        _add_node_overlays(ax, node_overlays, label_mode=node_label_mode)
+        _add_node_overlays(ax, node_overlays, style=style)
 
     _style_trace_data_axes(ax)
     _apply_decoration_limits(ax, layout)
 
     if include_decorations:
-        # 3. 装饰元素放入同一外框内的独立信息区，不再覆盖数据轴。
+        # 3. 装饰元素 — 指北针画在数据轴左上角（与 preview_plot.py 一致）
         xlim, _ylim = _decoration_limits(layout)
-        compass_ax = _blank_panel_axes(fig, layout_bounds["trace_compass"], "trace_compass")
-        _add_north_arrow(compass_ax, north_angle_deg, center=(0.50, 0.46), arrow_len=0.38)
+        _north_x = xlim[0] + layout.x_span * 0.05
+        _north_y = layout.data_y_max + layout.top_pad - layout.y_span * 0.08
+        _arrow_len = layout.base_span * 0.10
+        _angle = math.radians(north_angle_deg)
+        _dx, _dy = math.cos(_angle), math.sin(_angle)
+        _label_gap = _arrow_len * 0.25
+        _base_x = _north_x - _arrow_len * _dx * 0.50
+        _base_y = _north_y - _arrow_len * _dy * 0.50
+        _tip_x = _north_x + _arrow_len * _dx * 0.50
+        _tip_y = _north_y + _arrow_len * _dy * 0.50
+        _label_x = _tip_x + _label_gap * _dx
+        _label_y = _tip_y + _label_gap * _dy
+        ax.annotate(
+            "",
+            xy=(_tip_x, _tip_y),
+            xytext=(_base_x, _base_y),
+            arrowprops=dict(arrowstyle="->", color="black", lw=0.85, mutation_scale=11),
+            clip_on=False,
+            zorder=15,
+        )
+        ax.text(
+            _label_x,
+            _label_y,
+            "N",
+            ha="center",
+            va="center",
+            clip_on=False,
+            zorder=15,
+            **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
+        )
 
         scale_ax = _blank_panel_axes(fig, layout_bounds["trace_scale"], "trace_scale")
         _add_scale_bar_band(scale_ax, layout, xlim)
@@ -1061,9 +1116,6 @@ def render_trace_plot(
             has_circles,
             has_nodes=has_nodes,
             node_overlays=node_overlays,
-            anchor_x=0.02,
-            anchor_y=0.50,
-            loc="center left",
         )
 
         stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")

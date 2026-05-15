@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import webview
+
 from backend.services.audit_service import AuditService
 from backend.services.config_service import ConfigService
 from backend.services.data_service import DataService
@@ -72,6 +74,18 @@ class GuiApi:
         default = self._config.reset()
         self._sync_services_from_config(default)
         return default
+
+    def reset_processing_config(self) -> dict[str, Any]:
+        self._audit.log("reset_processing_config")
+        cfg = self._config.reset_processing()
+        self._sync_services_from_config(cfg)
+        return cfg
+
+    def reset_style_config(self) -> dict[str, Any]:
+        self._audit.log("reset_style_config")
+        cfg = self._config.reset_style()
+        self._sync_services_from_config(cfg)
+        return cfg
 
     # ------------------------------------------------------------------
     # 文件
@@ -248,7 +262,9 @@ class GuiApi:
         if self._window is None:
             return ""
         try:
-            result = self._window.create_folder_dialog()
+            result = self._window.create_file_dialog(
+                webview.FileDialog.FOLDER, allow_multiple=False
+            )
             if isinstance(result, list) and result:
                 return str(result[0])
             if isinstance(result, str):

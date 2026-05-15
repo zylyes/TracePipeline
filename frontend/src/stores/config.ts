@@ -39,5 +39,27 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  return { config, loading, loadConfig, saveConfig, resetConfig }
+  async function resetProcessingConfig() {
+    loading.value = true
+    try {
+      const cfg = await api.reset_processing_config()
+      config.value = { ...cfg }
+      return cfg
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function resetStyleConfig() {
+    loading.value = true
+    try {
+      const cfg = await api.reset_style_config()
+      config.value = { ...cfg }
+      return cfg
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { config, loading, loadConfig, saveConfig, resetConfig, resetProcessingConfig, resetStyleConfig }
 })

@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+const STORAGE_KEY_ROSE = 'tp_last_export_rose_plot'
+const STORAGE_KEY_NODE = 'tp_last_enable_node_recognition'
+
+function loadBool(key: string, defaultVal: boolean): boolean {
+  const raw = localStorage.getItem(key)
+  if (raw === null) return defaultVal
+  return raw === 'true'
+}
+
 export const usePipelineStore = defineStore('pipeline', () => {
   const running = ref(false)
   const progress = ref({
@@ -11,9 +20,9 @@ export const usePipelineStore = defineStore('pipeline', () => {
   })
   const results = ref<any[]>([])
 
-  // 最近一次处理时的配置状态（用于控制其他页面的显示）
-  const lastEnableNodeRecognition = ref(true)
-  const lastExportRosePlot = ref(true)
+  // 从 localStorage 恢复持久化状态，默认 true
+  const lastEnableNodeRecognition = ref(loadBool(STORAGE_KEY_NODE, true))
+  const lastExportRosePlot = ref(loadBool(STORAGE_KEY_ROSE, true))
 
   const isRunning = computed(() => running.value)
 
@@ -26,6 +35,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
   function setLastRunConfig(enableNode: boolean, exportRose: boolean) {
     lastEnableNodeRecognition.value = enableNode
     lastExportRosePlot.value = exportRose
+    localStorage.setItem(STORAGE_KEY_NODE, String(enableNode))
+    localStorage.setItem(STORAGE_KEY_ROSE, String(exportRose))
   }
 
   return {

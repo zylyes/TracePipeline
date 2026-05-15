@@ -14,16 +14,6 @@
       </el-form-item>
 
       <h3>绘图样式</h3>
-      <el-form-item label="节点合并容差">
-        <el-input-number v-model="form.node_merge_tolerance" :min="1e-9" :max="1" :step="1e-6" />
-      </el-form-item>
-      <el-form-item label="节点标签模式">
-        <el-select v-model="form.node_label_mode" style="width: 200px">
-          <el-option label="类型" value="type" />
-          <el-option label="ID" value="id" />
-          <el-option label="无" value="none" />
-        </el-select>
-      </el-form-item>
       <el-form-item label="迹线颜色">
         <el-color-picker v-model="style.trace_line_color" @change="emitStyle" />
       </el-form-item>
@@ -54,6 +44,13 @@
       <el-form-item label="全局字号">
         <el-slider v-model="style.global_font_size" :min="6" :max="14" :step="0.5" @change="emitStyle" />
       </el-form-item>
+      <el-form-item label="节点标签模式">
+        <el-select v-model="form.node_label_mode" style="width: 200px">
+          <el-option label="类型" value="type" />
+          <el-option label="ID" value="id" />
+          <el-option label="无" value="none" />
+        </el-select>
+      </el-form-item>
     </el-form>
   </div>
 </template>
@@ -77,7 +74,6 @@ const defaultForm: ConfigData = {
   input_dir: 'input',
   output_dir: 'output',
   process_all: true,
-  node_merge_tolerance: 1e-6,
   node_label_mode: 'type',
 }
 
@@ -95,6 +91,29 @@ watch(() => props.styleConfig, (val) => {
 watch(form, (val) => {
   emit('update:modelValue', { ...val })
 }, { deep: true })
+
+// 路径自动保存
+watch(
+  () => [form.input_dir, form.output_dir],
+  async ([newInput, newOutput], [oldInput, oldOutput]) => {
+    const payload: Record<string, any> = {}
+    if (newInput !== oldInput && newInput) {
+      payload.input_dir = newInput
+    }
+    if (newOutput !== oldOutput && newOutput) {
+      payload.output_dir = newOutput
+    }
+    if (Object.keys(payload).length > 0) {
+      try {
+        await api.set_config(payload)
+      } catch (e) {
+        // 静默失败，避免干扰用户
+        console.warn('路径自动保存失败', e)
+      }
+    }
+  },
+  { immediate: false }
+)
 
 function emitStyle() {
   emit('styleChange', { ...style })

@@ -3,13 +3,15 @@
     <h2 class="page-title">配置</h2>
     <ConfigForm v-model="form" :style-config="styleConfig" @style-change="onStyleChange" />
     <StylePreview :preview-config="previewConfig" />
-    <DevPanel v-show="appStore.isDevMode" :outcrop="selectedOutcrop" />
+    <DevPanel v-show="appStore.isDevMode" :outcrop="selectedOutcrop" @saved="loadConfig" @reset="loadConfig" />
 
     <div class="action-bar">
-      <el-button type="primary" :icon="Document" @click="saveConfig">保存配置</el-button>
+      <el-button type="primary" :icon="Brush" @click="saveStyleConfig">保存样式设置</el-button>
       <el-button :icon="Refresh" @click="loadConfig">加载配置</el-button>
       <el-button :icon="Download" @click="exportJSON">导出 JSON</el-button>
-      <el-button :icon="RefreshRight" @click="resetConfig">重置为默认</el-button>
+      <el-button :icon="Setting" @click="resetProcessingConfig">重置处理设置</el-button>
+      <el-button :icon="Brush" @click="resetStyleConfig">重置样式设置</el-button>
+      <el-button :icon="RefreshRight" @click="resetAllConfig">重置所有设置</el-button>
     </div>
 
   </div>
@@ -18,7 +20,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Document, Refresh, Download, RefreshRight } from '@element-plus/icons-vue'
+import { Refresh, Download, RefreshRight, Setting, Brush } from '@element-plus/icons-vue'
 import ConfigForm from '@/components/ConfigForm.vue'
 import StylePreview from '@/components/StylePreview.vue'
 import DevPanel from '@/components/DevPanel.vue'
@@ -77,34 +79,62 @@ async function loadConfig() {
   }
 }
 
-async function saveConfig() {
+async function saveStyleConfig() {
   try {
-    const payload = { ...form.value, style: { ...styleConfig.value } }
-    const saved = await configStore.saveConfig(payload)
-    form.value = { ...saved }
-    if (saved.style && typeof saved.style === 'object') {
-      styleConfig.value = { ...styleConfig.value, ...saved.style }
+    const payload = {
+      style: { ...styleConfig.value },
+      node_label_mode: form.value.node_label_mode,
     }
-    // 同步侧边栏路径
-    if (saved.input_dir) appStore.inputDir = saved.input_dir
-    if (saved.output_dir) appStore.outputDir = saved.output_dir
-    ElMessage.success('配置已保存')
+    const saved = await configStore.saveConfig(payload)
+    if (saved.style && typeof saved.style === 'object') {
+      styleConfig.value = { ...saved.style }
+    }
+    if (saved.node_label_mode) {
+      form.value.node_label_mode = saved.node_label_mode
+    }
+    ElMessage.success('样式设置已保存')
   } catch (e) {
-    ElMessage.error('保存配置失败')
+    ElMessage.error('保存样式设置失败')
   }
 }
 
-async function resetConfig() {
+async function resetProcessingConfig() {
+  try {
+    const cfg = await configStore.resetProcessingConfig()
+    form.value = { ...cfg }
+    // 样式保持不变
+    // 同步侧边栏路径
+    if (cfg.input_dir) appStore.inputDir = cfg.input_dir
+    if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+    ElMessage.success('处理参数已重置为默认')
+  } catch (e) {
+    ElMessage.error('重置处理参数失败')
+  }
+}
+
+async function resetStyleConfig() {
+  try {
+    const cfg = await configStore.resetStyleConfig()
+    if (cfg.style && typeof cfg.style === 'object') {
+      styleConfig.value = { ...cfg.style }
+    }
+    ElMessage.success('样式设置已重置为默认')
+  } catch (e) {
+    ElMessage.error('重置样式设置失败')
+  }
+}
+
+async function resetAllConfig() {
   try {
     const cfg = await configStore.resetConfig()
     form.value = { ...cfg }
     if (cfg.style && typeof cfg.style === 'object') {
-      styleConfig.value = { ...styleConfig.value, ...cfg.style }
+      styleConfig.value = { ...cfg.style }
     }
     // 同步侧边栏路径
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
-    ElMessage.success('已恢复默认配置')
+    ElMessage.success('已恢复所有默认配置')
   } catch (e) {
     ElMessage.error('重置失败')
   }

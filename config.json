@@ -5,7 +5,7 @@
   "table_stem": "O76_process",
   "outcrop": "O76",
   "process_all": true,
-  "export_rose_plot": true,
+  "export_rose_plot": false,
   "rose_bin_width": 10.0,
   "rose_dpi": 600,
   "trace_dpi": 600,
@@ -13,20 +13,9 @@
   "window_strategy": "auto",
   "auto_density_threshold": 5.0,
   "tangent_window_count": 3,
-  "style": {
-    "trace_line_color": "#000000",
-    "trace_line_width": 0.85,
-    "hull_line_color": "#1565C0",
-    "hull_fill_alpha": 0.08,
-    "circle_window_line_color": "#E65100",
-    "circle_window_fill_alpha": 0.08,
-    "rose_bar_color": "#C94C4C",
-    "rose_bar_edge": "#7A1F1F",
-    "rose_grid_color": "#d9d9d9",
-    "global_font_size": 8.5
-  },
-  "enable_node_recognition": false,
-  "node_merge_tolerance": 0.1,
+  "style": {},
+  "enable_node_recognition": true,
+  "node_merge_tolerance": 1e-06,
   "show_node_overlay": true,
   "node_label_mode": "type"
 }

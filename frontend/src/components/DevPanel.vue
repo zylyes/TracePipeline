@@ -110,6 +110,9 @@
 
       <el-collapse-item title="高级配置" name="advanced">
         <el-form label-width="140px" size="small">
+          <el-form-item label="节点合并容差">
+            <el-input-number v-model="advanced.node_merge_tolerance" :min="1e-9" :max="1" :step="1e-6" />
+          </el-form-item>
           <el-form-item label="切圆数量">
             <el-input-number v-model="advanced.tangent_window_count" :min="1" :max="20" :step="1" />
           </el-form-item>
@@ -132,6 +135,10 @@
             <el-input v-model="advanced.disagreement_threshold" placeholder="auto" />
           </el-form-item>
         </el-form>
+        <div class="dev-action-bar">
+          <el-button type="primary" size="small" @click="saveDevConfig">保存开发者设置</el-button>
+          <el-button size="small" @click="resetDevConfig">重置开发者设置</el-button>
+        </div>
       </el-collapse-item>
     </el-collapse>
   </div>
@@ -148,6 +155,11 @@ const props = defineProps<{
   outcrop: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'saved'): void
+  (e: 'reset'): void
+}>()
+
 const configStore = useConfigStore()
 
 const activeNames = ref<string[]>([])
@@ -160,6 +172,7 @@ const selectedOutcrops = ref<string[]>([])
 const provenance = ref<any>(null)
 const auditLogs = ref<any[]>([])
 const advanced = ref({
+  node_merge_tolerance: 1e-6,
   tangent_window_count: 3,
   show_node_overlay: true,
   split_ratios: '0.25, 0.5, 0.75',
@@ -208,6 +221,7 @@ onMounted(async () => {
   // 从全局配置初始化高级配置字段
   try {
     const cfg = await configStore.loadConfig()
+    advanced.value.node_merge_tolerance = cfg.node_merge_tolerance ?? 1e-6
     advanced.value.tangent_window_count = cfg.tangent_window_count ?? 3
     advanced.value.show_node_overlay = cfg.show_node_overlay ?? true
   } catch (e) {
@@ -215,21 +229,43 @@ onMounted(async () => {
   }
 })
 
-// 监听高级配置变化，自动保存到全局配置
-watch(
-  () => [advanced.value.tangent_window_count, advanced.value.show_node_overlay],
-  async () => {
-    try {
-      await configStore.saveConfig({
-        tangent_window_count: advanced.value.tangent_window_count,
-        show_node_overlay: advanced.value.show_node_overlay,
-      })
-    } catch (e) {
-      // ignore save errors
-    }
-  },
-  { deep: true }
-)
+async function saveDevConfig() {
+  try {
+    await configStore.saveConfig({
+      node_merge_tolerance: advanced.value.node_merge_tolerance,
+      tangent_window_count: advanced.value.tangent_window_count,
+      show_node_overlay: advanced.value.show_node_overlay,
+    })
+    ElMessage.success('开发者设置已保存')
+    emit('saved')
+  } catch (e) {
+    ElMessage.error('保存开发者设置失败')
+  }
+}
+
+async function resetDevConfig() {
+  advanced.value = {
+    node_merge_tolerance: 1e-6,
+    tangent_window_count: 3,
+    show_node_overlay: true,
+    split_ratios: '0.25, 0.5, 0.75',
+    radius_ratios: '1.0, 0.75, 0.5',
+    min_intersections: 5,
+    hull_buffer_ratio: 0.25,
+    disagreement_threshold: '',
+  }
+  try {
+    await configStore.saveConfig({
+      node_merge_tolerance: advanced.value.node_merge_tolerance,
+      tangent_window_count: advanced.value.tangent_window_count,
+      show_node_overlay: advanced.value.show_node_overlay,
+    })
+    ElMessage.success('开发者设置已重置')
+    emit('reset')
+  } catch (e) {
+    ElMessage.error('重置开发者设置失败')
+  }
+}
 
 async function loadOutcrops() {
   if (loaded.value.report) return
@@ -371,5 +407,12 @@ watch(() => props.outcrop, () => {
   white-space: pre-wrap;
   word-break: break-all;
   color: #2c3e50;
+}
+.dev-action-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e4e7ed;
 }
 </style>

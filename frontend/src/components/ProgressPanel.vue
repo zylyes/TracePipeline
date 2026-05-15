@@ -15,8 +15,10 @@
     </div>
     <div class="progress-area">
       <el-progress :percentage="percentage" :stroke-width="18" :status="progressStatus" />
-      <div class="current-file" v-if="progress.filename">
-        当前: {{ progress.filename }} — {{ progress.message }}
+      <div class="current-file">
+        <span v-if="!running && progress.total > 0 && progress.current >= progress.total">全部处理完成</span>
+        <span v-else-if="!running && progress.current === 0 && progress.total === 0">未处理</span>
+        <span v-else-if="progress.filename">当前: {{ progress.filename }} — {{ progress.message }}</span>
       </div>
     </div>
   </div>

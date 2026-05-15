@@ -2,52 +2,64 @@
   <div class="dev-panel">
     <el-collapse v-model="activeNames" @change="onCollapseChange">
       <el-collapse-item title="毕设报告导出" name="report">
-        <div v-loading="loading.report">
-          <el-form label-width="100px" size="small">
-            <el-form-item label="导出范围">
-              <el-radio-group v-model="reportScope">
-                <el-radio-button label="selected">指定露头</el-radio-button>
-                <el-radio-button label="all">全部已处理</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item v-if="reportScope === 'selected'" label="选择露头">
-              <el-select
-                v-model="selectedOutcrops"
-                multiple
-                collapse-tags
-                collapse-tags-tooltip
-                placeholder="请选择要导出的露头"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="oc in outcropOptions"
-                  :key="oc"
-                  :label="oc"
-                  :value="oc"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item v-if="reportScope === 'all'" label="包含露头">
-              <div class="outcrop-tags">
-                <el-tag v-for="oc in outcropOptions" :key="oc" size="small" class="oc-tag">{{ oc }}</el-tag>
-                <span v-if="outcropOptions.length === 0" class="oc-empty">暂无已完成露头</span>
-              </div>
-            </el-form-item>
-            <el-form-item label="报告类型">
-              <el-radio-group v-model="reportType">
-                <el-radio-button label="full">完整报告</el-radio-button>
-                <el-radio-button label="stats">仅统计</el-radio-button>
-                <el-radio-button label="plots">仅图表</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item label="格式">
-              <el-radio-group v-model="reportFmt">
-                <el-radio-button label="docx">Word</el-radio-button>
-                <el-radio-button label="pdf">PDF</el-radio-button>
-                <el-radio-button label="both">两者</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item>
+        <div v-loading="loading.report" class="report-form">
+          <el-form label-width="80px" size="small">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="导出范围">
+                  <el-radio-group v-model="reportScope">
+                    <el-radio-button label="selected">指定露头</el-radio-button>
+                    <el-radio-button label="all">全部已处理</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item v-if="reportScope === 'selected'" label="选择露头">
+                  <el-select
+                    v-model="selectedOutcrops"
+                    multiple
+                    collapse-tags
+                    collapse-tags-tooltip
+                    placeholder="请选择要导出的露头"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="oc in outcropOptions"
+                      :key="oc"
+                      :label="oc"
+                      :value="oc"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="reportScope === 'all'" label="包含露头">
+                  <div class="outcrop-tags">
+                    <el-tag v-for="oc in outcropOptions" :key="oc" size="small" class="oc-tag">{{ oc }}</el-tag>
+                    <span v-if="outcropOptions.length === 0" class="oc-empty">暂无已完成露头</span>
+                  </div>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="报告类型">
+                  <el-radio-group v-model="reportType">
+                    <el-radio-button label="full">完整报告</el-radio-button>
+                    <el-radio-button label="stats">仅统计</el-radio-button>
+                    <el-radio-button label="plots">仅图表</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="格式">
+                  <el-radio-group v-model="reportFmt">
+                    <el-radio-button label="docx">Word</el-radio-button>
+                    <el-radio-button label="pdf">PDF</el-radio-button>
+                    <el-radio-button label="both">两者</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item class="report-action">
               <el-button type="primary" :loading="reportLoading" @click="generateReport">
                 生成并导出报告
               </el-button>
@@ -56,34 +68,19 @@
         </div>
       </el-collapse-item>
 
-      <el-collapse-item title="数据溯源面板" name="provenance">
-        <div v-loading="loading.provenance">
-          <el-descriptions v-if="provenance" :column="1" border size="small">
-            <el-descriptions-item label="露头">{{ provenance.outcrop }}</el-descriptions-item>
-            <el-descriptions-item label="P10">{{ provenance.p10?.value }} [{{ provenance.p10?.source }}]</el-descriptions-item>
-            <el-descriptions-item label="P20">{{ provenance.p20?.value }} [{{ provenance.p20?.source }}]</el-descriptions-item>
-            <el-descriptions-item label="P21">{{ provenance.p21?.value }} [{{ provenance.p21?.source }}]</el-descriptions-item>
-            <el-descriptions-item label="面积来源">{{ formatAreaSource(provenance.area_source) }}</el-descriptions-item>
-            <el-descriptions-item v-if="provenance.warning" label="警告">
-              <span style="color:#c0392b">{{ provenance.warning }}</span>
-            </el-descriptions-item>
-          </el-descriptions>
-          <el-empty v-else description="选择露头后查看溯源" />
-        </div>
-      </el-collapse-item>
-
       <el-collapse-item title="操作审计日志" name="audit">
-        <div v-loading="loading.audit">
-          <el-timeline>
-            <el-timeline-item
+        <div class="audit-scroll-container" v-loading="loading.audit">
+          <div class="audit-list">
+            <div
               v-for="item in auditLogs"
               :key="item.timestamp"
-              :timestamp="item.timestamp"
+              class="audit-item"
             >
-              {{ item.action }} — {{ item.result }}
-            </el-timeline-item>
-          </el-timeline>
-          <el-button size="small" @click="loadAudit">刷新</el-button>
+              <span class="audit-time">{{ item.timestamp }}</span>
+              <span class="audit-action">{{ item.action }} — {{ item.result }}</span>
+            </div>
+            <el-empty v-if="!loading.audit && auditLogs.length === 0" description="暂无审计记录" :image-size="60" />
+          </div>
         </div>
       </el-collapse-item>
 
@@ -109,35 +106,70 @@
       </el-collapse-item>
 
       <el-collapse-item title="高级配置" name="advanced">
-        <el-form label-width="140px" size="small">
-          <el-form-item label="节点合并容差">
-            <el-input-number v-model="advanced.node_merge_tolerance" :min="1e-9" :max="1" :step="1e-6" />
-          </el-form-item>
-          <el-form-item label="切圆数量">
-            <el-input-number v-model="advanced.tangent_window_count" :min="1" :max="20" :step="1" />
-          </el-form-item>
-          <el-form-item label="显示节点覆盖层">
-            <el-switch v-model="advanced.show_node_overlay" />
-          </el-form-item>
-          <el-form-item label="切分比例">
-            <el-input v-model="advanced.split_ratios" />
-          </el-form-item>
-          <el-form-item label="半径比例">
-            <el-input v-model="advanced.radius_ratios" />
-          </el-form-item>
-          <el-form-item label="最小交点数">
-            <el-input-number v-model="advanced.min_intersections" :min="1" :max="20" />
-          </el-form-item>
-          <el-form-item label="凸包缓冲比">
-            <el-input-number v-model="advanced.hull_buffer_ratio" :min="0" :max="1" :step="0.05" />
-          </el-form-item>
-          <el-form-item label="差异阈值">
-            <el-input v-model="advanced.disagreement_threshold" placeholder="auto" />
-          </el-form-item>
-        </el-form>
-        <div class="dev-action-bar">
-          <el-button type="primary" size="small" @click="saveDevConfig">保存开发者设置</el-button>
-          <el-button size="small" @click="resetDevConfig">重置开发者设置</el-button>
+        <div class="advanced-form">
+          <el-form label-width="100px" size="small">
+            <div class="adv-section">
+              <div class="adv-section-title">圆窗策略</div>
+              <el-row :gutter="16">
+                <el-col :span="8">
+                  <el-form-item label="策略模式">
+                    <el-select v-model="advanced.window_strategy" style="width:140px">
+                      <el-option label="自动(auto)" value="auto" />
+                      <el-option label="切线(tangent)" value="tangent" />
+                      <el-option label="混合(hybrid)" value="hybrid" />
+                      <el-option label="同心(concentric)" value="concentric" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8" v-if="advanced.window_strategy === 'auto'">
+                  <el-form-item label="密度阈值">
+                    <el-input-number v-model="advanced.auto_density_threshold" :min="1" :max="20" :step="0.5" style="width:120px" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8" v-if="advanced.window_strategy === 'tangent'">
+                  <el-form-item label="切圆数量">
+                    <el-input-number v-model="advanced.tangent_window_count" :min="1" :max="20" :step="1" style="width:120px" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="最小交点数">
+                    <el-input-number v-model="advanced.min_intersections" :min="1" :max="20" style="width:120px" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+
+            <div class="adv-section">
+              <div class="adv-section-title">节点识别参数</div>
+              <el-row :gutter="16">
+                <el-col :span="8">
+                  <el-form-item label="节点合并容差">
+                    <el-input-number v-model="advanced.node_merge_tolerance" :min="1e-9" :max="1" :step="1e-6" style="width:140px" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+
+            <div class="adv-section">
+              <div class="adv-section-title">面积计算参数</div>
+              <el-row :gutter="16">
+                <el-col :span="8">
+                  <el-form-item label="凸包缓冲比">
+                    <el-input-number v-model="advanced.hull_buffer_ratio" :min="0" :max="1" :step="0.05" style="width:120px" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="差异阈值">
+                    <el-input v-model="advanced.disagreement_threshold" placeholder="auto" style="width:120px" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+          </el-form>
+          <div class="dev-action-bar">
+            <el-button type="primary" size="small" @click="saveDevConfig">保存高级配置</el-button>
+            <el-button size="small" @click="resetDevConfig">重置高级配置</el-button>
+          </div>
         </div>
       </el-collapse-item>
     </el-collapse>
@@ -145,15 +177,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api/pywebview'
-import { formatAreaSource } from '@/utils/format'
 import { useConfigStore } from '@/stores/config'
-
-const props = defineProps<{
-  outcrop: string
-}>()
 
 const emit = defineEmits<{
   (e: 'saved'): void
@@ -169,31 +196,25 @@ const reportFmt = ref('docx')
 const reportLoading = ref(false)
 const outcropOptions = ref<string[]>([])
 const selectedOutcrops = ref<string[]>([])
-const provenance = ref<any>(null)
 const auditLogs = ref<any[]>([])
 const advanced = ref({
-  node_merge_tolerance: 1e-6,
+  window_strategy: 'auto',
+  auto_density_threshold: 5.0,
   tangent_window_count: 3,
-  show_node_overlay: true,
-  split_ratios: '0.25, 0.5, 0.75',
-  radius_ratios: '1.0, 0.75, 0.5',
   min_intersections: 5,
+  node_merge_tolerance: 1e-6,
   hull_buffer_ratio: 0.25,
   disagreement_threshold: '',
 })
 
-// 各面板的加载状态
 const loading = ref({
   report: false,
-  provenance: false,
   audit: false,
   backendLog: false,
 })
 
-// 各面板是否已加载过（避免重复加载）
 const loaded = ref({
   report: false,
-  provenance: false,
   audit: false,
   backendLog: false,
 })
@@ -218,52 +239,57 @@ async function loadBackendLogs() {
 }
 
 onMounted(async () => {
-  // 从全局配置初始化高级配置字段
   try {
     const cfg = await configStore.loadConfig()
-    advanced.value.node_merge_tolerance = cfg.node_merge_tolerance ?? 1e-6
+    advanced.value.window_strategy = cfg.window_strategy ?? 'auto'
+    advanced.value.auto_density_threshold = cfg.auto_density_threshold ?? 5.0
     advanced.value.tangent_window_count = cfg.tangent_window_count ?? 3
-    advanced.value.show_node_overlay = cfg.show_node_overlay ?? true
+    advanced.value.min_intersections = cfg.min_intersections ?? 5
+    advanced.value.node_merge_tolerance = cfg.node_merge_tolerance ?? 1e-6
   } catch (e) {
     // ignore
   }
+  await loadAudit()
 })
 
 async function saveDevConfig() {
   try {
     await configStore.saveConfig({
-      node_merge_tolerance: advanced.value.node_merge_tolerance,
+      window_strategy: advanced.value.window_strategy,
+      auto_density_threshold: advanced.value.auto_density_threshold,
       tangent_window_count: advanced.value.tangent_window_count,
-      show_node_overlay: advanced.value.show_node_overlay,
+      min_intersections: advanced.value.min_intersections,
+      node_merge_tolerance: advanced.value.node_merge_tolerance,
     })
-    ElMessage.success('开发者设置已保存')
+    ElMessage.success('高级配置已保存')
     emit('saved')
   } catch (e) {
-    ElMessage.error('保存开发者设置失败')
+    ElMessage.error('保存高级配置失败')
   }
 }
 
 async function resetDevConfig() {
   advanced.value = {
-    node_merge_tolerance: 1e-6,
+    window_strategy: 'auto',
+    auto_density_threshold: 5.0,
     tangent_window_count: 3,
-    show_node_overlay: true,
-    split_ratios: '0.25, 0.5, 0.75',
-    radius_ratios: '1.0, 0.75, 0.5',
     min_intersections: 5,
+    node_merge_tolerance: 1e-6,
     hull_buffer_ratio: 0.25,
     disagreement_threshold: '',
   }
   try {
     await configStore.saveConfig({
-      node_merge_tolerance: advanced.value.node_merge_tolerance,
+      window_strategy: advanced.value.window_strategy,
+      auto_density_threshold: advanced.value.auto_density_threshold,
       tangent_window_count: advanced.value.tangent_window_count,
-      show_node_overlay: advanced.value.show_node_overlay,
+      min_intersections: advanced.value.min_intersections,
+      node_merge_tolerance: advanced.value.node_merge_tolerance,
     })
-    ElMessage.success('开发者设置已重置')
+    ElMessage.success('高级配置已重置')
     emit('reset')
   } catch (e) {
-    ElMessage.error('重置开发者设置失败')
+    ElMessage.error('重置高级配置失败')
   }
 }
 
@@ -314,20 +340,6 @@ async function generateReport() {
   }
 }
 
-async function loadProvenance() {
-  if (!props.outcrop) return
-  if (loaded.value.provenance && provenance.value?.outcrop === props.outcrop) return
-  loading.value.provenance = true
-  try {
-    provenance.value = await api.get_provenance(props.outcrop)
-    loaded.value.provenance = true
-  } catch (e) {
-    console.error(e)
-  } finally {
-    loading.value.provenance = false
-  }
-}
-
 async function loadAudit() {
   loading.value.audit = true
   try {
@@ -346,24 +358,10 @@ function onCollapseChange(active: string | string[]) {
   if (names.includes('report') && !loaded.value.report) {
     loadOutcrops()
   }
-  if (names.includes('provenance') && (!loaded.value.provenance || provenance.value?.outcrop !== props.outcrop)) {
-    loadProvenance()
-  }
-  if (names.includes('audit') && !loaded.value.audit) {
-    loadAudit()
-  }
   if (names.includes('backend-log') && !loaded.value.backendLog) {
     loadBackendLogs()
   }
 }
-
-// 监听 outcrop 变化，如果溯源面板已展开则自动刷新
-watch(() => props.outcrop, () => {
-  loaded.value.provenance = false
-  if (activeNames.value.includes('provenance')) {
-    loadProvenance()
-  }
-})
 </script>
 
 <style scoped lang="scss">
@@ -414,5 +412,63 @@ watch(() => props.outcrop, () => {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid #e4e7ed;
+}
+.audit-scroll-container {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.audit-item {
+  display: flex;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: #f9f9f9;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.audit-time {
+  color: #909399;
+  font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.audit-action {
+  color: #606266;
+}
+
+/* 报告导出紧凑布局 */
+.report-form .el-form-item {
+  margin-bottom: 12px;
+}
+.report-form .el-row {
+  align-items: center;
+}
+.report-action {
+  margin-top: 4px;
+  margin-bottom: 0 !important;
+}
+
+/* 高级配置紧凑网格 */
+.advanced-form .el-form-item {
+  margin-bottom: 8px;
+}
+.adv-section {
+  margin-bottom: 12px;
+}
+.adv-section:last-child {
+  margin-bottom: 0;
+}
+.adv-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
+  padding-left: 8px;
+  border-left: 3px solid #409eff;
 }
 </style>

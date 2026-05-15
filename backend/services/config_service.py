@@ -36,7 +36,8 @@ PROCESSING_KEYS = (
     "enable_node_recognition",
     "node_merge_tolerance",
     "show_node_overlay",
-    "node_label_mode",
+    "is_dev_mode",
+    "min_intersections",
 )
 
 

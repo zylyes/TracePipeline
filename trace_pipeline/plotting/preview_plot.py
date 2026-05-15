@@ -156,6 +156,37 @@ _NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
     "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
 }
 
+# 节点样式预设（供 node_style 选择）
+_NODE_STYLE_PRESETS: dict[str, dict[str, dict[str, object]]] = {
+    "default": {
+        "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    },
+    "solid": {
+        "I": {"marker": "o", "markerfacecolor": "#2E7D32", "markeredgecolor": "#1B5E20", "markeredgewidth": 1.0},
+        "Y": {"marker": "^", "markerfacecolor": "#C62828", "markeredgecolor": "#B71C1C", "markeredgewidth": 1.0},
+        "X": {"marker": "X", "markerfacecolor": "#1565C0", "markeredgecolor": "#0D47A1", "markeredgewidth": 1.0},
+    },
+    "hollow": {
+        "I": {"marker": "o", "markerfacecolor": "none", "markeredgecolor": "#4CAF50", "markeredgewidth": 1.2},
+        "Y": {"marker": "^", "markerfacecolor": "none", "markeredgecolor": "#F44336", "markeredgewidth": 1.2},
+        "X": {"marker": "X", "markerfacecolor": "none", "markeredgecolor": "#2196F3", "markeredgewidth": 1.2},
+    },
+    "dark": {
+        "I": {"marker": "o", "markerfacecolor": "#1B5E20", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "Y": {"marker": "^", "markerfacecolor": "#B71C1C", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "X": {"marker": "X", "markerfacecolor": "#0D47A1", "markeredgecolor": "black", "markeredgewidth": 0.8},
+    },
+}
+
+def _resolve_node_style(style: dict[str, Any]) -> dict[str, dict[str, object]]:
+    """根据 style 中的 node_style 预设名返回对应的节点标记样式字典。"""
+    preset_name = style.get("node_style", "default")
+    if preset_name in _NODE_STYLE_PRESETS:
+        return _NODE_STYLE_PRESETS[preset_name]
+    return _NODE_STYLE_PRESETS["default"]
+
 
 @dataclass(frozen=True)
 class PreviewDemoData:
@@ -469,12 +500,12 @@ def _add_preview_legend(
         items.append(("node_X", "交叉节点 (X)"))
 
     # 自适应图例框高度
-    row_spacing = 0.18
-    top_margin = 0.06
-    bottom_margin = 0.06
+    row_spacing = 0.16
+    top_margin = 0.08
+    bottom_margin = 0.08
     n_items = len(items)
-    box_height = min(top_margin + n_items * row_spacing + bottom_margin, 0.94)
-    box_bottom = 0.04  # 贴底部上方，留 4% 余量
+    box_height = min(top_margin + n_items * row_spacing + bottom_margin, 0.96)
+    box_bottom = 0.02  # 贴底部上方，留 2% 余量
 
     ax.add_patch(
         Rectangle(
@@ -484,7 +515,7 @@ def _add_preview_legend(
         )
     )
 
-    first_row_y = box_bottom + box_height - top_margin - 0.08
+    first_row_y = box_bottom + box_height - top_margin - 0.02
     y_positions = tuple(first_row_y - i * row_spacing for i in range(n_items))
     icon_h = 0.12
     icon_half = icon_h / 2.0
@@ -515,7 +546,8 @@ def _add_preview_legend(
             )
         elif kind.startswith("node_"):
             node_type = kind.replace("node_", "")
-            ms = _NODE_MARKER_STYLE.get(node_type, _NODE_MARKER_STYLE["I"])
+            node_ms = _resolve_node_style(style)
+            ms = node_ms.get(node_type, node_ms["I"])
             ax.plot(
                 0.16, y, linestyle="none", markersize=3.5,
                 transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1, **ms,
@@ -565,11 +597,7 @@ def render_preview_trace(
     hull_fill_alpha = _style_val(style, "hull_fill_alpha", 0.08)
     circle_window_line_color = _style_val(style, "circle_window_line_color", "#E65100")
     circle_window_fill_alpha = _style_val(style, "circle_window_fill_alpha", 0.08)
-    global_font_size = _style_val(style, "global_font_size", 8.5)
-
-    if global_font_size != 8.5:
-        import matplotlib
-        matplotlib.rcParams["font.size"] = float(global_font_size)
+    title_font_size = _style_val(style, "title_font_size", 10.4)
 
     # 选择旋转/原始几何数据
     if is_rotated:
@@ -607,7 +635,7 @@ def render_preview_trace(
     _add_outer_frame(fig, layout_bounds["trace_outer_frame"])
     ax = fig.add_axes(layout_bounds["trace_data"], label="trace_data")
 
-    # 1. 底层：凸包或圆窗
+    # 1. 底层：凸包
     if show_hull and hull_vertices is not None and hull_vertices.size > 0:
         vertices = np.asarray(hull_vertices, dtype=float)
         if vertices.shape[0] >= 3:
@@ -616,12 +644,14 @@ def render_preview_trace(
                 edgecolor=hull_line_color, linewidth=0.8, linestyle="--", zorder=2,
             )
             ax.add_patch(patch)
-    elif show_circles and circles:
+
+    # 2. 圆窗（置于凸包上方）
+    if show_circles and circles:
         for c in circles:
             patch = Circle(
                 (c["center_x"], c["center_y"]), c["radius"],
                 fill=True, facecolor=circle_window_line_color, alpha=circle_window_fill_alpha,
-                edgecolor=circle_window_line_color, linewidth=0.8, linestyle="--", zorder=2,
+                edgecolor=circle_window_line_color, linewidth=0.8, linestyle="--", zorder=3,
             )
             ax.add_patch(patch)
 
@@ -633,8 +663,9 @@ def render_preview_trace(
 
     # 3. 节点
     if show_nodes and nodes:
+        node_ms = _resolve_node_style(style)
         for node in nodes:
-            ms = _NODE_MARKER_STYLE.get(node["node_type"], _NODE_MARKER_STYLE["I"])
+            ms = node_ms.get(node["node_type"], node_ms["I"])
             ax.plot(
                 node["x"], node["y"], linestyle="none", markersize=4, zorder=12, **ms,
             )
@@ -678,7 +709,7 @@ def render_preview_trace(
     stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
     _add_statistics_box(stats_ax, data.stats_lines)
 
-    fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
+    fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=float(title_font_size), fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.0, bbox_inches=None)
 
 

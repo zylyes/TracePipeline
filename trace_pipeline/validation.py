@@ -16,6 +16,7 @@ __all__ = [
     "coerce_rose_bin_width",
     "coerce_scalar_config_fields",
     "coerce_window_strategy",
+    "coerce_node_label_mode",
 ]
 
 _ScalarHandler = Callable[[Any], Any]
@@ -58,6 +59,14 @@ def coerce_positive_float(value: Any, name: str) -> float:
     return number
 
 
+def coerce_node_label_mode(value: Any) -> str:
+    """规范化节点标签模式配置。"""
+    mode = str(value).strip().lower()
+    if mode not in {"none", "type", "id"}:
+        raise ValueError("node_label_mode 必须为 none/type/id 之一")
+    return mode
+
+
 def coerce_window_strategy(value: Any) -> str:
     """规范化圆窗策略配置。"""
     strategy = str(value).strip().lower()
@@ -86,6 +95,10 @@ _SCALAR_COERCIONS: Mapping[str, _ScalarHandler] = {
     "tangent_window_count": lambda v: coerce_positive_int(v, "tangent_window_count"),
     "window_strategy": coerce_window_strategy,
     "auto_density_threshold": lambda v: coerce_positive_float(v, "auto_density_threshold"),
+    "enable_node_recognition": lambda v: coerce_bool(v, "enable_node_recognition"),
+    "node_merge_tolerance": lambda v: coerce_positive_float(v, "node_merge_tolerance"),
+    "show_node_overlay": lambda v: coerce_bool(v, "show_node_overlay"),
+    "node_label_mode": coerce_node_label_mode,
 }
 
 

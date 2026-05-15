@@ -18,7 +18,7 @@
         <el-descriptions-item label="测线长度">{{ basicInfo.scanline_length }}m</el-descriptions-item>
         <el-descriptions-item label="露头面积">{{ basicInfo.outcrop_area }}m²</el-descriptions-item>
         <el-descriptions-item label="平均迹长">{{ basicInfo.mean_trace_length }}m</el-descriptions-item>
-        <el-descriptions-item label="面积来源">{{ basicInfo.area_source }}</el-descriptions-item>
+        <el-descriptions-item label="面积来源">{{ formatAreaSource(basicInfo.area_source) }}</el-descriptions-item>
       </el-descriptions>
     </div>
 
@@ -26,6 +26,7 @@
       v-if="selectedOutcrop"
       :outcrop="selectedOutcrop"
       :source="source"
+      :show-node-tabs="pipelineStore.lastEnableNodeRecognition"
       :key="selectedOutcrop + source"
     />
   </div>
@@ -36,10 +37,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import DataTable from '@/components/DataTable.vue'
+import { usePipelineStore } from '@/stores/pipeline'
 import { api } from '@/api/pywebview'
+import { formatAreaSource } from '@/utils/format'
 import type { StatsData } from '@/types'
 
 const route = useRoute()
+const pipelineStore = usePipelineStore()
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
 const basicInfo = ref<StatsData | null>(null)

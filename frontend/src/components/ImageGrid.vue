@@ -6,7 +6,7 @@
       class="grid-item"
       @mouseenter="hovered = img.key"
       @mouseleave="hovered = ''"
-      @click="emit('click', idx)"
+      @click="emit('click', img)"
     >
       <img v-if="img.dataUrl" :src="img.dataUrl" class="grid-img" :class="{ hover: hovered === img.key }" />
       <el-empty v-else description="加载中" />
@@ -24,7 +24,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'click', index: number): void
+  (e: 'click', item: { key: string; dataUrl: string; label: string }): void
 }>()
 
 const hovered = ref('')

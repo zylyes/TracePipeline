@@ -49,7 +49,7 @@ function mockApi(): any {
     }),
     get_comparison: async () => [],
     get_data: async () => ({ data: [], total: 0, columns: [] }),
-    generate_preview: async () => ({ status: 'ready', paths: { raw: '', rose: '' } }),
+    generate_preview: async () => ({ status: 'ready', paths: { raw: '', rotated: '', rose: '' }, images: [] }),
     get_logs: async () => [],
     generate_report: async () => ({}),
     generate_reports_zip: async () => ({ zip_path: 'output/reports/reports_20240101_120000.zip', count: 2, errors: [] }),
@@ -73,7 +73,7 @@ export const api = {
   get_comparison: (outcrops: string[]) => getApi().get_comparison(outcrops),
   get_data: (outcrop: string, section: string, page: number, page_size: number, source?: string) =>
     getApi().get_data(outcrop, section, page, page_size, source),
-  generate_preview: (style: any) => getApi().generate_preview(style),
+  generate_preview: (config: any) => getApi().generate_preview(config),
   get_logs: (tail?: number, level?: string) => getApi().get_logs(tail, level),
   generate_report: (outcrop: string, report_type: string, fmt: string) =>
     getApi().generate_report(outcrop, report_type, fmt),

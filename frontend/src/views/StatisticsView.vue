@@ -8,7 +8,7 @@
       <el-button :icon="Document" @click="exportReport">导出统计报告</el-button>
     </div>
 
-    <StatCards :stats="stats" />
+    <StatCards :stats="stats" :show-nodes="pipelineStore.lastEnableNodeRecognition" />
 
     <div class="charts-row">
       <HistogramChart :histogram="stats.histogram || { bins: [], edges: [] }" />
@@ -43,7 +43,7 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="走向玫瑰图" name="rose">
+        <el-tab-pane v-if="pipelineStore.lastExportRosePlot" label="走向玫瑰图" name="rose">
           <div class="image-viewport">
             <img
               v-if="roseImageUrl"
@@ -73,8 +73,11 @@ import StatCards from '@/components/StatCards.vue'
 import HistogramChart from '@/components/HistogramChart.vue'
 import PieChart from '@/components/PieChart.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
+import { usePipelineStore } from '@/stores/pipeline'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
+
+const pipelineStore = usePipelineStore()
 
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
@@ -144,7 +147,7 @@ function openViewer(index: number) {
   const images = []
   if (rawImageUrl.value) images.push({ title: '原始迹线图', src: rawImageUrl.value })
   if (rotatedImageUrl.value) images.push({ title: '旋转迹线图', src: rotatedImageUrl.value })
-  if (roseImageUrl.value) images.push({ title: '走向玫瑰图', src: roseImageUrl.value })
+  if (pipelineStore.lastExportRosePlot && roseImageUrl.value) images.push({ title: '走向玫瑰图', src: roseImageUrl.value })
   viewerImages.value = images
   viewerInitialIndex.value = index
   viewerVisible.value = true

@@ -129,8 +129,10 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 预览
     # ------------------------------------------------------------------
-    def generate_preview(self, style: dict[str, Any]) -> dict[str, Any]:
-        return self._preview.generate(style)
+    def generate_preview(self, config: dict[str, Any]) -> dict[str, Any]:
+        # 合并当前统一配置与前端传入的配置（样式等）
+        merged = {**self._config.get(), **config}
+        return self._preview.generate(merged)
 
     # ------------------------------------------------------------------
     # 日志

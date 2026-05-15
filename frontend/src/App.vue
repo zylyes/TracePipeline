@@ -71,7 +71,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  HomeFilled, DataLine, DocumentCopy, List, Setting,
+  House, HomeFilled, DataLine, DocumentCopy, List, Setting,
   FolderOpened, Document, Timer, Files, Folder, Clock,
 } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
@@ -84,6 +84,7 @@ const appStore = useAppStore()
 const configStore = useConfigStore()
 
 const menuItems = [
+  { path: '/', label: '首页', icon: House },
   { path: '/processing', label: '处理', icon: HomeFilled },
   { path: '/statistics', label: '统计', icon: DataLine },
   { path: '/comparison', label: '对比', icon: DocumentCopy },

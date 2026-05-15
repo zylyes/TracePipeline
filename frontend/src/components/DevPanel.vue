@@ -63,7 +63,7 @@
             <el-descriptions-item label="P10">{{ provenance.p10?.value }} [{{ provenance.p10?.source }}]</el-descriptions-item>
             <el-descriptions-item label="P20">{{ provenance.p20?.value }} [{{ provenance.p20?.source }}]</el-descriptions-item>
             <el-descriptions-item label="P21">{{ provenance.p21?.value }} [{{ provenance.p21?.source }}]</el-descriptions-item>
-            <el-descriptions-item label="面积来源">{{ provenance.area_source }}</el-descriptions-item>
+            <el-descriptions-item label="面积来源">{{ formatAreaSource(provenance.area_source) }}</el-descriptions-item>
             <el-descriptions-item v-if="provenance.warning" label="警告">
               <span style="color:#c0392b">{{ provenance.warning }}</span>
             </el-descriptions-item>
@@ -89,6 +89,12 @@
 
       <el-collapse-item title="高级配置" name="advanced">
         <el-form label-width="140px" size="small">
+          <el-form-item label="切圆数量">
+            <el-input-number v-model="advanced.tangent_window_count" :min="1" :max="20" :step="1" />
+          </el-form-item>
+          <el-form-item label="显示节点覆盖层">
+            <el-switch v-model="advanced.show_node_overlay" />
+          </el-form-item>
           <el-form-item label="切分比例">
             <el-input v-model="advanced.split_ratios" />
           </el-form-item>
@@ -111,13 +117,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api/pywebview'
+import { formatAreaSource } from '@/utils/format'
+import { useConfigStore } from '@/stores/config'
 
 const props = defineProps<{
   outcrop: string
 }>()
+
+const configStore = useConfigStore()
 
 const activeNames = ref<string[]>([])
 const reportScope = ref('selected')
@@ -129,6 +139,8 @@ const selectedOutcrops = ref<string[]>([])
 const provenance = ref<any>(null)
 const auditLogs = ref<any[]>([])
 const advanced = ref({
+  tangent_window_count: 3,
+  show_node_overlay: true,
   split_ratios: '0.25, 0.5, 0.75',
   radius_ratios: '1.0, 0.75, 0.5',
   min_intersections: 5,
@@ -149,6 +161,33 @@ const loaded = ref({
   provenance: false,
   audit: false,
 })
+
+onMounted(async () => {
+  // 从全局配置初始化高级配置字段
+  try {
+    const cfg = await configStore.loadConfig()
+    advanced.value.tangent_window_count = cfg.tangent_window_count ?? 3
+    advanced.value.show_node_overlay = cfg.show_node_overlay ?? true
+  } catch (e) {
+    // ignore
+  }
+})
+
+// 监听高级配置变化，自动保存到全局配置
+watch(
+  () => [advanced.value.tangent_window_count, advanced.value.show_node_overlay],
+  async () => {
+    try {
+      await configStore.saveConfig({
+        tangent_window_count: advanced.value.tangent_window_count,
+        show_node_overlay: advanced.value.show_node_overlay,
+      })
+    } catch (e) {
+      // ignore save errors
+    }
+  },
+  { deep: true }
+)
 
 async function loadOutcrops() {
   if (loaded.value.report) return

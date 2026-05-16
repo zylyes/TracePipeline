@@ -990,7 +990,7 @@ def render_trace_plot(
     hull_overlay: ConvexHullOverlay | None = None,
     area_source: str = "",
     node_overlays: Sequence[NodeOverlay] | None = None,
-    node_label_mode: str = "type",
+    node_label_mode: str = "type",  # 预留参数：节点标签绘制模式（当前仅符号绘制已实现）
     style: dict[str, Any] | None = None,
     *,
     include_trace: bool = True,

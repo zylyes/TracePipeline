@@ -182,21 +182,50 @@ def recognize_trace_nodes(
     warnings_list: list[str] = []
     degenerate_count = 0
 
-    # 1. 端点分析：遍历每条迹线的两个端点
+    # 预计算每条线段的中心点和最大半长，用于空间索引加速
+    centers = np.empty((n, 2), dtype=float)
+    half_lens = np.empty(n, dtype=float)
+    valid_mask = np.ones(n, dtype=bool)
     for i in range(n):
         x1, y1, x2, y2 = endpoints[i]
         if is_degenerate_segment(x1, y1, x2, y2, tol):
             degenerate_count += 1
+            valid_mask[i] = False
             continue
+        centers[i, 0] = (x1 + x2) * 0.5
+        centers[i, 1] = (y1 + y2) * 0.5
+        half_lens[i] = 0.5 * np.hypot(x2 - x1, y2 - y1)
+
+    # 使用 cKDTree 进行空间索引加速（仅当 n > 20 时启用，避免小数据量下的额外开销）
+    use_spatial_index = n > 20
+    if use_spatial_index:
+        from scipy.spatial import cKDTree
+        tree = cKDTree(centers)
+
+    def _nearby_indices(idx: int) -> list[int]:
+        """返回可能与迹线 idx 发生交互的邻近迹线索引。"""
+        if not use_spatial_index:
+            return list(range(n))
+        # 查询距离在 (half_len_i + max_half_len + tol * 2) 范围内的候选
+        search_radius = half_lens[idx] + half_lens.max() + tol * 2.0
+        raw = tree.query_ball_point(centers[idx], r=float(search_radius))
+        # 排除自身和退化线段
+        return [j for j in raw if j != idx and valid_mask[j]]
+
+    # 1. 端点分析：遍历每条迹线的两个端点
+    for i in range(n):
+        if not valid_mask[i]:
+            continue
+        x1, y1, x2, y2 = endpoints[i]
 
         for end, (px, py) in enumerate(((x1, y1), (x2, y2))):
             param = float(end)  # 0 或 1
             is_y = False
-            for j in range(n):
+            for j in _nearby_indices(i):
                 if j == i:
                     continue
                 x1_j, y1_j, x2_j, y2_j = endpoints[j]
-                if is_degenerate_segment(x1_j, y1_j, x2_j, y2_j, tol):
+                if not valid_mask[j]:
                     continue
                 if _point_on_segment_interior(px, py, x1_j, y1_j, x2_j, y2_j, tol):
                     # 检查是否共线：共线情况由 collinear_overlap 统一处理，避免重复候选
@@ -220,13 +249,16 @@ def recognize_trace_nodes(
 
     # 2. 内部相交分析：两两迹线在各自内部相交 → X
     for i in range(n):
-        x1_i, y1_i, x2_i, y2_i = endpoints[i]
-        if is_degenerate_segment(x1_i, y1_i, x2_i, y2_i, tol):
+        if not valid_mask[i]:
             continue
-        for j in range(i + 1, n):
-            x1_j, y1_j, x2_j, y2_j = endpoints[j]
-            if is_degenerate_segment(x1_j, y1_j, x2_j, y2_j, tol):
+        x1_i, y1_i, x2_i, y2_i = endpoints[i]
+        nearby = _nearby_indices(i)
+        for j in nearby:
+            if j <= i:
                 continue
+            if not valid_mask[j]:
+                continue
+            x1_j, y1_j, x2_j, y2_j = endpoints[j]
 
             result = segment_intersection(
                 (x1_i, y1_i), (x2_i, y2_i),

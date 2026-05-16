@@ -119,6 +119,9 @@ class DailyRotatingJsonHandler(logging.FileHandler):
             worker_12345.jsonl
     """
 
+    # 类级锁，防止多线程/多进程同时归档导致竞态
+    _ARCHIVE_LOCK = threading.Lock()
+
     def __init__(
         self,
         log_dir: str | Path = "logs",
@@ -130,9 +133,10 @@ class DailyRotatingJsonHandler(logging.FileHandler):
         self._day_dir.mkdir(parents=True, exist_ok=True)
         self._max_bytes = max_bytes
 
-        # 自动打包旧日志
-        self._archive_old_days()
-        self._cleanup_old_archives()
+        # 自动打包旧日志（加锁保护竞态）
+        with self._ARCHIVE_LOCK:
+            self._archive_old_days()
+            self._cleanup_old_archives()
 
         # 确定文件名
         if filename is None:
@@ -245,10 +249,9 @@ def _is_date_dir_name(name: str) -> bool:
 
 def _project_root() -> Path:
     """推断项目根目录。"""
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    # 从 trace_pipeline/logging/core.py 向上两级
-    return Path(__file__).resolve().parent.parent.parent
+    # 复用 trace_pipeline.config 中的 PROJECT_ROOT 定义，保持一致性
+    from trace_pipeline.config import PROJECT_ROOT
+    return PROJECT_ROOT
 
 
 def setup_logging(

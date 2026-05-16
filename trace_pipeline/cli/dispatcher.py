@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from ..config import DEFAULT_CONFIG
 from ..io.discovery import TraceFile
-from ..models import RunConfig, RunResult
+from ..models import PipelineStatus, RunConfig, RunResult
 from ..pipeline import run_pipeline
 
 __all__ = ["decide_targets", "execute_targets"]
@@ -83,7 +83,7 @@ def execute_targets(
                     try:
                         run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
                     except Exception as exc:
-                        parallel_results[idx] = RunResult.failure(target.stem, str(exc))
+                        parallel_results[idx] = RunResult.failure(target.stem, str(exc), error_type=type(exc).__name__)
                         pbar.update(1)
                         continue
                     future_map[executor.submit(run_pipeline, run_cfg)] = (idx, target.stem)
@@ -91,9 +91,9 @@ def execute_targets(
                 for future in as_completed(future_map):
                     idx, stem = future_map[future]
                     try:
-                        result = future.result()
+                        result = future.result(timeout=300)
                     except Exception as exc:
-                        result = RunResult.failure(stem, str(exc))
+                        result = RunResult.failure(stem, str(exc), error_type=type(exc).__name__)
                     parallel_results[idx] = result
                     pbar.set_postfix_str(f"完成: {stem}")
                     pbar.update(1)
@@ -118,7 +118,7 @@ def execute_targets(
             result = run_pipeline(run_cfg)
             serial_results.append(result)
 
-            if result.status == "success":
+            if result.status is PipelineStatus.SUCCESS:
                 logger.info(
                     "完成 %s → %s（迹线数=%d）",
                     target.stem, result.excel_path, result.trace_count,

@@ -7,16 +7,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from trace_pipeline.config import PROJECT_ROOT
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.pipeline import load_trace_data
 
 logger = logging.getLogger(__name__)
 
-if getattr(sys, 'frozen', False):
-    _REPORT_BASE = Path(sys.executable).parent
-else:
-    _REPORT_BASE = Path(__file__).resolve().parent.parent.parent
-REPORT_DIR = _REPORT_BASE / "output" / "reports"
+REPORT_DIR = PROJECT_ROOT / "output" / "reports"
 
 
 def _find_system_font() -> tuple[str, str]:
@@ -181,7 +178,10 @@ class ReportService:
                 _add_para(f"长度密度 P21: {statistics.p21:.4f} m⁻¹")
 
             if report_type in ("full", "plots"):
-                out_dir = Path("output")
+                out_dir = Path(config.get("output_dir", "output"))
+                if not out_dir.is_absolute():
+                    out_dir = PROJECT_ROOT / out_dir
+                out_dir = out_dir.resolve()
                 for img_name in [
                     f"{outcrop}_raw(n={trace.count}).png",
                     f"{outcrop}_rose(bin=10.0).png",
@@ -259,7 +259,10 @@ class ReportService:
                 story.append(Spacer(1, 12))
 
             if report_type in ("full", "plots"):
-                out_dir = Path("output")
+                out_dir = Path(config.get("output_dir", "output"))
+                if not out_dir.is_absolute():
+                    out_dir = PROJECT_ROOT / out_dir
+                out_dir = out_dir.resolve()
                 for img_name in [
                     f"{outcrop}_raw(n={trace.count}).png",
                     f"{outcrop}_rose(bin=10.0).png",

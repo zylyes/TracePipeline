@@ -9,7 +9,7 @@ from typing import Any
 
 from trace_pipeline.config import resolve_io_paths
 from trace_pipeline.logging import LogContext
-from trace_pipeline.models import RunConfig
+from trace_pipeline.models import PipelineStatus, RunConfig
 from trace_pipeline.pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ class PipelineService:
                         "node_i_count": result.node_i_count,
                     }
                     completed_results.append(result_dict)
-                    if result.status == "success":
+                    if result.status is PipelineStatus.SUCCESS:
                         logger.info(
                             "%s 处理完成 (%.3f ms)", outcrop, item_duration,
                             extra={"stage": "item_end", "outcrop": outcrop, "duration_ms": round(item_duration, 3)},
@@ -144,7 +144,7 @@ class PipelineService:
                         "current": idx,
                         "total": total,
                         "filename": table_stem,
-                        "message": f"{outcrop} 处理完成" if result.status == "success" else f"{outcrop} 处理失败",
+                        "message": f"{outcrop} 处理完成" if result.status is PipelineStatus.SUCCESS else f"{outcrop} 处理失败",
                         "result": result_dict,
                     })
 

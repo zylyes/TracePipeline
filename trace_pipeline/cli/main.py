@@ -10,6 +10,7 @@ from .args import build_overrides, parse_args
 from .dispatcher import decide_targets, execute_targets
 from .interactive import select_targets_interactive
 from .logging_setup import setup_logging
+from ..models import PipelineStatus
 
 __all__ = ["main"]
 
@@ -93,5 +94,5 @@ def main() -> None:
 
     # ---- 7. 汇总 ----
     print_pipeline_results(results)
-    success_count = sum(1 for r in results if r.status == "success")
+    success_count = sum(1 for r in results if r.status is PipelineStatus.SUCCESS)
     logger.info("处理完成：成功 %d/%d", success_count, len(targets))

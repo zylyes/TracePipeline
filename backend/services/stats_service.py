@@ -1,6 +1,7 @@
 """统计数据服务。"""
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
@@ -33,9 +34,19 @@ class StatsService:
         self._cache_ttl = 300.0  # 5分钟缓存
         logger.info("StatsService 已初始化（带统计缓存）", extra={"stage": "stats_service_init", "cache_ttl": self._cache_ttl})
 
+    # 影响统计结果的关键配置字段子集
+    _STAT_KEYS = {
+        "window_strategy", "auto_density_threshold", "tangent_window_count",
+        "enable_node_recognition", "node_merge_tolerance",
+    }
+
     def _make_key(self, outcrop: str, config: dict[str, Any] | None) -> str:
-        cfg_str = json.dumps(config or {}, sort_keys=True, ensure_ascii=False)
-        return f"{outcrop}:{hash(cfg_str)}"
+        # 仅提取影响统计结果的关键字段，避免无关字段（如 is_dev_mode、style）导致缓存失效
+        effective_cfg = {k: v for k, v in (config or {}).items() if k in self._STAT_KEYS}
+        cfg_str = json.dumps(effective_cfg, sort_keys=True, ensure_ascii=False)
+        # 使用稳定哈希替代内置 hash()，避免进程重启后哈希随机化导致缓存失效
+        cfg_hash = hashlib.sha256(cfg_str.encode("utf-8")).hexdigest()[:16]
+        return f"{outcrop}:{cfg_hash}"
 
     def get_stats(self, outcrop: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """计算并返回指定露头的统计数据（带缓存）。"""

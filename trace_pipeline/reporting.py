@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unicodedata
 
-from .models import RunResult
+from .models import PipelineStatus, RunResult
 
 # ===========================================================================
 # 表格常量
@@ -103,13 +103,13 @@ def format_results_table(results: list[RunResult]) -> str:
     for r in results:
         stem = r.table_stem
         count = str(r.trace_count)
-        avg_len = f"{r.mean_length:.2f}" if r.status == "success" else ""
-        azimuth = f"{r.scanline_azimuth:.0f}°" if r.status == "success" else ""
-        strategy = _format_strategy(r) if r.status == "success" else ""
+        avg_len = f"{r.mean_length:.2f}" if r.status is PipelineStatus.SUCCESS else ""
+        azimuth = f"{r.scanline_azimuth:.0f}°" if r.status is PipelineStatus.SUCCESS else ""
+        strategy = _format_strategy(r) if r.status is PipelineStatus.SUCCESS else ""
         rose = "否"
-        status = "OK" if r.status == "success" else "FAIL"
+        status = "OK" if r.status is PipelineStatus.SUCCESS else "FAIL"
 
-        if r.status == "success":
+        if r.status is PipelineStatus.SUCCESS:
             total_traces += r.trace_count
             total_length += r.mean_length * r.trace_count
             if r.rose_plot_path:
@@ -129,7 +129,7 @@ def format_results_table(results: list[RunResult]) -> str:
 
     lines.append(_format_separator(widths, _HEADER_SEP))
 
-    success = sum(1 for r in results if r.status == "success")
+    success = sum(1 for r in results if r.status is PipelineStatus.SUCCESS)
     lines.append(f"\n总计: {len(results)} 个露头 | 成功 {success} 个 | 迹线总数 {total_traces} | 玫瑰图 {has_rose} 张")
 
     return "\n".join(lines)
@@ -140,8 +140,8 @@ def format_summary(results: list[RunResult]) -> str:
     if not results:
         return "没有可用的处理结果。"
 
-    success = [r for r in results if r.status == "success"]
-    failed = [r for r in results if r.status != "success"]
+    success = [r for r in results if r.status is PipelineStatus.SUCCESS]
+    failed = [r for r in results if r.status is not PipelineStatus.SUCCESS]
 
     lines = [
         "=" * 56,

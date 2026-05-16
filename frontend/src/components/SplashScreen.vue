@@ -1,5 +1,5 @@
 <template>
-  <Transition name="splash-fade">
+  <Transition name="splash-fade" @after-leave="onAfterLeave">
     <div v-if="visible" class="splash-screen">
       <div class="splash-content">
         <!-- Logo 区域 -->
@@ -43,13 +43,25 @@
         <!-- 进度条区域 -->
         <div class="progress-container">
           <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: progress + '%' }"></div>
+            <div
+              class="progress-fill"
+              :class="{ 'progress-error': hasErrors }"
+              :style="{ width: progress + '%' }"
+            ></div>
           </div>
           <div class="progress-info">
             <span class="progress-text">{{ currentStep }}</span>
             <span class="progress-percent">{{ Math.round(progress) }}%</span>
           </div>
         </div>
+
+        <!-- 错误提示 -->
+        <Transition name="error-slide">
+          <div v-if="hasErrors" class="error-hint">
+            <el-icon><Warning /></el-icon>
+            <span>部分初始化失败，将在页面中自动重试</span>
+          </div>
+        </Transition>
       </div>
 
       <!-- 底部版本信息 -->
@@ -61,52 +73,88 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { Warning } from '@element-plus/icons-vue'
 
 const appVersion = __APP_VERSION__
 
+export interface BootStep {
+  label: string
+  task: () => Promise<any>
+  targetProgress: number
+}
+
+const props = defineProps<{
+  steps: BootStep[]
+  minDuration?: number
+}>()
+
 const emit = defineEmits<{
-  (e: 'complete'): void
+  (e: 'complete', payload: { errors: Array<{ step: string; error: string }> }): void
 }>()
 
 const visible = ref(true)
 const progress = ref(0)
 const currentStep = ref('正在初始化...')
+const errors = ref<Array<{ step: string; error: string }>>([])
 
-const steps = [
-  { text: '正在初始化...', duration: 300, progress: 15 },
-  { text: '加载配置...', duration: 400, progress: 35 },
-  { text: '连接后端服务...', duration: 500, progress: 60 },
-  { text: '准备就绪...', duration: 300, progress: 100 },
-]
+const hasErrors = computed(() => errors.value.length > 0)
 
-async function animateProgress() {
-  for (const step of steps) {
-    currentStep.value = step.text
-    
-    // 平滑过渡到目标进度
-    const startProgress = progress.value
-    const targetProgress = step.progress
-    const steps_count = 20
-    const step_delay = step.duration / steps_count
-    const progress_step = (targetProgress - startProgress) / steps_count
-    
-    for (let i = 0; i < steps_count; i++) {
-      await new Promise(resolve => setTimeout(resolve, step_delay))
-      progress.value = Math.min(startProgress + progress_step * (i + 1), targetProgress)
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function runBootSequence() {
+  const startTime = Date.now()
+  errors.value = []
+
+  for (const step of props.steps) {
+    currentStep.value = step.label
+
+    try {
+      await step.task()
+    } catch (err: any) {
+      const message = err?.message || String(err) || '未知错误'
+      errors.value.push({ step: step.label, error: message })
+      console.warn(`[SplashScreen] 步骤失败: ${step.label} — ${message}`)
     }
-    
+
+    // 平滑推进到目标进度
+    const startProgress = progress.value
+    const targetProgress = step.targetProgress
+    const diff = targetProgress - startProgress
+    if (diff > 0) {
+      const frames = 12
+      const frameDelay = 80
+      for (let i = 1; i <= frames; i++) {
+        await delay(frameDelay)
+        progress.value = Math.min(startProgress + (diff * i) / frames, targetProgress)
+      }
+    }
     progress.value = targetProgress
   }
-  
-  // 完成后短暂停留，然后隐藏
-  await new Promise(resolve => setTimeout(resolve, 400))
+
+  // 最终步骤
+  currentStep.value = '准备就绪'
+  progress.value = 100
+
+  // 最小展示时间控制
+  const elapsed = Date.now() - startTime
+  const minDur = props.minDuration ?? 1500
+  if (elapsed < minDur) {
+    await delay(minDur - elapsed)
+  }
+
+  // 淡出
   visible.value = false
-  emit('complete')
+}
+
+function onAfterLeave() {
+  emit('complete', { errors: errors.value })
 }
 
 onMounted(() => {
-  animateProgress()
+  runBootSequence()
 })
 </script>
 
@@ -182,7 +230,7 @@ onMounted(() => {
   border-radius: 2px;
   transition: width 0.15s ease-out;
   position: relative;
-  
+
   &::after {
     content: '';
     position: absolute;
@@ -191,6 +239,10 @@ onMounted(() => {
     width: 30px;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+  }
+
+  &.progress-error {
+    background: linear-gradient(90deg, #B85C38 0%, #e6a23c 100%);
   }
 }
 
@@ -212,6 +264,23 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
+.error-hint {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(230, 162, 60, 0.15);
+  border: 1px solid rgba(230, 162, 60, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #e6a23c;
+
+  .el-icon {
+    font-size: 14px;
+  }
+}
+
 .splash-footer {
   position: absolute;
   bottom: 32px;
@@ -223,8 +292,21 @@ onMounted(() => {
 .splash-fade-leave-active {
   transition: opacity 0.5s ease-out;
 }
-
 .splash-fade-leave-to {
   opacity: 0;
+}
+
+/* 错误提示滑入 */
+.error-slide-enter-active,
+.error-slide-leave-active {
+  transition: all 0.3s ease;
+}
+.error-slide-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.error-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

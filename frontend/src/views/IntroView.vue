@@ -60,6 +60,8 @@
 import { ArrowRight } from '@element-plus/icons-vue'
 
 const appVersion = __APP_VERSION__
+defineOptions({ name: 'Intro' })
+
 import GeoIcon from '@/components/GeoIcon.vue'
 import HomeIcon from '@/components/icons/HomeIcon.vue'
 import ProcessIcon from '@/components/icons/ProcessIcon.vue'

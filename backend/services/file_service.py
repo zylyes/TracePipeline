@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,9 @@ class FileService:
     def __init__(self, input_dir: str = "input") -> None:
         self.input_dir = self._resolve(input_dir)
         self._output_dir = self._resolve("output")
+        self._scan_cache: tuple[list[dict[str, Any]], float] | None = None
+        self._scan_ttl = 30.0  # 30秒缓存
+        logger.info("FileService 已初始化（带扫描缓存）", extra={"stage": "file_service_init", "scan_ttl": self._scan_ttl})
 
     def _resolve(self, p: str) -> Path:
         path = Path(p)
@@ -30,7 +34,12 @@ class FileService:
         return path.resolve()
 
     def scan(self) -> list[dict[str, Any]]:
-        """扫描 input_dir，返回文件列表。"""
+        """扫描 input_dir，返回文件列表（带缓存）。"""
+        if self._scan_cache:
+            results, ts = self._scan_cache
+            if time.time() - ts < self._scan_ttl:
+                logger.debug("scan 命中缓存: %d 个文件", len(results), extra={"stage": "file_scan_cache_hit", "count": len(results)})
+                return results
         logger.info(
             "扫描输入目录: %s", self.input_dir,
             extra={"stage": "file_scan", "input_dir": str(self.input_dir), "output_dir": str(self._output_dir)},
@@ -65,7 +74,13 @@ class FileService:
                 "completed": sum(1 for r in results if r["status"] == "completed"),
             },
         )
+        self._scan_cache = (results, time.time())
         return results
+
+    def invalidate_cache(self) -> None:
+        """使扫描缓存失效。"""
+        self._scan_cache = None
+        logger.debug("scan 缓存已失效", extra={"stage": "file_scan_cache_invalidate"})
 
     def set_output_dir(self, output_dir: str) -> None:
         self._output_dir = self._resolve(output_dir)

@@ -29,6 +29,8 @@ import { useConfigStore } from '@/stores/config'
 import { api } from '@/api/pywebview'
 import type { ConfigData } from '@/types'
 
+defineOptions({ name: 'Config' })
+
 const appStore = useAppStore()
 const configStore = useConfigStore()
 

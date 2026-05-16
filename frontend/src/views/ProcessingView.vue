@@ -97,13 +97,17 @@ import ImageModal from '@/components/ImageModal.vue'
 import { usePipelineStore } from '@/stores/pipeline'
 import { useConfigStore } from '@/stores/config'
 import { useAppStore } from '@/stores/app'
+import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import type { TraceFile, PipelineResult } from '@/types'
+
+defineOptions({ name: 'Processing' })
 
 const router = useRouter()
 const pipelineStore = usePipelineStore()
 const configStore = useConfigStore()
 const appStore = useAppStore()
+const cacheStore = useCacheStore()
 
 const files = ref<TraceFile[]>([])
 const selectedFiles = ref<TraceFile[]>([])
@@ -182,10 +186,14 @@ const modalVisible = ref(false)
 const modalOutcrop = ref('')
 const modalImages = ref<Array<{ key: string; title: string; src: string }>>([])
 
-async function loadFiles() {
+async function loadFiles(force = false) {
   try {
-    const data = await api.scan_files()
-    files.value = data.map((f: any) => ({
+    let data = force ? null : cacheStore.getScan()
+    if (!data) {
+      data = await api.scan_files()
+      cacheStore.setScan(data!)
+    }
+    files.value = data!.map((f: any) => ({
       stem: f.stem,
       outcrop: f.outcrop,
       path: f.path,
@@ -389,6 +397,8 @@ function startPolling() {
           currentStatus.value = ''
           ElMessage.success(`处理完成（${duration}s）`)
           appStore.updateLastOperation('处理完成')
+          // 处理完成后使所有数据缓存失效，确保其他页面刷新时获取最新结果
+          cacheStore.invalidateAll()
           loadFiles()
           break
         }

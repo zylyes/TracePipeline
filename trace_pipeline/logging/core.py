@@ -292,12 +292,17 @@ def setup_logging(
         file_handler.setLevel(file_level)
         pkg_logger.addHandler(file_handler)
 
-    # 合并 backend 到 trace_pipeline：禁用独立文件，只保留 console
-    # 这样 backend 的日志会通过 propagate 向上传递，写入同一个 run_XXX.jsonl
+    # 合并 backend 到 trace_pipeline：让 backend 的日志也写入同一个 run_XXX.jsonl
     backend_logger = logging.getLogger("backend")
     backend_logger.setLevel(min(console_level, file_level))
-    backend_logger.propagate = True  # ← 关键：让 backend 日志向上传递到 trace_pipeline
+    backend_logger.propagate = False  # 关闭 propagate，直接添加 handler
     backend_logger.handlers.clear()   # 清除旧 handler，避免重复
+
+    # 给 backend logger 添加与 trace_pipeline 相同的 handler
+    if not any(isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
+        backend_logger.addHandler(file_handler)
+    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
+        backend_logger.addHandler(console)
 
     return pkg_logger
 

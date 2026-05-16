@@ -1,0 +1,87 @@
+:root {
+  /* ── 色彩系统 ── */
+  --tp-bg-primary: #f8f9fa;
+  --tp-bg-sidebar: #1A2332;
+  --tp-bg-card: #ffffff;
+  --tp-bg-hover: #f5f7fa;
+
+  --tp-accent: #B85C38;
+  --tp-accent-light: #d4785a;
+  --tp-accent-dark: #8f4528;
+
+  --tp-success: #2E7D5A;
+  --tp-success-light: #e8f5e9;
+  --tp-warning: #E6A23C;
+  --tp-warning-light: #fdf6ec;
+  --tp-danger: #F56C6C;
+  --tp-danger-light: #fef0f0;
+  --tp-info: #409EFF;
+  --tp-info-light: #f0f9ff;
+
+  --tp-text-primary: #2c3e50;
+  --tp-text-secondary: #7f8c8d;
+  --tp-text-muted: #909399;
+  --tp-text-inverse: #ffffff;
+
+  --tp-border: #e4e7ed;
+  --tp-border-light: #f0f0f0;
+
+  /* ── 阴影层级 ── */
+  --tp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --tp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --tp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --tp-shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.12);
+
+  /* ── 圆角 ── */
+  --tp-radius-sm: 6px;
+  --tp-radius-md: 8px;
+  --tp-radius-lg: 12px;
+  --tp-radius-xl: 16px;
+
+  /* ── 动画 ── */
+  --tp-duration-fast: 0.15s;
+  --tp-duration-normal: 0.25s;
+  --tp-duration-slow: 0.4s;
+  --tp-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --tp-easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── 全局工具类 ── */
+.tp-card {
+  background: var(--tp-bg-card);
+  border-radius: var(--tp-radius-md);
+  box-shadow: var(--tp-shadow-md);
+  transition: all var(--tp-duration-normal) var(--tp-easing);
+}
+
+.tp-card:hover {
+  box-shadow: var(--tp-shadow-lg);
+}
+
+/* 运行状态呼吸灯 */
+@keyframes tp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+.tp-pulse {
+  animation: tp-pulse 2s ease-in-out infinite;
+}
+
+/* 骨架屏闪光 */
+@keyframes tp-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.tp-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: tp-shimmer 1.5s infinite;
+}
+
+/* 数据字体 */
+.tp-data {
+  font-family: "Times New Roman", "SimSun", serif;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,8 +1,10 @@
 """统计数据服务。"""
 from __future__ import annotations
 
+import json
 import logging
 import math
+import time
 from typing import Any
 
 import numpy as np
@@ -26,10 +28,29 @@ logger = logging.getLogger(__name__)
 class StatsService:
     """读取已处理结果，返回统计指标和覆盖层几何。"""
 
+    def __init__(self) -> None:
+        self._cache: dict[str, tuple[dict[str, Any], float]] = {}
+        self._cache_ttl = 300.0  # 5分钟缓存
+        logger.info("StatsService 已初始化（带统计缓存）", extra={"stage": "stats_service_init", "cache_ttl": self._cache_ttl})
+
+    def _make_key(self, outcrop: str, config: dict[str, Any] | None) -> str:
+        cfg_str = json.dumps(config or {}, sort_keys=True, ensure_ascii=False)
+        return f"{outcrop}:{hash(cfg_str)}"
+
     def get_stats(self, outcrop: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
-        """计算并返回指定露头的统计数据。"""
-        import time
+        """计算并返回指定露头的统计数据（带缓存）。"""
         start = time.perf_counter()
+        key = self._make_key(outcrop, config)
+        cached = self._cache.get(key)
+        if cached:
+            result, ts = cached
+            if time.time() - ts < self._cache_ttl:
+                logger.debug(
+                    "get_stats 命中缓存 [%s]: trace_count=%s",
+                    outcrop, result.get("trace_count"),
+                    extra={"stage": "stats_cache_hit", "outcrop": outcrop, "trace_count": result.get("trace_count")},
+                )
+                return result
 
         cfg = config or {}
         input_dir = cfg.get("input_dir", "input")
@@ -196,14 +217,36 @@ class StatsService:
                 "duration_ms": round(duration, 3),
             },
         )
+        self._cache[key] = (result, time.time())
         return result
 
     def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        """返回多露头对比数据。"""
-        results = []
+        """返回多露头对比数据（优先走缓存）。"""
+        results: list[dict[str, Any]] = []
+        missing: list[str] = []
+        now = time.time()
         for oc in outcrops:
+            key = self._make_key(oc, config)
+            cached = self._cache.get(key)
+            if cached and (now - cached[1] < self._cache_ttl):
+                results.append(cached[0])
+            else:
+                missing.append(oc)
+        # 仅对缺失或已过期的露头重新计算
+        for oc in missing:
             stats = self.get_stats(oc, config)
-            if "error" in stats:
-                continue
-            results.append(stats)
+            if "error" not in stats:
+                results.append(stats)
         return results
+
+    def invalidate_cache(self, outcrop: str | None = None) -> None:
+        """使统计缓存失效。"""
+        if outcrop is None:
+            count = len(self._cache)
+            self._cache.clear()
+            logger.debug("stats 缓存已全部清空: %d 条", count, extra={"stage": "stats_cache_invalidate_all", "count": count})
+        else:
+            keys = [k for k in self._cache if k.startswith(f"{outcrop}:")]
+            for k in keys:
+                del self._cache[k]
+            logger.debug("stats 缓存已失效 [%s]: %d 条", outcrop, len(keys), extra={"stage": "stats_cache_invalidate", "outcrop": outcrop, "count": len(keys)})

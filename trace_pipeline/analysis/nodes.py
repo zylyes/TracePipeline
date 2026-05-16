@@ -1,9 +1,21 @@
 """节点识别主算法。
 
-基于迹线端点坐标，按文献标准识别三种节点类型：
+基于直线交点检测算法，按几何接触关系识别三种节点类型：
   - I 型（孤立端点）：端点不与任何其他迹线接触
-  - Y 型（三叉节点）：一条迹线的端点落在另一条迹线的内部
-  - X 型（交叉节点）：两条迹线在各自的内部位置相交
+  - Y 型（三叉节点）：一条迹线的端点落在另一条迹线的内部（端-中接触）
+  - X 型（交叉节点）：两条迹线在各自内部位置相交（中-中接触）
+
+算法流程：
+  1. 预处理：计算迹线包围盒，过滤不可能相交的迹线对
+  2. 相交检测：对候选迹线对调用 segment_intersection，分类 X/Y/端-端事件
+  3. 端点处理：收集未使用端点，检测接近的端点对
+  4. 聚类合并：对候选点进行空间聚类
+  5. 节点分类：根据簇内迹线参与方式确定类型与分支数
+
+性能优化：
+  - NumPy 向量化包围盒筛选
+  - 批量处理候选点聚类
+  - 预计算数据结构减少重复计算
 """
 from __future__ import annotations
 
@@ -13,12 +25,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..geometry.segments import (
-    collinear_overlap,
-    cross2d,
-    is_degenerate_segment,
-    segment_intersection,
-)
+from ..geometry.segments import is_degenerate_segment, segment_intersection
 from .models import NodeAnalysis, NodeRecognitionConfig, TraceIntersection, TraceNode
 
 logger = logging.getLogger(__name__)
@@ -28,134 +35,171 @@ __all__ = ["recognize_trace_nodes"]
 
 @dataclass(frozen=True, slots=True)
 class _Candidate:
+    """几何事件候选点。"""
+
     x: float
     y: float
     trace_idx: int
-    event_type: str  # "I" | "Y" | "X"
-    param: float = 0.0  # 在线段上的参数 [0,1]
+    param: float
 
 
-def _point_on_segment_interior(
-    px: float, py: float,
-    x1: float, y1: float,
-    x2: float, y2: float,
-    tol: float,
-) -> bool:
-    """判断点是否落在线段内部（不包括端点邻域），且垂距在容差内。"""
-    dx = x2 - x1
-    dy = y2 - y1
-    if dx == 0.0 and dy == 0.0:
-        return False
-    t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)
-    if not (tol < t < 1.0 - tol):
-        return False
-    # 检查垂距
-    proj_x = x1 + t * dx
-    proj_y = y1 + t * dy
-    dist_sq = (px - proj_x) ** 2 + (py - proj_y) ** 2
-    return dist_sq <= tol * tol
+def _is_interior(param: float, tol: float) -> bool:
+    """判断参数是否位于线段内部（不含端点邻域）。"""
+    return tol < param < 1.0 - tol
 
 
-def _build_spatial_grid(candidates: list[_Candidate], cell_size: float) -> dict[tuple[int, int], list[int]]:
-    """将候选点按网格索引分桶，避免 O(N^2) 全量合并。"""
-    grid: dict[tuple[int, int], list[int]] = defaultdict(list)
-    for idx, cand in enumerate(candidates):
-        cell_x = int(np.floor(cand.x / cell_size))
-        cell_y = int(np.floor(cand.y / cell_size))
-        grid[(cell_x, cell_y)].append(idx)
-    return grid
+class _UnionFind:
+    """并查集，用于传递性聚类合并。"""
+
+    __slots__ = ("parent", "rank")
+
+    def __init__(self, n: int) -> None:
+        self.parent = list(range(n))
+        self.rank = [0] * n
+
+    def find(self, x: int) -> int:
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]
+            x = self.parent[x]
+        return x
+
+    def union(self, x: int, y: int) -> None:
+        rx, ry = self.find(x), self.find(y)
+        if rx == ry:
+            return
+        if self.rank[rx] < self.rank[ry]:
+            rx, ry = ry, rx
+        self.parent[ry] = rx
+        if self.rank[rx] == self.rank[ry]:
+            self.rank[rx] += 1
+
+
+def _batch_bbox_overlap(
+    bboxes_a: np.ndarray, bboxes_b: np.ndarray, margin: float = 0.0
+) -> np.ndarray:
+    """批量判断两组 AABB 包围盒是否重叠。
+
+    Args:
+        bboxes_a: (N, 4) [x_min, y_min, x_max, y_max]
+        bboxes_b: (M, 4) [x_min, y_min, x_max, y_max]
+        margin: 额外扩展边界
+
+    Returns:
+        (N,) bool 数组，表示每个 A 与所有 B 的重叠情况
+    """
+    # 将 A 的每个框与 B 的所有框比较
+    # bboxes_a[:, None, :] - bboxes_b[None, :, :] 会产生 (N, M, 4) 大数组
+    # 用更节省内存的方式：分别比较各边界
+    overlap = (
+        (bboxes_a[:, 0] <= bboxes_b[:, 2] + margin)  # a.x_max >= b.x_min
+        & (bboxes_a[:, 2] >= bboxes_b[:, 0] - margin)  # a.x_min <= b.x_max
+        & (bboxes_a[:, 1] <= bboxes_b[:, 3] + margin)  # a.y_max >= b.y_min
+        & (bboxes_a[:, 3] >= bboxes_b[:, 1] - margin)  # a.y_min <= b.y_max
+    )
+    return overlap
 
 
 def _merge_candidates(
     candidates: list[_Candidate],
     tolerance: float,
 ) -> list[list[_Candidate]]:
-    """基于空间网格的候选点聚类，每个簇将合并为一个节点。"""
+    """基于空间网格 + 并查集的候选点聚类。"""
     if not candidates:
         return []
 
+    m = len(candidates)
     cell_size = max(tolerance, 1e-12)
-    grid = _build_spatial_grid(candidates, cell_size)
-    merged: list[list[_Candidate]] = []
-    visited = set()
+    tol2 = tolerance * tolerance
 
+    # 构建网格
+    grid: dict[tuple[int, int], list[int]] = defaultdict(list)
+    for idx, cand in enumerate(candidates):
+        cell_x = int(np.floor(cand.x / cell_size))
+        cell_y = int(np.floor(cand.y / cell_size))
+        grid[(cell_x, cell_y)].append(idx)
+
+    uf = _UnionFind(m)
+
+    # 并行合并
     for i, cand in enumerate(candidates):
-        if i in visited:
-            continue
-        cluster = [cand]
-        visited.add(i)
         cx = int(np.floor(cand.x / cell_size))
         cy = int(np.floor(cand.y / cell_size))
-
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 for j in grid.get((cx + dx, cy + dy), []):
-                    if j in visited:
+                    if j <= i:
                         continue
                     other = candidates[j]
-                    if (cand.x - other.x) ** 2 + (cand.y - other.y) ** 2 <= tolerance * tolerance:
-                        cluster.append(other)
-                        visited.add(j)
-        merged.append(cluster)
-    return merged
+                    dx_ = cand.x - other.x
+                    dy_ = cand.y - other.y
+                    if dx_ * dx_ + dy_ * dy_ <= tol2:
+                        uf.union(i, j)
+
+    groups: dict[int, list[_Candidate]] = defaultdict(list)
+    for idx, cand in enumerate(candidates):
+        groups[uf.find(idx)].append(cand)
+
+    return list(groups.values())
 
 
-def _compute_topological_value(cluster: list[_Candidate], tol: float) -> int:
-    """按 trace_idx 分组计算拓扑值（分支数）。
+def _classify_and_compute_node(
+    cluster: list[_Candidate], tol: float
+) -> tuple[str, int]:
+    """一次性计算节点类型和拓扑值。
 
-    规则：
-    - 迹线在节点上有内部 candidate（0 < param < 1）→ 2 分支
-    - 迹线在节点上只有端点 candidate（param ≈ 0 或 1）：
-      - 该迹线在节点上有 ≥2 个不同端点 candidate → 2 分支（V 型环）
-      - 否则 → 1 分支
+    Returns:
+        (node_type, topological_value)
     """
     trace_params: dict[int, list[float]] = defaultdict(list)
+    interior_traces: set[int] = set()
+
     for cand in cluster:
         trace_params[cand.trace_idx].append(cand.param)
+        if _is_interior(cand.param, tol):
+            interior_traces.add(cand.trace_idx)
 
+    # X 型：至少两条迹线以内部方式通过
+    if len(interior_traces) >= 2:
+        tv = 0
+        for params in trace_params.values():
+            unique_params: list[float] = []
+            for p in params:
+                if not any(abs(p - up) <= tol for up in unique_params):
+                    unique_params.append(p)
+            has_internal = any(_is_interior(p, tol) for p in unique_params)
+            if has_internal:
+                tv += 2
+            else:
+                n_endpoints = sum(1 for p in unique_params if p <= tol or p >= 1.0 - tol)
+                tv += 2 if n_endpoints >= 2 else 1
+        return "X", tv
+
+    # 计算拓扑值
     tv = 0
     for params in trace_params.values():
-        # 容差范围内去重（避免重复候选导致误判）
         unique_params: list[float] = []
         for p in params:
             if not any(abs(p - up) <= tol for up in unique_params):
                 unique_params.append(p)
 
-        has_internal = any(tol < p < 1.0 - tol for p in unique_params)
+        has_internal = any(_is_interior(p, tol) for p in unique_params)
         if has_internal:
             tv += 2
         else:
-            # 只有端点
             n_endpoints = sum(1 for p in unique_params if p <= tol or p >= 1.0 - tol)
             tv += 2 if n_endpoints >= 2 else 1
-    return tv
+
+    # Y 型判定
+    if len(interior_traces) == 1 or tv >= 3:
+        return "Y", tv
+
+    return "I", tv
 
 
-def _classify_merged_node(cluster: list[_Candidate], tol: float) -> str:
-    """合并后节点类型判定。
-
-    真正的 X 型：至少两条迹线在内部交叉（各有内部 X 候选）。
-    Y 型：存在端点落在其他迹线内部，或拓扑值≥3（多条端点重合）。
-    I 型：其他情况（孤立端点或 V 型）。
-    """
-    # 统计有内部 X 事件的迹线（param 在 (0,1) 内）
-    x_internal_traces: set[int] = set()
-    for c in cluster:
-        if c.event_type == "X" and tol < c.param < 1.0 - tol:
-            x_internal_traces.add(c.trace_idx)
-    if len(x_internal_traces) >= 2:
-        return "X"
-
-    event_types = {c.event_type for c in cluster}
-    if "Y" in event_types:
-        return "Y"
-
-    # 多条端点重合（拓扑值≥3）→ Y
-    tv = _compute_topological_value(cluster, tol)
-    if tv >= 3:
-        return "Y"
-
-    return "I"
+def _is_endpoint_cluster(params: list[float], tol: float) -> bool:
+    """判断是否为端点聚类（多个端点重合）。"""
+    endpoints = [p for p in params if p <= tol or p >= 1.0 - tol]
+    return len(endpoints) >= 2
 
 
 def recognize_trace_nodes(
@@ -177,151 +221,218 @@ def recognize_trace_nodes(
     n = endpoints.shape[0]
     tol = config.merge_tolerance
 
+    # 聚类容差
+    lengths = np.hypot(
+        endpoints[:, 2] - endpoints[:, 0], endpoints[:, 3] - endpoints[:, 1]
+    )
+    mean_len = float(np.mean(lengths)) if lengths.size > 0 else 0.0
+    cluster_tol = max(tol, 0.01 * mean_len)
+
+    logger.debug(
+        "节点识别容差: 几何检测=%.6f, 聚类合并=%.6f (mean_len=%.2f)",
+        tol, cluster_tol, mean_len,
+    )
+
     candidates: list[_Candidate] = []
     intersections: list[TraceIntersection] = []
     warnings_list: list[str] = []
     degenerate_count = 0
 
-    # 预计算每条线段的中心点和最大半长，用于空间索引加速
-    centers = np.empty((n, 2), dtype=float)
-    half_lens = np.empty(n, dtype=float)
-    valid_mask = np.ones(n, dtype=bool)
-    for i in range(n):
-        x1, y1, x2, y2 = endpoints[i]
-        if is_degenerate_segment(x1, y1, x2, y2, tol):
-            degenerate_count += 1
-            valid_mask[i] = False
+    # ------------------------------------------------------------------
+    # 预处理：计算迹线元数据
+    # ------------------------------------------------------------------
+    x1 = endpoints[:, 0]
+    y1 = endpoints[:, 1]
+    x2 = endpoints[:, 2]
+    y2 = endpoints[:, 3]
+
+    # 退化线段检测
+    half_lens = 0.5 * lengths
+    valid_mask = lengths > tol
+
+    degenerate_count = int(np.sum(~valid_mask))
+    valid_indices = np.where(valid_mask)[0]
+
+    if len(valid_indices) == 0:
+        return NodeAnalysis(
+            nodes=(), intersections=(), warnings=(f"跳过 {degenerate_count} 条退化线段",), degenerate_skipped=degenerate_count
+        )
+
+    # 预计算有效迹线的数据
+    n_valid = len(valid_indices)
+    valid_x1 = x1[valid_indices]
+    valid_y1 = y1[valid_indices]
+    valid_x2 = x2[valid_indices]
+    valid_y2 = y2[valid_indices]
+    valid_centers = np.column_stack((
+        (valid_x1 + valid_x2) * 0.5,
+        (valid_y1 + valid_y2) * 0.5,
+    ))
+    valid_half_lens = half_lens[valid_indices]
+
+    # 预计算有效迹线的 AABB 包围盒
+    valid_bbox = np.column_stack((
+        np.minimum(valid_x1, valid_x2),
+        np.minimum(valid_y1, valid_y2),
+        np.maximum(valid_x1, valid_x2),
+        np.maximum(valid_y1, valid_y2),
+    ))
+
+    # 全局包围盒扩展（用于过滤）
+    max_half_len = float(np.max(valid_half_lens))
+    bbox_margin = max(tol, max_half_len * 0.5)
+
+    # ------------------------------------------------------------------
+    # Phase 1: 高效迹线对筛选 + 相交检测
+    # ------------------------------------------------------------------
+    used_endpoints: set[tuple[int, int]] = set()
+
+    # 对每条迹线，找出候选邻居（包围盒可能重叠）
+    for idx_in_valid in range(n_valid):
+        i = valid_indices[idx_in_valid]
+
+        # 向量化筛选：在包围盒内且索引更大的迹线
+        bbox_i = valid_bbox[idx_in_valid]
+        x_min_i, y_min_i = bbox_i[0] - bbox_margin, bbox_i[1] - bbox_margin
+        x_max_i, y_max_i = bbox_i[2] + bbox_margin, bbox_i[3] + bbox_margin
+
+        # 快速包围盒过滤
+        candidate_mask = (
+            (valid_bbox[:, 0] <= x_max_i)  # bbox_j.x_min <= bbox_i.x_max
+            & (valid_bbox[:, 2] >= x_min_i)  # bbox_j.x_max >= bbox_i.x_min
+            & (valid_bbox[:, 1] <= y_max_i)  # bbox_j.y_min <= bbox_i.y_max
+            & (valid_bbox[:, 3] >= y_min_i)  # bbox_j.y_max >= bbox_i.y_min
+            & (valid_bbox[:, 0] > bbox_i[0] - bbox_margin)  # 避免重复处理
+        )
+
+        # 只处理索引更大的迹线
+        candidate_indices = np.where(candidate_mask)[0]
+        candidate_indices = candidate_indices[candidate_indices > idx_in_valid]
+
+        if candidate_indices.size == 0:
             continue
-        centers[i, 0] = (x1 + x2) * 0.5
-        centers[i, 1] = (y1 + y2) * 0.5
-        half_lens[i] = 0.5 * np.hypot(x2 - x1, y2 - y1)
 
-    # 使用 cKDTree 进行空间索引加速（仅当 n > 20 时启用，避免小数据量下的额外开销）
-    use_spatial_index = n > 20
-    if use_spatial_index:
-        from scipy.spatial import cKDTree
-        tree = cKDTree(centers)
+        x1_i, y1_i = valid_x1[idx_in_valid], valid_y1[idx_in_valid]
+        x2_i, y2_i = valid_x2[idx_in_valid], valid_y2[idx_in_valid]
 
-    def _nearby_indices(idx: int) -> list[int]:
-        """返回可能与迹线 idx 发生交互的邻近迹线索引。"""
-        if not use_spatial_index:
-            return list(range(n))
-        # 查询距离在 (half_len_i + max_half_len + tol * 2) 范围内的候选
-        search_radius = half_lens[idx] + half_lens.max() + tol * 2.0
-        raw = tree.query_ball_point(centers[idx], r=float(search_radius))
-        # 排除自身和退化线段
-        return [j for j in raw if j != idx and valid_mask[j]]
+        for idx_j in candidate_indices:
+            j = valid_indices[idx_j]
 
-    # 1. 端点分析：遍历每条迹线的两个端点
-    for i in range(n):
-        if not valid_mask[i]:
-            continue
-        x1, y1, x2, y2 = endpoints[i]
-
-        for end, (px, py) in enumerate(((x1, y1), (x2, y2))):
-            param = float(end)  # 0 或 1
-            is_y = False
-            for j in _nearby_indices(i):
-                if j == i:
-                    continue
-                x1_j, y1_j, x2_j, y2_j = endpoints[j]
-                if not valid_mask[j]:
-                    continue
-                if _point_on_segment_interior(px, py, x1_j, y1_j, x2_j, y2_j, tol):
-                    # 检查是否共线：共线情况由 collinear_overlap 统一处理，避免重复候选
-                    dx_i = x2 - x1
-                    dy_i = y2 - y1
-                    dx_j = x2_j - x1_j
-                    dy_j = y2_j - y1_j
-                    if abs(cross2d(dx_i, dy_i, dx_j, dy_j)) < tol:
-                        continue  # 共线重叠由 collinear_overlap 处理
-                    # 端点 i 落在迹线 j 的内部 → Y
-                    candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="Y", param=param))
-                    # 迹线 j 在该点被穿过（内部），贡献 2 分支
-                    if dx_j != 0.0 or dy_j != 0.0:
-                        t_j = ((px - x1_j) * dx_j + (py - y1_j) * dy_j) / (dx_j * dx_j + dy_j * dy_j)
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="X", param=t_j))
-                    is_y = True
-                    break
-            if not is_y:
-                # 端点悬空 → I
-                candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="I", param=param))
-
-    # 2. 内部相交分析：两两迹线在各自内部相交 → X
-    for i in range(n):
-        if not valid_mask[i]:
-            continue
-        x1_i, y1_i, x2_i, y2_i = endpoints[i]
-        nearby = _nearby_indices(i)
-        for j in nearby:
-            if j <= i:
-                continue
-            if not valid_mask[j]:
-                continue
-            x1_j, y1_j, x2_j, y2_j = endpoints[j]
-
+            # 精确相交检测
             result = segment_intersection(
-                (x1_i, y1_i), (x2_i, y2_i),
-                (x1_j, y1_j), (x2_j, y2_j),
+                (x1_i, y1_i),
+                (x2_i, y2_i),
+                (valid_x1[idx_j], valid_y1[idx_j]),
+                (valid_x2[idx_j], valid_y2[idx_j]),
                 tol,
             )
-            if result is not None and result.kind == "internal":
+            if result is None:
+                continue
+
+            t, u, px, py = result.t, result.u, result.px, result.py
+            t_is_interior = _is_interior(t, tol)
+            u_is_interior = _is_interior(u, tol)
+            t_end = 0 if t <= 0.5 else 1
+            u_end = 0 if u <= 0.5 else 1
+
+            if t_is_interior and u_is_interior:
+                # X 型
+                candidates.append(_Candidate(x=px, y=py, trace_idx=i, param=t))
+                candidates.append(_Candidate(x=px, y=py, trace_idx=j, param=u))
                 intersections.append(
                     TraceIntersection(
-                        trace_a=i,
-                        trace_b=j,
-                        x=result.px,
-                        y=result.py,
-                        t=result.t,
-                        u=result.u,
-                        kind="internal",
+                        trace_a=i, trace_b=j, x=px, y=py, t=t, u=u, kind="internal"
                     )
                 )
-                candidates.append(
-                    _Candidate(x=result.px, y=result.py, trace_idx=i, event_type="X", param=result.t)
-                )
-                candidates.append(
-                    _Candidate(x=result.px, y=result.py, trace_idx=j, event_type="X", param=result.u)
-                )
+            elif not t_is_interior and u_is_interior:
+                # Y 型：迹线 i 的端点落在迹线 j 内部
+                candidates.append(_Candidate(x=px, y=py, trace_idx=i, param=t))
+                candidates.append(_Candidate(x=px, y=py, trace_idx=j, param=u))
+                used_endpoints.add((i, t_end))
+            elif t_is_interior and not u_is_interior:
+                # Y 型：迹线 j 的端点落在迹线 i 内部
+                candidates.append(_Candidate(x=px, y=py, trace_idx=i, param=t))
+                candidates.append(_Candidate(x=px, y=py, trace_idx=j, param=u))
+                used_endpoints.add((j, u_end))
             else:
-                # 共线重叠：边界节点可能是 Y 或 I（V 型）
-                ov_result = collinear_overlap(
-                    (x1_i, y1_i), (x2_i, y2_i),
-                    (x1_j, y1_j), (x2_j, y2_j),
-                    tol,
+                # 端-端接触
+                candidates.append(_Candidate(x=px, y=py, trace_idx=i, param=t))
+                candidates.append(_Candidate(x=px, y=py, trace_idx=j, param=u))
+                used_endpoints.add((i, t_end))
+                used_endpoints.add((j, u_end))
+
+    # ------------------------------------------------------------------
+    # Phase 2: 端点接近检测（向量化）
+    # ------------------------------------------------------------------
+    # 收集未使用端点
+    unused_endpoints: list[tuple[int, int, float, float]] = []
+    for i in range(n):
+        if not valid_mask[i]:
+            continue
+        for end_idx, (px, py) in enumerate(((x1[i], y1[i]), (x2[i], y2[i]))):
+            if (i, end_idx) not in used_endpoints:
+                unused_endpoints.append((i, end_idx, px, py))
+
+    if unused_endpoints:
+        # 提取端点坐标用于网格分桶
+        endpoint_coords = np.array(
+            [(px, py) for _, _, px, py in unused_endpoints], dtype=np.float64
+        )
+
+        # 网格分桶
+        cell_size = max(tol, 1e-12)
+        endpoint_cells = np.floor(endpoint_coords / cell_size).astype(np.int64)
+
+        cell_to_indices: dict[tuple[int, int], list[int]] = defaultdict(list)
+        for idx, (cx, cy) in enumerate(endpoint_cells):
+            cell_to_indices[(int(cx), int(cy))].append(idx)
+
+        # 接近检测
+        endpoint_uf = _UnionFind(len(unused_endpoints))
+        tol2 = tol * tol
+
+        for i in range(len(unused_endpoints)):
+            px, py = endpoint_coords[i]
+            cx, cy = endpoint_cells[i]
+
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for j in cell_to_indices.get((cx + dx, cy + dy), []):
+                        if j <= i:
+                            continue
+                        qx, qy = endpoint_coords[j]
+                        if (px - qx) ** 2 + (py - qy) ** 2 <= tol2:
+                            endpoint_uf.union(i, j)
+
+        # 按组生成候选
+        endpoint_groups: dict[int, list[tuple[int, int, float, float]]] = defaultdict(list)
+        for idx, item in enumerate(unused_endpoints):
+            endpoint_groups[endpoint_uf.find(idx)].append(item)
+
+        for group in endpoint_groups.values():
+            coords = [(px, py) for _, _, px, py in group]
+            avg_x = float(np.mean([c[0] for c in coords]))
+            avg_y = float(np.mean([c[1] for c in coords]))
+            for trace_idx, end_idx, _, _ in group:
+                candidates.append(
+                    _Candidate(x=avg_x, y=avg_y, trace_idx=trace_idx, param=float(end_idx))
                 )
-                for (px, py), t_a, t_b in ov_result:
-                    is_endpoint_a = t_a <= tol or t_a >= 1.0 - tol
-                    is_endpoint_b = t_b <= tol or t_b >= 1.0 - tol
-                    if is_endpoint_a and not is_endpoint_b:
-                        # A 的端点落在 B 内部 → Y（A 贡献 1 分支，B 贡献 2 分支）
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="Y", param=t_a))
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="X", param=t_b))
-                    elif is_endpoint_b and not is_endpoint_a:
-                        # B 的端点落在 A 内部 → Y（B 贡献 1 分支，A 贡献 2 分支）
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="Y", param=t_b))
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="X", param=t_a))
-                    elif is_endpoint_a and is_endpoint_b:
-                        # 两端点重合（V 型）→ I（两个悬空端点合并，各贡献 1 分支）
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="I", param=t_a))
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="I", param=t_b))
-                    else:
-                        # 内部点重合（理论上不应发生，因为共线重叠边界只会在端点处）
-                        # 按 X 处理（各贡献 2 分支）
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=i, event_type="X", param=t_a))
-                        candidates.append(_Candidate(x=px, y=py, trace_idx=j, event_type="X", param=t_b))
+                used_endpoints.add((trace_idx, end_idx))
 
-    # 3. 聚类合并候选点
-    clusters = _merge_candidates(candidates, tol)
+    # ------------------------------------------------------------------
+    # Phase 3: 聚类合并
+    # ------------------------------------------------------------------
+    clusters = _merge_candidates(candidates, cluster_tol)
 
+    # ------------------------------------------------------------------
+    # 节点生成
+    # ------------------------------------------------------------------
     nodes: list[TraceNode] = []
     for node_id, cluster in enumerate(clusters):
         cx = float(np.mean([c.x for c in cluster]))
         cy = float(np.mean([c.y for c in cluster]))
-
-        trace_set: set[int] = {c.trace_idx for c in cluster}
-        node_type = _classify_merged_node(cluster, tol)
-        tv = _compute_topological_value(cluster, tol)
+        trace_set = {c.trace_idx for c in cluster}
+        node_type, tv = _classify_and_compute_node(cluster, tol)
 
         nodes.append(
             TraceNode(

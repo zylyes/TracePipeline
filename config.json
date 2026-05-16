@@ -14,7 +14,7 @@
   "auto_density_threshold": 5.0,
   "tangent_window_count": 3,
   "style": {},
-  "enable_node_recognition": false,
+  "enable_node_recognition": true,
   "node_merge_tolerance": 0.01,
   "show_node_overlay": true,
   "is_dev_mode": true,

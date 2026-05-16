@@ -15,7 +15,7 @@ from matplotlib.patches import Circle, Polygon, Rectangle
 
 from ._helpers import new_figure, save_figure
 from .style import configure_style, text_font_kwargs
-from ..geology.transforms import normalize_points_like_lines
+from ..geology.transforms import normalize_coordinates, normalize_points_like_lines
 
 logger = logging.getLogger(__name__)
 
@@ -32,24 +32,14 @@ def _demo_endpoints():
             [3.0, 3.0, 10.0, 8.0],
             [1.0, 7.0, 9.0, 1.0],
             [6.0, 2.0, 6.0, 9.0],
+            [5.0, 4.0, 2.0, 8.0],    # 迹线8: 端点(5,4)在线6内部，形成真正的Y型节点
         ],
         dtype=float,
     )
 
 def _demo_rotated_endpoints():
-    return np.array(
-        [
-            [1.3524, 9.6564, 10.4619, 3.1743],
-            [9.3549, 11.6463, 8.7520, 0.0000],
-            [3.6998, 5.2417, 12.5293, 9.9364],
-            [5.7672, 12.0038, 10.4619, 3.1743],
-            [5.1082, 2.5928, 12.1718, 6.3486],
-            [5.4097, 8.4160, 13.1107, 4.5827],
-            [8.0025, 12.0598, 6.4606, 2.1794],
-            [5.9351, 5.2977, 12.1158, 8.5840],
-        ],
-        dtype=float,
-    )
+    """旋转后的端点数据，通过与 hull/nodes 相同的变换流程得到。"""
+    return normalize_coordinates(_demo_endpoints(), _DEMO_SCANLINE_AZIMUTH, margin=1.0)
 
 def _demo_hull_vertices():
     return np.array(
@@ -76,8 +66,8 @@ def _demo_circles():
 def _demo_nodes():
     return (
         {"x": 0.0, "y": 0.0, "node_type": "I", "node_id": 0, "degree": 1},
-        {"x": 5.0, "y": 5.0, "node_type": "Y", "node_id": 1, "degree": 3},
-        {"x": 8.0, "y": 4.0, "node_type": "X", "node_id": 2, "degree": 4},
+        {"x": 5.0, "y": 4.0, "node_type": "Y", "node_id": 1, "degree": 3},  # Y型: 迹线8端点落在迹线6内部
+        {"x": 8.36, "y": 4.18, "node_type": "X", "node_id": 2, "degree": 4},  # X型: 迹线1 × 迹线5
     )
 
 
@@ -106,19 +96,19 @@ def _demo_rotated_nodes():
 
 
 def _demo_joint_strikes():
-    return np.array([63.43, 120.96, 0.0, 90.0, 0.0, 54.46, 126.87, 0.0], dtype=float)
+    return np.array([63.43, 120.96, 0.0, 90.0, 0.0, 54.46, 126.87, 0.0, 90.0], dtype=float)
 
 _DEMO_SCANLINE_AZIMUTH = 298.0
 _DEMO_NORTH_ANGLE_DEG = 28.0
 
 _DEMO_STATS_LINES = (
     "测线走向: 298.0°",
-    "迹线数量: 8",
-    "平均迹长: 9.555 m",
-    "I/II/III型裂隙: 1/1/6",
+    "迹线数量: 9",
+    "平均迹长: 8.222 m",
+    "I/II/III型裂隙: 1/1/7",
     "测线长度: 8.500 m",
     "露头面积: 50.000 m²",
-    "P₁₀ 线密度: 0.941 m⁻¹",
+    "P₁₀ 线密度: 1.059 m⁻¹",
     "P₂₀ 面密度: 0.160 m⁻²",
     "P₂₁ 长度密度: 1.528 m⁻¹",
 )

@@ -33,7 +33,7 @@
         :page-sizes="[10, 20, 50]"
         @change="loadData"
       />
-      <el-input v-model="searchText" placeholder="搜索..." style="width:200px" size="small" clearable />
+      <el-input v-model="searchText" placeholder="搜索..." style="width:200px" size="small" clearable @keyup.enter="onSearch" @clear="onSearch" />
     </div>
   </div>
 </template>

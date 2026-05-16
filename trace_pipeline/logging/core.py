@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import sys
 import threading
 import zipfile
@@ -163,6 +164,13 @@ class DailyRotatingJsonHandler(logging.FileHandler):
         if not self._log_dir.is_dir():
             return
 
+        def on_rm_error(func, path, exc_info):
+            """处理无法删除的文件（如被锁定或只读）。"""
+            import stat
+            # 尝试移除只读属性后重试
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+
         for entry in self._log_dir.iterdir():
             if not entry.is_dir():
                 continue
@@ -179,11 +187,8 @@ class DailyRotatingJsonHandler(logging.FileHandler):
                         if file_path.is_file():
                             arcname = file_path.relative_to(entry)
                             zf.write(file_path, arcname)
-                # 打包成功后删除原目录
-                for file_path in entry.rglob("*"):
-                    if file_path.is_file():
-                        file_path.unlink()
-                entry.rmdir()
+                # 打包成功后递归删除原目录及其所有内容
+                shutil.rmtree(entry, onerror=on_rm_error)
             except OSError as exc:
                 # 打包失败不打断启动，只发警告
                 logging.getLogger(__name__).warning("日志归档失败 %s: %s", entry, exc)

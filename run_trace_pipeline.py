@@ -12,7 +12,9 @@ try:
 except RuntimeError:
     pass
 
+from trace_pipeline.config import ensure_workspace_dirs
 from trace_pipeline.cli import main
 
 if __name__ == "__main__":
+    ensure_workspace_dirs()
     main()

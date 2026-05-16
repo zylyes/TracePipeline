@@ -26,6 +26,21 @@ from trace_pipeline.plotting.overlays import (
 logger = logging.getLogger(__name__)
 
 
+def _to_native(val: Any) -> Any:
+    """将 numpy 类型转换为原生 Python 类型，确保 JSON 可序列化。"""
+    if isinstance(val, np.integer):
+        return int(val)
+    if isinstance(val, np.floating):
+        return float(val)
+    if isinstance(val, np.ndarray):
+        return val.tolist()
+    if isinstance(val, dict):
+        return {k: _to_native(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return [_to_native(v) for v in val]
+    return val
+
+
 class StatsService:
     """读取已处理结果，返回统计指标和覆盖层几何。"""
 
@@ -137,21 +152,21 @@ class StatsService:
 
         def _node_data(node_list):
             return [
-                {"x": float(n.x), "y": float(n.y), "node_type": n.node_type, "node_id": n.node_id, "degree": n.degree}
+                {"x": float(n.x), "y": float(n.y), "node_type": n.node_type, "node_id": int(n.node_id), "degree": int(n.degree)}
                 for n in node_list
             ]
 
         result = {
             "outcrop": outcrop,
-            "scanline_azimuth": round(trace.scanline_azimuth, 2),
-            "trace_count": trace.count,
+            "scanline_azimuth": round(float(trace.scanline_azimuth), 2),
+            "trace_count": int(trace.count),
             "mean_trace_length": round(statistics.mean_trace_length, 4) if math.isfinite(statistics.mean_trace_length) else None,
             "p10": round(statistics.p10, 4) if math.isfinite(statistics.p10) else None,
             "p20": round(statistics.p20, 4) if math.isfinite(statistics.p20) else None,
             "p21": round(statistics.p21, 4) if math.isfinite(statistics.p21) else None,
-            "type_i": statistics.type_i_count,
-            "type_ii": statistics.type_ii_count,
-            "type_iii": statistics.type_iii_count,
+            "type_i": int(statistics.type_i_count),
+            "type_ii": int(statistics.type_ii_count),
+            "type_iii": int(statistics.type_iii_count),
             "scanline_length": round(statistics.scanline_length, 4) if math.isfinite(statistics.scanline_length) else None,
             "outcrop_area": round(statistics.outcrop_area, 4) if math.isfinite(statistics.outcrop_area) else None,
             "area_source": statistics.outcrop_area_source,
@@ -164,21 +179,21 @@ class StatsService:
             "circles": circles,
             "warning": statistics.window_validation_warning,
             "nodes_summary": {
-                "node_count": node_analysis.node_count,
-                "node_i_count": tc.get("I", 0),
-                "node_y_count": tc.get("Y", 0),
-                "node_x_count": tc.get("X", 0),
-                "intersection_count": node_analysis.intersection_count,
-                "degenerate_skipped": node_analysis.degenerate_skipped,
+                "node_count": int(node_analysis.node_count),
+                "node_i_count": int(tc.get("I", 0)),
+                "node_y_count": int(tc.get("Y", 0)),
+                "node_x_count": int(tc.get("X", 0)),
+                "intersection_count": int(node_analysis.intersection_count),
+                "degenerate_skipped": int(node_analysis.degenerate_skipped),
             },
             "nodes": [
-                {"node_id": n.node_id, "x": round(n.x, 4), "y": round(n.y, 4), "type": n.type_label,
-                 "degree": n.degree, "trace_indices": list(n.trace_indices), "event_count": n.event_count}
+                {"node_id": int(n.node_id), "x": round(float(n.x), 4), "y": round(float(n.y), 4), "type": n.type_label,
+                 "degree": int(n.degree), "trace_indices": [int(x) for x in n.trace_indices], "event_count": int(n.event_count)}
                 for n in node_analysis.nodes
             ],
             "intersections": [
-                {"trace_a": ev.trace_a, "trace_b": ev.trace_b, "x": round(ev.x, 4), "y": round(ev.y, 4),
-                 "t": round(ev.t, 4), "u": round(ev.u, 4), "kind": ev.kind}
+                {"trace_a": int(ev.trace_a), "trace_b": int(ev.trace_b), "x": round(float(ev.x), 4), "y": round(float(ev.y), 4),
+                 "t": round(float(ev.t), 4), "u": round(float(ev.u), 4), "kind": ev.kind}
                 for ev in node_analysis.intersections
             ],
             "raw_plot_overlay": {

@@ -11,13 +11,23 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from enum import Enum
+from typing import Any
 
 import numpy as np
 
 from .validation import coerce_scalar_config_fields
 
+
+class PipelineStatus(str, Enum):
+    """流水线运行状态枚举，避免字符串字面量拼写错误。"""
+
+    SUCCESS = "success"
+    ERROR = "error"
+
+
 __all__ = [
+    "PipelineStatus",
     "RunConfig",
     "RunResult",
     "TraceData",
@@ -254,7 +264,7 @@ class RunResult:
     """单次流水线运行结果（不可变）。"""
 
     table_stem: str
-    status: Literal["success", "error"]
+    status: PipelineStatus = PipelineStatus.SUCCESS
     trace_count: int = 0
     mean_length: float = 0.0
     scanline_azimuth: float = 0.0
@@ -265,6 +275,8 @@ class RunResult:
     window_strategy: str = ""
     area_source: str = ""
     error: str = ""
+    error_type: str = ""
+    error_traceback: str = ""
     node_count: int = 0
     node_i_count: int = 0
     node_y_count: int = 0
@@ -292,7 +304,7 @@ class RunResult:
     ) -> RunResult:
         return cls(
             table_stem=table_stem,
-            status="success",
+            status=PipelineStatus.SUCCESS,
             trace_count=trace_count,
             mean_length=mean_length,
             scanline_azimuth=scanline_azimuth,
@@ -310,5 +322,5 @@ class RunResult:
         )
 
     @classmethod
-    def failure(cls, table_stem: str, error: str) -> RunResult:
-        return cls(table_stem=table_stem, status="error", error=error)
+    def failure(cls, table_stem: str, error: str, error_type: str = "", error_traceback: str = "") -> RunResult:
+        return cls(table_stem=table_stem, status=PipelineStatus.ERROR, error=error, error_type=error_type, error_traceback=error_traceback)

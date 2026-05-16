@@ -130,7 +130,9 @@ def collinear_overlap(
     ov_min = max(a_min, b_min)
     ov_max = min(a_max, b_max)
 
-    if ov_max - ov_min > tol:
+    # 使用相对容差判断重叠：当线段较长时，绝对容差可能误判
+    span = max(abs(a_max - a_min), abs(b_max - b_min), 1.0)
+    if ov_max - ov_min > tol * max(1.0, span):
         p_min = (x1 + ov_min * dir_vec[0], y1 + ov_min * dir_vec[1])
         p_max = (x1 + ov_max * dir_vec[0], y1 + ov_max * dir_vec[1])
         # 边界点在迹线 A 上的参数

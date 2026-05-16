@@ -7,14 +7,10 @@ import time
 from pathlib import Path
 from typing import Any
 
+from trace_pipeline.config import PROJECT_ROOT
 from trace_pipeline.io.discovery import find_trace_tables
 
 logger = logging.getLogger(__name__)
-
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = Path(sys.executable).parent
-else:
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class FileService:

@@ -117,9 +117,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             rotated_circle_windows = build_rotated_circle_overlays(trace, raw_circle_windows)
 
             if statistics.window_validation_warning:
-                print(f"\n[{cfg.outcrop}] 警告: {statistics.window_validation_warning}")
                 logger.warning(
-                    "窗口验证警告: %s", statistics.window_validation_warning,
+                    "[%s] 窗口验证警告: %s", cfg.outcrop, statistics.window_validation_warning,
                     extra={"stage": "statistics", "outcrop": cfg.outcrop},
                 )
 
@@ -293,13 +292,20 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 cfg.outcrop, type(exc).__name__, exc, total_duration,
                 extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
             )
-            return RunResult.failure(cfg.table_stem, str(exc))
+            return RunResult.failure(cfg.table_stem, str(exc), error_type=type(exc).__name__)
         except Exception as exc:
             total_duration = (time.perf_counter() - pipeline_start) * 1000
+            import traceback
+            tb = traceback.format_exc()
             logger.error(
                 "处理 [%s] 时发生未预期错误: %s (%.3f ms)",
                 cfg.outcrop, exc, total_duration,
                 extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
                 exc_info=True,
             )
-            return RunResult.failure(cfg.table_stem, f"{type(exc).__name__}: {exc}")
+            return RunResult.failure(
+                cfg.table_stem,
+                f"{type(exc).__name__}: {exc}",
+                error_type=type(exc).__name__,
+                error_traceback=tb,
+            )

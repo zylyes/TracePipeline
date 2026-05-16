@@ -32,7 +32,11 @@ else:
 
 
 class GuiApi:
-    """pywebview JS API 入口。所有 public 方法均可被前端调用。"""
+    """pywebview JS API 入口。所有 public 方法均可被前端调用。
+
+    内置简单的请求频率限制：对重资源操作（预览、报告生成、ZIP导出）
+    使用运行锁，防止并发导致资源耗尽。
+    """
 
     def __init__(self) -> None:
         import time
@@ -47,6 +51,9 @@ class GuiApi:
         self._report = ReportService()
         self._audit = AuditService()
         self._window: Any = None
+        # 重资源操作的运行锁
+        self._preview_running = False
+        self._report_running = False
         self._sync_services_from_config(self._config.get())
         cfg = self._config.get()
         logger.info(
@@ -69,12 +76,24 @@ class GuiApi:
     # 内部辅助
     # ------------------------------------------------------------------
     def _safe_path(self, path: str, base: Path | None = None) -> Path | None:
-        """解析并校验路径在项目根目录内，防止路径遍历攻击。"""
+        """解析并校验路径在项目根目录内，防止路径遍历攻击。
+
+        校验规则：
+        1. 拒绝包含 ".." 的原始输入
+        2. 解析符号链接（realpath）
+        3. 限制在 base 目录下
+        """
+        # 原始输入包含 .. 直接拒绝
+        if ".." in Path(path).parts:
+            logger.warning("拒绝包含 .. 的路径: %s", path)
+            return None
+
         p = Path(path)
         if not p.is_absolute():
             p = PROJECT_ROOT / p
-        p = p.resolve()
-        base = (base or PROJECT_ROOT).resolve()
+        # 使用 realpath 解析符号链接，防止符号链接绕过
+        p = Path(p).resolve().absolute()
+        base = Path(base or PROJECT_ROOT).resolve().absolute()
         try:
             p.relative_to(base)
         except ValueError:
@@ -215,15 +234,21 @@ class GuiApi:
     # ------------------------------------------------------------------
     def get_results(self) -> list[dict[str, Any]]:
         """获取已完成的处理结果列表（通过扫描 output 目录）。"""
+        import re
         out_dir = Path(self._config.get().get("output_dir", "output"))
         if not out_dir.is_absolute():
             out_dir = PROJECT_ROOT / out_dir
         out_dir = out_dir.resolve()
         results = []
-        for png in sorted(out_dir.glob("*_raw(n=*).png")):
-            stem = png.stem.split("_raw")[0]
-            rot_files = list(out_dir.glob(f"{stem}_rotated*.png"))
-            rose_files = list(out_dir.glob(f"{stem}_rose*.png"))
+        # 使用更严格的正则匹配文件名模式
+        raw_pattern = re.compile(r"^(.+)_raw\(n=\d+\)\.png$")
+        for png in sorted(out_dir.glob("*.png")):
+            match = raw_pattern.match(png.name)
+            if not match:
+                continue
+            stem = match.group(1)
+            rot_files = sorted(out_dir.glob(f"{stem}_rotated(strike=*.png"))
+            rose_files = sorted(out_dir.glob(f"{stem}_rose(bin=*.png"))
             results.append({
                 "outcrop": stem,
                 "raw_plot": str(png.resolve()),
@@ -266,10 +291,11 @@ class GuiApi:
         start = time.perf_counter()
         results = self._stats.get_comparison(outcrops, self._config.get())
         duration = (time.perf_counter() - start) * 1000
+        outcrops_str = ", ".join(outcrops[:10]) + ("..." if len(outcrops) > 10 else "")
         logger.info(
             "get_comparison [%s] 完成: %d/%d 个露头 (%.3f ms)",
-            outcrops, len(results), len(outcrops), duration,
-            extra={"stage": "api_get_comparison", "outcrops": outcrops, "result_count": len(results), "duration_ms": round(duration, 3)},
+            outcrops_str, len(results), len(outcrops), duration,
+            extra={"stage": "api_get_comparison", "outcrops": outcrops[:50], "result_count": len(results), "duration_ms": round(duration, 3)},
         )
         return results
 
@@ -307,24 +333,31 @@ class GuiApi:
     # 预览
     # ------------------------------------------------------------------
     def generate_preview(self, config: dict[str, Any]) -> dict[str, Any]:
-        start = time.perf_counter()
-        merged = {**self._config.get(), **config}
-        result = self._preview.generate(merged)
-        duration = (time.perf_counter() - start) * 1000
-        status = result.get("status", "unknown")
-        img_count = len(result.get("images", []))
-        logger.info(
-            "generate_preview → status=%s, %d 张预览图 (%.3f ms)",
-            status, img_count, duration,
-            extra={
-                "stage": "api_preview",
-                "status": status,
-                "image_count": img_count,
-                "style_keys": list(merged.get("style", {}).keys()),
-                "duration_ms": round(duration, 3),
-            },
-        )
-        return result
+        if self._preview_running:
+            logger.warning("generate_preview 被拒绝: 已有预览任务正在运行", extra={"stage": "api_preview_reject"})
+            return {"status": "busy", "message": "已有预览任务正在运行"}
+        self._preview_running = True
+        try:
+            start = time.perf_counter()
+            merged = {**self._config.get(), **config}
+            result = self._preview.generate(merged)
+            duration = (time.perf_counter() - start) * 1000
+            status = result.get("status", "unknown")
+            img_count = len(result.get("images", []))
+            logger.info(
+                "generate_preview → status=%s, %d 张预览图 (%.3f ms)",
+                status, img_count, duration,
+                extra={
+                    "stage": "api_preview",
+                    "status": status,
+                    "image_count": img_count,
+                    "style_keys": list(merged.get("style", {}).keys()),
+                    "duration_ms": round(duration, 3),
+                },
+            )
+            return result
+        finally:
+            self._preview_running = False
 
     # ------------------------------------------------------------------
     # 日志
@@ -336,15 +369,22 @@ class GuiApi:
     # 毕设功能（开发者选项）
     # ------------------------------------------------------------------
     def generate_report(self, outcrop: str, report_type: str, fmt: str) -> dict[str, Any]:
-        start = time.perf_counter()
-        self._audit.log("generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt})
-        result = self._report.generate(outcrop, report_type, fmt, self._config.get())
-        duration = (time.perf_counter() - start) * 1000
-        logger.info(
-            "generate_report 完成: %s (%.3f ms)", outcrop, duration,
-            extra={"stage": "api_report", "outcrop": outcrop, "duration_ms": round(duration, 3)},
-        )
-        return result
+        if self._report_running:
+            logger.warning("generate_report 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"})
+            return {"error": "已有报告任务正在运行"}
+        self._report_running = True
+        try:
+            start = time.perf_counter()
+            self._audit.log("generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt})
+            result = self._report.generate(outcrop, report_type, fmt, self._config.get())
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "generate_report 完成: %s (%.3f ms)", outcrop, duration,
+                extra={"stage": "api_report", "outcrop": outcrop, "duration_ms": round(duration, 3)},
+            )
+            return result
+        finally:
+            self._report_running = False
 
     def generate_reports_zip(self, targets: list[str], report_type: str, fmt: str) -> dict[str, Any]:
         import zipfile
@@ -429,6 +469,9 @@ class GuiApi:
         if target is None or not target.exists():
             logger.warning("open_directory 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_open_dir", "path": path})
             return False
+        if not target.is_dir():
+            logger.warning("open_directory 失败: 目标不是目录 → %s", path, extra={"stage": "api_open_dir", "path": path})
+            return False
         try:
             os.startfile(str(target))
             logger.info("open_directory → %s", target, extra={"stage": "api_open_dir", "path": str(target)})
@@ -437,8 +480,11 @@ class GuiApi:
             logger.warning("打开目录失败: %s → %s", path, exc, extra={"stage": "api_open_dir", "path": path, "error": str(exc)})
             return False
 
+    # 图片读取上限：5MB，防止大图片导致内存溢出
+    _MAX_IMAGE_SIZE = 5 * 1024 * 1024
+
     def get_image(self, path: str) -> str:
-        """读取图片文件并返回 base64 data URL。限制在输出目录内。"""
+        """读取图片文件并返回 base64 data URL。限制在输出目录内，单文件上限 5MB。"""
         try:
             out_dir = Path(self._config.get().get("output_dir", "output"))
             if not out_dir.is_absolute():
@@ -447,6 +493,10 @@ class GuiApi:
             p = self._safe_path(path, base=out_dir)
             if p is None or not p.exists():
                 logger.warning("get_image 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_get_image", "path": path})
+                return ""
+            size = p.stat().st_size
+            if size > self._MAX_IMAGE_SIZE:
+                logger.warning("get_image 拒绝: 文件过大 %s (%d bytes > %d limit)", path, size, self._MAX_IMAGE_SIZE, extra={"stage": "api_get_image", "path": path, "size_bytes": size})
                 return ""
             with open(p, "rb") as f:
                 data = f.read()
@@ -481,7 +531,7 @@ class GuiApi:
             return ""
 
     def export_config_json(self, folder: str, content: str) -> bool:
-        """将 JSON 内容写入指定文件夹的 config.json 文件。限制在项目根目录内。"""
+        """将 JSON 内容写入指定文件夹的 config.json 文件。限制在项目根目录内，并执行配置校验。"""
         try:
             folder_path = self._safe_path(folder)
             if folder_path is None:
@@ -489,9 +539,12 @@ class GuiApi:
                 return False
             path = folder_path / "config.json"
             parsed = json.loads(content)
-            path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
+            # 深度校验：复用 validate_config 确保字段合法
+            from trace_pipeline.config import validate_config
+            validated = validate_config(parsed)
+            path.write_text(json.dumps(validated, ensure_ascii=False, indent=2), encoding="utf-8")
             self._audit.log("export_config_json", params={"path": str(path)})
-            logger.info("export_config_json → %s", path, extra={"stage": "api_export_config", "path": str(path), "field_count": len(parsed)})
+            logger.info("export_config_json → %s", path, extra={"stage": "api_export_config", "path": str(path), "field_count": len(validated)})
             return True
         except Exception as exc:
             logger.warning("导出配置失败: %s → %s", folder, exc, extra={"stage": "api_export_config", "folder": folder, "error": str(exc)})

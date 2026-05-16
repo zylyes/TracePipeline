@@ -198,6 +198,7 @@ class RunConfig:
     window_strategy: str = "auto"
     auto_density_threshold: float = 5.0
     tangent_window_count: int = 3
+    min_intersections: int = 5
     style: dict[str, Any] = field(default_factory=dict)
     enable_node_recognition: bool = True
     node_merge_tolerance: float = 1e-6
@@ -215,8 +216,8 @@ class RunConfig:
             for k in ("export_rose_plot", "rose_bin_width", "rose_dpi",
                       "trace_dpi", "rotated_trace_dpi", "window_strategy",
                       "auto_density_threshold", "tangent_window_count",
-                      "enable_node_recognition", "node_merge_tolerance",
-                      "show_node_overlay")
+                      "min_intersections", "enable_node_recognition",
+                      "node_merge_tolerance", "show_node_overlay")
         }
         coerce_scalar_config_fields(field_values)
         for k, v in field_values.items():
@@ -237,7 +238,7 @@ class RunConfig:
             "input_dir", "output_dir", "output_prefix", "table_stem", "outcrop",
             "export_rose_plot", "rose_bin_width", "rose_dpi", "trace_dpi",
             "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
-            "tangent_window_count", "style",
+            "tangent_window_count", "min_intersections", "style",
             "enable_node_recognition", "node_merge_tolerance",
             "show_node_overlay",
         }

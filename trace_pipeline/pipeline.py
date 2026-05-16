@@ -108,6 +108,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 window_strategy=cfg.window_strategy,
                 auto_density_threshold=cfg.auto_density_threshold,
                 tangent_window_count=cfg.tangent_window_count,
+                min_intersections=cfg.min_intersections,
             )
             logger.debug("  2.2 计算统计量: %s", cfg.outcrop, extra={"stage": "transform_substep", "substep": "statistics"})
             statistics = compute_trace_statistics(trace, statistics_config)

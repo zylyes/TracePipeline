@@ -81,6 +81,7 @@ class ReportService:
             trace = load_trace_data(input_dir, table_stem, outcrop)
             stats_config = TraceStatisticsConfig(
                 window_strategy=config.get("window_strategy", "auto"),
+                min_intersections=config.get("min_intersections", 5),
             )
             statistics = compute_trace_statistics(trace, stats_config)
         except Exception as exc:

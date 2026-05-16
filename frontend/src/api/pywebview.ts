@@ -72,12 +72,11 @@ function mockApi(): any {
     get_provenance: async () => ({}),
     get_audit_log: async () => [],
     open_directory: async () => true,
+    ask_save_path: async (_defaultName?: string, _fileFilter?: string) => 'C:\\mock\\save_path.zip',
     browse_folder: async () => 'C:\\mock\\folder',
     export_config_json: async (folder: string, content: string) => true,
     check_webview2: async () => ({ installed: true }),
     get_image: async (_path: string) => '',
-    ask_save_path: async (_defaultName?: string, _fileFilter?: string) =>
-      getApi().ask_save_path(_defaultName, _fileFilter),
   }
 }
 

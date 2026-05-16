@@ -35,10 +35,13 @@ def save_figure(
     """保存并关闭图形，返回完整输出路径。
 
     若 figure 已设为透明背景（alpha == 0.0），保存时保持透明。
+    采用原子写入策略：先写入临时文件，成功后再重命名为目标文件名，
+    避免进程异常中断时产生不完整的损坏文件。
     """
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    full_path = str(out / filename)
+    dest_path = out / filename
+    tmp_path = dest_path.with_suffix(f".tmp-{__import__('os').getpid()}{dest_path.suffix}")
     try:
         transparent = fig.patch.get_alpha() == 0.0
         kwargs: dict = {
@@ -50,7 +53,12 @@ def save_figure(
             kwargs["transparent"] = True
         else:
             kwargs["facecolor"] = "white"
-        fig.savefig(full_path, **kwargs)
+        fig.savefig(str(tmp_path), **kwargs)
+        # 原子重命名，确保文件完整性
+        tmp_path.replace(dest_path)
     finally:
         plt.close(fig)
-    return full_path
+        # 清理可能残留的临时文件
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+    return str(dest_path.resolve())

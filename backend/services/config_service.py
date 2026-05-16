@@ -29,11 +29,11 @@ PROCESSING_KEYS = (
     "window_strategy",
     "auto_density_threshold",
     "tangent_window_count",
+    "min_intersections",
     "enable_node_recognition",
     "node_merge_tolerance",
     "show_node_overlay",
     "is_dev_mode",
-    "min_intersections",
 )
 
 

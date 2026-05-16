@@ -84,6 +84,7 @@ _SCALAR_COERCIONS: Mapping[str, _ScalarHandler] = {
     "trace_dpi": lambda v: coerce_positive_int(v, "trace_dpi"),
     "rotated_trace_dpi": lambda v: coerce_positive_int(v, "rotated_trace_dpi"),
     "tangent_window_count": lambda v: coerce_positive_int(v, "tangent_window_count"),
+    "min_intersections": lambda v: coerce_positive_int(v, "min_intersections"),
     "window_strategy": coerce_window_strategy,
     "auto_density_threshold": lambda v: coerce_positive_float(v, "auto_density_threshold"),
     "enable_node_recognition": lambda v: coerce_bool(v, "enable_node_recognition"),

@@ -33,11 +33,12 @@ class PipelineService:
                 return {"status": "busy", "message": "已有任务正在运行"}
             self._running = True
             self._queue.clear()
-        threading.Thread(
+        self._worker_thread = threading.Thread(
             target=self._run_background,
             args=(targets, config),
-            daemon=True,
-        ).start()
+            daemon=False,
+        )
+        self._worker_thread.start()
         return {"status": "started", "total": len(targets)}
 
     def poll_progress(self) -> dict[str, Any] | None:
@@ -47,6 +48,16 @@ class PipelineService:
 
     def is_running(self) -> bool:
         return self._running
+
+    def shutdown(self, timeout: float = 30.0) -> None:
+        """优雅关闭：等待后台线程完成，防止文件写入被强制中断。"""
+        if not self._running:
+            return
+        logger.info("正在等待后台流水线完成 (timeout=%.1fs)...", timeout)
+        if hasattr(self, "_worker_thread") and self._worker_thread.is_alive():
+            self._worker_thread.join(timeout=timeout)
+            if self._worker_thread.is_alive():
+                logger.warning("后台流水线未在超时时间内完成")
 
     def _emit(self, event: dict[str, Any]) -> None:
         with self._lock:
@@ -105,6 +116,7 @@ class PipelineService:
                         "window_strategy": config.get("window_strategy", "auto"),
                         "auto_density_threshold": config.get("auto_density_threshold", 5.0),
                         "tangent_window_count": config.get("tangent_window_count", 3),
+                        "min_intersections": config.get("min_intersections", 5),
                     })
 
                     with _EXECUTION_LOCK:

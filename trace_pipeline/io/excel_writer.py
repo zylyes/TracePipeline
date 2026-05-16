@@ -363,7 +363,7 @@ def _build_node_sections(
         ("交叉节点(X)", str(tc.get("X", 0))),
         ("交点事件数", str(node_analysis.intersection_count)),
         ("节点密度", _format_excel_cell_value(node_analysis.node_density(trace.measured_outcrop_area), "个/m²")),
-        ("合并容差", _format_excel_cell_value(node_analysis.nodes[0].x if node_analysis.nodes else None, "")),
+        ("合并容差", _format_excel_cell_value(node_analysis.merge_tolerance, "m")),
         ("跳过退化线段数", str(node_analysis.degenerate_skipped)),
     ]
     stats_df = _one_row_df(stats_items)

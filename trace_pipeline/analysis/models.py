@@ -74,6 +74,7 @@ class NodeAnalysis:
     intersections: tuple[TraceIntersection, ...]
     warnings: tuple[str, ...]
     degenerate_skipped: int = 0
+    merge_tolerance: float = 1e-6
 
     @property
     def node_count(self) -> int:

@@ -92,6 +92,7 @@ class StatsService:
             window_strategy=cfg.get("window_strategy", "auto"),
             auto_density_threshold=cfg.get("auto_density_threshold", 5.0),
             tangent_window_count=cfg.get("tangent_window_count", 3),
+            min_intersections=cfg.get("min_intersections", 5),
         )
         statistics = compute_trace_statistics(trace, stats_config)
 

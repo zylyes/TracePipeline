@@ -90,6 +90,13 @@ def main() -> None:
         js_api=api,
     )
     api.set_window(window)
+
+    # 注册窗口关闭事件，优雅等待后台流水线完成，避免文件损坏
+    def on_closing():
+        api.shutdown_pipeline()
+
+    window.events.closing += on_closing
+
     icon = str(ICON_PATH.resolve()) if ICON_PATH.exists() else None
     logger.info(
         "窗口已创建，等待关闭",

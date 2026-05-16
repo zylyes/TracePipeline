@@ -413,7 +413,11 @@ class GuiApi:
 
         zip_path: Path
         if save_path:
-            zip_path = Path(save_path)
+            safe = self._safe_path(save_path, base=PROJECT_ROOT)
+            if safe is None:
+                logger.warning("generate_reports_zip 拒绝越权保存路径: %s", save_path)
+                return {"error": "保存路径越权"}
+            zip_path = safe
             zip_path.parent.mkdir(parents=True, exist_ok=True)
         else:
             REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -491,13 +495,10 @@ class GuiApi:
     _MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
     def get_image(self, path: str) -> str:
-        """读取图片文件并返回 base64 data URL。限制在输出目录内，单文件上限 5MB。"""
+        """读取图片文件并返回 base64 data URL。限制在项目根目录内，单文件上限 5MB。"""
         try:
-            out_dir = Path(self._config.get().get("output_dir", "output"))
-            if not out_dir.is_absolute():
-                out_dir = PROJECT_ROOT / out_dir
-            out_dir = out_dir.resolve()
-            p = self._safe_path(path, base=out_dir)
+            # 强制以 PROJECT_ROOT 为 base，防止通过修改 output_dir 配置绕过路径限制
+            p = self._safe_path(path, base=PROJECT_ROOT)
             if p is None or not p.exists():
                 logger.warning("get_image 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_get_image", "path": path})
                 return ""
@@ -582,6 +583,10 @@ class GuiApi:
         except Exception as exc:
             logger.warning("导出配置失败: %s → %s", folder, exc, extra={"stage": "api_export_config", "folder": folder, "error": str(exc)})
             return False
+
+    def shutdown_pipeline(self) -> None:
+        """应用关闭前调用，确保后台流水线优雅结束。"""
+        self._pipeline.shutdown(timeout=30.0)
 
     def check_webview2(self) -> dict[str, Any]:
         from backend.webview2_checker import WebView2Checker

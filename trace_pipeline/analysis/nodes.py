@@ -216,7 +216,7 @@ def recognize_trace_nodes(
         NodeAnalysis — 包含节点列表、相交事件列表和警告。
     """
     if not config.enabled or endpoints.size == 0:
-        return NodeAnalysis(nodes=(), intersections=(), warnings=(), degenerate_skipped=0)
+        return NodeAnalysis(nodes=(), intersections=(), warnings=(), degenerate_skipped=0, merge_tolerance=config.merge_tolerance)
 
     n = endpoints.shape[0]
     tol = config.merge_tolerance
@@ -255,7 +255,8 @@ def recognize_trace_nodes(
 
     if len(valid_indices) == 0:
         return NodeAnalysis(
-            nodes=(), intersections=(), warnings=(f"跳过 {degenerate_count} 条退化线段",), degenerate_skipped=degenerate_count
+            nodes=(), intersections=(), warnings=(f"跳过 {degenerate_count} 条退化线段",), degenerate_skipped=degenerate_count,
+            merge_tolerance=config.merge_tolerance,
         )
 
     # 预计算有效迹线的数据
@@ -454,4 +455,5 @@ def recognize_trace_nodes(
         intersections=tuple(intersections),
         warnings=tuple(warnings_list),
         degenerate_skipped=degenerate_count,
+        merge_tolerance=cluster_tol,
     )

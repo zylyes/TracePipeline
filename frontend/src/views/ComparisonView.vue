@@ -33,13 +33,24 @@
 
     <!-- 所有露头图片网格展示区 -->
     <div class="images-panel" v-if="allImages.length > 0">
-      <h3>处理结果图</h3>
+      <div class="images-panel-header">
+        <h3>处理结果图</h3>
+        <div class="image-filter-bar">
+          <el-radio-group v-model="imageFilter" size="small">
+            <el-radio-button label="all">全部</el-radio-button>
+            <el-radio-button label="原始迹线">原始迹线</el-radio-button>
+            <el-radio-button label="旋转迹线">旋转迹线</el-radio-button>
+            <el-radio-button label="走向玫瑰">走向玫瑰</el-radio-button>
+          </el-radio-group>
+          <el-input v-model="imageSearch" placeholder="搜索露头..." size="small" style="width:160px" clearable />
+        </div>
+      </div>
       <div class="image-grid">
         <div
           class="image-card"
-          v-for="(img, idx) in allImages"
+          v-for="img in filteredImages"
           :key="img.outcrop + img.type"
-          @click="openViewer(idx)"
+          @click="openViewer(img)"
         >
           <div class="image-label">{{ img.outcrop }} · {{ img.type }}</div>
           <div class="image-wrapper">
@@ -48,6 +59,7 @@
         </div>
       </div>
     </div>
+    <el-empty v-else-if="!loading && filteredImages.length === 0 && allImages.length > 0" description="无匹配图片" style="margin-top:16px" />
     <el-empty v-else-if="!loading" description="暂无图片" style="margin-top:16px" />
 
     <ImageViewer
@@ -59,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onActivated, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -68,17 +80,37 @@ import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from
 import VChart from 'vue-echarts'
 import ImageViewer from '@/components/ImageViewer.vue'
 import { usePipelineStore } from '@/stores/pipeline'
+import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
 import type { ComparisonRow, PipelineResult } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
 
+defineOptions({ name: 'Comparison' })
+
 const pipelineStore = usePipelineStore()
+const cacheStore = useCacheStore()
 
 const tableData = ref<ComparisonRow[]>([])
 const loading = ref(false)
 const chartMetric = ref('density')
+
+// 图片筛选
+const imageFilter = ref('all')
+const imageSearch = ref('')
+
+const filteredImages = computed(() => {
+  let list = allImages.value
+  if (imageFilter.value !== 'all') {
+    list = list.filter(img => img.type === imageFilter.value)
+  }
+  if (imageSearch.value.trim()) {
+    const kw = imageSearch.value.trim().toLowerCase()
+    list = list.filter(img => img.outcrop.toLowerCase().includes(kw))
+  }
+  return list
+})
 
 // 图片网格 — 所有露头的所有图片
 interface GridImage {
@@ -92,12 +124,16 @@ const viewerVisible = ref(false)
 const viewerImages = ref<Array<{ title: string; src: string }>>([])
 const viewerInitialIndex = ref(0)
 
-function openViewer(index: number) {
-  viewerImages.value = allImages.value.map(img => ({
-    title: `${img.outcrop} · ${img.type}`,
-    src: img.src,
+function openViewer(img: GridImage) {
+  viewerImages.value = allImages.value.map(item => ({
+    title: `${item.outcrop} · ${item.type}`,
+    src: item.src,
   }))
-  viewerInitialIndex.value = index
+  // 在全部图片中找到当前图片的索引
+  const allIndex = allImages.value.findIndex(
+    item => item.outcrop === img.outcrop && item.type === img.type
+  )
+  viewerInitialIndex.value = Math.max(0, allIndex)
   viewerVisible.value = true
 }
 
@@ -178,18 +214,35 @@ const barOption = computed(() => {
   }
 })
 
-async function loadComparison() {
+let isLoadingComparison = false
+let hasInitializedComparison = false
+
+async function loadComparison(force = false) {
+  if (isLoadingComparison) {
+    console.warn('[ComparisonView] loadComparison 被重复调用，已忽略')
+    return
+  }
+  isLoadingComparison = true
   loading.value = true
   try {
-    const files = await api.scan_files()
-    const outcrops = files.map((f: any) => f.outcrop)
+    let files = force ? null : cacheStore.getScan()
+    if (!files) {
+      files = await api.scan_files()
+      cacheStore.setScan(files!)
+    }
+    const outcrops = files!.map((f: any) => f.outcrop)
     if (outcrops.length === 0) {
       tableData.value = []
       allImages.value = []
       return
     }
-    const data = await api.get_comparison(outcrops)
-    tableData.value = data.map((d: any) => {
+
+    let data = force ? null : cacheStore.getComparison()
+    if (!data) {
+      data = await api.get_comparison(outcrops)
+      cacheStore.setComparison(data!)
+    }
+    tableData.value = data!.map((d: any) => {
       const ns = d.nodes_summary || {}
       const nodeCount = ns.node_count ?? 0
       const outcropArea = d.outcrop_area ?? 0
@@ -209,10 +262,14 @@ async function loadComparison() {
       }
     })
 
-    // 加载所有露头的所有图片
-    const results = await api.get_results()
+    // 加载所有露头的所有图片（结果列表走缓存）
+    let results = cacheStore.getResults()
+    if (!results) {
+      results = await api.get_results()
+      cacheStore.setResults(results!)
+    }
     const images: GridImage[] = []
-    for (const result of results) {
+    for (const result of results!) {
       if (result.raw_plot) {
         images.push({
           outcrop: result.outcrop,
@@ -241,10 +298,23 @@ async function loadComparison() {
     ElMessage.error('对比页加载失败')
   } finally {
     loading.value = false
+    isLoadingComparison = false
   }
 }
 
-onMounted(loadComparison)
+onMounted(() => {
+  hasInitializedComparison = true
+  loadComparison()
+})
+
+onActivated(() => {
+  if (!hasInitializedComparison) {
+    hasInitializedComparison = true
+    loadComparison()
+  } else if (!cacheStore.isComparisonValid) {
+    loadComparison()
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -286,13 +356,26 @@ onMounted(loadComparison)
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
   margin-top: 16px;
 }
-.images-panel h3 {
+.images-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e7ed;
+}
+.images-panel-header h3 {
   font-size: 15px;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
+  margin: 0;
+}
+.image-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .image-grid {
   display: grid;

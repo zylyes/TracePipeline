@@ -183,6 +183,9 @@ class GuiApi:
                 merged = {**self._config.get(), **config}
                 saved = self._config.set(merged)
                 self._sync_services_from_config(saved)
+                # 流水线启动前使缓存失效，确保使用最新数据
+                self._file.invalidate_cache()
+                self._stats.invalidate_cache()
                 result = self._pipeline.run(targets, saved)
                 duration = (time.perf_counter() - start) * 1000
                 logger.info(

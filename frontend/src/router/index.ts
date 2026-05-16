@@ -7,12 +7,12 @@ import DataView from '@/views/DataView.vue'
 import ConfigView from '@/views/ConfigView.vue'
 
 const routes = [
-  { path: '/', name: 'Intro', component: IntroView },
-  { path: '/processing', name: 'Processing', component: ProcessingView },
-  { path: '/statistics', name: 'Statistics', component: StatisticsView },
-  { path: '/comparison', name: 'Comparison', component: ComparisonView },
-  { path: '/data', name: 'Data', component: DataView },
-  { path: '/config', name: 'Config', component: ConfigView },
+  { path: '/', name: 'Intro', component: IntroView, meta: { keepAlive: true } },
+  { path: '/processing', name: 'Processing', component: ProcessingView, meta: { keepAlive: true } },
+  { path: '/statistics', name: 'Statistics', component: StatisticsView, meta: { keepAlive: true } },
+  { path: '/comparison', name: 'Comparison', component: ComparisonView, meta: { keepAlive: true } },
+  { path: '/data', name: 'Data', component: DataView, meta: { keepAlive: true } },
+  { path: '/config', name: 'Config', component: ConfigView, meta: { keepAlive: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

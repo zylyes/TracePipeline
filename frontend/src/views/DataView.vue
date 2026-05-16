@@ -33,17 +33,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import DataTable from '@/components/DataTable.vue'
 import { usePipelineStore } from '@/stores/pipeline'
+import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { formatAreaSource } from '@/utils/format'
 import type { StatsData } from '@/types'
 
+defineOptions({ name: 'Data' })
+
 const route = useRoute()
 const pipelineStore = usePipelineStore()
+const cacheStore = useCacheStore()
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
 const basicInfo = ref<StatsData | null>(null)
@@ -51,10 +55,14 @@ const basicInfo = ref<StatsData | null>(null)
 // source 默认为 output，路由参数可覆盖初始值
 const source = ref((route.query.source as string) || 'output')
 
-async function loadOutcrops() {
+async function loadOutcrops(force = false) {
   try {
-    const files = await api.scan_files()
-    outcrops.value = files.map((f: any) => f.outcrop)
+    let files = force ? null : cacheStore.getScan()
+    if (!files) {
+      files = await api.scan_files()
+      cacheStore.setScan(files!)
+    }
+    outcrops.value = files!.map((f: any) => f.outcrop)
 
     // 检查路由参数中是否有指定的露头
     const queryOutcrop = route.query.outcrop as string | undefined
@@ -74,18 +82,35 @@ async function loadOutcrops() {
   }
 }
 
-async function onOutcropChange() {
+let isLoadingData = false
+let hasInitializedData = false
+
+async function onOutcropChange(force = false) {
   if (!selectedOutcrop.value) return
+  if (isLoadingData) {
+    console.warn('[DataView] onOutcropChange 被重复调用，已忽略')
+    return
+  }
+  isLoadingData = true
   if (source.value === 'input') {
     basicInfo.value = null
+    isLoadingData = false
     return
   }
   try {
-    const stats = await api.get_stats(selectedOutcrop.value)
+    let stats = force ? null : cacheStore.getStats(selectedOutcrop.value)
+    if (!stats) {
+      stats = await api.get_stats(selectedOutcrop.value)
+      if (!stats.error) {
+        cacheStore.setStats(selectedOutcrop.value, stats)
+      }
+    }
     basicInfo.value = stats
   } catch (e) {
     console.error(e)
     ElMessage.error('加载统计数据失败')
+  } finally {
+    isLoadingData = false
   }
 }
 
@@ -97,8 +122,18 @@ function onSourceChange() {
   }
 }
 
-onMounted(async () => {
-  await loadOutcrops()
+onMounted(() => {
+  hasInitializedData = true
+  loadOutcrops()
+})
+
+onActivated(() => {
+  if (!hasInitializedData) {
+    hasInitializedData = true
+    loadOutcrops()
+  } else if (!cacheStore.isScanValid) {
+    loadOutcrops()
+  }
 })
 </script>
 

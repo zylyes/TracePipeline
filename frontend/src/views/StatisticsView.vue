@@ -8,6 +8,16 @@
       <el-button :icon="Document" @click="exportReport">导出统计报告</el-button>
     </div>
 
+    <!-- 统计警告 -->
+    <el-alert
+      v-if="stats.warning"
+      :title="stats.warning"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="stats-warning"
+    />
+
     <StatCards :stats="stats" :show-nodes="pipelineStore.lastEnableNodeRecognition" />
 
     <div class="charts-row">
@@ -66,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import StatCards from '@/components/StatCards.vue'
@@ -74,10 +84,14 @@ import HistogramChart from '@/components/HistogramChart.vue'
 import PieChart from '@/components/PieChart.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
 import { usePipelineStore } from '@/stores/pipeline'
+import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
 
+defineOptions({ name: 'Statistics' })
+
 const pipelineStore = usePipelineStore()
+const cacheStore = useCacheStore()
 
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
@@ -96,10 +110,14 @@ const viewerVisible = ref(false)
 const viewerImages = ref<Array<{ title: string; src: string }>>([])
 const viewerInitialIndex = ref(0)
 
-async function loadOutcrops() {
+async function loadOutcrops(force = false) {
   try {
-    const files = await api.scan_files()
-    outcrops.value = files.map((f: any) => f.outcrop)
+    let files = force ? null : cacheStore.getScan()
+    if (!files) {
+      files = await api.scan_files()
+      cacheStore.setScan(files!)
+    }
+    outcrops.value = files!.map((f: any) => f.outcrop)
     if (outcrops.value.length && !selectedOutcrop.value) {
       selectedOutcrop.value = outcrops.value[0]
       await loadStats()
@@ -109,24 +127,42 @@ async function loadOutcrops() {
   }
 }
 
-async function loadStats() {
+let isLoadingStats = false
+let hasInitializedStats = false
+
+async function loadStats(force = false) {
   if (!selectedOutcrop.value) return
+  if (isLoadingStats) {
+    console.warn('[StatisticsView] loadStats 被重复调用，已忽略')
+    return
+  }
+  isLoadingStats = true
   stats.value = {}
   rawImageUrl.value = ''
   rotatedImageUrl.value = ''
   roseImageUrl.value = ''
 
   try {
-    const res = await api.get_stats(selectedOutcrop.value)
+    let res = force ? null : cacheStore.getStats(selectedOutcrop.value)
+    if (!res) {
+      res = await api.get_stats(selectedOutcrop.value)
+      if (!res.error) {
+        cacheStore.setStats(selectedOutcrop.value, res)
+      }
+    }
     if (res.error) {
       ElMessage.error(res.error)
       return
     }
     stats.value = res
 
-    // 扫描 output 目录获取图片路径
-    const results = await api.get_results()
-    const match = results.find((r: any) => r.outcrop === selectedOutcrop.value)
+    // 扫描 output 目录获取图片路径（结果列表也走缓存）
+    let results = cacheStore.getResults()
+    if (!results) {
+      results = await api.get_results()
+      cacheStore.setResults(results!)
+    }
+    const match = results!.find((r: any) => r.outcrop === selectedOutcrop.value)
     if (match) {
       if (match.raw_plot) {
         rawImageUrl.value = await loadImageBase64(match.raw_plot)
@@ -140,6 +176,8 @@ async function loadStats() {
     }
   } catch (e) {
     ElMessage.error('加载统计失败')
+  } finally {
+    isLoadingStats = false
   }
 }
 
@@ -157,7 +195,20 @@ function exportReport() {
   ElMessage.info('报告导出功能开发中')
 }
 
-onMounted(loadOutcrops)
+onMounted(() => {
+  hasInitializedStats = true
+  loadOutcrops()
+})
+
+// KeepAlive 激活时，若缓存已失效则刷新数据
+onActivated(() => {
+  if (!hasInitializedStats) {
+    hasInitializedStats = true
+    loadOutcrops()
+  } else if (!cacheStore.isScanValid) {
+    loadOutcrops()
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -183,6 +234,11 @@ onMounted(loadOutcrops)
   gap: 16px;
   margin-bottom: 16px;
 }
+.stats-warning {
+  margin-bottom: 16px;
+  border-radius: var(--tp-radius-md);
+}
+
 .images-panel {
   background: #fff;
   border-radius: 8px;

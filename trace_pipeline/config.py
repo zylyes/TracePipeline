@@ -240,12 +240,82 @@ def apply_cli_overrides(cfg: dict[str, Any], **overrides: Any) -> dict[str, Any]
     return validate_config(merged)
 
 
+# ===========================================================================
+# 工作目录保障
+# ===========================================================================
+
+
+def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:
+    """确保 input / output / logs 目录及 config.json 存在，缺失则自动创建。
+
+    - 若传入 cfg，则使用 cfg 中的 input_dir / output_dir 而非默认路径。
+    - 目录缺失时自动创建（含父目录），权限异常仅记录警告，不抛出。
+    - config.json 缺失时写入默认配置（同样静默处理写入异常）。
+    """
+    base = PROJECT_ROOT
+
+    # 确定实际使用的输入/输出目录
+    if cfg:
+        input_dir = Path(cfg.get("input_dir", base / "input"))
+        output_dir = Path(cfg.get("output_dir", base / "output"))
+    else:
+        input_dir = base / "input"
+        output_dir = base / "output"
+
+    logs_dir = base / "logs"
+    config_path = DEFAULT_CONFIG_PATH
+
+    # 需要保障的目录列表
+    dirs_to_ensure: list[tuple[str, Path]] = [
+        ("input", input_dir),
+        ("output", output_dir),
+        ("logs", logs_dir),
+    ]
+
+    for name, dir_path in dirs_to_ensure:
+        if dir_path.exists():
+            continue
+        try:
+            dir_path.mkdir(parents=True, exist_ok=True)
+            logger.info("自动创建目录: %s (%s)", name, dir_path)
+        except PermissionError as exc:
+            logger.warning(
+                "无权限创建目录 %s: %s，程序将继续运行", dir_path, exc,
+                extra={"stage": "workspace_init", "dir": str(dir_path), "error_type": "PermissionError"},
+            )
+        except OSError as exc:
+            logger.warning(
+                "创建目录 %s 失败: %s，程序将继续运行", dir_path, exc,
+                extra={"stage": "workspace_init", "dir": str(dir_path), "error_type": "OSError"},
+            )
+
+    # config.json 缺失时写入默认配置
+    if not config_path.exists():
+        try:
+            config_path.write_text(
+                json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            logger.info("自动创建默认配置: %s", config_path)
+        except PermissionError as exc:
+            logger.warning(
+                "无权限写入配置文件 %s: %s，程序将继续运行", config_path, exc,
+                extra={"stage": "workspace_init", "config_path": str(config_path), "error_type": "PermissionError"},
+            )
+        except OSError as exc:
+            logger.warning(
+                "写入配置文件 %s 失败: %s，程序将继续运行", config_path, exc,
+                extra={"stage": "workspace_init", "config_path": str(config_path), "error_type": "OSError"},
+            )
+
+
 __all__ = [
     "ConfigDict",
     "DEFAULT_CONFIG",
     "DEFAULT_CONFIG_PATH",
     "PROJECT_ROOT",
     "apply_cli_overrides",
+    "ensure_workspace_dirs",
     "load_config",
     "resolve_config_base_dir",
     "resolve_io_paths",

@@ -47,6 +47,9 @@ warn_return_any = true
 source = ["trace_pipeline"]
 omit = ["tests/*"]
 
+[tool.setuptools.packages.find]
+include = ["trace_pipeline*", "backend*"]
+
 [tool.setuptools.dynamic]
 version = {attr = "trace_pipeline.__version__"}
 

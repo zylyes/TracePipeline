@@ -1,5 +1,6 @@
 """地质/几何算法子包：角度转换、端点计算、坐标变换。"""
 from .angles import (
+    azimuth_to_cartesian_deg,
     dip_to_strike,
     fold_strike_angle,
     fold_strikes_to_semicircle,
@@ -19,6 +20,7 @@ __all__ = [
     "CircleWindowDiagnostic",
     "TraceStatistics",
     "TraceStatisticsConfig",
+    "azimuth_to_cartesian_deg",
     "compute_endpoints",
     "compute_trace_statistics",
     "dip_to_strike",

@@ -42,7 +42,7 @@ function mockApi(): any {
       node_label_mode: 'type',
     }),
     reset_style_config: async () => ({ style: {} }),
-    scan_files: async () => [
+    scan_files: async (_force?: boolean) => [
       { stem: 'O76_process', outcrop: 'O76', path: 'input/O76_process', status: 'completed' },
       { stem: 'O77_process', outcrop: 'O77', path: 'input/O77_process', status: 'pending' },
     ],
@@ -76,6 +76,8 @@ function mockApi(): any {
     export_config_json: async (folder: string, content: string) => true,
     check_webview2: async () => ({ installed: true }),
     get_image: async (_path: string) => '',
+    ask_save_path: async (_defaultName?: string, _fileFilter?: string) =>
+      getApi().ask_save_path(_defaultName, _fileFilter),
   }
 }
 
@@ -85,7 +87,7 @@ export const api = {
   reset_config: () => getApi().reset_config(),
   reset_processing_config: () => getApi().reset_processing_config(),
   reset_style_config: () => getApi().reset_style_config(),
-  scan_files: () => getApi().scan_files(),
+  scan_files: (force?: boolean) => getApi().scan_files(force),
   run_pipeline: (targets: string[], config: any) => getApi().run_pipeline(targets, config),
   poll_progress: () => getApi().poll_progress(),
   get_results: () => getApi().get_results(),
@@ -97,12 +99,13 @@ export const api = {
   get_logs: (tail?: number, level?: string) => getApi().get_logs(tail, level),
   generate_report: (outcrop: string, report_type: string, fmt: string) =>
     getApi().generate_report(outcrop, report_type, fmt),
-  generate_reports_zip: (targets: string[], report_type: string, fmt: string) =>
-    getApi().generate_reports_zip(targets, report_type, fmt),
+  generate_reports_zip: (targets: string[], report_type: string, fmt: string, save_path?: string) =>
+    getApi().generate_reports_zip(targets, report_type, fmt, save_path),
   get_provenance: (outcrop: string) => getApi().get_provenance(outcrop),
   get_audit_log: (limit?: number) => getApi().get_audit_log(limit),
   open_directory: (path: string) => getApi().open_directory(path),
   browse_folder: () => getApi().browse_folder(),
+  ask_save_path: (defaultName?: string, fileFilter?: string) => getApi().ask_save_path(defaultName, fileFilter),
   export_config_json: (folder: string, content: string) => getApi().export_config_json(folder, content),
   get_image: (path: string) => getApi().get_image(path),
   check_webview2: () => getApi().check_webview2(),

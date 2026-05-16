@@ -2,7 +2,7 @@
   <div class="file-list">
     <div class="toolbar">
       <el-checkbox v-model="selectAll" @change="toggleSelectAll" size="small">全选</el-checkbox>
-      <el-button size="small" :icon="Refresh" @click="emit('refresh')">刷新</el-button>
+      <el-button size="small" :icon="Refresh" @click="emit('refresh', true)">刷新</el-button>
       <span v-if="files.length === 0" class="empty-hint">暂无迹线表文件，请检查 input 目录</span>
     </div>
     <el-table
@@ -49,7 +49,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'refresh'): void
+  (e: 'refresh', force?: boolean): void
   (e: 'select', val: TraceFile[]): void
   (e: 'preview', row: TraceFile): void
   (e: 'open-image', row: TraceFile): void

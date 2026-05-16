@@ -171,8 +171,11 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 文件
     # ------------------------------------------------------------------
-    def scan_files(self) -> list[dict[str, Any]]:
+    def scan_files(self, force = False) -> list[dict[str, Any]]:
         start = time.perf_counter()
+        # 强制刷新时先使后端缓存失效，确保返回最新数据
+        if force:
+            self._file.invalidate_cache()
         results = self._file.scan()
         duration = (time.perf_counter() - start) * 1000
         pending = sum(1 for r in results if r.get("status") == "pending")
@@ -386,7 +389,7 @@ class GuiApi:
         finally:
             self._report_running = False
 
-    def generate_reports_zip(self, targets: list[str], report_type: str, fmt: str) -> dict[str, Any]:
+    def generate_reports_zip(self, targets: list[str], report_type: str, fmt: str, save_path: str | None = None) -> dict[str, Any]:
         import zipfile
         from datetime import datetime
 
@@ -408,9 +411,13 @@ class GuiApi:
         if not files:
             return {"error": "没有生成任何报告" + ("; ".join(errors) if errors else "")}
 
-        REPORT_DIR.mkdir(parents=True, exist_ok=True)
-        zip_name = f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
-        zip_path = REPORT_DIR / zip_name
+        zip_path: Path
+        if save_path:
+            zip_path = Path(save_path)
+            zip_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            REPORT_DIR.mkdir(parents=True, exist_ok=True)
+            zip_path = REPORT_DIR / f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
         try:
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
                 for f in files:
@@ -507,6 +514,32 @@ class GuiApi:
             return f"data:{mime};base64,{b64}"
         except Exception as exc:
             logger.warning("读取图片失败: %s → %s", path, exc, extra={"stage": "api_get_image", "path": path, "error": str(exc)})
+            return ""
+
+    def ask_save_path(self, default_name: str = "reports.zip", file_filter: str = "ZIP 文件 (*.zip)") -> str:
+        """打开系统另存为对话框，返回用户选择的保存路径（包含文件名）。用户取消时返回空字符串。"""
+        if self._window is None:
+            logger.warning("ask_save_path 失败: window 未初始化", extra={"stage": "api_ask_save_path"})
+            return ""
+        try:
+            result = self._window.create_file_dialog(
+                webview.FileDialog.SAVE,
+                allow_multiple=False,
+                save_filename=default_name,
+                file_types=(file_filter,) if file_filter else (),
+            )
+            if isinstance(result, list) and result:
+                chosen = str(result[0])
+                logger.info("ask_save_path → %s", chosen, extra={"stage": "api_ask_save_path", "selected": chosen})
+                return chosen
+            if isinstance(result, str):
+                chosen = str(result)
+                logger.info("ask_save_path → %s", chosen, extra={"stage": "api_ask_save_path", "selected": chosen})
+                return chosen
+            logger.debug("ask_save_path → 用户取消选择", extra={"stage": "api_ask_save_path"})
+            return ""
+        except Exception as exc:
+            logger.warning("ask_save_path 失败: %s", exc, extra={"stage": "api_ask_save_path", "error": str(exc)})
             return ""
 
     def browse_folder(self) -> str:

@@ -188,9 +188,13 @@ const modalImages = ref<Array<{ key: string; title: string; src: string }>>([])
 
 async function loadFiles(force = false) {
   try {
+    // 强制刷新时先清除缓存，确保获取最新数据
+    if (force) {
+      cacheStore.invalidateScan()
+    }
     let data = force ? null : cacheStore.getScan()
     if (!data) {
-      data = await api.scan_files()
+      data = await api.scan_files(force)
       cacheStore.setScan(data!)
     }
     files.value = data!.map((f: any) => ({

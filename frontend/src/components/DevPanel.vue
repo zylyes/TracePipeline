@@ -177,10 +177,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api/pywebview'
 import { useConfigStore } from '@/stores/config'
+import { useCacheStore } from '@/stores/cache'
 
 const emit = defineEmits<{
   (e: 'saved'): void
@@ -188,6 +189,7 @@ const emit = defineEmits<{
 }>()
 
 const configStore = useConfigStore()
+const cacheStore = useCacheStore()
 
 const activeNames = ref<string[]>([])
 const reportScope = ref('selected')
@@ -293,11 +295,11 @@ async function resetDevConfig() {
   }
 }
 
-async function loadOutcrops() {
-  if (loaded.value.report) return
+async function loadOutcrops(force = false) {
+  if (loaded.value.report && !force) return
   loading.value.report = true
   try {
-    const files = await api.scan_files()
+    const files = await api.scan_files(force)
     outcropOptions.value = files
       .filter((f: any) => f.status === 'completed')
       .map((f: any) => f.outcrop)
@@ -325,13 +327,23 @@ async function generateReport() {
     }
   }
 
+  // 让用户选择保存位置
+  const defaultName = targets.length === 1
+    ? `report_${targets[0]}.zip`
+    : `reports_${new Date().toISOString().slice(0, 10)}.zip`
+  const savePath = await api.ask_save_path(defaultName, 'ZIP 文件 (*.zip)')
+  if (!savePath) {
+    // 用户取消选择
+    return
+  }
+
   reportLoading.value = true
   try {
-    const res = await api.generate_reports_zip(targets, reportType.value, reportFmt.value)
+    const res = await api.generate_reports_zip(targets, reportType.value, reportFmt.value, savePath)
     if (res.error) {
       ElMessage.error(res.error)
     } else if (res.zip_path) {
-      ElMessage.success(`批量报告已打包: ${res.zip_path}`)
+      ElMessage.success(`报告已保存: ${res.zip_path}`)
     }
   } catch (e) {
     ElMessage.error('打包报告失败')
@@ -355,13 +367,21 @@ async function loadAudit() {
 // 监听折叠面板展开，实现懒加载
 function onCollapseChange(active: string | string[]) {
   const names = Array.isArray(active) ? active : [active]
-  if (names.includes('report') && !loaded.value.report) {
-    loadOutcrops()
+  if (names.includes('report')) {
+    // 若缓存已失效（如处理完成后），强制重新加载
+    loadOutcrops(!cacheStore.isScanValid)
   }
   if (names.includes('backend-log') && !loaded.value.backendLog) {
     loadBackendLogs()
   }
 }
+
+// KeepAlive 激活时，若扫描缓存已失效则自动刷新报告露头列表
+onActivated(() => {
+  if (!cacheStore.isScanValid) {
+    loadOutcrops(true)
+  }
+})
 </script>
 
 <style scoped lang="scss">

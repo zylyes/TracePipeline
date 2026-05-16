@@ -88,12 +88,12 @@ class ReportService:
             return {"error": str(exc)}
 
         if fmt in ("docx", "both"):
-            docx_path = self._gen_docx(outcrop, trace, statistics, report_type)
+            docx_path = self._gen_docx(outcrop, trace, statistics, report_type, config)
             results["docx"] = docx_path
             if docx_path:
                 logger.info("DOCX 报告生成: %s", docx_path, extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_path})
         if fmt in ("pdf", "both"):
-            pdf_path = self._gen_pdf(outcrop, trace, statistics, report_type)
+            pdf_path = self._gen_pdf(outcrop, trace, statistics, report_type, config)
             results["pdf"] = pdf_path
             if pdf_path:
                 logger.info("PDF 报告生成: %s", pdf_path, extra={"stage": "report_pdf", "outcrop": outcrop, "path": pdf_path})
@@ -117,7 +117,7 @@ class ReportService:
     # ------------------------------------------------------------------
     # Word
     # ------------------------------------------------------------------
-    def _gen_docx(self, outcrop: str, trace, statistics, report_type: str) -> str:
+    def _gen_docx(self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]) -> str:
         try:
             from docx import Document
             from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -176,6 +176,14 @@ class ReportService:
                 _add_para(f"线密度 P10: {statistics.p10:.4f} m⁻¹")
                 _add_para(f"面密度 P20: {statistics.p20:.4f} m⁻²")
                 _add_para(f"长度密度 P21: {statistics.p21:.4f} m⁻¹")
+                _add_para(f"测线长度: {statistics.scanline_length:.4f} m")
+                _add_para(f"露头面积: {statistics.outcrop_area:.4f} m² (来源: {statistics.outcrop_area_source or 'unknown'})")
+                _add_para(f"圆窗策略: {statistics.window_strategy or 'auto'}")
+                _add_para(f"I 型迹线数: {statistics.type_i_count}")
+                _add_para(f"II 型迹线数: {statistics.type_ii_count}")
+                _add_para(f"III 型迹线数: {statistics.type_iii_count}")
+                if statistics.window_validation_warning:
+                    _add_para(f"警告: {statistics.window_validation_warning}")
 
             if report_type in ("full", "plots"):
                 out_dir = Path(config.get("output_dir", "output"))
@@ -184,7 +192,8 @@ class ReportService:
                 out_dir = out_dir.resolve()
                 for img_name in [
                     f"{outcrop}_raw(n={trace.count}).png",
-                    f"{outcrop}_rose(bin=10.0).png",
+                    f"{outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
+                    f"{outcrop}_rose(bin={config.get('rose_bin_width', 10.0)}).png",
                 ]:
                     img_path = out_dir / img_name
                     if img_path.exists():
@@ -200,7 +209,7 @@ class ReportService:
     # ------------------------------------------------------------------
     # PDF
     # ------------------------------------------------------------------
-    def _gen_pdf(self, outcrop: str, trace, statistics, report_type: str) -> str:
+    def _gen_pdf(self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]) -> str:
         try:
             from reportlab.lib.enums import TA_CENTER
             from reportlab.lib.pagesizes import A4
@@ -256,6 +265,14 @@ class ReportService:
                 story.append(Paragraph(f"线密度 P10: {statistics.p10:.4f} m⁻¹", body_style))
                 story.append(Paragraph(f"面密度 P20: {statistics.p20:.4f} m⁻²", body_style))
                 story.append(Paragraph(f"长度密度 P21: {statistics.p21:.4f} m⁻¹", body_style))
+                story.append(Paragraph(f"测线长度: {statistics.scanline_length:.4f} m", body_style))
+                story.append(Paragraph(f"露头面积: {statistics.outcrop_area:.4f} m² (来源: {statistics.outcrop_area_source or 'unknown'})", body_style))
+                story.append(Paragraph(f"圆窗策略: {statistics.window_strategy or 'auto'}", body_style))
+                story.append(Paragraph(f"I 型迹线数: {statistics.type_i_count}", body_style))
+                story.append(Paragraph(f"II 型迹线数: {statistics.type_ii_count}", body_style))
+                story.append(Paragraph(f"III 型迹线数: {statistics.type_iii_count}", body_style))
+                if statistics.window_validation_warning:
+                    story.append(Paragraph(f"警告: {statistics.window_validation_warning}", body_style))
                 story.append(Spacer(1, 12))
 
             if report_type in ("full", "plots"):
@@ -265,7 +282,8 @@ class ReportService:
                 out_dir = out_dir.resolve()
                 for img_name in [
                     f"{outcrop}_raw(n={trace.count}).png",
-                    f"{outcrop}_rose(bin=10.0).png",
+                    f"{outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
+                    f"{outcrop}_rose(bin={config.get('rose_bin_width', 10.0)}).png",
                 ]:
                     img_path = out_dir / img_name
                     if img_path.exists():

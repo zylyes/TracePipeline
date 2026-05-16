@@ -5,7 +5,7 @@
       <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="loadStats">
         <el-option v-for="o in outcrops" :key="o" :label="o" :value="o" />
       </el-select>
-      <el-button :icon="Document" @click="exportReport">导出统计报告</el-button>
+      <el-button :icon="Document" :loading="exportLoading" @click="exportReport">导出统计报告</el-button>
     </div>
 
     <!-- 统计警告 -->
@@ -191,8 +191,34 @@ function openViewer(index: number) {
   viewerVisible.value = true
 }
 
-function exportReport() {
-  ElMessage.info('报告导出功能开发中')
+const exportLoading = ref(false)
+
+async function exportReport() {
+  if (!selectedOutcrop.value) {
+    ElMessage.warning('请先选择一个露头')
+    return
+  }
+  exportLoading.value = true
+  try {
+    const res = await api.generate_report(selectedOutcrop.value, 'full', 'both')
+    if (res.error) {
+      ElMessage.error(res.error)
+      return
+    }
+    const paths: string[] = []
+    if (res.docx) paths.push(res.docx)
+    if (res.pdf) paths.push(res.pdf)
+    if (paths.length) {
+      ElMessage.success(`统计报告已导出: ${paths.join(', ')}`)
+    } else {
+      ElMessage.warning('未生成任何报告文件')
+    }
+  } catch (e) {
+    ElMessage.error('导出统计报告失败')
+    console.error(e)
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 onMounted(() => {

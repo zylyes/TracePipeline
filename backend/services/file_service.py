@@ -20,7 +20,7 @@ class FileService:
         self.input_dir = self._resolve(input_dir)
         self._output_dir = self._resolve("output")
         self._scan_cache: tuple[list[dict[str, Any]], float] | None = None
-        self._scan_ttl = 30.0  # 30秒缓存
+        self._scan_ttl = 3.0  # 3秒缓存（避免短时间内重复扫描，但用户手动刷新能立即生效）
         logger.info("FileService 已初始化（带扫描缓存）", extra={"stage": "file_service_init", "scan_ttl": self._scan_ttl})
 
     def _resolve(self, p: str) -> Path:
@@ -84,3 +84,4 @@ class FileService:
     def set_dirs(self, input_dir: str, output_dir: str) -> None:
         self.input_dir = self._resolve(input_dir)
         self._output_dir = self._resolve(output_dir)
+        self.invalidate_cache()

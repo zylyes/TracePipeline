@@ -77,6 +77,14 @@ function mockApi(): any {
     export_config_json: async (folder: string, content: string) => true,
     check_webview2: async () => ({ installed: true }),
     get_image: async (_path: string) => '',
+    window_minimize: async () => true,
+    window_maximize: async () => true,
+    window_resize: async (_w: number, _h: number) => true,
+    window_close: async () => true,
+    window_move_by: async (_dx: number, _dy: number) => true,
+    window_position: async () => ({ x: 0, y: 0 }),
+    window_move_to: async (_x: number, _y: number) => true,
+    window_is_maximized: async () => false,
   }
 }
 
@@ -108,4 +116,12 @@ export const api = {
   export_config_json: (folder: string, content: string) => getApi().export_config_json(folder, content),
   get_image: (path: string) => getApi().get_image(path),
   check_webview2: () => getApi().check_webview2(),
+  window_minimize: () => getApi().window_minimize(),
+  window_maximize: () => getApi().window_maximize(),
+  window_resize: (w: number, h: number) => getApi().window_resize(w, h),
+  window_close: () => getApi().window_close(),
+  window_move_by: (dx: number, dy: number) => getApi().window_move_by(dx, dy),
+  window_position: () => getApi().window_position(),
+  window_move_to: (x: number, y: number) => getApi().window_move_to(x, y),
+  window_is_maximized: () => getApi().window_is_maximized(),
 }

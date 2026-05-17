@@ -2,8 +2,11 @@
   <div class="intro-view">
     <!-- Hero 区域 -->
     <div class="hero-section">
+      <div class="hero-texture"></div>
       <div class="hero-content">
-        <GeoIcon class="hero-logo" :size="44" color="#B85C38" />
+        <div class="hero-logo-wrap">
+          <GeoIcon class="hero-logo" :size="48" color="#B85C38" />
+        </div>
         <h1 class="hero-title">TracePipeline</h1>
         <p class="hero-subtitle">节理迹线数据处理与可视化系统</p>
         <p class="hero-desc">
@@ -18,33 +21,39 @@
       </div>
     </div>
 
-    <!-- 功能模块 — 单行横向 -->
+    <!-- 功能模块 -->
     <div class="modules-section">
       <div class="modules-row">
         <div v-for="mod in modules" :key="mod.path" class="module-card" @click="$router.push(mod.path)">
           <div class="module-accent" :style="{ background: mod.color }" />
           <div class="module-body">
-            <component :is="mod.icon" :size="36" :color="mod.color" class="module-icon" />
+            <component :is="mod.icon" :size="32" :color="mod.color" class="module-icon" />
             <h3 class="module-name">{{ mod.name }}</h3>
             <p class="module-desc">{{ mod.desc }}</p>
+          </div>
+          <div class="module-arrow">
+            <ArrowRight :size="14" />
           </div>
         </div>
       </div>
     </div>
 
     <!-- 快速开始 -->
-    <div class="quickstart-section">
+    <div class="quickstart-section tp-card">
       <h2 class="section-title">快速开始</h2>
       <div class="steps">
         <div v-for="(step, i) in steps" :key="i" class="step-group">
           <div class="step-item">
-            <span class="step-number">{{ i + 1 }}</span>
+            <div class="step-number">{{ i + 1 }}</div>
             <div class="step-content">
               <h4>{{ step.title }}</h4>
               <p>{{ step.desc }}</p>
             </div>
           </div>
-          <span v-if="i < steps.length - 1" class="step-arrow"><ArrowRight :size="18" /></span>
+          <div v-if="i < steps.length - 1" class="step-connector">
+            <div class="step-line"></div>
+            <ArrowRight :size="14" class="step-arrow-icon" />
+          </div>
         </div>
       </div>
     </div>
@@ -119,77 +128,104 @@ const steps = [
 
 <style scoped lang="scss">
 .intro-view {
-  padding: 16px 24px;
+  padding: var(--tp-space-5) var(--tp-space-6);
   height: 100%;
   overflow-y: auto;
-  background: #f8f9fa;
+  background: var(--tp-bg-base);
 }
 
 /* ── Hero ───────────────────────────────────────────── */
 .hero-section {
-  background: linear-gradient(135deg, #1a2332 0%, #2c3e50 100%);
-  border-radius: 10px;
-  padding: 28px 32px;
+  position: relative;
+  background: linear-gradient(145deg, #1a2332 0%, #2c3e50 60%, #1a2332 100%);
+  border-radius: var(--tp-radius-xl);
+  padding: 36px 40px;
   text-align: center;
   color: #fff;
-  margin-bottom: 20px;
+  margin-bottom: var(--tp-space-5);
+  overflow: visible;
+}
+
+.hero-texture {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(184, 92, 56, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(46, 125, 90, 0.06) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 .hero-content {
-  max-width: 560px;
+  position: relative;
+  z-index: 1;
+  max-width: 580px;
   margin: 0 auto;
 }
 
+.hero-logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--tp-radius-xl);
+  background: rgba(184, 92, 56, 0.1);
+  border: 1px solid rgba(184, 92, 56, 0.2);
+  margin-bottom: 16px;
+}
+
 .hero-logo {
-  margin-bottom: 10px;
   display: block;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .hero-title {
-  font-size: 30px;
+  font-family: var(--tp-font-heading);
+  font-size: 32px;
   font-weight: 700;
-  margin: 0 0 6px;
-  font-family: var(--tp-font-stack);
-  letter-spacing: 1px;
+  margin: 0 0 8px;
+  color: #fff;
 }
 
 .hero-subtitle {
+  font-family: var(--tp-font-body);
   font-size: 15px;
   font-weight: 400;
   opacity: 0.88;
-  margin: 0 0 10px;
-  color: #e0e0e0;
+  margin: 0 0 12px;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .hero-desc {
-  font-size: 13px;
-  line-height: 1.6;
-  opacity: 0.7;
-  margin: 0;
-  color: #c0c4cc;
+  font-family: var(--tp-font-body);
+  font-size: 14px;
+  line-height: var(--tp-leading-relaxed);
+  opacity: 0.65;
+  margin: 0 auto;
+  max-width: 480px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .hero-badges {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 18px;
 }
 
 .badge {
-  background: rgba(255, 255, 255, 0.15);
-  color: #e0e0e0;
-  padding: 4px 12px;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+  padding: 4px 14px;
+  border-radius: var(--tp-radius-full);
   font-size: 11px;
   font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--tp-font-data);
 }
 
-/* ── 功能模块（单行横向） ──────────────────────────── */
+/* ── 功能模块 ──────────────────────────── */
 .modules-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--tp-space-5);
 }
 
 .modules-row {
@@ -200,31 +236,32 @@ const steps = [
 .module-card {
   flex: 1;
   min-width: 0;
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  background: var(--tp-bg-elevated);
+  border: 1px solid var(--tp-border-light);
+  border-radius: var(--tp-radius-lg);
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all var(--tp-duration-slow) var(--tp-easing-expo);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  position: relative;
+  box-shadow: var(--tp-shadow-sm);
 }
 
 .module-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  border-color: #c8cdd3;
+  box-shadow: var(--tp-shadow-lg), 0 0 0 1px rgba(184, 92, 56, 0.1);
 }
 
 .module-accent {
   height: 3px;
   width: 100%;
   flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .module-body {
-  padding: 14px 12px 16px;
+  padding: 18px 14px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -233,86 +270,114 @@ const steps = [
 }
 
 .module-icon {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .module-name {
-  font-size: 14px;
+  font-family: var(--tp-font-heading);
+  font-size: 15px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 4px;
-  font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
+  color: var(--tp-text-primary);
+  margin: 0 0 6px;
 }
 
 .module-desc {
-  font-size: 12px;
-  color: #7f8c8d;
-  line-height: 1.5;
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+  color: var(--tp-text-secondary);
+  line-height: 1.55;
   margin: 0;
+}
+
+.module-arrow {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--tp-bg-base);
+  color: var(--tp-text-muted);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all var(--tp-duration-normal);
+}
+
+.module-card:hover .module-arrow {
+  visibility: visible;
+  opacity: 1;
+  color: var(--tp-brand-accent);
 }
 
 /* ── 快速开始 ──────────────────────────────────────── */
 .quickstart-section {
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 10px;
-  padding: 20px 28px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: var(--tp-space-5) var(--tp-space-6);
+  margin-bottom: var(--tp-space-5);
 }
 
 .section-title {
-  font-size: 16px;
+  font-family: var(--tp-font-heading);
+  font-size: 17px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 16px;
+  color: var(--tp-text-primary);
+  margin: 0 0 var(--tp-space-5);
   text-align: center;
-  font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
 }
 
 .steps {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
-  gap: 12px;
+  gap: 0;
   flex-wrap: wrap;
 }
 
 .step-group {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
   flex: 1;
   min-width: 220px;
-  max-width: 300px;
+  max-width: 280px;
 }
 
 .step-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   flex: 1;
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 12px 14px;
-  border: 1px solid #ebeef5;
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-lg);
+  padding: 16px;
+  border: 1px solid var(--tp-border-light);
+  transition: all var(--tp-duration-normal);
+}
+
+.step-item:hover {
+  background: var(--tp-bg-hover);
+  box-shadow: var(--tp-shadow-sm);
 }
 
 .step-number {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #B85C38;
+  background: var(--tp-brand-accent);
   color: #fff;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-family: 'Times New Roman', serif;
-  margin-top: 2px;
+  font-family: var(--tp-font-data);
+  margin-top: 1px;
+  box-shadow: 0 2px 8px rgba(184, 92, 56, 0.25);
 }
 
 .step-content {
@@ -321,33 +386,243 @@ const steps = [
 }
 
 .step-content h4 {
-  font-size: 14px;
+  font-family: var(--tp-font-heading);
+  font-size: 15px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 4px;
-  font-family: 'SimHei', 'Microsoft YaHei', var(--tp-font-stack);
+  color: var(--tp-text-primary);
+  margin: 0 0 5px;
 }
 
 .step-content p {
-  font-size: 12px;
-  color: #7f8c8d;
-  line-height: 1.5;
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+  color: var(--tp-text-secondary);
+  line-height: 1.55;
   margin: 0;
 }
 
-.step-arrow {
-  color: #c0c4cc;
-  flex: 0 0 auto;
+.step-connector {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  margin-top: 18px;
+  justify-content: center;
+  width: 40px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.step-line {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--tp-border) 0%, var(--tp-brand-accent-light) 50%, var(--tp-border) 100%);
+  opacity: 0.5;
+}
+
+.step-arrow-icon {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(50% + 0.5px));
+  color: var(--tp-brand-accent);
+  opacity: 0.5;
 }
 
 /* ── 底部 ──────────────────────────────────────────── */
 .intro-footer {
   text-align: center;
-  padding: 8px 0;
-  color: #909399;
+  padding: var(--tp-space-3) 0;
+  color: var(--tp-text-muted);
   font-size: 12px;
+  font-family: var(--tp-font-body);
+}
+
+/* ── 响应式适配 ──────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .modules-row {
+    flex-wrap: wrap;
+  }
+
+  .module-card {
+    flex: 1 1 calc(33.333% - 14px);
+    min-width: 160px;
+  }
+
+  .step-group {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .intro-view {
+    padding: var(--tp-space-4) var(--tp-space-4);
+  }
+
+  .hero-section {
+    padding: 24px 20px;
+  }
+
+  .hero-title {
+    font-size: 26px;
+  }
+
+  .hero-subtitle {
+    font-size: 14px;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+  }
+
+  .hero-logo-wrap {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 12px;
+  }
+
+  .modules-row {
+    gap: 10px;
+  }
+
+  .module-card {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 140px;
+  }
+
+  .module-body {
+    padding: 14px 10px 10px;
+  }
+
+  .module-name {
+    font-size: 14px;
+  }
+
+  .module-desc {
+    font-size: 12px;
+  }
+
+  .quickstart-section {
+    padding: var(--tp-space-4) var(--tp-space-4);
+  }
+
+  .steps {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .step-group {
+    flex: none;
+    min-width: 0;
+    max-width: none;
+    flex-direction: column;
+  }
+
+  .step-connector {
+    width: auto;
+    height: 28px;
+    flex-direction: row;
+    flex-shrink: 0;
+  }
+
+  .step-line {
+    width: 1px;
+    height: 100%;
+  }
+
+  .step-arrow-icon {
+    position: absolute;
+    right: 50%;
+    top: 50%;
+    transform: translate(calc(50% + 0.5px), -50%) rotate(90deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .intro-view {
+    padding: var(--tp-space-3) var(--tp-space-3);
+  }
+
+  .hero-section {
+    padding: 18px 14px;
+    border-radius: var(--tp-radius-lg);
+  }
+
+  .hero-title {
+    font-size: 22px;
+  }
+
+  .hero-subtitle {
+    font-size: 13px;
+  }
+
+  .hero-desc {
+    font-size: 12px;
+  }
+
+  .hero-badges {
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .badge {
+    padding: 3px 10px;
+    font-size: 10px;
+  }
+
+  .modules-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .module-card {
+    flex: none;
+    min-width: 0;
+  }
+
+  .module-body {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+
+  .module-icon {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .module-name {
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .module-desc {
+    font-size: 12px;
+  }
+
+  .module-arrow {
+    bottom: 50%;
+    right: 10px;
+    transform: translateY(50%);
+  }
+
+  .step-item {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .step-content h4 {
+    font-size: 14px;
+  }
+
+  .step-content p {
+    font-size: 12px;
+  }
+
+  .section-title {
+    font-size: 15px;
+  }
 }
 </style>

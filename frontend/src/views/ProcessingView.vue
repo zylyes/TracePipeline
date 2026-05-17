@@ -3,10 +3,15 @@
     <h2 class="page-title">处理</h2>
 
     <!-- 处理参数面板 -->
-    <div class="params-panel">
+    <div class="params-panel tp-card">
       <div class="params-header">
-        <h3>处理参数</h3>
-        <el-button type="primary" size="small" :icon="Document" @click="saveParams">保存参数</el-button>
+        <div class="params-header-left">
+          <div class="params-icon">
+            <el-icon :size="16"><Setting /></el-icon>
+          </div>
+          <h3>处理参数</h3>
+        </div>
+        <el-button type="primary" size="small" :icon="Document" @click="saveParams" class="save-btn">保存参数</el-button>
       </div>
       <el-form :model="params" inline size="small">
         <el-form-item label="导出玫瑰图">
@@ -56,10 +61,18 @@
     />
 
     <!-- 处理过程栏 -->
-    <div class="process-panel">
-      <h3>处理过程</h3>
+    <div class="process-panel tp-card">
+      <div class="process-header">
+        <div class="process-header-left">
+          <div class="process-icon">
+            <el-icon :size="16"><List /></el-icon>
+          </div>
+          <h3>处理过程</h3>
+        </div>
+        <span v-if="processingLogs.length > 0" class="log-count">{{ processingLogs.length }} 条记录</span>
+      </div>
       <div v-if="currentStatus" class="current-status">
-        <el-icon><Loading /></el-icon>
+        <el-icon class="tp-rotate"><Loading /></el-icon>
         <span>{{ currentStatus }}</span>
       </div>
       <div class="log-list" ref="logListRef">
@@ -69,7 +82,8 @@
           class="log-item"
           :class="`log-${log.type}`"
         >
-          <span class="log-time">[{{ log.time }}]</span>
+          <div class="log-stripe" :class="`stripe-${log.type}`"></div>
+          <span class="log-time tp-time">[{{ log.time }}]</span>
           <span class="log-message">{{ log.message }}</span>
         </div>
         <el-empty v-if="processingLogs.length === 0" description="暂无处理记录" />
@@ -89,7 +103,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, Document } from '@element-plus/icons-vue'
+import { Loading, Document, Setting, List } from '@element-plus/icons-vue'
 import FileList from '@/components/FileList.vue'
 import ProgressPanel from '@/components/ProgressPanel.vue'
 import ImageModal from '@/components/ImageModal.vue'
@@ -478,134 +492,190 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .processing-view {
-  padding: 24px;
+  padding: var(--tp-space-5) var(--tp-space-6);
   height: 100%;
   overflow-y: auto;
 }
+
 .page-title {
-  font-size: 20px;
+  font-family: var(--tp-font-heading);
+  font-size: 22px;
   font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 16px;
+  color: var(--tp-text-primary);
+  margin-bottom: var(--tp-space-4);
 }
+
+/* ── 参数面板 ── */
 .params-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
-  margin-bottom: 16px;
+  padding: var(--tp-space-4) var(--tp-space-5);
+  margin-bottom: var(--tp-space-4);
 }
-.params-panel h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
-  flex: 1;
-}
+
 .params-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--tp-space-4);
+  padding-bottom: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
 }
-.process-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
-  margin-top: 16px;
+
+.params-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.process-panel h3 {
-  font-size: 15px;
+
+.params-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--tp-radius-sm);
+  background: var(--tp-info-bg);
+  color: var(--tp-info);
+}
+
+.params-panel h3 {
+  font-family: var(--tp-font-heading);
+  font-size: 16px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
+  color: var(--tp-text-primary);
+  margin: 0;
 }
+
+.save-btn {
+  font-family: var(--tp-font-heading);
+}
+
+/* ── 处理过程面板 ── */
+.process-panel {
+  padding: var(--tp-space-4) var(--tp-space-5);
+  margin-top: var(--tp-space-4);
+}
+
+.process-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--tp-space-3);
+  padding-bottom: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
+}
+
+.process-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.process-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--tp-radius-sm);
+  background: var(--tp-success-bg);
+  color: var(--tp-success);
+}
+
+.process-panel h3 {
+  font-family: var(--tp-font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-text-primary);
+  margin: 0;
+}
+
+.log-count {
+  font-size: 12px;
+  color: var(--tp-text-muted);
+  font-family: var(--tp-font-data);
+}
+
 .current-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f0f9ff;
-  border-radius: 4px;
-  margin-bottom: 12px;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--tp-info-light);
+  border-radius: var(--tp-radius-md);
+  margin-bottom: var(--tp-space-3);
   font-size: 13px;
-  color: #409eff;
+  color: var(--tp-info);
+  border: 1px solid rgba(61, 90, 128, 0.08);
 }
+
 .current-status .el-icon {
-  animation: rotating 2s linear infinite;
+  color: var(--tp-info);
 }
-@keyframes rotating {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+
 .log-list {
-  max-height: 300px;
+  max-height: 320px;
   overflow-y: auto;
   font-size: 13px;
-  line-height: 1.8;
+  line-height: 1.7;
 }
+
 .log-item {
-  padding: 4px 8px;
-  border-radius: 4px;
+  position: relative;
+  padding: 6px 10px 6px 14px;
+  border-radius: var(--tp-radius-sm);
   margin-bottom: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow: hidden;
 }
+
 .log-item:last-child {
   margin-bottom: 0;
 }
+
+.log-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+}
+
+.stripe-info { background: var(--tp-text-muted); }
+.stripe-success { background: var(--tp-success); }
+.stripe-error { background: var(--tp-danger); }
+
 .log-time {
-  color: #909399;
-  margin-right: 8px;
-  font-family: monospace;
-}
-.log-info {
-  background: #f4f4f5;
-  color: #606266;
-}
-.log-success {
-  background: #f0f9eb;
-  color: #67c23a;
-}
-.log-error {
-  background: #fef0f0;
-  color: #f56c6c;
-}
-.backend-log-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
-  margin-top: 16px;
-}
-.backend-log-panel :deep(.el-collapse-item__header) {
-  font-size: 15px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-.log-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  align-items: center;
-}
-.backend-log-content {
-  max-height: 400px;
-  overflow-y: auto;
-  background: #f5f7fa;
-  border-radius: 4px;
-  padding: 12px;
-}
-.backend-log-content pre {
-  margin: 0;
-  font-family: 'Courier New', Consolas, monospace;
+  color: var(--tp-text-muted);
+  margin-right: 4px;
+  flex-shrink: 0;
   font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: #303133;
+}
+
+.log-message {
+  color: var(--tp-text-secondary);
+  word-break: break-word;
+}
+
+.log-info {
+  background: var(--tp-bg-sunken);
+}
+
+.log-success {
+  background: var(--tp-success-light);
+}
+
+.log-success .log-message {
+  color: var(--tp-success);
+}
+
+.log-error {
+  background: var(--tp-danger-light);
+}
+
+.log-error .log-message {
+  color: var(--tp-danger);
 }
 </style>

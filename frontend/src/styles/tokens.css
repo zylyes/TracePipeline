@@ -1,87 +1,257 @@
+/* ================================================
+   TracePipeline — 设计 Tokens 系统
+   专业稳重 + 精致细节 现代化设计语言
+   ================================================ */
+
+/* ── 全局重置：消除默认边距与边框盒 ── */
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 :root {
-  /* ── 色彩系统 ── */
+  /* ── 核心品牌色 ── */
+  --tp-brand-primary: #1A2332;
+  --tp-brand-accent: #B85C38;
+  --tp-brand-accent-light: #d4785a;
+  --tp-brand-accent-dark: #8f4528;
+
+  /* ── 表面色系统（Surface） ── */
+  --tp-bg-base: #eef0f3;
   --tp-bg-primary: #f8f9fa;
+  --tp-bg-elevated: #ffffff;
+  --tp-bg-sunken: #f0f2f5;
   --tp-bg-sidebar: #1A2332;
+  --tp-bg-sidebar-hover: #222d3a;
+  --tp-bg-sidebar-active: #253544;
   --tp-bg-card: #ffffff;
   --tp-bg-hover: #f5f7fa;
+  --tp-bg-overlay: rgba(26, 35, 50, 0.6);
 
-  --tp-accent: #B85C38;
-  --tp-accent-light: #d4785a;
-  --tp-accent-dark: #8f4528;
+  /* ── 文字色系统 ── */
+  --tp-text-primary: #1a1a2e;
+  --tp-text-secondary: #5a5a6e;
+  --tp-text-tertiary: #8a8a9a;
+  --tp-text-muted: #a0a0b0;
+  --tp-text-inverse: #ffffff;
+  --tp-text-on-accent: #ffffff;
 
+  /* ── 语义色 ── */
   --tp-success: #2E7D5A;
   --tp-success-light: #e8f5e9;
+  --tp-success-bg: rgba(46, 125, 90, 0.08);
   --tp-warning: #E6A23C;
   --tp-warning-light: #fdf6ec;
-  --tp-danger: #F56C6C;
+  --tp-warning-bg: rgba(230, 162, 60, 0.08);
+  --tp-danger: #c0392b;
   --tp-danger-light: #fef0f0;
-  --tp-info: #409EFF;
+  --tp-danger-bg: rgba(192, 57, 43, 0.08);
+  --tp-info: #3d5a80;
   --tp-info-light: #f0f9ff;
+  --tp-info-bg: rgba(61, 90, 128, 0.08);
 
-  --tp-text-primary: #2c3e50;
-  --tp-text-secondary: #7f8c8d;
-  --tp-text-muted: #909399;
-  --tp-text-inverse: #ffffff;
-
-  --tp-border: #e4e7ed;
+  /* ── 边框与分隔线 ── */
+  --tp-border: #e8eaed;
   --tp-border-light: #f0f0f0;
+  --tp-border-medium: #d0d4dc;
+  --tp-divider: rgba(0, 0, 0, 0.06);
 
-  /* ── 阴影层级 ── */
-  --tp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --tp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
-  --tp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --tp-shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.12);
+  /* ── 多层复合阴影 ── */
+  /* sm: 基础抬升 */
+  --tp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  /* md: 卡片悬浮 */
+  --tp-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.03), 0 8px 16px rgba(0, 0, 0, 0.04);
+  /* lg: 显著抬升 */
+  --tp-shadow-lg: 0 8px 12px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06);
+  /* xl: 模态/弹窗 */
+  --tp-shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.06), 0 24px 48px rgba(0, 0, 0, 0.08);
+  /* inset: 内阴影 */
+  --tp-shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+  /* accent-glow: 强调色光晕 */
+  --tp-shadow-accent: 0 0 0 3px rgba(184, 92, 56, 0.15);
+  /* sidebar-item: 侧边栏项光晕 */
+  --tp-shadow-sidebar-item: 0 0 12px rgba(184, 92, 56, 0.12);
 
-  /* ── 圆角 ── */
+  /* ── 圆角系统 ── */
+  --tp-radius-xs: 4px;
   --tp-radius-sm: 6px;
   --tp-radius-md: 8px;
   --tp-radius-lg: 12px;
   --tp-radius-xl: 16px;
+  --tp-radius-full: 9999px;
+
+  /* ── 间距尺度（4px 基数） ── */
+  --tp-space-1: 4px;
+  --tp-space-2: 8px;
+  --tp-space-3: 12px;
+  --tp-space-4: 16px;
+  --tp-space-5: 20px;
+  --tp-space-6: 24px;
+  --tp-space-8: 32px;
+  --tp-space-10: 40px;
+  --tp-space-12: 48px;
 
   /* ── 动画 ── */
+  --tp-duration-instant: 0.1s;
   --tp-duration-fast: 0.15s;
   --tp-duration-normal: 0.25s;
   --tp-duration-slow: 0.4s;
+  --tp-duration-slower: 0.6s;
+  /* 标准缓动 */
   --tp-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  /* 出场缓动（更现代） */
+  --tp-easing-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* 弹跳缓动 */
   --tp-easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 弹性缓动 */
+  --tp-easing-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ── 响应式断点 ── */
+  --tp-breakpoint-xs: 480px;
+  --tp-breakpoint-sm: 640px;
+  --tp-breakpoint-md: 768px;
+  --tp-breakpoint-lg: 1024px;
+  --tp-breakpoint-xl: 1280px;
+
+  /* ── 排版 ── */
+  --tp-leading-tight: 1.3;
+  --tp-leading-normal: 1.6;
+  --tp-leading-relaxed: 1.75;
+  --tp-tracking-tight: -0.01em;
+  --tp-tracking-normal: 0;
+  --tp-tracking-wide: 0.02em;
+
+  /* ── Element Plus 变量覆写 ── */
+  --el-color-primary: #1A2332;
+  --el-color-primary-light-3: #4a5568;
+  --el-color-primary-light-5: #7a8598;
+  --el-color-primary-light-7: #a0a8b8;
+  --el-color-primary-light-8: #c8cdd5;
+  --el-color-primary-light-9: #e8eaed;
+  --el-color-primary-dark-2: #0f1620;
+  --el-color-success: #2E7D5A;
+  --el-color-warning: #E6A23C;
+  --el-color-danger: #c0392b;
+  --el-color-info: #3d5a80;
+  --el-border-radius-base: var(--tp-radius-sm);
+  --el-border-radius-small: var(--tp-radius-xs);
+  --el-box-shadow-light: var(--tp-shadow-sm);
+  --el-box-shadow: var(--tp-shadow-md);
+  --el-box-shadow-dark: var(--tp-shadow-lg);
 }
 
-/* ── 全局工具类 ── */
+/* ── 全局滚动条美化 ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--tp-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+/* ── 全局选中文本样式 ── */
+::selection {
+  background: rgba(184, 92, 56, 0.2);
+  color: var(--tp-text-primary);
+}
+
+/* ── 通用卡片工具类 ── */
 .tp-card {
   background: var(--tp-bg-card);
-  border-radius: var(--tp-radius-md);
+  border-radius: var(--tp-radius-lg);
   box-shadow: var(--tp-shadow-md);
+  border: 1px solid var(--tp-border-light);
   transition: all var(--tp-duration-normal) var(--tp-easing);
 }
 
 .tp-card:hover {
-  box-shadow: var(--tp-shadow-lg);
+  box-shadow: var(--tp-shadow-lg), 0 0 0 1px rgba(184, 92, 56, 0.06);
+  transform: translateY(-1px);
 }
 
-/* 运行状态呼吸灯 */
+/* ── 运行状态呼吸灯 ── */
 @keyframes tp-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
+  50% { opacity: 0.5; transform: scale(0.85); }
 }
 
 .tp-pulse {
   animation: tp-pulse 2s ease-in-out infinite;
 }
 
-/* 骨架屏闪光 */
+/* ── 骨架屏闪光 ── */
 @keyframes tp-shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .tp-shimmer {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: tp-shimmer 1.5s infinite;
 }
 
-/* 数据字体 */
-.tp-data {
-  font-family: "Times New Roman", "SimSun", serif;
-  font-variant-numeric: tabular-nums;
+/* ── 渐入动画 ── */
+@keyframes tp-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tp-fade-in {
+  animation: tp-fade-in 0.4s var(--tp-easing-expo) forwards;
+}
+
+/* ── 微光扫过效果 ── */
+@keyframes tp-sweep {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* ── 旋转动画 ── */
+@keyframes tp-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.tp-rotate {
+  animation: tp-rotate 2s linear infinite;
+}
+
+/* ── 页面切换动画 ── */
+.page-slide-enter-active,
+.page-slide-leave-active {
+  transition: all 0.3s var(--tp-easing-expo);
+}
+
+.page-slide-enter-from {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.page-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-16px);
 }

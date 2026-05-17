@@ -1,0 +1,363 @@
+/* ================================================
+   TracePipeline — Element Plus 全局样式覆盖
+   确保所有组件与自定义设计系统一致
+   ================================================ */
+
+/* ── 按钮 ── */
+.el-button {
+  border-radius: var(--tp-radius-sm);
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all var(--tp-duration-normal) var(--tp-easing);
+}
+
+.el-button--primary {
+  background: var(--tp-brand-primary);
+  border-color: var(--tp-brand-primary);
+  color: #fff;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background: var(--tp-brand-accent);
+  border-color: var(--tp-brand-accent);
+  box-shadow: 0 4px 12px rgba(184, 92, 56, 0.2);
+}
+
+.el-button--primary:active {
+  background: var(--tp-brand-accent-dark);
+  border-color: var(--tp-brand-accent-dark);
+}
+
+.el-button--default {
+  border-color: var(--tp-border);
+  color: var(--tp-text-secondary);
+}
+
+.el-button--default:hover,
+.el-button--default:focus {
+  border-color: var(--tp-brand-accent-light);
+  color: var(--tp-brand-accent);
+  background: rgba(184, 92, 56, 0.04);
+}
+
+/* 文字按钮 */
+.el-button--link {
+  color: var(--tp-brand-accent);
+}
+
+.el-button--link:hover {
+  color: var(--tp-brand-accent-dark);
+}
+
+/* ── 输入框 / 选择器 ── */
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select .el-input__wrapper {
+  border-radius: var(--tp-radius-sm);
+  box-shadow: 0 0 0 1px var(--tp-border) inset;
+  transition: all var(--tp-duration-normal);
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px var(--tp-border-medium) inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--tp-brand-accent) inset, var(--tp-shadow-accent);
+}
+
+.el-select .el-input.is-focus .el-input__wrapper {
+  box-shadow: 0 0 0 1px var(--tp-brand-accent) inset, var(--tp-shadow-accent);
+}
+
+/* ── 表格 ── */
+.el-table {
+  --el-table-header-bg-color: var(--tp-bg-sunken);
+  --el-table-row-hover-bg-color: var(--tp-bg-hover);
+  --el-table-border-color: var(--tp-border-light);
+  --el-table-text-color: var(--tp-text-primary);
+  --el-table-header-text-color: var(--tp-text-primary);
+}
+
+.el-table thead th.el-table__cell {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tp-text-primary);
+  background: var(--tp-bg-sunken);
+  border-bottom: 1px solid var(--tp-border-light);
+}
+
+.el-table .cell {
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+}
+
+.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
+  background-color: var(--tp-bg-hover);
+}
+
+/* 表格内标签 */
+.el-table .el-tag {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+}
+
+/* ── 标签页 ── */
+.el-tabs__item {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+  font-size: 13px;
+  transition: all var(--tp-duration-normal);
+}
+
+.el-tabs__active-bar {
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* ── 消息提示 ── */
+.el-message {
+  border-radius: var(--tp-radius-md);
+  box-shadow: var(--tp-shadow-lg);
+  font-family: var(--tp-font-body);
+}
+
+.el-message--success {
+  background: var(--tp-success-light);
+  border-color: rgba(46, 125, 90, 0.15);
+  color: var(--tp-success);
+}
+
+.el-message--warning {
+  background: var(--tp-warning-light);
+  border-color: rgba(230, 162, 60, 0.15);
+  color: var(--tp-warning);
+}
+
+.el-message--error {
+  background: var(--tp-danger-light);
+  border-color: rgba(192, 57, 43, 0.15);
+  color: var(--tp-danger);
+}
+
+/* ── 空状态 ── */
+.el-empty__description {
+  font-family: var(--tp-font-body);
+  color: var(--tp-text-tertiary);
+}
+
+/* ── 对话框 ── */
+.el-dialog {
+  border-radius: var(--tp-radius-xl);
+  box-shadow: var(--tp-shadow-xl);
+}
+
+.el-dialog__header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--tp-border-light);
+}
+
+.el-dialog__title {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--tp-text-primary);
+}
+
+.el-dialog__body {
+  padding: 20px 24px;
+  font-family: var(--tp-font-body);
+  color: var(--tp-text-primary);
+}
+
+.el-dialog__footer {
+  padding: 12px 24px 20px;
+  border-top: 1px solid var(--tp-border-light);
+}
+
+/* ── 下拉菜单 ── */
+.el-dropdown-menu {
+  border-radius: var(--tp-radius-md);
+  box-shadow: var(--tp-shadow-lg);
+  border: 1px solid var(--tp-border-light);
+}
+
+.el-dropdown-menu__item {
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+}
+
+/* ── 开关 ── */
+.el-switch__core {
+  border-radius: var(--tp-radius-full);
+}
+
+.el-switch.is-checked .el-switch__core {
+  background: var(--tp-success);
+  border-color: var(--tp-success);
+}
+
+/* ── 滑块 ── */
+.el-slider__runway {
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-full);
+}
+
+.el-slider__bar {
+  background: var(--tp-brand-accent);
+  border-radius: var(--tp-radius-full);
+}
+
+.el-slider__button {
+  border-color: var(--tp-brand-accent);
+  box-shadow: var(--tp-shadow-sm);
+}
+
+/* ── 单选框 / 复选框 ── */
+.el-radio__input.is-checked .el-radio__inner {
+  background: var(--tp-brand-accent);
+  border-color: var(--tp-brand-accent);
+}
+
+.el-radio__input.is-checked + .el-radio__label {
+  color: var(--tp-brand-accent);
+}
+
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  background: var(--tp-brand-accent);
+  border-color: var(--tp-brand-accent);
+}
+
+.el-checkbox__input.is-checked + .el-checkbox__label {
+  color: var(--tp-brand-accent);
+}
+
+/* ── 颜色选择器 ── */
+.el-color-picker__trigger {
+  border-radius: var(--tp-radius-sm);
+  border-color: var(--tp-border);
+}
+
+/* ── 描述列表 ── */
+.el-descriptions__label {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+  color: var(--tp-text-secondary);
+}
+
+.el-descriptions__content {
+  font-family: var(--tp-font-body);
+  color: var(--tp-text-primary);
+}
+
+/* ── 警告提示 ── */
+.el-alert {
+  border-radius: var(--tp-radius-md);
+}
+
+.el-alert__title {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+}
+
+.el-alert__description {
+  font-family: var(--tp-font-body);
+}
+
+/* ── 标签 ── */
+.el-tag {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+  border-radius: var(--tp-radius-sm);
+}
+
+.el-tag--success {
+  background: var(--tp-success-bg);
+  border-color: rgba(46, 125, 90, 0.12);
+  color: var(--tp-success);
+}
+
+.el-tag--info {
+  background: var(--tp-info-bg);
+  border-color: rgba(61, 90, 128, 0.12);
+  color: var(--tp-info);
+}
+
+.el-tag--warning {
+  background: var(--tp-warning-bg);
+  border-color: rgba(230, 162, 60, 0.12);
+  color: var(--tp-warning);
+}
+
+.el-tag--danger {
+  background: var(--tp-danger-bg);
+  border-color: rgba(192, 57, 43, 0.12);
+  color: var(--tp-danger);
+}
+
+/* ── 加载 ── */
+.el-loading-mask {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(2px);
+}
+
+/* ── 分页 ── */
+.el-pagination {
+  font-family: var(--tp-font-body);
+}
+
+.el-pagination .el-input__wrapper {
+  box-shadow: 0 0 0 1px var(--tp-border) inset;
+}
+
+/* ── 菜单 / 导航 ── */
+.el-menu {
+  border-right: none;
+}
+
+.el-menu-item {
+  font-family: var(--tp-font-heading);
+}
+
+/* ── 表单 ── */
+.el-form-item__label {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+  color: var(--tp-text-secondary);
+}
+
+/* ── 弹出确认框 ── */
+.el-popconfirm__main {
+  font-family: var(--tp-font-body);
+}
+
+/* ── Tooltip ── */
+.el-tooltip__popper {
+  font-family: var(--tp-font-body);
+  border-radius: var(--tp-radius-sm);
+}
+
+/* ── 树形控件 ── */
+.el-tree-node__label {
+  font-family: var(--tp-font-body);
+}
+
+/* ── 时间线 ── */
+.el-timeline-item__node {
+  background: var(--tp-brand-accent);
+}
+
+.el-timeline-item__timestamp {
+  font-family: var(--tp-font-data);
+  color: var(--tp-text-muted);
+}
+
+/* ── 图片预览遮罩 ── */
+.el-image-viewer__wrapper {
+  backdrop-filter: blur(4px);
+}

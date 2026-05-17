@@ -67,3 +67,5 @@ reference/*
 !reference/matlab/
 !reference/matlab/**
 !reference/*.md
+.codeartsdoer
+.arts

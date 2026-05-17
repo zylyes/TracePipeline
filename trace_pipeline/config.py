@@ -254,10 +254,10 @@ def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:
     """
     base = PROJECT_ROOT
 
-    # 确定实际使用的输入/输出目录
+    # 确定实际使用的输入/输出目录（统一转为 Path，兼容 str/Path 输入）
     if cfg:
-        input_dir = Path(cfg.get("input_dir", base / "input"))
-        output_dir = Path(cfg.get("output_dir", base / "output"))
+        input_dir = Path(str(cfg.get("input_dir", base / "input")))
+        output_dir = Path(str(cfg.get("output_dir", base / "output")))
     else:
         input_dir = base / "input"
         output_dir = base / "output"

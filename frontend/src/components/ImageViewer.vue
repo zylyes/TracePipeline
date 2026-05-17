@@ -87,6 +87,8 @@ const emit = defineEmits<{
 const viewerRef = ref<HTMLDivElement>()
 const currentIndex = ref(props.initialIndex ?? 0)
 const scale = ref(1)
+let lastWheelTime = 0
+const WHEEL_THROTTLE_MS = 80
 const translateX = ref(0)
 const translateY = ref(0)
 const isDragging = ref(false)
@@ -118,8 +120,21 @@ watch(() => props.visible, (val) => {
     currentIndex.value = props.initialIndex ?? 0
     resetZoom()
     nextTick(() => viewerRef.value?.focus())
+    window.addEventListener('keydown', onKeydown)
+  } else {
+    window.removeEventListener('keydown', onKeydown)
   }
 })
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    close()
+  } else if (e.key === 'ArrowLeft') {
+    prevImage()
+  } else if (e.key === 'ArrowRight') {
+    nextImage()
+  }
+}
 
 watch(() => props.initialIndex, (val) => {
   if (val !== undefined) currentIndex.value = val
@@ -151,6 +166,9 @@ function resetZoom() {
 }
 
 function onWheel(e: WheelEvent) {
+  const now = Date.now()
+  if (now - lastWheelTime < WHEEL_THROTTLE_MS) return
+  lastWheelTime = now
   if (e.deltaY > 0) {
     zoomOut()
   } else {

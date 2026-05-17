@@ -5,7 +5,8 @@ const SCAN_TTL = 30_000      // 文件扫描缓存 30s
 const STATS_TTL = 300_000    // 统计数据缓存 5min
 const COMPARISON_TTL = 300_000 // 对比数据缓存 5min
 const RESULTS_TTL = 60_000   // 结果列表缓存 1min
-const IMAGE_TTL = 600_000    // 图片缓存 10min
+  const IMAGE_TTL = 600_000    // 图片缓存 10min
+  const IMAGE_MAX_COUNT = 50   // 图片缓存最大条目数
 
 interface CachedItem<T> {
   data: T
@@ -93,6 +94,20 @@ export const useCacheStore = defineStore('cache', () => {
   }
 
   function setImage(path: string, data: string) {
+    // LRU 淘汰：超过最大条目时删除最旧的记录
+    if (imageCache.value.size >= IMAGE_MAX_COUNT && !imageCache.value.has(path)) {
+      let oldestKey: string | null = null
+      let oldestTime = Infinity
+      for (const [k, v] of imageCache.value.entries()) {
+        if (v.timestamp < oldestTime) {
+          oldestTime = v.timestamp
+          oldestKey = k
+        }
+      }
+      if (oldestKey !== null) {
+        imageCache.value.delete(oldestKey)
+      }
+    }
     imageCache.value.set(path, { data, timestamp: Date.now() })
   }
 

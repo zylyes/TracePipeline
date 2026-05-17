@@ -25,7 +25,7 @@ def coerce_bool(value: Any, name: str) -> bool:
     """将常见配置布尔写法规范化为 bool。"""
     if isinstance(value, bool):
         return value
-    if isinstance(value, int) and value in (0, 1):
+    if isinstance(value, (int, float)) and value in (0, 1):
         return bool(value)
     if isinstance(value, str):
         normalized = value.strip().lower()

@@ -61,5 +61,10 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  return { config, loading, loadConfig, saveConfig, resetConfig, resetProcessingConfig, resetStyleConfig }
+  /** 从后端 API 加载配置后，仅更新本地状态（不触发持久化）。 */
+  function hydrateConfig(cfg: Record<string, any>) {
+    config.value = { ...cfg }
+  }
+
+  return { config, loading, loadConfig, saveConfig, resetConfig, resetProcessingConfig, resetStyleConfig, hydrateConfig }
 })

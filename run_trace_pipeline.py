@@ -10,7 +10,14 @@ import multiprocessing
 try:
     multiprocessing.set_start_method("spawn")
 except RuntimeError:
-    pass
+    if multiprocessing.get_start_method(allow_none=True) != "spawn":
+        import warnings
+        warnings.warn(
+            "当前多进程启动方法不是 'spawn'，并行模式下 matplotlib 状态可能冲突。"
+            "建议通过 `multiprocessing.set_start_method('spawn')` 显式设置。",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 from trace_pipeline.config import ensure_workspace_dirs
 from trace_pipeline.cli import main

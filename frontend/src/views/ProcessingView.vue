@@ -52,7 +52,6 @@
     <ProgressPanel
       :running="pipelineStore.running"
       :progress="pipelineStore.progress"
-      v-model:parallel="parallel"
       @run="startPipeline"
     />
 
@@ -111,7 +110,6 @@ const cacheStore = useCacheStore()
 
 const files = ref<TraceFile[]>([])
 const selectedFiles = ref<TraceFile[]>([])
-const parallel = ref(1)
 const POLL_INTERVAL = 300
 
   // 处理参数（本地状态，默认从配置加载）
@@ -320,8 +318,8 @@ async function startPipeline() {
     // 先保存配置，使 config.json 与流水线实际参数一致
     await configStore.saveConfig(runConfig)
 
-    // 再启动流水线（parallel 作为本次运行 UI 参数，不写入 config.json）
-    const res = await api.run_pipeline(targets, { ...runConfig, parallel: parallel.value })
+    // 再启动流水线
+    const res = await api.run_pipeline(targets, runConfig)
 
     if (res.status === 'started') {
       pipelineStore.running = true

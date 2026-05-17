@@ -64,10 +64,10 @@ class PreviewService:
         with _PREVIEW_LOCK:
             if style_hash in self._cache:
                 ts, paths = self._cache[style_hash]
-                if time.time() - ts < CACHE_TTL:
+                if time.monotonic() - ts < CACHE_TTL:
                     logger.info(
-                        "预览缓存命中 [%s] (TTL剩余 %.0f秒)", style_hash[:8], CACHE_TTL - (time.time() - ts),
-                        extra={"stage": "preview_cache_hit", "hash": style_hash, "ttl_remaining": round(CACHE_TTL - (time.time() - ts))},
+                        "预览缓存命中 [%s] (TTL剩余 %.0f秒)", style_hash[:8], CACHE_TTL - (time.monotonic() - ts),
+                        extra={"stage": "preview_cache_hit", "hash": style_hash, "ttl_remaining": round(CACHE_TTL - (time.monotonic() - ts))},
                     )
                     return {"status": "ready", "paths": paths, "images": self._to_images(paths)}
                 else:
@@ -77,7 +77,7 @@ class PreviewService:
         try:
             paths = self._generate_images(config, style_hash)
             with _PREVIEW_LOCK:
-                self._cache[style_hash] = (time.time(), paths)
+                self._cache[style_hash] = (time.monotonic(), paths)
             duration = (time.perf_counter() - start) * 1000
             logger.info(
                 "预览生成完成 [%s]: %d 张图 (%.3f ms)",

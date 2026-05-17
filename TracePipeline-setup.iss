@@ -4,7 +4,7 @@
 [Setup]
 AppId={{7B3F1C9A-5D2E-40F8-A61B-C8E4D9F01236}}
 AppName=TracePipeline
-AppVersion=2.4.0
+AppVersion=2.4.6
 AppPublisher=ECUT
 AppPublisherURL=https://github.com/ECUT
 AppSupportURL=https://github.com/ECUT
@@ -14,11 +14,11 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 OutputDir=C:\Users\Chinese\OneDrive\code\dist
-OutputBaseFilename=TracePipeline-Setup-v2.4.0
+OutputBaseFilename=TracePipeline-Setup-v2.4.6
 SetupIconFile=C:\Users\Chinese\OneDrive\code\reference\ECUT.ico
 UninstallDisplayIcon={app}\reference\ECUT.ico
-UninstallDisplayName=TracePipeline v2.4.0
-VersionInfoVersion=2.4.0
+UninstallDisplayName=TracePipeline v2.4.6
+VersionInfoVersion=2.4.6
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "D:\Inno Setup 6\Languages\ChineseSimplified.isl"

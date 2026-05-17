@@ -1,9 +1,10 @@
-"""Excel 迹线表读取 — 候选扩展名 + 工作表回退。"""
+"""Excel 迹线表读取 — 候选扩展名 + 工作表回退 + 格式校验。"""
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -12,6 +13,9 @@ EXCEL_ENGINES: tuple[tuple[str, str], ...] = (
     (".xlsx", "openpyxl"),
     (".xls", "xlrd"),
 )
+
+_MIN_COLUMNS = 4
+_MAX_SKIP_ROWS = 2
 
 __all__ = ["read_trace_excel"]
 
@@ -58,7 +62,9 @@ def read_trace_excel(
     for path, engine, sheet_arg in attempts:
         logger.debug("读取文件: %s (引擎=%s, sheet=%r)", path, engine, sheet_arg)
         try:
-            return pd.read_excel(path, engine=engine, sheet_name=sheet_arg, header=None)
+            df = pd.read_excel(path, engine=engine, sheet_name=sheet_arg, header=None)
+            _validate_trace_dataframe(df, path)
+            return df
         except ValueError as exc:
             # 工作表名不存在 → 会被下一个 attempt (sheet_arg=0) 覆盖
             logger.debug("读取 %s 失败（将尝试回退）: %s", path, exc)
@@ -75,3 +81,37 @@ def read_trace_excel(
         f"找到 {found}，但读取失败"
         + (f": {detail}" if detail else "")
     ) from last_error
+
+
+def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
+    """校验迹线 DataFrame 的基本格式：最少列数和数值有效性。
+
+    Args:
+        df: 读取的原始 DataFrame（无表头）。
+        path: 数据文件路径（仅用于日志）。
+
+    Raises:
+        ValueError: 列数不足或前4列包含非数值数据。
+    """
+    if df.shape[1] < _MIN_COLUMNS:
+        raise ValueError(
+            f"迹线表 {path.name} 至少需要 {_MIN_COLUMNS} 列 (x1, y1, x2, y2)，"
+            f"实际仅有 {df.shape[1]} 列"
+        )
+
+    first_rows = df.head(_MAX_SKIP_ROWS)
+    numeric_count = 0
+    for col in range(min(_MIN_COLUMNS, df.shape[1])):
+        try:
+            vals = pd.to_numeric(first_rows.iloc[:, col], errors="coerce")
+            numeric_count += vals.notna().sum()
+        except Exception:
+            pass
+
+    total_cells = min(len(first_rows), _MAX_SKIP_ROWS) * _MIN_COLUMNS
+    if total_cells > 0 and numeric_count / total_cells < 0.5:
+        logger.warning(
+            "迹线表 %s 前%d行中数值占比过低 (%d/%d)，可能包含非数据行",
+            path.name, _MAX_SKIP_ROWS, numeric_count, total_cells,
+            extra={"stage": "validate_trace", "path": str(path), "numeric_ratio": numeric_count / total_cells},
+        )

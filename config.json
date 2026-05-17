@@ -13,10 +13,10 @@
   "window_strategy": "auto",
   "auto_density_threshold": 5.0,
   "tangent_window_count": 3,
+  "min_intersections": 5,
   "style": {},
-  "enable_node_recognition": true,
+  "enable_node_recognition": false,
   "node_merge_tolerance": 0.01,
   "show_node_overlay": true,
-  "is_dev_mode": false,
-  "min_intersections": 5
+  "is_dev_mode": false
 }

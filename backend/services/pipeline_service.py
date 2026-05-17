@@ -186,4 +186,5 @@ class PipelineService:
                     "results": completed_results,
                 })
             finally:
-                self._running = False
+                with self._lock:
+                    self._running = False

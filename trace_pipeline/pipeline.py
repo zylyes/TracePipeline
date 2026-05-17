@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -83,7 +84,6 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         setup_worker_logging()
 
     pipeline_start = time.perf_counter()
-    import uuid
     with LogContext(request_id=f"pipeline-{cfg.outcrop}-{int(pipeline_start * 1000)}-{uuid.uuid4().hex[:6]}"):
         logger.info(
             "开始处理: %s", cfg.outcrop,

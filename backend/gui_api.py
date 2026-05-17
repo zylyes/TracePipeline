@@ -75,23 +75,39 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 内部辅助
     # ------------------------------------------------------------------
+    _WINDOWS_DEVICE_NAMES = frozenset({
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    })
+
     def _safe_path(self, path: str, base: Path | None = None) -> Path | None:
         """解析并校验路径在项目根目录内，防止路径遍历攻击。
 
         校验规则：
         1. 拒绝包含 ".." 的原始输入
-        2. 解析符号链接（realpath）
-        3. 限制在 base 目录下
+        2. URL 解码后再次检查 ".."
+        3. 拒绝 Windows 设备名
+        4. 解析符号链接（realpath）
+        5. 限制在 base 目录下
         """
-        # 原始输入包含 .. 直接拒绝
-        if ".." in Path(path).parts:
-            logger.warning("拒绝包含 .. 的路径: %s", path)
+        from urllib.parse import unquote
+
+        decoded = unquote(path)
+        for check_path in (path, decoded):
+            p_check = Path(check_path)
+            if ".." in p_check.parts:
+                logger.warning("拒绝包含 .. 的路径: %s", path)
+                return None
+
+        stem = Path(path).stem.upper()
+        if stem in self._WINDOWS_DEVICE_NAMES:
+            logger.warning("拒绝 Windows 设备名路径: %s", path)
             return None
 
-        p = Path(path)
+        p = Path(decoded)
         if not p.is_absolute():
             p = PROJECT_ROOT / p
-        # 使用 realpath 解析符号链接，防止符号链接绕过
         p = Path(p).resolve().absolute()
         base = Path(base or PROJECT_ROOT).resolve().absolute()
         try:
@@ -425,15 +441,21 @@ class GuiApi:
         try:
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
                 for f in files:
-                    zf.write(f, arcname=Path(f).name)
+                    fp = Path(f)
+                    fp_safe = self._safe_path(fp.name, base=Path(cfg.get("output_dir", "output")))
+                    if fp_safe is None:
+                        logger.warning("ZIP 中跳过越权路径: %s", f)
+                        continue
+                    zf.write(f, arcname=fp.name)
         except Exception as exc:
             logger.warning("ZIP 创建失败: %s", exc)
             return {"error": f"ZIP 创建失败: {exc}"}
 
-        # ZIP 创建成功后才清理中间单文件
         for f in files:
-            with contextlib.suppress(Exception):
+            try:
                 os.remove(f)
+            except Exception as exc:
+                logger.debug("清理中间文件失败: %s → %s", f, exc)
 
         duration = (time.perf_counter() - start) * 1000
         logger.info(
@@ -509,7 +531,15 @@ class GuiApi:
             with open(p, "rb") as f:
                 data = f.read()
             ext = p.suffix.lower()
-            mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(ext, "image/png")
+            mime = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".bmp": "image/bmp",
+                ".webp": "image/webp",
+                ".svg": "image/svg+xml",
+            }.get(ext, "application/octet-stream")
             b64 = base64.b64encode(data).decode("utf-8")
             logger.debug("get_image → %s (%d bytes)", path, len(data), extra={"stage": "api_get_image", "path": path, "size_bytes": len(data)})
             return f"data:{mime};base64,{b64}"

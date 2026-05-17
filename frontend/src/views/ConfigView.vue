@@ -5,12 +5,17 @@
     <StylePreview :style-config="styleConfig" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
     <DevPanel v-show="appStore.isDevMode" @saved="loadConfig" @reset="loadConfig" />
 
-    <div class="action-bar">
-      <el-button :icon="Refresh" @click="reloadConfig">重新加载配置</el-button>
-      <el-button :icon="Upload" @click="triggerImportJSON">导入 JSON</el-button>
-      <el-button :icon="Download" @click="exportJSON">导出 JSON</el-button>
-      <el-button :icon="Setting" @click="resetProcessingConfig">重置处理设置</el-button>
-      <el-button :icon="RefreshRight" @click="resetAllConfig">重置所有设置</el-button>
+    <div class="action-bar tp-card">
+      <div class="action-group primary">
+        <el-button :icon="Refresh" @click="reloadConfig" size="small">重新加载配置</el-button>
+        <el-button :icon="Upload" @click="triggerImportJSON" size="small">导入 JSON</el-button>
+        <el-button :icon="Download" @click="exportJSON" size="small">导出 JSON</el-button>
+      </div>
+      <div class="action-divider"></div>
+      <div class="action-group secondary">
+        <el-button :icon="Setting" @click="resetProcessingConfig" size="small" type="warning" plain>重置处理设置</el-button>
+        <el-button :icon="RefreshRight" @click="resetAllConfig" size="small" type="danger" plain>重置所有设置</el-button>
+      </div>
       <input ref="fileInputRef" type="file" accept=".json" style="display: none" @change="importJSON" />
     </div>
 
@@ -209,23 +214,41 @@ defineExpose({ getForm })
 
 <style scoped lang="scss">
 .config-view {
-  padding: 24px;
+  padding: var(--tp-space-5) var(--tp-space-6);
   height: 100%;
   overflow-y: auto;
 }
+
 .page-title {
-  font-size: 20px;
+  font-family: var(--tp-font-heading);
+  font-size: 22px;
   font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 16px;
+  color: var(--tp-text-primary);
+  margin-bottom: var(--tp-space-4);
 }
+
 .action-bar {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
-  padding: 16px 20px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+  align-items: center;
+  gap: var(--tp-space-3);
+  margin-top: var(--tp-space-5);
+  padding: var(--tp-space-3) var(--tp-space-4);
+  flex-wrap: wrap;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: var(--tp-space-2);
+}
+
+.action-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--tp-border);
+}
+
+.action-bar .el-button {
+  font-family: var(--tp-font-heading);
 }
 </style>

@@ -1,9 +1,17 @@
 <template>
-  <div class="file-list">
-    <div class="toolbar">
-      <el-checkbox v-model="selectAll" @change="toggleSelectAll" size="small">全选</el-checkbox>
-      <el-button size="small" :icon="Refresh" @click="emit('refresh', true)">刷新</el-button>
-      <span v-if="files.length === 0" class="empty-hint">暂无迹线表文件，请检查 input 目录</span>
+  <div class="file-list tp-card">
+    <div class="file-list-header">
+      <div class="file-list-header-left">
+        <div class="file-list-icon">
+          <el-icon :size="14"><Document /></el-icon>
+        </div>
+        <span class="file-list-title">文件列表</span>
+      </div>
+      <div class="file-list-actions">
+        <el-checkbox v-model="selectAll" @change="toggleSelectAll" size="small">全选</el-checkbox>
+        <el-button size="small" :icon="Refresh" @click="emit('refresh', true)">刷新</el-button>
+        <span v-if="files.length === 0" class="empty-hint">暂无迹线表文件，请检查 input 目录</span>
+      </div>
     </div>
     <el-table
       :data="files"
@@ -14,13 +22,14 @@
       row-key="stem"
       v-loading="loading"
       empty-text="暂无数据"
+      :header-cell-style="headerCellStyle"
     >
       <el-table-column type="selection" width="40" reserve-selection />
       <el-table-column prop="stem" label="文件名" min-width="140" />
       <el-table-column prop="outcrop" label="露头" width="80" />
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">
+          <el-tag :type="statusType(row.status)" size="small" effect="light" round>
             {{ statusLabel(row.status) }}
           </el-tag>
         </template>
@@ -40,7 +49,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Document } from '@element-plus/icons-vue'
 import type { ElTable } from 'element-plus'
 import type { TraceFile } from '@/types'
 
@@ -59,6 +68,13 @@ const emit = defineEmits<{
 const tableRef = ref<InstanceType<typeof ElTable>>()
 const selectAll = ref(false)
 const loading = ref(false)
+
+const headerCellStyle = () => ({
+  fontFamily: 'var(--tp-font-heading)',
+  fontWeight: 600,
+  background: 'var(--tp-bg-sunken)',
+  color: 'var(--tp-text-primary)',
+})
 
 function toggleSelectAll(val: boolean) {
   if (val) {
@@ -98,20 +114,81 @@ watch(() => props.files, () => {
 
 <style scoped lang="scss">
 .file-list {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+  padding: var(--tp-space-4) var(--tp-space-5);
+  margin-bottom: var(--tp-space-4);
 }
-.toolbar {
+
+.file-list-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  margin-bottom: var(--tp-space-3);
+  padding-bottom: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
+  flex-wrap: wrap;
+  gap: var(--tp-space-2);
 }
+
+.file-list-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-list-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--tp-radius-sm);
+  background: var(--tp-info-bg);
+  color: var(--tp-info);
+}
+
+.file-list-title {
+  font-family: var(--tp-font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tp-text-primary);
+}
+
+.file-list-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--tp-space-2);
+}
+
 .empty-hint {
-  color: #909399;
+  color: var(--tp-text-muted);
   font-size: 13px;
-  margin-left: auto;
+  font-family: var(--tp-font-body);
+}
+
+:deep(.el-table) {
+  --el-table-header-bg-color: var(--tp-bg-sunken);
+  --el-table-row-hover-bg-color: var(--tp-bg-hover);
+  --el-table-border-color: var(--tp-border-light);
+}
+
+:deep(.el-table th.el-table__cell) {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+  color: var(--tp-text-primary);
+  background: var(--tp-bg-sunken);
+}
+
+:deep(.el-table .cell) {
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+}
+
+:deep(.el-tag) {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+}
+
+:deep(.el-button--link) {
+  font-family: var(--tp-font-heading);
 }
 </style>

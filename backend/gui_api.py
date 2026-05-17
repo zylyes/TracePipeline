@@ -51,6 +51,7 @@ class GuiApi:
         self._report = ReportService()
         self._audit = AuditService()
         self._window: Any = None
+        self._window_maximized = False
         # 重资源操作的运行锁
         self._preview_running = False
         self._report_running = False
@@ -71,6 +72,7 @@ class GuiApi:
 
     def set_window(self, window: Any) -> None:
         self._window = window
+        self._window_maximized = False
 
     # ------------------------------------------------------------------
     # 内部辅助
@@ -617,6 +619,100 @@ class GuiApi:
     def shutdown_pipeline(self) -> None:
         """应用关闭前调用，确保后台流水线优雅结束。"""
         self._pipeline.shutdown(timeout=30.0)
+
+    # ------------------------------------------------------------------
+    # 窗口控制（无边框窗口支持）
+    # ------------------------------------------------------------------
+    def window_minimize(self) -> bool:
+        """最小化窗口。"""
+        if self._window is None:
+            return False
+        try:
+            self._window.minimize()
+            return True
+        except Exception as exc:
+            logger.warning("window_minimize 失败: %s", exc, extra={"stage": "api_window_minimize", "error": str(exc)})
+            return False
+
+    def window_maximize(self) -> bool:
+        """最大化/还原窗口切换。"""
+        if self._window is None:
+            return False
+        try:
+            # 使用内部状态跟踪，pywebview 的 maximized 属性在 Windows 上不可靠
+            if self._window_maximized:
+                self._window.restore()
+                self._window_maximized = False
+            else:
+                self._window.maximize()
+                self._window_maximized = True
+            return True
+        except Exception as exc:
+            logger.warning("window_maximize 失败: %s", exc, extra={"stage": "api_window_maximize", "error": str(exc)})
+            return False
+
+    def window_resize(self, width: int, height: int) -> bool:
+        """调整窗口尺寸（用于自定义 resize grip）。"""
+        if self._window is None:
+            return False
+        try:
+            # 确保最小尺寸
+            w = max(1000, width)
+            h = max(600, height)
+            self._window.resize(w, h)
+            return True
+        except Exception as exc:
+            logger.debug("window_resize 失败: %s", exc, extra={"stage": "api_window_resize", "error": str(exc)})
+            return False
+
+    def window_close(self) -> bool:
+        """关闭窗口。"""
+        if self._window is None:
+            return False
+        try:
+            self._window.destroy()
+            return True
+        except Exception as exc:
+            logger.warning("window_close 失败: %s", exc, extra={"stage": "api_window_close", "error": str(exc)})
+            return False
+
+    def window_move_by(self, dx: int, dy: int) -> bool:
+        """相对移动窗口位置（用于自定义标题栏拖拽）。"""
+        if self._window is None:
+            return False
+        try:
+            current_x = self._window.x
+            current_y = self._window.y
+            self._window.move(current_x + dx, current_y + dy)
+            return True
+        except Exception as exc:
+            logger.debug("window_move_by 失败: %s", exc, extra={"stage": "api_window_move", "error": str(exc)})
+            return False
+
+    def window_position(self) -> dict[str, int]:
+        """获取窗口当前位置。"""
+        if self._window is None:
+            return {"x": 0, "y": 0}
+        try:
+            return {"x": self._window.x, "y": self._window.y}
+        except Exception as exc:
+            logger.debug("window_position 失败: %s", exc, extra={"stage": "api_window_position", "error": str(exc)})
+            return {"x": 0, "y": 0}
+
+    def window_move_to(self, x: int, y: int) -> bool:
+        """绝对移动窗口到指定位置（用于自定义标题栏拖拽，避免增量抖动）。"""
+        if self._window is None:
+            return False
+        try:
+            self._window.move(x, y)
+            return True
+        except Exception as exc:
+            logger.debug("window_move_to 失败: %s", exc, extra={"stage": "api_window_move_to", "error": str(exc)})
+            return False
+
+    def window_is_maximized(self) -> bool:
+        """查询窗口是否已最大化。"""
+        return self._window_maximized
 
     def check_webview2(self) -> dict[str, Any]:
         from backend.webview2_checker import WebView2Checker

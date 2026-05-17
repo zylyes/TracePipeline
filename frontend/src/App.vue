@@ -1,5 +1,10 @@
 <template>
-  <div class="app-container">
+  <div class="app-container"
+    @mousemove="onContainerMouseMove"
+    @mousedown="onContainerMouseDown"
+    @mouseleave="onContainerMouseLeave"
+    :style="resizeCursor ? { cursor: resizeCursor } : {}"
+  >
     <!-- 启动界面 -->
     <SplashScreen
       v-if="showSplash"
@@ -10,89 +15,132 @@
 
     <!-- 主应用界面 -->
     <template v-else>
-      <!-- 侧边栏 -->
-      <aside class="sidebar">
-      <div class="logo">
-        <GeoIcon class="logo-icon" :size="22" color="#B85C38" />
-        <span class="logo-text">TracePipeline</span>
-        <span class="logo-version">v{{ appVersion }}</span>
-      </div>
-      <nav class="menu">
-        <router-link
-          v-for="item in menuItems"
-          :key="item.path"
-          :to="item.path"
-          :class="['menu-item', { active: route.path === item.path }]"
-        >
-          <component :is="item.icon" :size="20" class="menu-icon" />
-          <span class="menu-label">{{ item.label }}</span>
-        </router-link>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="footer-btn" @click="openInputDir">
-          <el-icon :size="16"><FolderOpened /></el-icon>
-          <span>打开输入目录</span>
+      <!-- 自定义标题栏 -->
+      <header class="title-bar" :style="{ '--sidebar-half': (sidebarCollapsed ? 28 : 76) + 'px' }" @mousedown="onTitleBarMouseDown">
+        <div class="title-bar-center" @mousedown.stop>
+          <span class="title-bar-page">{{ pageTitle }}</span>
         </div>
-        <div class="footer-btn" @click="openOutputDir">
-          <el-icon :size="16"><FolderOpened /></el-icon>
-          <span>打开输出目录</span>
+        <div class="title-bar-right" @mousedown.stop>
+          <button class="win-btn minimize" @click="minimizeWindow" title="最小化">
+            <svg viewBox="0 0 12 2" width="12" height="2"><rect width="12" height="2" fill="currentColor" rx="1"/></svg>
+          </button>
+          <button class="win-btn maximize" @click="toggleMaximize" title="最大化">
+            <svg v-if="!isMaximized" viewBox="0 0 12 12" width="12" height="12"><rect x="0.5" y="0.5" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1" rx="1"/></svg>
+            <svg v-else viewBox="0 0 12 12" width="12" height="12"><rect x="1.5" y="3.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1" rx="1"/><path d="M3.5 1.5h7v7" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+          </button>
+          <button class="win-btn close" @click="closeWindow" title="关闭">
+            <svg viewBox="0 0 12 12" width="12" height="12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </button>
         </div>
-        <div class="footer-btn" @click="openLogsDir">
-          <el-icon :size="16"><Document /></el-icon>
-          <span>打开日志目录</span>
-        </div>
-        <div class="dev-toggle">
-          <el-switch v-model="appStore.isDevMode" active-text="开发者模式" size="small" />
-        </div>
-      </div>
-    </aside>
+      </header>
 
-    <!-- 主内容区 -->
-    <main class="main">
-      <router-view v-slot="{ Component }">
-        <Transition name="page-slide" mode="out-in">
-          <KeepAlive :include="['Intro', 'Processing', 'Statistics', 'Comparison', 'Data', 'Config']">
-            <component :is="Component" />
-          </KeepAlive>
-        </Transition>
-      </router-view>
-      <footer class="status-bar">
-        <div class="status-group">
-          <span class="status-item" :class="{ 'status-running': appStore.pipelineStatus === 'running' }">
-            <el-icon :size="12"><Timer /></el-icon>
-            <span class="status-dot" v-if="appStore.pipelineStatus === 'running'"></span>
-            状态: {{ statusText }}
-          </span>
-          <span class="status-item">
-            <el-icon :size="12"><Files /></el-icon>
-            选中: {{ appStore.selectedFileCount }} 个文件
-          </span>
-        </div>
-        <div class="status-group">
-          <span class="status-item status-path" @click="copyPath(appStore.inputDir)" title="点击复制输入目录路径">
-            <el-icon :size="12"><Folder /></el-icon>
-            <span class="path-text">输入: {{ appStore.inputDir }}</span>
-          </span>
-          <span class="status-item status-path" @click="copyPath(appStore.outputDir)" title="点击复制输出目录路径">
-            <el-icon :size="12"><FolderOpened /></el-icon>
-            <span class="path-text">输出: {{ appStore.outputDir }}</span>
-          </span>
-        </div>
-        <span v-if="appStore.lastOperationTime" class="status-item time">
-          <el-icon :size="12"><Clock /></el-icon>
-          {{ appStore.lastOperationTime }}
-        </span>
-      </footer>
-    </main>
+      <div class="app-body">
+        <!-- 侧边栏 -->
+        <aside :class="['sidebar', { collapsed: sidebarCollapsed }]">
+          <div class="sidebar-header" @click.stop="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? '展开' : '收起'">
+            <GeoIcon class="logo-icon" :size="20" color="#B85C38" />
+            <div v-if="!sidebarCollapsed" class="logo-text-group">
+              <span class="logo-text">TracePipeline</span>
+              <span class="logo-version">v{{ appVersion }}</span>
+            </div>
+          </div>
+
+          <nav class="menu">
+            <router-link
+              v-for="item in menuItems"
+              :key="item.path"
+              :to="item.path"
+              :class="['menu-item', { active: route.path === item.path }]"
+            >
+              <div class="menu-item-inner">
+                <component :is="item.icon" :size="18" class="menu-icon" />
+                <span v-if="!sidebarCollapsed" class="menu-label">{{ item.label }}</span>
+              </div>
+              <div v-if="route.path === item.path" class="menu-active-indicator"></div>
+            </router-link>
+          </nav>
+
+          <div class="sidebar-footer">
+            <div class="footer-section">
+              <div class="footer-btn" @click="openInputDir" :title="sidebarCollapsed ? '打开输入目录' : ''">
+                <el-icon :size="14"><FolderOpened /></el-icon>
+                <span v-if="!sidebarCollapsed">打开输入目录</span>
+              </div>
+              <div class="footer-btn" @click="openOutputDir" :title="sidebarCollapsed ? '打开输出目录' : ''">
+                <el-icon :size="14"><FolderOpened /></el-icon>
+                <span v-if="!sidebarCollapsed">打开输出目录</span>
+              </div>
+              <div class="footer-btn" @click="openLogsDir" :title="sidebarCollapsed ? '打开日志目录' : ''">
+                <el-icon :size="14"><Document /></el-icon>
+                <span v-if="!sidebarCollapsed">打开日志目录</span>
+              </div>
+            </div>
+            <div class="dev-toggle" :class="{ collapsed: sidebarCollapsed }">
+              <el-switch v-model="appStore.isDevMode" active-text="开发者模式" size="small" />
+            </div>
+          </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main">
+          <router-view v-slot="{ Component }">
+            <Transition name="page-slide" mode="out-in" class="page-wrapper">
+              <KeepAlive :include="['Intro', 'Processing', 'Statistics', 'Comparison', 'Data', 'Config']">
+                <component :is="Component" />
+              </KeepAlive>
+            </Transition>
+          </router-view>
+
+          <footer class="status-bar">
+            <div class="status-group">
+              <span class="status-item" :class="{ 'status-running': appStore.pipelineStatus === 'running' }">
+                <span class="status-indicator">
+                  <span v-if="appStore.pipelineStatus === 'running'" class="status-pulse"></span>
+                  <el-icon v-else :size="12"><Timer /></el-icon>
+                </span>
+                <span class="status-text">{{ statusText }}</span>
+              </span>
+              <span class="status-divider"></span>
+              <span class="status-item">
+                <el-icon :size="12"><Files /></el-icon>
+                <span>已选 {{ appStore.selectedFileCount }} 个文件</span>
+              </span>
+            </div>
+            <div class="status-group status-center">
+              <span class="status-item status-path" @click="copyPath(appStore.inputDir)" title="点击复制输入目录路径">
+                <el-icon :size="12"><Folder /></el-icon>
+                <span class="path-text">输入: {{ appStore.inputDir }}</span>
+              </span>
+              <span class="status-item status-path" @click="copyPath(appStore.outputDir)" title="点击复制输出目录路径">
+                <el-icon :size="12"><FolderOpened /></el-icon>
+                <span class="path-text">输出: {{ appStore.outputDir }}</span>
+              </span>
+            </div>
+            <div class="status-group">
+              <span v-if="appStore.lastOperationTime" class="status-item time">
+                <el-icon :size="12"><Clock /></el-icon>
+                <span>{{ appStore.lastOperationTime }}</span>
+              </span>
+            </div>
+          </footer>
+
+          <!-- 右下角 resize grip（拖拽调整大小） -->
+          <div class="resize-grip" title="调整大小" @mousedown.stop="onResizeGripMouseDown">
+            <svg viewBox="0 0 12 12" width="10" height="10">
+              <path d="M8 12L12 12L12 8" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.5"/>
+              <path d="M4 12L12 12L12 4" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.3"/>
+            </svg>
+          </div>
+        </main>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-const appVersion = __APP_VERSION__
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Timer, Files, Folder, Clock } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
@@ -110,12 +158,14 @@ import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 
+const appVersion = __APP_VERSION__
 const showSplash = ref(true)
+const sidebarCollapsed = ref(false)
 
 function onSplashComplete(payload: { errors: Array<{ step: string; error: string }> }) {
   showSplash.value = false
   if (payload.errors.length > 0) {
-    const failedSteps = payload.errors.map(e => e.step.replace(/正在|\.\.\./g, '')).join('、')
+    const failedSteps = payload.errors.map(e => e.step.replace(/正在|\.{3}/g, '')).join('、')
     ElMessage.warning(`初始化未完成: ${failedSteps}，进入页面后将自动重试`)
   }
 }
@@ -134,9 +184,14 @@ const menuItems = [
   { path: '/config', label: '配置', icon: ConfigIcon },
 ]
 
+const pageTitle = computed(() => {
+  const item = menuItems.find(m => m.path === route.path)
+  return item ? item.label : 'TracePipeline'
+})
+
 const statusText = computed(() => {
   switch (appStore.pipelineStatus) {
-    case 'running': return '处理中...'
+    case 'running': return '处理中'
     case 'completed': return '处理完成'
     case 'error': return '处理出错'
     default: return '就绪'
@@ -158,10 +213,223 @@ async function openLogsDir() {
 async function copyPath(path: string) {
   try {
     await navigator.clipboard.writeText(path)
-    ElMessage.success(`已复制: ${path}`)
+    ElMessage.success({ message: `已复制路径`, duration: 1500 })
   } catch {
     ElMessage.info(path)
   }
+}
+
+// ── 窗口控制 ──
+const isMaximized = ref(false)
+
+async function minimizeWindow() {
+  await api.window_minimize()
+}
+
+async function toggleMaximize() {
+  await api.window_maximize()
+  setTimeout(async () => {
+    isMaximized.value = await api.window_is_maximized()
+  }, 120)
+}
+
+async function closeWindow() {
+  await api.window_close()
+}
+
+// ── 标题栏拖动移动窗口 ──
+const isDragging = ref(false)
+
+function onTitleBarMouseDown(e: MouseEvent) {
+  if (e.button !== 0) return
+  if (isMaximized.value) return
+  isDragging.value = true
+  const startX = e.screenX
+  const startY = e.screenY
+  let lastMoveTime = 0
+
+  api.window_position().then((pos: any) => {
+    const startWinX = pos.x
+    const startWinY = pos.y
+
+    function onMouseMove(ev: MouseEvent) {
+      const now = Date.now()
+      if (now - lastMoveTime < 16) return
+      lastMoveTime = now
+      const dx = ev.screenX - startX
+      const dy = ev.screenY - startY
+      api.window_move_to(startWinX + dx, startWinY + dy)
+    }
+
+    function onMouseUp() {
+      isDragging.value = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  })
+}
+
+// ── 边缘拖拽调整窗口大小 ──
+type ResizeEdge = 'left' | 'right' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null
+
+const RESIZE_BORDER = 6
+const isResizing = ref(false)
+const resizeEdge = ref<ResizeEdge>(null)
+const resizeCursor = ref<string>('')
+
+function detectResizeEdge(e: MouseEvent): ResizeEdge {
+  if (isMaximized.value) return null
+  const w = window.innerWidth
+  const h = window.innerHeight
+  const x = e.clientX
+  const y = e.clientY
+
+  const onLeft = x < RESIZE_BORDER
+  const onRight = x >= w - RESIZE_BORDER
+  const onTop = y < RESIZE_BORDER
+  const onBottom = y >= h - RESIZE_BORDER
+
+  if (onTop && onLeft) return 'top-left'
+  if (onTop && onRight) return 'top-right'
+  if (onBottom && onLeft) return 'bottom-left'
+  if (onBottom && onRight) return 'bottom-right'
+  if (onLeft) return 'left'
+  if (onRight) return 'right'
+  if (onTop) return 'top'
+  if (onBottom) return 'bottom'
+  return null
+}
+
+const edgeToCursor: Record<string, string> = {
+  left: 'ew-resize',
+  right: 'ew-resize',
+  top: 'ns-resize',
+  bottom: 'ns-resize',
+  'top-left': 'nwse-resize',
+  'top-right': 'nesw-resize',
+  'bottom-left': 'nesw-resize',
+  'bottom-right': 'nwse-resize',
+}
+
+function onContainerMouseMove(e: MouseEvent) {
+  if (isResizing.value) return
+  const edge = detectResizeEdge(e)
+  resizeEdge.value = edge
+  resizeCursor.value = edge ? (edgeToCursor[edge] || '') : ''
+}
+
+function onContainerMouseDown(e: MouseEvent) {
+  const edge = detectResizeEdge(e)
+  if (!edge) return
+  if (e.button !== 0) return
+  e.preventDefault()
+  isResizing.value = true
+
+  const startX = e.screenX
+  const startY = e.screenY
+
+  Promise.all([api.window_position()]).then(([pos]) => {
+    const startWinX = pos.x
+    const startWinY = pos.y
+    const startWinW = window.innerWidth
+    const startWinH = window.innerHeight
+    let lastMoveTime = 0
+
+    function onMouseMove(ev: MouseEvent) {
+      const now = Date.now()
+      if (now - lastMoveTime < 16) return
+      lastMoveTime = now
+      const dx = ev.screenX - startX
+      const dy = ev.screenY - startY
+
+      let newX = startWinX, newY = startWinY
+      let newW = startWinW, newH = startWinH
+
+      if (edge && edge.includes('right')) {
+        newW = startWinW + dx
+      }
+      if (edge && edge.includes('left')) {
+        newW = startWinW - dx
+        newX = startWinX + dx
+      }
+      if (edge && edge.includes('bottom')) {
+        newH = startWinH + dy
+      }
+      if (edge && edge.includes('top')) {
+        newH = startWinH - dy
+        newY = startWinY + dy
+      }
+
+      newW = Math.max(480, newW)
+      newH = Math.max(360, newH)
+      if (newW === 480 && edge && edge.includes('left')) {
+        newX = startWinX + startWinW - 480
+      }
+      if (newH === 360 && edge && edge.includes('top')) {
+        newY = startWinY + startWinH - 360
+      }
+
+      api.window_move_to(newX, newY)
+      api.window_resize(newW, newH)
+    }
+
+    function onMouseUp() {
+      isResizing.value = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  })
+}
+
+function onContainerMouseLeave() {
+  if (!isResizing.value) {
+    resizeEdge.value = null
+    resizeCursor.value = ''
+  }
+}
+
+function onResizeGripMouseDown(e: MouseEvent) {
+  if (e.button !== 0) return
+  if (isMaximized.value) return
+  e.preventDefault()
+  isResizing.value = true
+
+  const startX = e.screenX
+  const startY = e.screenY
+
+  api.window_position().then((pos: any) => {
+    const startWinX = pos.x
+    const startWinY = pos.y
+    const startWinW = window.innerWidth
+    const startWinH = window.innerHeight
+    let lastMoveTime = 0
+
+    function onMouseMove(ev: MouseEvent) {
+      const now = Date.now()
+      if (now - lastMoveTime < 16) return
+      lastMoveTime = now
+      const dx = ev.screenX - startX
+      const dy = ev.screenY - startY
+      const newW = Math.max(480, startWinW + dx)
+      const newH = Math.max(360, startWinH + dy)
+      api.window_resize(newW, newH)
+    }
+
+    function onMouseUp() {
+      isResizing.value = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  })
 }
 
 // 启动步骤：真实 API 驱动进度
@@ -220,58 +488,214 @@ const bootSteps: BootStep[] = [
 <style scoped lang="scss">
 .app-container {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--tp-bg-base);
+}
+
+/* Vue Transition 默认渲染为 span（inline），必须显式 block 才能正确参与 flex 布局 */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
+/* ── 标题栏：标题相对内容区居中（排除侧边栏宽度）── */
+.title-bar {
+  height: 36px;
+  background: var(--tp-brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  flex-shrink: 0;
+  user-select: none;
+  position: relative;
+  z-index: 100;
+}
+
+.title-bar-center {
+  position: absolute;
+  left: calc(50% + var(--sidebar-half, 90px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  transition: left 0.25s var(--tp-easing);
+}
+
+.title-bar-page {
+  font-family: var(--tp-font-heading);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.5px;
+}
+
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all var(--tp-duration-fast);
+  outline: none;
+}
+
+.win-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.win-btn.close:hover {
+  background: #c0392b;
+  color: #fff;
+}
+
+.win-btn svg {
+  pointer-events: none;
+}
+
+/* ── 主体布局 ── */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── 侧边栏 ── */
 .sidebar {
-  width: 210px;
-  background: #1A2332;
+  width: 152px;
+  background: var(--tp-brand-primary);
   color: #fff;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  position: relative;
+  transition: width 0.25s var(--tp-easing);
+  overflow: hidden;
 }
 
-.logo {
-  padding: 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+.sidebar.collapsed {
+  width: 56px;
+}
+
+.sidebar-header {
+  height: 36px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 0 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: justify-content padding 0.25s var(--tp-easing);
 }
 
-.logo-icon { display: flex; align-items: center; }
-.logo-text { font-size: 15px; font-weight: 600; font-family: var(--tp-font-stack); }
-.logo-version { font-size: 11px; opacity: 0.6; margin-left: auto; }
+.sidebar-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.logo-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.logo-text {
+  font-family: var(--tp-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.2;
+}
+
+.logo-version {
+  font-family: var(--tp-font-data);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
 
 .menu {
   flex: 1;
-  padding: 12px 0;
+  padding: 10px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 20px;
-  height: 46px;
-  color: rgba(255,255,255,0.7);
+  position: relative;
+  height: 44px;
+  margin: 0 8px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   font-size: 14px;
-  transition: all 0.2s;
-  border-left: 3px solid transparent;
+  border-radius: var(--tp-radius-md);
+  transition: all var(--tp-duration-normal) var(--tp-easing);
+  overflow: hidden;
+}
+
+.sidebar.collapsed .menu-item {
+  justify-content: center;
+  padding: 0;
+  margin: 2px 8px;
+}
+
+.menu-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .menu-icon {
   flex-shrink: 0;
-  opacity: 0.8;
+  opacity: 0.7;
+  transition: all var(--tp-duration-normal);
+}
+
+.menu-label {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
 }
 
 .menu-item:hover {
-  background: #222d3a;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .menu-item:hover .menu-icon {
@@ -279,100 +703,182 @@ const bootSteps: BootStep[] = [
 }
 
 .menu-item.active {
-  background: #253544;
+  background: rgba(184, 92, 56, 0.12);
   color: #fff;
-  border-left-color: #B85C38;
 }
 
 .menu-item.active .menu-icon {
   opacity: 1;
+  color: var(--tp-brand-accent-light);
 }
 
+.menu-active-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: var(--tp-brand-accent);
+  border-radius: 0 2px 2px 0;
+  box-shadow: var(--tp-shadow-accent);
+}
+
+/* ── 侧边栏底部 ── */
 .sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 10px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 10px 0;
+}
+
+.footer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.sidebar.collapsed .footer-section {
+  align-items: center;
 }
 
 .footer-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
-  height: 32px;
-  padding: 0 8px;
-  margin-bottom: 4px;
-  border-radius: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--tp-radius-sm);
   cursor: pointer;
   font-size: 13px;
-  color: rgba(255,255,255,0.7);
-  transition: all 0.2s;
+  color: rgba(255, 255, 255, 0.55);
+  transition: all var(--tp-duration-normal);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .footer-btn {
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+  height: 32px;
 }
 
 .footer-btn:hover {
-  color: #fff;
-  background: rgba(255,255,255,0.08);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.footer-btn :deep(.el-icon) {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .dev-toggle {
-  margin-top: 8px;
-  :deep(.el-switch__label) { color: rgba(255,255,255,0.6); font-size: 12px; }
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.dev-toggle.collapsed {
+  justify-content: center;
+}
+
+.dev-toggle.collapsed :deep(.el-switch__label) {
+  display: none;
+}
+
+.dev-toggle :deep(.el-switch__label) {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+}
+
+/* ── 主内容区 ── */
 .main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #f8f9fa;
+  background: var(--tp-bg-base);
   overflow: hidden;
+  position: relative;
 }
 
+/* ── 状态栏 ── */
 .status-bar {
-  height: 32px;
-  background: var(--tp-bg-card);
-  border-top: 1px solid var(--tp-border);
+  height: 36px;
+  background: var(--tp-bg-elevated);
+  border-top: 1px solid var(--tp-border-light);
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 24px;
-  font-size: 12px;
-  color: var(--tp-text-secondary);
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+  font-size: 13px;
+  color: var(--tp-text-tertiary);
   flex-shrink: 0;
 }
 
 .status-group {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+.status-center {
+  flex: 1;
+  justify-content: center;
 }
 
 .status-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   transition: color var(--tp-duration-fast);
 }
 
-.status-item.time {
-  margin-left: auto;
-  color: var(--tp-text-muted);
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
 }
 
-/* 运行状态呼吸灯 */
-.status-running .status-dot {
+.status-pulse {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--tp-success);
   animation: tp-pulse 2s ease-in-out infinite;
 }
 
+.status-running .status-text {
+  color: var(--tp-success);
+  font-weight: 500;
+}
+
+.status-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--tp-border);
+}
+
 /* 可点击路径 */
 .status-path {
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: var(--tp-radius-sm);
   transition: all var(--tp-duration-fast);
+  font-family: var(--tp-font-data);
+  font-size: 12px;
 }
 
 .status-path:hover {
@@ -381,23 +887,146 @@ const bootSteps: BootStep[] = [
 }
 
 .path-text {
-  max-width: 160px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.status-item.time {
+  color: var(--tp-text-muted);
+  font-family: var(--tp-font-data);
+}
+
 /* 页面切换动画 */
 .page-slide-enter-active,
 .page-slide-leave-active {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s var(--tp-easing-expo);
 }
+
 .page-slide-enter-from {
   opacity: 0;
-  transform: translateX(12px);
+  transform: translateX(16px);
 }
+
 .page-slide-leave-to {
   opacity: 0;
-  transform: translateX(-12px);
+  transform: translateX(-16px);
+}
+
+/* ── 右下角 resize grip ── */
+.resize-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2px;
+  color: var(--tp-text-muted);
+  z-index: 50;
+  transition: color var(--tp-duration-fast);
+}
+
+.resize-grip:hover {
+  color: var(--tp-brand-accent);
+}
+
+.resize-grip svg {
+  pointer-events: none;
+}
+
+/* ── 响应式适配 ──────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 56px;
+  }
+
+  .sidebar .logo-text-group,
+  .sidebar .menu-label,
+  .sidebar .footer-btn span,
+  .sidebar .dev-toggle :deep(.el-switch__label) {
+    display: none;
+  }
+
+  .sidebar .sidebar-header {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebar .menu-item {
+    justify-content: center;
+  }
+
+  .sidebar .footer-section {
+    align-items: center;
+  }
+
+  .sidebar .footer-btn {
+    justify-content: center;
+    padding: 0;
+    width: 40px;
+    height: 32px;
+  }
+
+  .sidebar .dev-toggle {
+    justify-content: center;
+  }
+
+  .title-bar {
+    height: 32px;
+  }
+
+  .title-bar-page {
+    font-size: 12px;
+  }
+
+  .win-btn {
+    width: 36px;
+  }
+
+  .status-bar {
+    height: 30px;
+    padding: 0 10px;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .status-center {
+    display: none;
+  }
+
+  .path-text {
+    max-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 44px;
+  }
+
+  .sidebar .menu-item {
+    margin: 0 4px;
+    height: 38px;
+  }
+
+  .title-bar {
+    height: 28px;
+  }
+
+  .status-bar {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .status-group {
+    gap: 6px;
+  }
 }
 </style>

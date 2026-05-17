@@ -1,58 +1,200 @@
+/* ================================================
+   TracePipeline — 全局字体系统
+   离线系统字体策略（无外部 CDN 依赖）
+   ================================================ */
+
+/* ── 字体栈定义 ─────────────────────────────── */
 :root {
-  --tp-font-western: "Times New Roman", "Liberation Serif", serif;
-  --tp-font-chinese: "SimSun", "STSong", "Noto Serif SC", serif;
-  --tp-font-stack: var(--tp-font-western), var(--tp-font-chinese);
+  /* 西文与数字：Times New Roman 体系 */
+  --tp-font-latin: "Times New Roman", "Liberation Serif", "Georgia", "Palatino Linotype", "Book Antiqua", serif;
 
-  /* 学术配色 */
-  --tp-color-primary: #2c3e50;
-  --tp-color-accent: #B85C38;
-  --tp-color-dark-bg: #1A2332;
-  --tp-color-border: #dde1e6;
-  --tp-color-bg: #f8f9fa;
-  --tp-color-text-secondary: #7f8c8d;
+  /* 中文标题：黑体体系 */
+  --tp-font-heading-zh: "SimHei", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
 
-  /* Element Plus CSS 变量覆写 */
-  --el-color-primary: #2c3e50;
-  --el-color-success: #2E7D5A;
-  --el-color-warning: #f39c12;
-  --el-color-danger: #c0392b;
+  /* 中文正文：宋体体系 */
+  --tp-font-body-zh: "SimSun", "STSong", "Songti SC", "NSimSun", "Noto Serif SC", serif;
+
+  /* 等宽：用于代码、日志、时间戳 */
+  --tp-font-mono: "Consolas", "Courier New", "Liberation Mono", "Lucida Console", monospace;
+
+  /* 组合栈：按优先级排列，系统会自动匹配可用字体 */
+  --tp-font-heading: var(--tp-font-heading-zh), var(--tp-font-latin);
+  --tp-font-body: var(--tp-font-body-zh), var(--tp-font-latin);
+  --tp-font-data: var(--tp-font-latin), var(--tp-font-body-zh);
 }
 
-html, body {
-  font-family: var(--tp-font-stack);
-  -webkit-font-smoothing: antialiased;
-  margin: 0;
-  padding: 0;
+/* ── 全局基础排版 ───────────────────────────── */
+html {
+  /* Windows 下中文字体默认使用子像素抗锯齿（ClearType），
+     全局强制 grayscale/antialiased 会导致字体发虚 */
+  -webkit-font-smoothing: auto;
 }
 
-/* 表单控件显式继承，防止浏览器默认字体 */
-button, input, select, textarea {
-  font-family: var(--tp-font-stack);
+body {
+  font-family: var(--tp-font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tp-text-primary);
+  /* macOS 单独处理 */
+  -moz-osx-font-smoothing: auto;
 }
 
-/* 数字 / 英文 / 代码强制 TNR */
-.tp-data, .tp-num, code, pre, .el-statistic__number {
-  font-family: "Times New Roman", serif !important;
+/* ── 标题层级：中文黑体 ─────────────────────── */
+h1, h2, h3, h4, h5, h6,
+.tp-title, .tp-heading,
+.el-dialog__title,
+.el-drawer__title {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--tp-text-primary);
+}
+
+h1 { font-size: 26px; }
+h2 { font-size: 22px; }
+h3 { font-size: 18px; }
+h4 { font-size: 15px; }
+
+/* ── 正文与段落：中文宋体 ────────────────────── */
+p, span, div, li, td, th, label,
+.tp-body, .tp-text {
+  font-family: var(--tp-font-body);
+}
+
+/* ── 数据、数字、英文强制 Times New Roman ─────── */
+.tp-data, .tp-num, .tp-value,
+code, pre, kbd, samp,
+.el-statistic__number,
+.el-progress__text,
+.el-pagination__total,
+.el-pagination__jump,
+.el-table .cell,
+.el-descriptions__content,
+.el-timeline-item__timestamp {
+  font-family: var(--tp-font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* ── 时间戳与日志：等宽字体 ──────────────────── */
+.tp-time, .tp-log, .tp-timestamp {
+  font-family: var(--tp-font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* Element Plus 全局深度覆盖 */
+/* ── 表单控件显式继承 ────────────────────────── */
+button, input, select, textarea,
+.el-input__inner, .el-textarea__inner,
+.el-select .el-input__inner,
+.el-button {
+  font-family: var(--tp-font-body);
+}
+
+/* ── Element Plus 全局字体覆盖 ──────────────── */
 .el-table, .el-form, .el-button, .el-input,
 .el-select, .el-dialog, .el-tabs__item,
 .el-pagination, .el-dropdown, .el-menu,
 .el-descriptions, .el-timeline, .el-card,
 .el-radio, .el-checkbox, .el-switch__label,
 .el-tag, .el-badge, .el-progress,
-.el-empty__description, .el-message__content {
-  font-family: var(--tp-font-stack) !important;
+.el-empty__description, .el-message__content,
+.el-notification__content, .el-popover__title,
+.el-breadcrumb__inner, .el-step__title,
+.el-step__description, .el-calendar-table,
+.el-transfer-panel__item,
+.el-tree-node__label, .el-cascader-node__label {
+  font-family: var(--tp-font-body);
+}
+
+/* Element Plus 标题覆盖 */
+.el-dialog__header .el-dialog__title,
+.el-drawer__header .el-drawer__title,
+.el-message-box__title {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+}
+
+/* Element Plus 表格字体 */
+.el-table thead th,
+.el-table thead td {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
 }
 
 .el-table .cell {
-  font-family: var(--tp-font-stack) !important;
+  font-family: var(--tp-font-body);
 }
 
-/* 标题：中文黑体 / 加粗宋体 + 英文 TNR */
-.tp-title, h1, h2, h3, h4, h5, h6 {
-  font-family: "SimHei", "Microsoft YaHei", var(--tp-font-stack);
+.el-table .cell .tp-data,
+.el-table .cell .tp-num,
+.el-table .cell .el-statistic__number {
+  font-family: var(--tp-font-data);
+}
+
+/* Element Plus 标签页 */
+.el-tabs__item {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+}
+
+/* Element Plus 按钮 */
+.el-button {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+}
+
+.el-button span {
+  font-family: var(--tp-font-heading);
+}
+
+/* Element Plus 描述列表 */
+.el-descriptions__label {
+  font-family: var(--tp-font-heading);
+  font-weight: 500;
+}
+
+.el-descriptions__content {
+  font-family: var(--tp-font-body);
+}
+
+/* Element Plus 统计数字 */
+.el-statistic__number {
+  font-family: var(--tp-font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Element Plus 进度条 */
+.el-progress__text {
+  font-family: var(--tp-font-data);
+}
+
+/* Element Plus 分页 */
+.el-pagination {
+  font-family: var(--tp-font-body);
+}
+
+.el-pagination__total,
+.el-pagination__jump {
+  font-family: var(--tp-font-data);
+}
+
+/* ── 自定义工具类 ─────────────────────────────── */
+.tp-font-heading {
+  font-family: var(--tp-font-heading);
   font-weight: 600;
+}
+
+.tp-font-body {
+  font-family: var(--tp-font-body);
+}
+
+.tp-font-data {
+  font-family: var(--tp-font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.tp-font-mono {
+  font-family: var(--tp-font-mono);
+  font-variant-numeric: tabular-nums;
 }

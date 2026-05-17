@@ -2,10 +2,10 @@
   <div class="statistics-view">
     <h2 class="page-title">统计</h2>
     <div class="toolbar">
-      <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="loadStats">
+      <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="loadStats" size="small">
         <el-option v-for="o in outcrops" :key="o" :label="o" :value="o" />
       </el-select>
-      <el-button :icon="Document" :loading="exportLoading" @click="exportReport">导出统计报告</el-button>
+      <el-button :icon="Document" :loading="exportLoading" @click="exportReport" size="small" type="primary" plain>导出统计报告</el-button>
     </div>
 
     <!-- 统计警告 -->
@@ -26,9 +26,16 @@
     </div>
 
     <!-- 三图切换展示区 -->
-    <div class="images-panel">
-      <h3>处理结果图</h3>
-      <el-tabs v-model="activeImageTab" type="border-card">
+    <div class="images-panel tp-card">
+      <div class="images-header">
+        <div class="images-header-left">
+          <div class="images-icon">
+            <el-icon :size="16"><Picture /></el-icon>
+          </div>
+          <h3>处理结果图</h3>
+        </div>
+      </div>
+      <el-tabs v-model="activeImageTab" class="modern-tabs">
         <el-tab-pane label="原始迹线图" name="raw">
           <div class="image-viewport">
             <img
@@ -77,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onActivated } from 'vue'
-import { Document } from '@element-plus/icons-vue'
+import { Document, Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import StatCards from '@/components/StatCards.vue'
 import HistogramChart from '@/components/HistogramChart.vue'
@@ -239,60 +246,136 @@ onActivated(() => {
 
 <style scoped lang="scss">
 .statistics-view {
-  padding: 24px;
+  padding: var(--tp-space-5) var(--tp-space-6);
   height: 100%;
   overflow-y: auto;
 }
+
 .page-title {
-  font-size: 20px;
+  font-family: var(--tp-font-heading);
+  font-size: 22px;
   font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 16px;
+  color: var(--tp-text-primary);
+  margin-bottom: var(--tp-space-4);
 }
+
 .toolbar {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--tp-space-3);
+  margin-bottom: var(--tp-space-4);
+  align-items: center;
 }
+
 .charts-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--tp-space-4);
+  margin-bottom: var(--tp-space-4);
 }
+
 .stats-warning {
-  margin-bottom: 16px;
+  margin-bottom: var(--tp-space-4);
   border-radius: var(--tp-radius-md);
 }
 
+/* ── 图片展示区 ── */
 .images-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.06);
-  margin-bottom: 16px;
+  padding: var(--tp-space-4) var(--tp-space-5);
+  margin-bottom: var(--tp-space-4);
 }
+
+.images-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--tp-space-3);
+  padding-bottom: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
+}
+
+.images-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.images-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--tp-radius-sm);
+  background: rgba(184, 92, 56, 0.08);
+  color: var(--tp-brand-accent);
+}
+
 .images-panel h3 {
-  font-size: 15px;
+  font-family: var(--tp-font-heading);
+  font-size: 16px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
+  color: var(--tp-text-primary);
+  margin: 0;
 }
+
+/* 现代标签页样式 */
+.modern-tabs {
+  :deep(.el-tabs__header) {
+    border-bottom: 1px solid var(--tp-border-light);
+    margin-bottom: var(--tp-space-3);
+  }
+
+  :deep(.el-tabs__nav-wrap::after) {
+    display: none;
+  }
+
+  :deep(.el-tabs__item) {
+    font-family: var(--tp-font-heading);
+    font-size: 13px;
+    color: var(--tp-text-tertiary);
+    padding: 0 16px;
+    height: 38px;
+    line-height: 38px;
+    transition: all var(--tp-duration-normal);
+    border-bottom: 2px solid transparent;
+    margin-right: 4px;
+  }
+
+  :deep(.el-tabs__item:hover) {
+    color: var(--tp-text-secondary);
+  }
+
+  :deep(.el-tabs__item.is-active) {
+    color: var(--tp-brand-accent);
+    border-bottom-color: var(--tp-brand-accent);
+    font-weight: 600;
+  }
+
+  :deep(.el-tabs__active-bar) {
+    display: none;
+  }
+}
+
 .image-viewport {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 300px;
-  background: #f5f7fa;
-  border-radius: 4px;
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-md);
   overflow: hidden;
+  border: 1px solid var(--tp-border-light);
 }
+
 .plot-img {
   max-width: 100%;
   max-height: 500px;
   object-fit: contain;
   cursor: zoom-in;
+  transition: transform var(--tp-duration-slow);
+}
+
+.plot-img:hover {
+  transform: scale(1.01);
 }
 </style>

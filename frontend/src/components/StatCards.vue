@@ -4,11 +4,13 @@
       class="stat-card"
       v-for="(card, idx) in cards"
       :key="card.label"
-      :style="{ '--accent-color': card.color, animationDelay: `${idx * 60}ms` }"
+      :style="{ '--accent-color': card.color, animationDelay: `${idx * 80}ms` }"
     >
       <div class="stat-accent"></div>
-      <div class="stat-value tp-data">{{ formatValue(card.value) }}</div>
-      <div class="stat-unit">{{ card.unit }}</div>
+      <div class="stat-top">
+        <div class="stat-value tp-data">{{ formatValue(card.value) }}</div>
+        <div class="stat-unit">{{ card.unit }}</div>
+      </div>
       <div class="stat-label">{{ card.label }}</div>
     </div>
   </div>
@@ -81,30 +83,31 @@ function formatValue(v: number | null | undefined) {
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--tp-space-4);
+  margin-bottom: var(--tp-space-4);
 }
+
 .stat-card {
   background: var(--tp-bg-card);
-  border-radius: var(--tp-radius-md);
-  padding: 20px;
+  border-radius: var(--tp-radius-lg);
+  padding: 20px 18px;
   box-shadow: var(--tp-shadow-md);
-  text-align: center;
-  transition: all var(--tp-duration-normal) var(--tp-easing);
+  transition: all var(--tp-duration-slow) var(--tp-easing-expo);
   position: relative;
   overflow: hidden;
   opacity: 0;
-  animation: cardFadeIn 0.4s var(--tp-easing) forwards;
+  animation: cardFadeIn 0.5s var(--tp-easing-expo) forwards;
+  border: 1px solid var(--tp-border-light);
 }
 
 @keyframes cardFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--tp-shadow-lg);
+  transform: translateY(-3px);
+  box-shadow: var(--tp-shadow-lg), 0 0 0 1px rgba(184, 92, 56, 0.06);
 }
 
 /* 顶部彩色指示条 */
@@ -114,7 +117,7 @@ function formatValue(v: number | null | undefined) {
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--accent-color, var(--tp-accent));
+  background: var(--accent-color, var(--tp-brand-accent));
   opacity: 0;
   transition: opacity var(--tp-duration-normal);
 }
@@ -123,21 +126,31 @@ function formatValue(v: number | null | undefined) {
   opacity: 1;
 }
 
+.stat-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
 .stat-value {
-  font-size: 36px;
-  font-weight: 600;
+  font-size: 34px;
+  font-weight: 700;
   color: var(--tp-text-primary);
   line-height: 1.2;
-  font-family: "Times New Roman", serif;
 }
+
 .stat-unit {
-  font-size: 14px;
-  color: var(--tp-text-secondary);
-  margin-top: 4px;
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+  color: var(--tp-text-tertiary);
+  font-weight: 500;
 }
+
 .stat-label {
+  font-family: var(--tp-font-heading);
   font-size: 13px;
   color: var(--tp-text-secondary);
-  margin-top: 8px;
+  font-weight: 500;
 }
 </style>

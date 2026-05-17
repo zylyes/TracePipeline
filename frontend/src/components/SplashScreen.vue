@@ -48,10 +48,11 @@
               :class="{ 'progress-error': hasErrors }"
               :style="{ width: progress + '%' }"
             ></div>
+            <div class="progress-sweep" :style="{ left: progress > 5 ? (progress - 5) + '%' : '-10%' }"></div>
           </div>
           <div class="progress-info">
             <span class="progress-text">{{ currentStep }}</span>
-            <span class="progress-percent">{{ Math.round(progress) }}%</span>
+            <span class="progress-percent tp-data">{{ Math.round(progress) }}%</span>
           </div>
         </div>
 
@@ -66,7 +67,7 @@
 
       <!-- 底部版本信息 -->
       <div class="splash-footer">
-        <span>v{{ appVersion }}</span>
+        <span class="tp-data">v{{ appVersion }}</span>
       </div>
     </div>
   </Transition>
@@ -182,68 +183,78 @@ onMounted(() => {
 
 .splash-logo {
   margin-bottom: 24px;
-  animation: pulse 2s ease-in-out infinite;
+  animation: logoFloat 3s ease-in-out infinite;
 }
 
-@keyframes pulse {
+@keyframes logoFloat {
   0%, 100% {
-    transform: scale(1);
-    opacity: 1;
+    transform: translateY(0);
+    filter: drop-shadow(0 4px 12px rgba(184, 92, 56, 0.2));
   }
   50% {
-    transform: scale(1.05);
-    opacity: 0.9;
+    transform: translateY(-6px);
+    filter: drop-shadow(0 8px 20px rgba(184, 92, 56, 0.3));
   }
 }
 
 .splash-title {
+  font-family: var(--tp-font-heading);
   font-size: 32px;
   font-weight: 700;
   color: #fff;
   margin: 0 0 8px 0;
-  font-family: var(--tp-font-stack);
   letter-spacing: 2px;
 }
 
 .splash-subtitle {
+  font-family: var(--tp-font-body);
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.55);
   margin: 0 0 48px 0;
   letter-spacing: 1px;
 }
 
 .progress-container {
-  width: 320px;
+  width: 340px;
 }
 
 .progress-bar {
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  position: relative;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #B85C38 0%, #d4785a 100%);
+  background: linear-gradient(90deg, #B85C38 0%, #d4785a 50%, #B85C38 100%);
+  background-size: 200% 100%;
   border-radius: 2px;
-  transition: width 0.15s ease-out;
+  transition: width 0.2s ease-out;
   position: relative;
 
-  &::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 30px;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
-  }
-
   &.progress-error {
-    background: linear-gradient(90deg, #B85C38 0%, #e6a23c 100%);
+    background: linear-gradient(90deg, #c0392b 0%, #e6a23c 100%);
   }
+}
+
+.progress-sweep {
+  position: absolute;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  border-radius: 2px;
+  animation: sweep 1.5s ease-in-out infinite;
+  transition: left 0.2s ease-out;
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-30px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(30px); opacity: 0; }
 }
 
 .progress-info {
@@ -253,8 +264,9 @@ onMounted(() => {
 }
 
 .progress-text {
+  font-family: var(--tp-font-body);
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .progress-percent {
@@ -265,16 +277,17 @@ onMounted(() => {
 }
 
 .error-hint {
-  margin-top: 16px;
+  margin-top: 18px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(230, 162, 60, 0.15);
-  border: 1px solid rgba(230, 162, 60, 0.3);
-  border-radius: 6px;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(230, 162, 60, 0.1);
+  border: 1px solid rgba(230, 162, 60, 0.25);
+  border-radius: var(--tp-radius-md);
   font-size: 12px;
   color: #e6a23c;
+  font-family: var(--tp-font-body);
 
   .el-icon {
     font-size: 14px;
@@ -285,13 +298,14 @@ onMounted(() => {
   position: absolute;
   bottom: 32px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 /* 淡出动画 */
 .splash-fade-leave-active {
-  transition: opacity 0.5s ease-out;
+  transition: opacity 0.5s var(--tp-easing-expo);
 }
+
 .splash-fade-leave-to {
   opacity: 0;
 }
@@ -299,12 +313,14 @@ onMounted(() => {
 /* 错误提示滑入 */
 .error-slide-enter-active,
 .error-slide-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--tp-easing-expo);
 }
+
 .error-slide-enter-from {
   opacity: 0;
   transform: translateY(-8px);
 }
+
 .error-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px);

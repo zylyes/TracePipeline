@@ -4,22 +4,32 @@
 
     <el-empty v-if="!loading && tableData.length === 0" description="暂无露头数据" />
 
-    <el-table :data="tableData" size="small" style="width: 100%" v-loading="loading" v-else>
-      <el-table-column prop="outcrop" label="露头" width="80" />
-      <el-table-column prop="trace_count" label="迹线数" />
-      <el-table-column prop="p10" label="P10" />
-      <el-table-column prop="p20" label="P20" />
-      <el-table-column prop="p21" label="P21" />
-      <el-table-column prop="mean_trace_length" label="平均迹长(m)" />
-      <el-table-column prop="scanline_azimuth" label="走向" />
-      <el-table-column prop="type_ratio" label="I:II:III" />
-      <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_count" label="节点总数" />
-      <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_ratio" label="X:Y:I" />
-      <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_density" label="节点密度" />
-    </el-table>
+    <div v-else class="table-card tp-card">
+      <el-table :data="tableData" size="small" style="width: 100%" v-loading="loading" :header-cell-style="headerCellStyle">
+        <el-table-column prop="outcrop" label="露头" width="80" />
+        <el-table-column prop="trace_count" label="迹线数" />
+        <el-table-column prop="p10" label="P10" />
+        <el-table-column prop="p20" label="P20" />
+        <el-table-column prop="p21" label="P21" />
+        <el-table-column prop="mean_trace_length" label="平均迹长(m)" />
+        <el-table-column prop="scanline_azimuth" label="走向" />
+        <el-table-column prop="type_ratio" label="I:II:III" />
+        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_count" label="节点总数" />
+        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_ratio" label="X:Y:I" />
+        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_density" label="节点密度" />
+      </el-table>
+    </div>
 
-    <div class="chart-area" v-if="tableData.length > 0">
-      <div class="chart-tip">点击图例可控制显示/隐藏</div>
+    <div class="chart-area tp-card" v-if="tableData.length > 0">
+      <div class="chart-header">
+        <div class="chart-header-left">
+          <div class="chart-icon">
+            <el-icon :size="16"><TrendCharts /></el-icon>
+          </div>
+          <h3>多露头参数对比</h3>
+        </div>
+        <div class="chart-tip">点击图例可控制显示/隐藏</div>
+      </div>
       <div class="chart-toolbar">
         <el-radio-group v-model="chartMetric" size="small">
           <el-radio-button label="density">密度指标</el-radio-button>
@@ -32,9 +42,14 @@
     </div>
 
     <!-- 所有露头图片网格展示区 -->
-    <div class="images-panel" v-if="allImages.length > 0">
+    <div class="images-panel tp-card" v-if="allImages.length > 0">
       <div class="images-panel-header">
-        <h3>处理结果图</h3>
+        <div class="images-header-left">
+          <div class="images-icon">
+            <el-icon :size="16"><Picture /></el-icon>
+          </div>
+          <h3>处理结果图</h3>
+        </div>
         <div class="image-filter-bar">
           <el-radio-group v-model="imageFilter" size="small">
             <el-radio-button label="all">全部</el-radio-button>
@@ -73,6 +88,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onActivated, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { TrendCharts, Picture } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart } from 'echarts/charts'
@@ -143,29 +159,36 @@ function safeFloat(val: string): number | null {
   return isNaN(n) ? null : n
 }
 
-const echartsFont = '"Times New Roman", "SimSun", serif'
+const headerCellStyle = () => ({
+  fontFamily: 'var(--tp-font-heading)',
+  fontWeight: 600,
+  background: 'var(--tp-bg-sunken)',
+  color: 'var(--tp-text-primary)',
+})
+
+const echartsFont = 'var(--tp-font-data)'
 
 const barOption = computed(() => {
   const outcrops = tableData.value.map(d => d.outcrop)
   const metric = chartMetric.value
 
   const base = {
-    title: { text: '多露头参数对比', left: 'center', textStyle: { fontFamily: echartsFont } },
+    title: { text: '多露头参数对比', left: 'center', textStyle: { fontFamily: echartsFont, fontSize: 14, fontWeight: 600, color: 'var(--tp-text-primary)' } },
     tooltip: { trigger: 'axis', textStyle: { fontFamily: echartsFont } },
-    legend: { bottom: 0, textStyle: { fontFamily: echartsFont } },
+    legend: { bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
     grid: { left: '10%', right: '10%', bottom: '15%' },
-    xAxis: { type: 'category', data: outcrops, axisLabel: { fontFamily: echartsFont } },
-    yAxis: { type: 'value', axisLabel: { fontFamily: echartsFont } },
+    xAxis: { type: 'category', data: outcrops, axisLabel: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' }, axisLine: { lineStyle: { color: 'var(--tp-border)' } } },
+    yAxis: { type: 'value', axisLabel: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' }, splitLine: { lineStyle: { color: 'var(--tp-border-light)' } } },
   }
 
   if (metric === 'density') {
     return {
       ...base,
-      legend: { data: ['P10', 'P20', 'P21'], bottom: 0, textStyle: { fontFamily: echartsFont } },
+      legend: { data: ['P10', 'P20', 'P21'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
       series: [
-        { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: '#2c3e50' } },
-        { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: '#B85C38' } },
-        { name: 'P21', type: 'bar', data: tableData.value.map(d => safeFloat(d.p21) ?? '-'), itemStyle: { color: '#2E7D5A' } },
+        { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
+        { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } },
+        { name: 'P21', type: 'bar', data: tableData.value.map(d => safeFloat(d.p21) ?? '-'), itemStyle: { color: '#2E7D5A', borderRadius: [3, 3, 0, 0] } },
       ],
     }
   }
@@ -173,16 +196,16 @@ const barOption = computed(() => {
   if (metric === 'type') {
     return {
       ...base,
-      legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: { fontFamily: echartsFont } },
+      legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
       series: [
-        { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#2c3e50' } },
-        { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#B85C38' } },
-        { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#2E7D5A' } },
+        { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
+        { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } },
+        { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#2E7D5A', borderRadius: [3, 3, 0, 0] } },
         { name: '总裂隙数', type: 'bar', data: tableData.value.map(d => {
           const parts = d.type_ratio.split(':')
           const sum = (safeFloat(parts[0]) ?? 0) + (safeFloat(parts[1]) ?? 0) + (safeFloat(parts[2]) ?? 0)
           return sum
-        }), itemStyle: { color: '#5B8FF9' } },
+        }), itemStyle: { color: '#5B8FF9', borderRadius: [3, 3, 0, 0] } },
       ],
     }
   }
@@ -190,26 +213,26 @@ const barOption = computed(() => {
   if (metric === 'node') {
     return {
       ...base,
-      legend: { data: ['节点总数', 'X节点', 'Y节点', 'I节点'], bottom: 0, textStyle: { fontFamily: echartsFont } },
+      legend: { data: ['节点总数', 'X节点', 'Y节点', 'I节点'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
       series: [
-        { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: '#2c3e50' } },
-        { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#B85C38' } },
-        { name: 'Y节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#2E7D5A' } },
-        { name: 'I节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#7B1FA2' } },
+        { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
+        { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } },
+        { name: 'Y节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#2E7D5A', borderRadius: [3, 3, 0, 0] } },
+        { name: 'I节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#7B1FA2', borderRadius: [3, 3, 0, 0] } },
       ],
     }
   }
 
   // metric === 'length'
   const series: any[] = [
-    { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: '#2c3e50' } },
+    { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
   ]
   if (pipelineStore.lastEnableNodeRecognition) {
-    series.push({ name: '节点密度', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_density) ?? '-'), itemStyle: { color: '#B85C38' } })
+    series.push({ name: '节点密度', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_density) ?? '-'), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } })
   }
   return {
     ...base,
-    legend: { data: series.map(s => s.name), bottom: 0, textStyle: { fontFamily: echartsFont } },
+    legend: { data: series.map(s => s.name), bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
     series,
   }
 })
@@ -319,91 +342,184 @@ onActivated(() => {
 
 <style scoped lang="scss">
 .comparison-view {
-  padding: 24px;
+  padding: var(--tp-space-5) var(--tp-space-6);
   height: 100%;
   overflow-y: auto;
 }
+
 .page-title {
-  font-size: 20px;
+  font-family: var(--tp-font-heading);
+  font-size: 22px;
   font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 16px;
+  color: var(--tp-text-primary);
+  margin-bottom: var(--tp-space-4);
 }
+
+/* ── 表格卡片 ── */
+.table-card {
+  padding: var(--tp-space-4);
+  margin-bottom: var(--tp-space-4);
+  overflow: hidden;
+}
+
+.table-card :deep(.el-table) {
+  --el-table-header-bg-color: var(--tp-bg-sunken);
+  --el-table-row-hover-bg-color: var(--tp-bg-hover);
+  --el-table-border-color: var(--tp-border-light);
+}
+
+.table-card :deep(.el-table th.el-table__cell) {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+  color: var(--tp-text-primary);
+  background: var(--tp-bg-sunken);
+}
+
+.table-card :deep(.el-table .cell) {
+  font-family: var(--tp-font-body);
+  font-size: 13px;
+}
+
+/* ── 图表区 ── */
 .chart-area {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
-  margin-top: 16px;
+  padding: var(--tp-space-4) var(--tp-space-5);
+  margin-top: var(--tp-space-4);
 }
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--tp-space-3);
+  padding-bottom: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
+  flex-wrap: wrap;
+  gap: var(--tp-space-2);
+}
+
+.chart-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chart-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--tp-radius-sm);
+  background: var(--tp-info-bg);
+  color: var(--tp-info);
+}
+
+.chart-area h3 {
+  font-family: var(--tp-font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-text-primary);
+  margin: 0;
+}
+
 .chart-toolbar {
   display: flex;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--tp-space-3);
 }
+
 .chart-tip {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--tp-text-muted);
 }
+
 .chart {
   height: 300px;
 }
+
+/* ── 图片网格 ── */
 .images-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
-  margin-top: 16px;
+  padding: var(--tp-space-4) var(--tp-space-5);
+  margin-top: var(--tp-space-4);
 }
+
 .images-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
+  gap: var(--tp-space-3);
+  margin-bottom: var(--tp-space-3);
+  padding-bottom: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
 }
+
+.images-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.images-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--tp-radius-sm);
+  background: rgba(184, 92, 56, 0.08);
+  color: var(--tp-brand-accent);
+}
+
 .images-panel-header h3 {
-  font-size: 15px;
+  font-family: var(--tp-font-heading);
+  font-size: 16px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--tp-text-primary);
   margin: 0;
 }
+
 .image-filter-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--tp-space-3);
 }
+
 .image-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
+  gap: var(--tp-space-3);
 }
+
 .image-card {
-  background: #f5f7fa;
-  border-radius: 6px;
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-md);
   overflow: hidden;
   cursor: zoom-in;
-  transition: all 0.2s;
+  transition: all var(--tp-duration-slow) var(--tp-easing-expo);
+  border: 1px solid var(--tp-border-light);
 }
+
 .image-card:hover {
-  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.12);
-  transform: translateY(-2px);
+  box-shadow: var(--tp-shadow-md);
+  transform: translateY(-3px);
+  border-color: var(--tp-border-medium);
 }
+
 .image-label {
   padding: 6px 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #2c3e50;
-  background: #e4e7ed;
+  color: var(--tp-text-primary);
+  background: var(--tp-bg-hover);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--tp-font-heading);
+  border-bottom: 1px solid var(--tp-border-light);
 }
+
 .image-wrapper {
   padding: 8px;
   display: flex;
@@ -411,6 +527,7 @@ onActivated(() => {
   justify-content: center;
   min-height: 120px;
 }
+
 .grid-img {
   max-width: 100%;
   max-height: 160px;

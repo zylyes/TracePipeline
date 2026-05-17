@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ctypes
+from ctypes import wintypes
 import logging
 import sys
 import time
@@ -37,6 +38,17 @@ def get_screen_size() -> tuple[int, int]:
 
     # 终极回退：返回常用默认值
     return 1920, 1080
+
+
+def _subclass_for_drag_resize(window) -> bool:
+    """子类化 pywebview 窗口以启用原生拖拽和 resize（Windows 专用）。
+
+    注意：pywebview 6.x 使用 WinForms (.NET) 后端，.NET 消息泵在 CLR 层
+    拦截了 WM_NCHITTEST，导致 SetWindowLongPtrW 替换的底层 WndProc 收不到
+    该消息。因此此函数已失效，拖拽和 resize 改由前端 JS 实现。
+    """
+    logger.info("Win32 子类化已弃用，拖拽/resize 由前端 JS 实现")
+    return True
 
 
 def get_window_position(window_width: int, window_height: int) -> tuple[int, int]:
@@ -126,6 +138,8 @@ def main() -> None:
             x=x,
             y=y,
             js_api=api,
+            frameless=True,
+            easy_drag=True,
         )
         webview.start(debug=False)
         return
@@ -155,12 +169,15 @@ def main() -> None:
         y=y,
         min_size=(1000, 600),
         js_api=api,
+        frameless=True,
+        easy_drag=False,
     )
     api.set_window(window)
 
-    # 窗口显示后再次强制居中，避免 DPI 缩放或系统边框导致初始位置偏移
+    # 窗口显示后再次强制居中，并子类化启用原生拖拽 / resize
     def on_shown():
         window.move(x, y)
+        _subclass_for_drag_resize(window)
         logger.info("窗口显示后强制居中到 (%d, %d)", x, y, extra={"stage": "window_shown", "x": x, "y": y})
 
     window.events.shown += on_shown

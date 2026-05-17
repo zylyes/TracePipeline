@@ -5,8 +5,6 @@
 """
 import multiprocessing
 
-# 并行模式下使用 spawn 启动子进程，避免继承父进程的 matplotlib 全局状态
-# 必须在任何多进程代码之前设置
 try:
     multiprocessing.set_start_method("spawn")
 except RuntimeError:
@@ -25,3 +23,8 @@ from trace_pipeline.cli import main
 if __name__ == "__main__":
     ensure_workspace_dirs()
     main()
+
+
+def _get_spawn_context():
+    """返回 spawn 多进程上下文，避免全局修改启动方法。"""
+    return multiprocessing.get_context("spawn")

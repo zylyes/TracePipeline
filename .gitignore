@@ -60,10 +60,10 @@ logs/
 .codebuddy/
 .ruff_cache/
 constraints.txt
+config.json
 
 # reference — 研究资料目录（全部忽略，仅保留 matlab/ 和 Markdown 文档）
 reference/*
 !reference/matlab/
 !reference/matlab/**
 !reference/*.md
-config.json

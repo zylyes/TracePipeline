@@ -26,8 +26,11 @@ from trace_pipeline.plotting.overlays import (
 logger = logging.getLogger(__name__)
 
 
-def _to_native(val: Any) -> Any:
+def _to_native(val: Any, _depth: int = 0) -> Any:
     """将 numpy 类型转换为原生 Python 类型，确保 JSON 可序列化。"""
+    _MAX_DEPTH = 20
+    if _depth > _MAX_DEPTH:
+        return str(val)
     if isinstance(val, np.integer):
         return int(val)
     if isinstance(val, np.floating):
@@ -35,9 +38,9 @@ def _to_native(val: Any) -> Any:
     if isinstance(val, np.ndarray):
         return val.tolist()
     if isinstance(val, dict):
-        return {k: _to_native(v) for k, v in val.items()}
+        return {k: _to_native(v, _depth + 1) for k, v in val.items()}
     if isinstance(val, (list, tuple)):
-        return [_to_native(v) for v in val]
+        return [_to_native(v, _depth + 1) for v in val]
     return val
 
 

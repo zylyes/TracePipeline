@@ -73,12 +73,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "window_strategy": "auto",
     "auto_density_threshold": 5.0,
     "tangent_window_count": 3,
+    "min_intersections": 5,
     "style": {},
     "enable_node_recognition": True,
     "node_merge_tolerance": 1e-6,
     "show_node_overlay": True,
     "is_dev_mode": False,
-    "min_intersections": 5,
 }
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "table_stem", "outcrop")

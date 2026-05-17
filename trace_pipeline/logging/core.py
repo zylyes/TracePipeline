@@ -274,43 +274,44 @@ def setup_logging(
     pkg_logger.setLevel(min(console_level, file_level))
     pkg_logger.propagate = False
 
-    # 幂等：检查是否已有托管 Handler
-    has_console = any(
-        isinstance(h, logging.StreamHandler)
-        and not isinstance(h, logging.FileHandler)
-        and getattr(h, _MANAGED_ATTR, False)
-        for h in pkg_logger.handlers
-    )
-    has_file = any(
-        isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False)
-        for h in pkg_logger.handlers
-    )
-
-    if not has_console:
-        console = logging.StreamHandler(sys.stdout)
-        console.setLevel(console_level)
-        console.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    with _lock:
+        # 幂等：检查是否已有托管 Handler
+        has_console = any(
+            isinstance(h, logging.StreamHandler)
+            and not isinstance(h, logging.FileHandler)
+            and getattr(h, _MANAGED_ATTR, False)
+            for h in pkg_logger.handlers
         )
-        setattr(console, _MANAGED_ATTR, True)
-        pkg_logger.addHandler(console)
+        has_file = any(
+            isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False)
+            for h in pkg_logger.handlers
+        )
 
-    if not has_file:
-        file_handler = DailyRotatingJsonHandler(log_dir=log_dir)
-        file_handler.setLevel(file_level)
-        pkg_logger.addHandler(file_handler)
+        if not has_console:
+            console = logging.StreamHandler(sys.stdout)
+            console.setLevel(console_level)
+            console.setFormatter(
+                logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+            )
+            setattr(console, _MANAGED_ATTR, True)
+            pkg_logger.addHandler(console)
 
-    # 合并 backend 到 trace_pipeline：让 backend 的日志也写入同一个 run_XXX.jsonl
-    backend_logger = logging.getLogger("backend")
-    backend_logger.setLevel(min(console_level, file_level))
-    backend_logger.propagate = False  # 关闭 propagate，直接添加 handler
-    backend_logger.handlers.clear()   # 清除旧 handler，避免重复
+        if not has_file:
+            file_handler = DailyRotatingJsonHandler(log_dir=log_dir)
+            file_handler.setLevel(file_level)
+            pkg_logger.addHandler(file_handler)
 
-    # 给 backend logger 添加与 trace_pipeline 相同的 handler
-    if not any(isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
-        backend_logger.addHandler(file_handler)
-    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
-        backend_logger.addHandler(console)
+        # 合并 backend 到 trace_pipeline：让 backend 的日志也写入同一个 run_XXX.jsonl
+        backend_logger = logging.getLogger("backend")
+        backend_logger.setLevel(min(console_level, file_level))
+        backend_logger.propagate = False  # 关闭 propagate，直接添加 handler
+        backend_logger.handlers.clear()   # 清除旧 handler，避免重复
+
+        # 给 backend logger 添加与 trace_pipeline 相同的 handler
+        if not any(isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
+            backend_logger.addHandler(file_handler)
+        if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
+            backend_logger.addHandler(console)
 
     return pkg_logger
 

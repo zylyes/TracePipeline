@@ -33,7 +33,7 @@ class FileService:
         """扫描 input_dir，返回文件列表（带缓存）。"""
         if self._scan_cache:
             results, ts = self._scan_cache
-            if time.time() - ts < self._scan_ttl:
+            if time.monotonic() - ts < self._scan_ttl:
                 logger.debug("scan 命中缓存: %d 个文件", len(results), extra={"stage": "file_scan_cache_hit", "count": len(results)})
                 return results
         logger.info(
@@ -70,7 +70,7 @@ class FileService:
                 "completed": sum(1 for r in results if r["status"] == "completed"),
             },
         )
-        self._scan_cache = (results, time.time())
+        self._scan_cache = (results, time.monotonic())
         return results
 
     def invalidate_cache(self) -> None:

@@ -83,7 +83,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
         setup_worker_logging()
 
     pipeline_start = time.perf_counter()
-    with LogContext(request_id=f"pipeline-{cfg.outcrop}-{int(pipeline_start * 1000)}"):
+    import uuid
+    with LogContext(request_id=f"pipeline-{cfg.outcrop}-{int(pipeline_start * 1000)}-{uuid.uuid4().hex[:6]}"):
         logger.info(
             "开始处理: %s", cfg.outcrop,
             extra={"stage": "pipeline_start", "config": cfg.__dict__},
@@ -211,7 +212,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     rotated,
                     f"迹线长度图\n标尺（走向={trace.scanline_azimuth:.1f}°）",
                     str(output_dir),
-                    f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth}).png",
+                    f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
                     dpi=cfg.rotated_trace_dpi,
                     north_angle_deg=rotated_north_angle,
                     statistics_lines=statistics_lines,

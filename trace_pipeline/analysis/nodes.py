@@ -74,30 +74,6 @@ class _UnionFind:
             self.rank[rx] += 1
 
 
-def _batch_bbox_overlap(
-    bboxes_a: np.ndarray, bboxes_b: np.ndarray, margin: float = 0.0
-) -> np.ndarray:
-    """批量判断两组 AABB 包围盒是否重叠。
-
-    Args:
-        bboxes_a: (N, 4) [x_min, y_min, x_max, y_max]
-        bboxes_b: (M, 4) [x_min, y_min, x_max, y_max]
-        margin: 额外扩展边界
-
-    Returns:
-        (N,) bool 数组，表示每个 A 与所有 B 的重叠情况
-    """
-    # 将 A 的每个框与 B 的所有框比较
-    # bboxes_a[:, None, :] - bboxes_b[None, :, :] 会产生 (N, M, 4) 大数组
-    # 用更节省内存的方式：分别比较各边界
-    overlap = (
-        (bboxes_a[:, 0] <= bboxes_b[:, 2] + margin)  # a.x_max >= b.x_min
-        & (bboxes_a[:, 2] >= bboxes_b[:, 0] - margin)  # a.x_min <= b.x_max
-        & (bboxes_a[:, 1] <= bboxes_b[:, 3] + margin)  # a.y_max >= b.y_min
-        & (bboxes_a[:, 3] >= bboxes_b[:, 1] - margin)  # a.y_min <= b.y_max
-    )
-    return overlap
-
 
 def _merge_candidates(
     candidates: list[_Candidate],

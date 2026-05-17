@@ -22,7 +22,7 @@ class PipelineService:
     """后台线程执行流水线，前端通过轮询获取进度。"""
 
     def __init__(self) -> None:
-        self._queue: deque[dict[str, Any]] = deque()
+        self._queue: deque[dict[str, Any]] = deque(maxlen=1000)
         self._lock = threading.Lock()
         self._running = False
 

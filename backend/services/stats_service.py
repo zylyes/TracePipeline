@@ -70,7 +70,7 @@ class StatsService:
         cached = self._cache.get(key)
         if cached:
             result, ts = cached
-            if time.time() - ts < self._cache_ttl:
+            if time.monotonic() - ts < self._cache_ttl:
                 logger.debug(
                     "get_stats 命中缓存 [%s]: trace_count=%s",
                     outcrop, result.get("trace_count"),
@@ -87,6 +87,10 @@ class StatsService:
         except Exception as exc:
             logger.warning("加载 %s 失败: %s", outcrop, exc, extra={"stage": "stats_load", "outcrop": outcrop, "error": str(exc)})
             return {"error": str(exc)}
+
+        if trace.count == 0 or trace.endpoints.size == 0:
+            logger.warning("%s 不包含任何迹线", outcrop, extra={"stage": "stats_load", "outcrop": outcrop})
+            return {"error": f"{outcrop} 不包含任何迹线"}
 
         stats_config = TraceStatisticsConfig(
             window_strategy=cfg.get("window_strategy", "auto"),
@@ -244,18 +248,17 @@ class StatsService:
                 "duration_ms": round(duration, 3),
             },
         )
-        self._cache[key] = (result, time.time())
+        self._cache[key] = (result, time.monotonic())
         return result
 
     def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """返回多露头对比数据（优先走缓存）。"""
         results: list[dict[str, Any]] = []
         missing: list[str] = []
-        now = time.time()
         for oc in outcrops:
             key = self._make_key(oc, config)
             cached = self._cache.get(key)
-            if cached and (now - cached[1] < self._cache_ttl):
+            if cached and (time.monotonic() - cached[1] < self._cache_ttl):
                 results.append(cached[0])
             else:
                 missing.append(oc)

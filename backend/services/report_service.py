@@ -45,15 +45,20 @@ def _find_system_font() -> tuple[str, str]:
         if os.path.exists(fp):
             return fp, fname
 
-    # 回退：尝试从 matplotlib 字体管理器查找
+    # 回退：尝试从 matplotlib 字体管理器查找 CJK 字体
     try:
         import matplotlib.font_manager as fm
+        cjk_keywords = ["noto", "cjk", "wqy", "sourcehansans", "sourcehanserifs",
+                      "microsoftyahei", "simsun", "simhei", "pingfang", "heiti",
+                      "meiryo", "malgun", "yugothic", "nanum"]
         for font in fm.fontManager.ttflist:
-            if "song" in font.name.lower() or "hei" in font.name.lower() or "yahei" in font.name.lower():
+            name_lower = font.name.lower()
+            if any(k in name_lower for k in cjk_keywords):
                 return font.fname, font.name
-        # 最后回退到任意可用字体
-        if fm.fontManager.ttflist:
-            return fm.fontManager.ttflist[0].fname, fm.fontManager.ttflist[0].name
+        # 回退到系统默认 sans-serif 字体（通常能渲染拉丁字符）
+        default_font = fm.findfont(fm.FontProperties(family="sans-serif"))
+        if default_font and os.path.exists(default_font):
+            return default_font, "sans-serif"
     except Exception:
         pass
 

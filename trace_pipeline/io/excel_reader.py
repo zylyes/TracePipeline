@@ -19,7 +19,7 @@ __all__ = ["read_trace_excel"]
 def read_trace_excel(
     base_path: str,
     table_stem: str,
-    sheet: str | None = None,
+    sheet: str | int | None = None,
 ) -> pd.DataFrame:
     """读取迹线 Excel 表，优先 .xlsx，缺失则回退 .xls；sheet 不存在时回退首表。
 

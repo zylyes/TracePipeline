@@ -28,6 +28,11 @@ export const useAppStore = defineStore('app', () => {
   const selectedFileCount = ref(0)
   const pipelineStatus = ref<'idle' | 'running' | 'completed' | 'error'>('idle')
 
+  function setDirs(input: string, output: string) {
+    inputDir.value = input
+    outputDir.value = output
+  }
+
   function updateLastOperation(action?: string) {
     const now = new Date()
     const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -46,6 +51,6 @@ export const useAppStore = defineStore('app', () => {
   return {
     inputDir, outputDir, currentPage, isDevMode,
     lastOperationTime, selectedFileCount, pipelineStatus,
-    updateLastOperation,
+    setDirs, updateLastOperation,
   }
 })

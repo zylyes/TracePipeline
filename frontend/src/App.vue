@@ -90,9 +90,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 const appVersion = __APP_VERSION__
-import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Document, Timer, Files, Folder, Clock } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
@@ -171,9 +171,8 @@ const bootSteps: BootStep[] = [
     targetProgress: 30,
     task: async () => {
       const cfg = await api.get_config()
-      appStore.inputDir = cfg.input_dir || 'input'
-      appStore.outputDir = cfg.output_dir || 'output'
-      configStore.config = { ...cfg }
+      appStore.setDirs(cfg.input_dir || 'input', cfg.output_dir || 'output')
+      configStore.hydrateConfig(cfg)
 
       const pipelineStore = usePipelineStore()
       const hasStoredRose = localStorage.getItem('tp_last_export_rose_plot') !== null

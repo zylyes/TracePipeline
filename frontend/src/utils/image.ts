@@ -10,8 +10,8 @@ export async function loadImageBase64(path: string): Promise<string> {
   const cached = cacheStore.getImage(path)
   if (cached) return cached
 
-  // 去掉 file:/// 或 file:// 前缀
-  const cleanPath = path.replace(/^file:\/\//, '').replace(/^file:\/\//, '')
+  // 去掉 file:// 前缀（兼容 2-4 个斜杠的各种变体）
+  const cleanPath = path.replace(/^file:\/+(.*)$/, '$1')
   try {
     const base64 = await api.get_image(cleanPath)
     if (base64) {

@@ -10,7 +10,6 @@
     </div>
     <div class="control-bar">
       <el-button
-        type="primary"
         :icon="VideoPlay"
         :loading="running"
         @click="emit('run')"
@@ -20,8 +19,8 @@
         {{ running ? '运行中...' : '一键运行' }}
       </el-button>
       <div class="parallel-control">
-        <span class="parallel-label">并行进程:</span>
-        <div class="slider-input-combo" style="width:220px;margin:0 8px;">
+        <span class="parallel-label">并行进程</span>
+        <div class="slider-input-combo">
           <el-slider v-model="parallel" :min="1" :max="maxParallel" />
           <el-input-number v-model="parallel" :min="1" :max="maxParallel" :controls="false" size="small" style="width: 60px; flex-shrink: 0;" />
         </div>
@@ -31,7 +30,7 @@
     <div class="progress-area">
       <el-progress
         :percentage="percentage"
-        :stroke-width="14"
+        :stroke-width="8"
         :status="progressStatus"
         :color="progressColor"
         class="modern-progress"
@@ -74,7 +73,7 @@ const emit = defineEmits<{
 // 根据 CPU 逻辑核心数动态设置上限（I/O 密集型任务允许略高于核心数）
 const maxParallel = Math.max(4, Math.min((navigator.hardwareConcurrency || 4) * 2, 32))
 
-const parallel = defineModel<number>('parallel', { default: 4 })
+const parallel = defineModel<number>('parallel', { default: 1 })
 
 // 数值变化时持久化到 localStorage
 watch(parallel, (val) => {
@@ -140,8 +139,8 @@ const progressColor = computed(() => {
   width: 24px;
   height: 24px;
   border-radius: var(--tp-radius-sm);
-  background: var(--tp-success-bg);
-  color: var(--tp-success);
+  background: var(--tp-info-bg);
+  color: var(--tp-info);
 }
 
 .progress-panel h3 {
@@ -162,29 +161,56 @@ const progressColor = computed(() => {
 
 .run-btn {
   font-family: var(--tp-font-heading);
-  font-weight: 500;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 8px 22px;
+  border-radius: var(--tp-radius-sm);
+  letter-spacing: 0.5px;
+  background: var(--tp-brand-accent);
+  border-color: var(--tp-brand-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(184, 92, 56, 0.25);
+  transition: all var(--tp-duration-normal) var(--tp-easing);
+}
+
+.run-btn:hover,
+.run-btn:focus {
+  background: var(--tp-brand-accent-dark);
+  border-color: var(--tp-brand-accent-dark);
+  box-shadow: 0 4px 14px rgba(184, 92, 56, 0.35);
+  transform: translateY(-1px);
+}
+
+.run-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(184, 92, 56, 0.2);
 }
 
 .parallel-control {
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--tp-text-secondary);
+  background: var(--tp-bg-sunken);
+  padding: 6px 12px;
+  border-radius: var(--tp-radius-sm);
+  border: 1px solid var(--tp-border-light);
 }
 
 .parallel-label {
   font-family: var(--tp-font-heading);
   font-weight: 500;
+  font-size: 13px;
 }
 
 .parallel-limit {
   font-size: 12px;
-  color: var(--tp-text-muted);
+  color: var(--tp-text-secondary);
 }
 
 .current-file {
-  margin-top: var(--tp-space-3);
-  font-size: 14px;
+  margin-top: var(--tp-space-2);
+  font-size: 13px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -212,11 +238,23 @@ const progressColor = computed(() => {
 .slider-input-combo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  width: 200px;
+  margin: 0 8px;
 }
 
 .slider-input-combo .el-slider {
   flex: 1;
+}
+
+:deep(.el-slider__button) {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--tp-duration-normal) var(--tp-easing-expo);
+}
+
+:deep(.el-slider__button:hover) {
+  transform: scale(1.35);
 }
 
 /* Element Plus 进度条样式覆盖 */

@@ -4,7 +4,7 @@ import { ref, computed } from 'vue'
 const SCAN_TTL = 30_000      // 文件扫描缓存 30s
 const STATS_TTL = 300_000    // 统计数据缓存 5min
 const COMPARISON_TTL = 300_000 // 对比数据缓存 5min
-const RESULTS_TTL = 60_000   // 结果列表缓存 1min
+const RESULTS_TTL = 5_000    // 结果列表缓存 5s（output 目录可被外部删除，需快速感知变更）
   const IMAGE_TTL = 600_000    // 图片缓存 10min
   const IMAGE_MAX_COUNT = 50   // 图片缓存最大条目数
 

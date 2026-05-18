@@ -305,7 +305,7 @@ async function loadComparison(force = false) {
     })
 
     // 加载所有露头的所有图片（结果列表走缓存）
-    let results = cacheStore.getResults()
+    let results = force ? null : cacheStore.getResults()
     if (!results) {
       results = await api.get_results()
       cacheStore.setResults(results!)
@@ -353,7 +353,9 @@ onActivated(() => {
   if (!hasInitializedComparison) {
     hasInitializedComparison = true
     loadComparison()
-  } else if (!cacheStore.isComparisonValid || !cacheStore.isScanValid) {
+  } else if (!cacheStore.isComparisonValid || !cacheStore.isScanValid || !cacheStore.isResultsValid) {
+    cacheStore.invalidateComparison()
+    cacheStore.invalidateResults()
     loadComparison(true)
   }
 })

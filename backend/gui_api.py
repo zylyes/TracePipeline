@@ -55,6 +55,8 @@ class GuiApi:
         # 重资源操作的运行锁
         self._preview_running = False
         self._report_running = False
+        # output 目录变更检测：记录上次的 mtime + 文件数量快照
+        self._output_snapshot: tuple[float, int] | None = None
         self._sync_services_from_config(self._config.get())
         cfg = self._config.get()
         logger.info(
@@ -126,6 +128,46 @@ class GuiApi:
         self._file.set_dirs(input_dir, output_dir)
         self._data.update_dirs(output_dir, input_dir)
 
+    def _resolve_output_dir(self) -> Path:
+        out_dir = Path(self._config.get().get("output_dir", "output"))
+        if not out_dir.is_absolute():
+            out_dir = PROJECT_ROOT / out_dir
+        return out_dir.resolve()
+
+    def _check_output_changed(self) -> bool:
+        """检测 output 目录是否发生了外部变更（如手动删除/添加文件）。
+
+        通过比较目录 mtime 和文件数量快照来判断。
+        返回 True 表示检测到变更，并已自动使后端缓存失效。
+        """
+        out_dir = self._resolve_output_dir()
+        if not out_dir.exists():
+            current_snapshot = (-1.0, 0)
+        else:
+            try:
+                mtime = out_dir.stat().st_mtime
+                file_count = sum(1 for _ in out_dir.iterdir())
+                current_snapshot = (mtime, file_count)
+            except OSError:
+                current_snapshot = (-1.0, 0)
+
+        if self._output_snapshot is None:
+            self._output_snapshot = current_snapshot
+            return False
+
+        if current_snapshot != self._output_snapshot:
+            logger.info(
+                "检测到 output 目录变更: 旧快照=%s, 新快照=%s，使缓存失效",
+                self._output_snapshot, current_snapshot,
+                extra={"stage": "output_dir_changed", "old": self._output_snapshot, "new": current_snapshot},
+            )
+            self._output_snapshot = current_snapshot
+            self._file.invalidate_cache()
+            self._stats.invalidate_cache()
+            return True
+
+        return False
+
     # ------------------------------------------------------------------
     # 配置
     # ------------------------------------------------------------------
@@ -191,9 +233,12 @@ class GuiApi:
     # ------------------------------------------------------------------
     def scan_files(self, force = False) -> list[dict[str, Any]]:
         start = time.perf_counter()
-        # 强制刷新时先使后端缓存失效，确保返回最新数据
-        if force:
+        output_changed = self._check_output_changed()
+        # 强制刷新或 output 变更时先使后端缓存失效，确保返回最新数据
+        if force or output_changed:
             self._file.invalidate_cache()
+            if output_changed:
+                self._stats.invalidate_cache()
         results = self._file.scan()
         duration = (time.perf_counter() - start) * 1000
         pending = sum(1 for r in results if r.get("status") == "pending")
@@ -255,11 +300,9 @@ class GuiApi:
     # ------------------------------------------------------------------
     def get_results(self) -> list[dict[str, Any]]:
         """获取已完成的处理结果列表（通过扫描 output 目录）。"""
+        self._check_output_changed()
         import re
-        out_dir = Path(self._config.get().get("output_dir", "output"))
-        if not out_dir.is_absolute():
-            out_dir = PROJECT_ROOT / out_dir
-        out_dir = out_dir.resolve()
+        out_dir = self._resolve_output_dir()
         results = []
         # 使用更严格的正则匹配文件名模式
         raw_pattern = re.compile(r"^(.+)_raw\(n=\d+\)\.png$")
@@ -284,6 +327,7 @@ class GuiApi:
 
     def get_stats(self, outcrop: str) -> dict[str, Any]:
         start = time.perf_counter()
+        self._check_output_changed()
         result = self._stats.get_stats(outcrop, self._config.get())
         duration = (time.perf_counter() - start) * 1000
         if "error" in result:
@@ -310,6 +354,7 @@ class GuiApi:
 
     def get_comparison(self, outcrops: list[str]) -> list[dict[str, Any]]:
         start = time.perf_counter()
+        self._check_output_changed()
         results = self._stats.get_comparison(outcrops, self._config.get())
         duration = (time.perf_counter() - start) * 1000
         outcrops_str = ", ".join(outcrops[:10]) + ("..." if len(outcrops) > 10 else "")

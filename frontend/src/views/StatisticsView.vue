@@ -183,7 +183,7 @@ async function loadStats(force = false) {
     stats.value = res
 
     // 扫描 output 目录获取图片路径（结果列表也走缓存）
-    let results = cacheStore.getResults()
+    let results = force ? null : cacheStore.getResults()
     if (!results) {
       results = await api.get_results()
       cacheStore.setResults(results!)
@@ -258,6 +258,8 @@ onActivated(() => {
     hasInitializedStats = true
     loadOutcrops()
   } else if (!cacheStore.isScanValid || !cacheStore.isResultsValid) {
+    cacheStore.invalidateStats()
+    cacheStore.invalidateResults()
     loadOutcrops(true)
   }
 })

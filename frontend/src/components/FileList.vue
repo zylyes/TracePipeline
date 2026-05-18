@@ -37,10 +37,11 @@
       <el-table-column label="操作" width="200">
         <template #default="{ row }">
           <template v-if="row.status === 'completed'">
-            <el-button link size="small" @click="emit('preview', row)">预览数据</el-button>
-            <el-button link size="small" type="primary" @click="emit('open-image', row)">打开图片</el-button>
+            <el-button link size="small" type="primary" :icon="View" @click="emit('preview', row)">预览数据</el-button>
+            <el-divider direction="vertical" />
+            <el-button link size="small" type="success" :icon="Picture" @click="emit('open-image', row)">打开图片</el-button>
           </template>
-          <el-button v-else link size="small" type="primary" @click="emit('run', row)">处理</el-button>
+          <el-button v-else link size="small" type="warning" :icon="VideoPlay" @click="emit('run', row)">处理</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -49,7 +50,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { Refresh, Document } from '@element-plus/icons-vue'
+import { Refresh, Document, View, Picture, VideoPlay } from '@element-plus/icons-vue'
 import type { ElTable } from 'element-plus'
 import type { TraceFile } from '@/types'
 

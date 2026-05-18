@@ -140,8 +140,8 @@ watch(() => props.files, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
   background: var(--tp-info-bg);
   color: var(--tp-info);

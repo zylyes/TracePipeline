@@ -386,67 +386,69 @@ onActivated(() => {
 
 <style scoped lang="scss">
 .dev-panel {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px 20px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
-  margin-top: 16px;
+  background: var(--tp-bg-card);
+  border-radius: var(--tp-radius-lg);
+  padding: var(--tp-space-4) var(--tp-space-5);
+  box-shadow: var(--tp-shadow-md);
+  border: 1px solid var(--tp-border-light);
+  margin-top: var(--tp-space-4);
 }
 :deep(.el-collapse) {
   border-top: none;
   border-bottom: none;
 }
 :deep(.el-collapse-item__header) {
+  font-family: var(--tp-font-heading);
   font-size: 15px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--tp-text-primary);
   height: 44px;
   line-height: 44px;
 }
 :deep(.el-collapse-item__content) {
-  padding-bottom: 4px;
+  padding-bottom: var(--tp-space-1);
 }
 .outcrop-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--tp-space-2);
 }
 .oc-tag {
-  font-family: "Times New Roman", serif;
+  font-family: var(--tp-font-data);
 }
 .oc-empty {
-  color: #909399;
+  color: var(--tp-text-muted);
   font-size: 13px;
 }
 .log-controls {
   display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--tp-space-2);
+  margin-bottom: var(--tp-space-3);
   align-items: center;
 }
 .backend-log-content {
-  background: #f5f7fa;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
-  padding: 12px;
+  background: var(--tp-bg-sunken);
+  border: 1px solid var(--tp-border-light);
+  border-radius: var(--tp-radius-sm);
+  padding: var(--tp-space-3);
   max-height: 350px;
   overflow: auto;
 }
 .backend-log-content pre {
   margin: 0;
+  font-family: var(--tp-font-mono);
   font-size: 12px;
-  font-family: 'Consolas', 'Courier New', monospace;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
-  color: #2c3e50;
+  color: var(--tp-text-primary);
 }
 .dev-action-bar {
   display: flex;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #e4e7ed;
+  gap: var(--tp-space-3);
+  margin-top: var(--tp-space-4);
+  padding-top: var(--tp-space-3);
+  border-top: 1px solid var(--tp-border-light);
   justify-content: flex-end;
 }
 .audit-scroll-container {
@@ -456,59 +458,60 @@ onActivated(() => {
 .audit-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--tp-space-2);
 }
 .audit-item {
   display: flex;
-  gap: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: #f5f7fa;
-  border: 1px solid #ebeef5;
+  gap: var(--tp-space-3);
+  padding: var(--tp-space-2) var(--tp-space-3);
+  border-radius: var(--tp-radius-xs);
+  background: var(--tp-bg-sunken);
+  border: 1px solid var(--tp-border-light);
   font-size: 13px;
   line-height: 1.6;
 }
 .audit-time {
-  color: #909399;
-  font-family: monospace;
+  color: var(--tp-text-muted);
+  font-family: var(--tp-font-mono);
   white-space: nowrap;
   flex-shrink: 0;
 }
 .audit-action {
-  color: #606266;
+  color: var(--tp-text-secondary);
 }
 
 /* 报告导出紧凑布局 */
 .report-form .el-form-item {
-  margin-bottom: 12px;
+  margin-bottom: var(--tp-space-3);
 }
 .report-form .el-row {
   align-items: center;
 }
 .report-action {
-  margin-top: 4px;
+  margin-top: var(--tp-space-1);
   margin-bottom: 0 !important;
 }
 
 /* 高级配置紧凑网格 */
 .advanced-form .el-form-item {
-  margin-bottom: 8px;
+  margin-bottom: var(--tp-space-2);
 }
 .adv-section {
-  margin-bottom: 12px;
+  margin-bottom: var(--tp-space-3);
 }
 .adv-section:last-child {
   margin-bottom: 0;
 }
 .adv-section-title {
   position: relative;
+  font-family: var(--tp-font-heading);
   font-size: 15px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 16px 0 12px;
-  padding-bottom: 8px;
-  padding-left: 10px;
-  border-bottom: 1px solid #e4e7ed;
+  color: var(--tp-text-primary);
+  margin: var(--tp-space-4) 0 var(--tp-space-3);
+  padding-bottom: var(--tp-space-2);
+  padding-left: var(--tp-space-3);
+  border-bottom: 1px solid var(--tp-border-light);
 }
 .adv-section:first-child .adv-section-title {
   margin-top: 0;
@@ -520,7 +523,7 @@ onActivated(() => {
   top: 2px;
   bottom: 10px;
   width: 3px;
-  background: #409eff;
+  background: var(--tp-brand-accent);
   border-radius: 2px;
 }
 </style>

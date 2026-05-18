@@ -1,10 +1,10 @@
 <template>
   <div class="stat-cards">
     <div
-      class="stat-card"
+      class="stat-card tp-card-glow"
       v-for="(card, idx) in cards"
       :key="card.label"
-      :style="{ '--accent-color': card.color, animationDelay: `${idx * 80}ms` }"
+      :style="{ '--accent-color': card.color, '--stagger-index': idx, animationDelay: `${idx * 70}ms` }"
     >
       <div class="stat-accent"></div>
       <div class="stat-top">
@@ -47,25 +47,25 @@ const nodeDensity = computed(() => {
 })
 
 const CARD_COLORS = [
-  '#2c3e50', '#B85C38', '#2E7D5A',
-  '#4A5568', '#7B1FA2', '#606266',
-  '#1565C0', '#E65100', '#2E7D5A',
+  '#4A7C9B', '#C96B4F', '#4A9E7A',
+  '#6B8EBB', '#8AAFC4', '#B89A6A',
+  '#D4A07A', '#7EB8A0', '#4A9E7A',
 ]
 
 const cards = computed(() => {
   const base = [
-    { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹', color: '#2c3e50' },
-    { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²', color: '#B85C38' },
-    { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹', color: '#2E7D5A' },
+    { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹', color: '#4A7C9B' },
+    { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²', color: '#C96B4F' },
+    { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹', color: '#4A9E7A' },
   ]
   if (props.showNodes !== false && ns.value) {
     base.push(
-      { label: '节点总数', value: ns.value?.node_count, unit: '个', color: '#4A5568' },
-      { label: '节点密度', value: nodeDensity.value, unit: '个/m²', color: '#7B1FA2' },
-      { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条', color: '#606266' },
-      { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个', color: '#1565C0' },
-      { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个', color: '#E65100' },
-      { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个', color: '#2E7D5A' },
+      { label: '节点总数', value: ns.value?.node_count, unit: '个', color: '#6B8EBB' },
+      { label: '节点密度', value: nodeDensity.value, unit: '个/m²', color: '#8AAFC4' },
+      { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条', color: '#B89A6A' },
+      { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个', color: '#D4A07A' },
+      { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个', color: '#7EB8A0' },
+      { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个', color: '#4A9E7A' },
     )
   }
   return base
@@ -101,13 +101,13 @@ function formatValue(v: number | null | undefined) {
 }
 
 @keyframes cardFadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--tp-shadow-lg), 0 0 0 1px rgba(184, 92, 56, 0.06);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--tp-shadow-lg), 0 0 0 1px var(--tp-brand-accent-border);
 }
 
 /* 顶部彩色指示条 */
@@ -117,13 +117,32 @@ function formatValue(v: number | null | undefined) {
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--accent-color, var(--tp-brand-accent));
-  opacity: 0;
-  transition: opacity var(--tp-duration-normal);
+  background: linear-gradient(90deg, transparent, var(--accent-color, var(--tp-brand-accent)), transparent);
+  transform: scaleX(0);
+  transition: transform 0.4s var(--tp-easing-expo);
+  transform-origin: center;
 }
 
 .stat-card:hover .stat-accent {
-  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* hover 时底部微光 */
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: var(--accent-color, var(--tp-brand-accent));
+  opacity: 0;
+  filter: blur(4px);
+  transition: opacity var(--tp-duration-slow);
+}
+
+.stat-card:hover::after {
+  opacity: 0.3;
 }
 
 .stat-top {
@@ -134,7 +153,7 @@ function formatValue(v: number | null | undefined) {
 }
 
 .stat-value {
-  font-size: 34px;
+  font-size: var(--tp-font-size-display);
   font-weight: 700;
   color: var(--tp-text-primary);
   line-height: 1.2;

@@ -136,32 +136,34 @@ watch(() => props.styleConfig, (val) => {
 
 <style scoped lang="scss">
 .style-preview {
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
-  margin-top: 16px;
+  background: var(--tp-bg-card);
+  border-radius: var(--tp-radius-lg);
+  padding: var(--tp-space-3) var(--tp-space-4);
+  box-shadow: var(--tp-shadow-md);
+  border: 1px solid var(--tp-border-light);
+  margin-top: var(--tp-space-4);
 }
 .preview-header {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px 16px;
-  margin-bottom: 12px;
+  gap: var(--tp-space-3) var(--tp-space-4);
+  margin-bottom: var(--tp-space-3);
 }
 .preview-header h3 {
   margin: 0;
+  font-family: var(--tp-font-heading);
   font-size: 15px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--tp-text-primary);
   white-space: nowrap;
 }
 .overlay-controls {
   display: flex;
   gap: 18px;
-  padding: 6px 14px;
-  background: #f5f7fa;
-  border-radius: 6px;
+  padding: var(--tp-space-2) var(--tp-space-4);
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-sm);
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -169,21 +171,22 @@ watch(() => props.styleConfig, (val) => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
-  margin-top: 10px;
+  margin-top: var(--tp-space-3);
 }
 .preview-box {
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border: 1px solid var(--tp-border-light);
+  border-radius: var(--tp-radius-md);
   overflow: hidden;
   cursor: pointer;
-  transition: box-shadow 0.2s;
+  transition: box-shadow var(--tp-duration-normal) var(--tp-easing);
 }
 .preview-box:hover {
-  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.1);
+  box-shadow: var(--tp-shadow-lg);
 }
 .preview-label {
-  padding: 6px 8px;
-  background: #f5f7fa;
+  padding: var(--tp-space-2);
+  background: var(--tp-bg-sunken);
+  font-family: var(--tp-font-heading);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -191,7 +194,7 @@ watch(() => props.styleConfig, (val) => {
 .preview-img-wrapper {
   position: relative;
   min-height: 240px;
-  background: #fff;
+  background: var(--tp-bg-card);
   display: flex;
   align-items: center;
   justify-content: center;

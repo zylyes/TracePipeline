@@ -233,6 +233,13 @@ function onMouseUp() {
   display: flex;
   flex-direction: column;
   outline: none;
+  animation: viewerFadeIn 0.25s var(--tp-easing);
+  backdrop-filter: blur(6px);
+}
+
+@keyframes viewerFadeIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(6px); }
 }
 
 .viewer-toolbar {
@@ -278,9 +285,9 @@ function onMouseUp() {
   color: rgba(255,255,255,0.7);
   font-size: 28px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--tp-duration-normal) var(--tp-easing);
   z-index: 2;
-  border-radius: 4px;
+  border-radius: var(--tp-radius-xs);
 }
 
 .nav-arrow:hover {

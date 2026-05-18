@@ -325,10 +325,10 @@ onActivated(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
-  background: rgba(184, 92, 56, 0.08);
+  background: var(--tp-brand-accent-bg);
   color: var(--tp-brand-accent);
 }
 

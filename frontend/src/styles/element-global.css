@@ -22,12 +22,13 @@
 .el-button--primary:focus {
   background: var(--tp-brand-accent);
   border-color: var(--tp-brand-accent);
-  box-shadow: 0 4px 12px rgba(184, 92, 56, 0.2);
+  box-shadow: var(--tp-brand-accent-shadow-sm);
 }
 
 .el-button--primary:active {
   background: var(--tp-brand-accent-dark);
   border-color: var(--tp-brand-accent-dark);
+  box-shadow: var(--tp-brand-accent-glow);
 }
 
 .el-button--default {
@@ -39,7 +40,7 @@
 .el-button--default:focus {
   border-color: var(--tp-brand-accent-light);
   color: var(--tp-brand-accent);
-  background: rgba(184, 92, 56, 0.04);
+  background: var(--tp-brand-accent-bg);
 }
 
 /* 文字按钮 */
@@ -125,6 +126,12 @@
   border-radius: var(--tp-radius-md);
   box-shadow: var(--tp-shadow-lg);
   font-family: var(--tp-font-body);
+  animation: messageSlideIn 0.35s var(--tp-easing-expo);
+}
+
+@keyframes messageSlideIn {
+  from { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .el-message--success {
@@ -178,6 +185,16 @@
 .el-dialog__footer {
   padding: 12px 24px 20px;
   border-top: 1px solid var(--tp-border-light);
+}
+
+/* ── Dialog 入场动画覆写 ── */
+.el-overlay-dialog .el-dialog {
+  animation: dialogScaleIn 0.3s var(--tp-easing-expo);
+}
+
+@keyframes dialogScaleIn {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 /* ── 下拉菜单 ── */

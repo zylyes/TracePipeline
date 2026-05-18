@@ -501,7 +501,8 @@ const bootSteps: BootStep[] = [
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ── 标题栏：标题相对内容区居中（排除侧边栏宽度）── */

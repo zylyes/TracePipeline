@@ -137,7 +137,7 @@ export const useCacheStore = defineStore('cache', () => {
     statsCache.value.clear()
     comparisonCache.value = null
     resultsCache.value = null
-    // 图片缓存保留，因为图片文件不常变且体积大
+    imageCache.value.clear()
   }
 
   // --- 处理完成后全量失效 ---

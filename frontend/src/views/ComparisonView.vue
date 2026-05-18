@@ -5,19 +5,39 @@
     <el-empty v-if="!loading && tableData.length === 0" description="暂无露头数据" />
 
     <div v-else class="table-card tp-card">
-      <el-table :data="tableData" size="small" style="width: 100%" v-loading="loading" :header-cell-style="headerCellStyle">
-        <el-table-column prop="outcrop" label="露头" width="80" />
-        <el-table-column prop="trace_count" label="迹线数" />
-        <el-table-column prop="p10" label="P10" />
-        <el-table-column prop="p20" label="P20" />
-        <el-table-column prop="p21" label="P21" />
-        <el-table-column prop="mean_trace_length" label="平均迹长(m)" />
-        <el-table-column prop="scanline_azimuth" label="走向" />
-        <el-table-column prop="type_ratio" label="I:II:III" />
-        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_count" label="节点总数" />
-        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_ratio" label="X:Y:I" />
-        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_density" label="节点密度" />
-      </el-table>
+      <table class="native-table" v-if="!loading && tableData.length">
+        <thead>
+          <tr>
+            <th>露头</th>
+            <th>迹线数</th>
+            <th>P10</th>
+            <th>P20</th>
+            <th>P21</th>
+            <th>平均迹长(m)</th>
+            <th>走向</th>
+            <th>I:II:III</th>
+            <th v-if="pipelineStore.lastEnableNodeRecognition">节点总数</th>
+            <th v-if="pipelineStore.lastEnableNodeRecognition">X:Y:I</th>
+            <th v-if="pipelineStore.lastEnableNodeRecognition">节点密度</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in tableData" :key="row.outcrop">
+            <td :title="row.outcrop">{{ row.outcrop }}</td>
+            <td :title="row.trace_count">{{ row.trace_count }}</td>
+            <td :title="row.p10">{{ row.p10 }}</td>
+            <td :title="row.p20">{{ row.p20 }}</td>
+            <td :title="row.p21">{{ row.p21 }}</td>
+            <td :title="row.mean_trace_length">{{ row.mean_trace_length }}</td>
+            <td :title="row.scanline_azimuth">{{ row.scanline_azimuth }}</td>
+            <td :title="row.type_ratio">{{ row.type_ratio }}</td>
+            <td v-if="pipelineStore.lastEnableNodeRecognition" :title="row.node_count">{{ row.node_count }}</td>
+            <td v-if="pipelineStore.lastEnableNodeRecognition" :title="row.node_ratio">{{ row.node_ratio }}</td>
+            <td v-if="pipelineStore.lastEnableNodeRecognition" :title="row.node_density">{{ row.node_density }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="loading" class="table-loading">加载中...</div>
     </div>
 
     <div class="chart-area tp-card" v-if="tableData.length > 0">
@@ -55,7 +75,7 @@
             <el-radio-button label="all">全部</el-radio-button>
             <el-radio-button label="原始迹线">原始迹线</el-radio-button>
             <el-radio-button label="旋转迹线">旋转迹线</el-radio-button>
-            <el-radio-button label="走向玫瑰">走向玫瑰</el-radio-button>
+            <el-radio-button v-if="pipelineStore.lastExportRosePlot" label="走向玫瑰">走向玫瑰</el-radio-button>
           </el-radio-group>
           <el-input v-model="imageSearch" placeholder="搜索露头..." size="small" style="width:160px" clearable />
         </div>
@@ -86,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated, computed } from 'vue'
+import { ref, watch, onMounted, onActivated, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { TrendCharts, Picture } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
@@ -115,6 +135,12 @@ const chartMetric = ref('density')
 // 图片筛选
 const imageFilter = ref('all')
 const imageSearch = ref('')
+
+watch(() => pipelineStore.lastExportRosePlot, (val) => {
+  if (!val && imageFilter.value === '走向玫瑰') {
+    imageFilter.value = 'all'
+  }
+})
 
 const filteredImages = computed(() => {
   let list = allImages.value
@@ -158,13 +184,6 @@ function safeFloat(val: string): number | null {
   const n = parseFloat(val)
   return isNaN(n) ? null : n
 }
-
-const headerCellStyle = () => ({
-  fontFamily: 'var(--tp-font-heading)',
-  fontWeight: 600,
-  background: 'var(--tp-bg-sunken)',
-  color: 'var(--tp-text-primary)',
-})
 
 const echartsFont = 'var(--tp-font-data)'
 
@@ -250,7 +269,7 @@ async function loadComparison(force = false) {
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
-      files = await api.scan_files()
+      files = await api.scan_files(force)
       cacheStore.setScan(files!)
     }
     const outcrops = files!.map((f: any) => f.outcrop)
@@ -334,8 +353,8 @@ onActivated(() => {
   if (!hasInitializedComparison) {
     hasInitializedComparison = true
     loadComparison()
-  } else if (!cacheStore.isComparisonValid) {
-    loadComparison()
+  } else if (!cacheStore.isComparisonValid || !cacheStore.isScanValid) {
+    loadComparison(true)
   }
 })
 </script>
@@ -343,8 +362,7 @@ onActivated(() => {
 <style scoped lang="scss">
 .comparison-view {
   padding: var(--tp-space-5) var(--tp-space-6);
-  height: 100%;
-  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .page-title {
@@ -359,25 +377,74 @@ onActivated(() => {
 .table-card {
   padding: var(--tp-space-4);
   margin-bottom: var(--tp-space-4);
-  overflow: hidden;
 }
 
-.table-card :deep(.el-table) {
-  --el-table-header-bg-color: var(--tp-bg-sunken);
-  --el-table-row-hover-bg-color: var(--tp-bg-hover);
-  --el-table-border-color: var(--tp-border-light);
+.table-card:hover {
+  transform: none;
+  box-shadow: var(--tp-shadow-md);
 }
 
-.table-card :deep(.el-table th.el-table__cell) {
-  font-family: var(--tp-font-heading);
-  font-weight: 600;
+/* ── 原生表格样式（替代 el-table）── */
+.native-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--tp-font-body);
+  font-size: 12px;
   color: var(--tp-text-primary);
+  border: 1px solid var(--tp-border-light);
+  table-layout: fixed;
+}
+
+.native-table thead {
   background: var(--tp-bg-sunken);
 }
 
-.table-card :deep(.el-table .cell) {
-  font-family: var(--tp-font-body);
-  font-size: 13px;
+.native-table th {
+  font-family: var(--tp-font-heading);
+  font-weight: 600;
+  color: var(--tp-text-primary);
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--tp-border-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.native-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--tp-border-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.native-table tbody tr:hover {
+  background: var(--tp-bg-hover);
+}
+
+.native-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 列宽分配 */
+.native-table th:nth-child(1), .native-table td:nth-child(1) { width: 7%; }   /* 露头 */
+.native-table th:nth-child(2), .native-table td:nth-child(2) { width: 8%; }   /* 迹线数 */
+.native-table th:nth-child(3), .native-table td:nth-child(3) { width: 8%; }   /* P10 */
+.native-table th:nth-child(4), .native-table td:nth-child(4) { width: 8%; }   /* P20 */
+.native-table th:nth-child(5), .native-table td:nth-child(5) { width: 8%; }   /* P21 */
+.native-table th:nth-child(6), .native-table td:nth-child(6) { width: 11%; }  /* 平均迹长 */
+.native-table th:nth-child(7), .native-table td:nth-child(7) { width: 7%; }   /* 走向 */
+.native-table th:nth-child(8), .native-table td:nth-child(8) { width: 10%; }  /* I:II:III */
+.native-table th:nth-child(9), .native-table td:nth-child(9) { width: 9%; }   /* 节点总数 */
+.native-table th:nth-child(10), .native-table td:nth-child(10) { width: 9%; }  /* X:Y:I */
+.native-table th:nth-child(11), .native-table td:nth-child(11) { width: 10%; } /* 节点密度 */
+
+.table-loading {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--tp-text-muted);
+  font-size: 14px;
 }
 
 /* ── 图表区 ── */

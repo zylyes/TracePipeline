@@ -1,11 +1,20 @@
 /* ================================================
    TracePipeline — 全局字体系统
    离线系统字体策略（无外部 CDN 依赖）
+   中英文混排字体渲染规范：
+     - 中文标题 → 黑体 (SimHei)
+     - 中文正文 → 宋体 (SimSun)
+     - 英文/数字 → Times New Roman
+   CSS font-family 机制会自动将字符匹配到
+   列表中首个能渲染该字符的字体，因此：
+     - 标题栈 = 黑体 + Times New Roman → 中文走黑体，英文走 TNR
+     - 正文栈 = 宋体 + Times New Roman → 中文走宋体，英文走 TNR
+     - 数据栈 = Times New Roman + 宋体 → 英文数字走 TNR，中文回退宋体
    ================================================ */
 
 /* ── 字体栈定义 ─────────────────────────────── */
 :root {
-  /* 西文与数字：Times New Roman 体系 */
+  /* 西文与数字：Times New Roman 体系（优先级最高） */
   --tp-font-latin: "Times New Roman", "Liberation Serif", "Georgia", "Palatino Linotype", "Book Antiqua", serif;
 
   /* 中文标题：黑体体系 */
@@ -17,9 +26,10 @@
   /* 等宽：用于代码、日志、时间戳 */
   --tp-font-mono: "Consolas", "Courier New", "Liberation Mono", "Lucida Console", monospace;
 
-  /* 组合栈：按优先级排列，系统会自动匹配可用字体 */
+  /* 组合栈：中文在先确保中文走黑体/宋体，英文/数字自动回退至 Times New Roman */
   --tp-font-heading: var(--tp-font-heading-zh), var(--tp-font-latin);
   --tp-font-body: var(--tp-font-body-zh), var(--tp-font-latin);
+  /* 数据栈：Times New Roman 优先确保数字/英文统一，中文回退至宋体 */
   --tp-font-data: var(--tp-font-latin), var(--tp-font-body-zh);
 }
 
@@ -28,6 +38,8 @@ html {
   /* Windows 下中文字体默认使用子像素抗锯齿（ClearType），
      全局强制 grayscale/antialiased 会导致字体发虚 */
   -webkit-font-smoothing: auto;
+  /* 确保 lang 属性驱动的字体选择 */
+  lang-attr-font-selection: auto;
 }
 
 body {
@@ -37,6 +49,8 @@ body {
   color: var(--tp-text-primary);
   /* macOS 单独处理 */
   -moz-osx-font-smoothing: auto;
+  /* 改善中英文混排时的基线对齐 */
+  text-rendering: optimizeSpeed;
 }
 
 /* ── 标题层级：中文黑体 ─────────────────────── */
@@ -197,4 +211,32 @@ button, input, select, textarea,
 .tp-font-mono {
   font-family: var(--tp-font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── ECharts Canvas 字体覆盖 ──────────────────── */
+canvas {
+  font-family: var(--tp-font-data);
+}
+
+/* ── lang 属性分区辅助 ────────────────────────── */
+/* 对明确标注 lang 的内联元素应用对应字体，
+   提升中英文混排时的渲染精度 */
+[lang="zh"],
+[lang="zh-CN"],
+[lang="zh-Hans"] {
+  font-family: var(--tp-font-body);
+}
+
+[lang="en"],
+[lang="en-US"],
+[lang="en-GB"] {
+  font-family: var(--tp-font-latin);
+}
+
+/* ── 全局英文/数字强制 Times New Roman ────────── */
+/* Unicode 范围选择器：确保基本拉丁字母与数字始终使用 TNR */
+@font-face {
+  font-family: "TP-Latin-Override";
+  src: local("Times New Roman"), local("Liberation Serif"), local("Georgia");
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+0020-002F, U+003A-0040, U+005B-0060, U+007B-007E;
 }

@@ -135,10 +135,11 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .data-table {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+  background: var(--tp-bg-card);
+  border-radius: var(--tp-radius-lg);
+  padding: var(--tp-space-4);
+  box-shadow: var(--tp-shadow-md);
+  border: 1px solid var(--tp-border-light);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -146,12 +147,13 @@ onMounted(() => {
   overflow: hidden;
 }
 .source-hint {
-  padding: 8px 0;
+  padding: var(--tp-space-2) 0;
+  font-family: var(--tp-font-heading);
   font-size: 14px;
   font-weight: 500;
-  color: #606266;
-  border-bottom: 1px solid #e4e7ed;
-  margin-bottom: 12px;
+  color: var(--tp-text-secondary);
+  border-bottom: 1px solid var(--tp-border-light);
+  margin-bottom: var(--tp-space-3);
   flex-shrink: 0;
 }
 .table-scroll {
@@ -162,8 +164,8 @@ onMounted(() => {
 .pagination-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--tp-space-3);
+  margin-top: var(--tp-space-3);
   flex-wrap: wrap;
   flex-shrink: 0;
 }

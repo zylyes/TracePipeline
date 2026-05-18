@@ -19,9 +19,9 @@ html, body, #app {
 :root {
   /* ── 核心品牌色 ── */
   --tp-brand-primary: #1A2332;
-  --tp-brand-accent: #B85C38;
-  --tp-brand-accent-light: #d4785a;
-  --tp-brand-accent-dark: #8f4528;
+  --tp-brand-accent: #C96B4F;
+  --tp-brand-accent-light: #E08A6A;
+  --tp-brand-accent-dark: #A0503A;
 
   /* ── 表面色系统（Surface） ── */
   --tp-bg-base: #eef0f3;
@@ -75,9 +75,9 @@ html, body, #app {
   /* inset: 内阴影 */
   --tp-shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.04);
   /* accent-glow: 强调色光晕 */
-  --tp-shadow-accent: 0 0 0 3px rgba(184, 92, 56, 0.15);
+  --tp-shadow-accent: 0 0 0 3px rgba(201, 107, 79, 0.15);
   /* sidebar-item: 侧边栏项光晕 */
-  --tp-shadow-sidebar-item: 0 0 12px rgba(184, 92, 56, 0.12);
+  --tp-shadow-sidebar-item: 0 0 12px rgba(201, 107, 79, 0.12);
 
   /* ── 圆角系统 ── */
   --tp-radius-xs: 4px;
@@ -128,6 +128,32 @@ html, body, #app {
   --tp-tracking-normal: 0;
   --tp-tracking-wide: 0.02em;
 
+  /* ── 品牌色透明变体 ── */
+  --tp-brand-accent-bg: rgba(201, 107, 79, 0.08);
+  --tp-brand-accent-border: rgba(201, 107, 79, 0.12);
+  --tp-brand-accent-glow: rgba(201, 107, 79, 0.2);
+  --tp-brand-accent-shadow-sm: 0 2px 8px rgba(201, 107, 79, 0.15);
+  --tp-brand-accent-shadow-md: 0 4px 14px rgba(201, 107, 79, 0.25);
+  --tp-brand-accent-shadow-lg: 0 8px 24px rgba(201, 107, 79, 0.3);
+
+  /* ── 图标尺寸 ── */
+  --tp-icon-sm: 24px;
+  --tp-icon-md: 28px;
+
+  /* ── 展示字号 ── */
+  --tp-font-size-display: 34px;
+  --tp-font-size-hero: 32px;
+
+  /* ── ECharts 地质学术配色（学术期刊风格，中等明度） ── */
+  --tp-chart-c1: #C96B4F;
+  --tp-chart-c2: #4A7C9B;
+  --tp-chart-c3: #4A9E7A;
+  --tp-chart-c4: #6B8EBB;
+  --tp-chart-c5: #B89A6A;
+  --tp-chart-c6: #8AAFC4;
+  --tp-chart-c7: #D4A07A;
+  --tp-chart-c8: #7EB8A0;
+
   /* ── Element Plus 变量覆写 ── */
   --el-color-primary: #1A2332;
   --el-color-primary-light-3: #4a5568;
@@ -174,7 +200,7 @@ html, body, #app {
 
 /* ── 全局选中文本样式 ── */
 ::selection {
-  background: rgba(184, 92, 56, 0.2);
+  background: var(--tp-brand-accent-glow);
   color: var(--tp-text-primary);
 }
 
@@ -188,8 +214,31 @@ html, body, #app {
 }
 
 .tp-card:hover {
-  box-shadow: var(--tp-shadow-lg), 0 0 0 1px rgba(184, 92, 56, 0.06);
+  box-shadow: var(--tp-shadow-lg), 0 0 0 1px var(--tp-brand-accent-border);
   transform: translateY(-1px);
+}
+
+/* ── 卡片微光扫过效果（hover时触发） ── */
+.tp-card-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.tp-card-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transition: left 0.6s var(--tp-easing-expo);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.tp-card-glow:hover::before {
+  left: 120%;
 }
 
 /* ── 运行状态呼吸灯 ── */
@@ -224,6 +273,53 @@ html, body, #app {
   animation: tp-fade-in 0.4s var(--tp-easing-expo) forwards;
 }
 
+/* ── 缩放弹入 ── */
+@keyframes tp-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.tp-scale-in {
+  animation: tp-scale-in 0.35s var(--tp-easing-spring) forwards;
+}
+
+/* ── 左侧滑入 ── */
+@keyframes tp-slide-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.tp-slide-left {
+  animation: tp-slide-left 0.35s var(--tp-easing-expo) forwards;
+}
+
+/* ── 数字翻滚动画占位 ── */
+@keyframes tp-count-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tp-count-in {
+  animation: tp-count-up 0.5s var(--tp-easing-expo) forwards;
+}
+
+/* ── 光晕呼吸 ── */
+@keyframes tp-glow-breathe {
+  0%, 100% { box-shadow: 0 0 4px rgba(201, 107, 79, 0.1); }
+  50% { box-shadow: 0 0 12px rgba(201, 107, 79, 0.2); }
+}
+
+.tp-glow-breathe {
+  animation: tp-glow-breathe 3s ease-in-out infinite;
+}
+
+/* ── 交错渐入（需配合 style="--stagger-index: N" 使用） ── */
+.tp-stagger {
+  opacity: 0;
+  animation: tp-fade-in 0.4s var(--tp-easing-expo) forwards;
+  animation-delay: calc(var(--stagger-index, 0) * 60ms);
+}
+
 /* ── 微光扫过效果 ── */
 @keyframes tp-sweep {
   0% { left: -100%; }
@@ -241,17 +337,20 @@ html, body, #app {
 }
 
 /* ── 页面切换动画 ── */
-.page-slide-enter-active,
+.page-slide-enter-active {
+  transition: all 0.35s var(--tp-easing-expo);
+}
+
 .page-slide-leave-active {
-  transition: all 0.3s var(--tp-easing-expo);
+  transition: all 0.2s var(--tp-easing);
 }
 
 .page-slide-enter-from {
   opacity: 0;
-  transform: translateX(16px);
+  transform: translateX(20px) scale(0.98);
 }
 
 .page-slide-leave-to {
   opacity: 0;
-  transform: translateX(-16px);
+  transform: translateX(-12px) scale(0.99);
 }

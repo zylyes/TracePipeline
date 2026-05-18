@@ -136,8 +136,8 @@ const progressColor = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
   background: var(--tp-info-bg);
   color: var(--tp-info);
@@ -169,21 +169,36 @@ const progressColor = computed(() => {
   background: var(--tp-brand-accent);
   border-color: var(--tp-brand-accent);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(184, 92, 56, 0.25);
+  box-shadow: var(--tp-brand-accent-shadow-sm);
   transition: all var(--tp-duration-normal) var(--tp-easing);
+  position: relative;
+  overflow: hidden;
+}
+
+.run-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.5s var(--tp-easing-expo);
+}
+
+.run-btn:hover::after {
+  transform: translateX(100%);
 }
 
 .run-btn:hover,
 .run-btn:focus {
   background: var(--tp-brand-accent-dark);
   border-color: var(--tp-brand-accent-dark);
-  box-shadow: 0 4px 14px rgba(184, 92, 56, 0.35);
+  box-shadow: var(--tp-brand-accent-shadow-md);
   transform: translateY(-1px);
 }
 
 .run-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(184, 92, 56, 0.2);
+  transform: translateY(0) scale(0.97);
+  box-shadow: var(--tp-brand-accent-glow);
 }
 
 .parallel-control {

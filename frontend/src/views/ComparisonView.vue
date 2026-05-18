@@ -187,6 +187,12 @@ function safeFloat(val: string): number | null {
 
 const echartsFont = 'var(--tp-font-data)'
 
+const GEO_C1 = '#C96B4F'
+const GEO_C2 = '#4A7C9B'
+const GEO_C3 = '#4A9E7A'
+const GEO_C4 = '#6B8EBB'
+const GEO_C5 = '#8AAFC4'
+
 const barOption = computed(() => {
   const outcrops = tableData.value.map(d => d.outcrop)
   const metric = chartMetric.value
@@ -205,9 +211,9 @@ const barOption = computed(() => {
       ...base,
       legend: { data: ['P10', 'P20', 'P21'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
       series: [
-        { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
-        { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } },
-        { name: 'P21', type: 'bar', data: tableData.value.map(d => safeFloat(d.p21) ?? '-'), itemStyle: { color: '#2E7D5A', borderRadius: [3, 3, 0, 0] } },
+        { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
+        { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
+        { name: 'P21', type: 'bar', data: tableData.value.map(d => safeFloat(d.p21) ?? '-'), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] } },
       ],
     }
   }
@@ -217,14 +223,14 @@ const barOption = computed(() => {
       ...base,
       legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
       series: [
-        { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
-        { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } },
-        { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#2E7D5A', borderRadius: [3, 3, 0, 0] } },
+        { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
+        { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
+        { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] } },
         { name: '总裂隙数', type: 'bar', data: tableData.value.map(d => {
           const parts = d.type_ratio.split(':')
           const sum = (safeFloat(parts[0]) ?? 0) + (safeFloat(parts[1]) ?? 0) + (safeFloat(parts[2]) ?? 0)
           return sum
-        }), itemStyle: { color: '#5B8FF9', borderRadius: [3, 3, 0, 0] } },
+        }), itemStyle: { color: GEO_C4, borderRadius: [3, 3, 0, 0] } },
       ],
     }
   }
@@ -234,20 +240,20 @@ const barOption = computed(() => {
       ...base,
       legend: { data: ['节点总数', 'X节点', 'Y节点', 'I节点'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
       series: [
-        { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
-        { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } },
-        { name: 'Y节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[1]) ?? 0), itemStyle: { color: '#2E7D5A', borderRadius: [3, 3, 0, 0] } },
-        { name: 'I节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[2]) ?? 0), itemStyle: { color: '#7B1FA2', borderRadius: [3, 3, 0, 0] } },
+        { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
+        { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
+        { name: 'Y节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] } },
+        { name: 'I节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[2]) ?? 0), itemStyle: { color: GEO_C5, borderRadius: [3, 3, 0, 0] } },
       ],
     }
   }
 
   // metric === 'length'
   const series: any[] = [
-    { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: '#2c3e50', borderRadius: [3, 3, 0, 0] } },
+    { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
   ]
   if (pipelineStore.lastEnableNodeRecognition) {
-    series.push({ name: '节点密度', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_density) ?? '-'), itemStyle: { color: '#B85C38', borderRadius: [3, 3, 0, 0] } })
+    series.push({ name: '节点密度', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_density) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } })
   }
   return {
     ...base,
@@ -533,10 +539,10 @@ onActivated(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
-  background: rgba(184, 92, 56, 0.08);
+  background: var(--tp-brand-accent-bg);
   color: var(--tp-brand-accent);
 }
 
@@ -570,8 +576,8 @@ onActivated(() => {
 }
 
 .image-card:hover {
-  box-shadow: var(--tp-shadow-md);
-  transform: translateY(-3px);
+  box-shadow: var(--tp-shadow-md), 0 0 0 1px var(--tp-brand-accent-border);
+  transform: translateY(-3px) scale(1.02);
   border-color: var(--tp-border-medium);
 }
 

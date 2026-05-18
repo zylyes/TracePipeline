@@ -5,7 +5,7 @@
       <div class="hero-texture"></div>
       <div class="hero-content">
         <div class="hero-logo-wrap">
-          <GeoIcon class="hero-logo" :size="48" color="#B85C38" />
+          <GeoIcon class="hero-logo" :size="48" color="#C96B4F" />
         </div>
         <h1 class="hero-title">TracePipeline</h1>
         <p class="hero-subtitle">节理迹线数据处理与可视化系统</p>
@@ -85,7 +85,7 @@ const modules = [
     desc: '批量处理露头数据，自动计算迹线参数与节点识别',
     path: '/processing',
     icon: ProcessIcon,
-    color: '#B85C38',
+    color: '#C96B4F',
   },
   {
     name: '统计',
@@ -113,7 +113,7 @@ const modules = [
     desc: '全局参数、绘图样式与开发者模式灵活调整',
     path: '/config',
     icon: ConfigIcon,
-    color: '#606266',
+    color: '#B89A6A',
   },
 ]
 
@@ -137,7 +137,7 @@ const steps = [
 /* ── Hero ───────────────────────────────────────────── */
 .hero-section {
   position: relative;
-  background: linear-gradient(145deg, #1a2332 0%, #2c3e50 60%, #1a2332 100%);
+  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, #2c3e50 60%, var(--tp-brand-primary) 100%);
   border-radius: var(--tp-radius-xl);
   padding: 36px 40px;
   text-align: center;
@@ -150,9 +150,15 @@ const steps = [
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(184, 92, 56, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(46, 125, 90, 0.06) 0%, transparent 50%);
+    radial-gradient(circle at 20% 30%, var(--tp-brand-accent-bg) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(74, 158, 122, 0.06) 0%, transparent 50%);
   pointer-events: none;
+  animation: heroTextureShift 8s ease-in-out infinite alternate;
+}
+
+@keyframes heroTextureShift {
+  0% { background-position: 0% 0%, 0% 0%; opacity: 1; }
+  100% { background-position: 5% 3%, -3% -5%; opacity: 0.7; }
 }
 
 .hero-content {
@@ -169,9 +175,20 @@ const steps = [
   width: 72px;
   height: 72px;
   border-radius: var(--tp-radius-xl);
-  background: rgba(184, 92, 56, 0.1);
-  border: 1px solid rgba(184, 92, 56, 0.2);
+  background: var(--tp-brand-accent-bg);
+  border: 1px solid var(--tp-brand-accent-border);
   margin-bottom: 16px;
+  animation: logoWrapEntry 0.6s var(--tp-easing-expo) both, logoWrapFloat 4s 0.6s ease-in-out infinite;
+}
+
+@keyframes logoWrapEntry {
+  from { opacity: 0; transform: scale(0.7) rotate(-10deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes logoWrapFloat {
+  0%, 100% { transform: translateY(0); box-shadow: 0 4px 16px var(--tp-brand-accent-glow); }
+  50% { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(201, 107, 79, 0.2); }
 }
 
 .hero-logo {
@@ -180,10 +197,16 @@ const steps = [
 
 .hero-title {
   font-family: var(--tp-font-heading);
-  font-size: 32px;
+  font-size: var(--tp-font-size-hero);
   font-weight: 700;
   margin: 0 0 8px;
   color: #fff;
+  animation: heroTitleIn 0.7s 0.15s var(--tp-easing-expo) both;
+}
+
+@keyframes heroTitleIn {
+  from { opacity: 0; transform: translateY(16px); letter-spacing: 4px; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: normal; }
 }
 
 .hero-subtitle {
@@ -193,6 +216,12 @@ const steps = [
   opacity: 0.88;
   margin: 0 0 12px;
   color: rgba(255, 255, 255, 0.85);
+  animation: heroSubIn 0.5s 0.35s var(--tp-easing-expo) both;
+}
+
+@keyframes heroSubIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 0.88; transform: translateY(0); }
 }
 
 .hero-desc {
@@ -203,6 +232,12 @@ const steps = [
   margin: 0 auto;
   max-width: 480px;
   color: rgba(255, 255, 255, 0.7);
+  animation: heroDescIn 0.5s 0.5s var(--tp-easing-expo) both;
+}
+
+@keyframes heroDescIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 0.65; transform: translateY(0); }
 }
 
 .hero-badges {
@@ -249,8 +284,9 @@ const steps = [
 }
 
 .module-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--tp-shadow-lg), 0 0 0 1px rgba(184, 92, 56, 0.1);
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: var(--tp-shadow-lg), 0 0 0 1px var(--tp-brand-accent-border);
+  border-color: var(--tp-brand-accent-border);
 }
 
 .module-accent {
@@ -258,6 +294,12 @@ const steps = [
   width: 100%;
   flex-shrink: 0;
   opacity: 0.85;
+  transition: height var(--tp-duration-normal) var(--tp-easing-expo);
+}
+
+.module-card:hover .module-accent {
+  height: 4px;
+  opacity: 1;
 }
 
 .module-body {
@@ -273,6 +315,12 @@ const steps = [
   margin-bottom: 10px;
   flex-shrink: 0;
   opacity: 0.9;
+  transition: all var(--tp-duration-normal) var(--tp-easing-expo);
+}
+
+.module-card:hover .module-icon {
+  transform: scale(1.1) translateY(-2px);
+  opacity: 1;
 }
 
 .module-name {
@@ -306,13 +354,14 @@ const steps = [
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: all var(--tp-duration-normal);
+  transition: all var(--tp-duration-normal) var(--tp-easing-expo);
 }
 
 .module-card:hover .module-arrow {
   visibility: visible;
   opacity: 1;
   color: var(--tp-brand-accent);
+  transform: translateX(3px);
 }
 
 /* ── 快速开始 ──────────────────────────────────────── */
@@ -377,7 +426,7 @@ const steps = [
   flex-shrink: 0;
   font-family: var(--tp-font-data);
   margin-top: 1px;
-  box-shadow: 0 2px 8px rgba(184, 92, 56, 0.25);
+  box-shadow: var(--tp-brand-accent-shadow-sm);
 }
 
 .step-content {

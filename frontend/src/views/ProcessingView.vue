@@ -530,8 +530,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
   background: var(--tp-info-bg);
   color: var(--tp-info);
@@ -574,8 +574,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
   background: var(--tp-success-bg);
   color: var(--tp-success);
@@ -605,7 +605,7 @@ onUnmounted(() => {
   margin-bottom: var(--tp-space-3);
   font-size: 13px;
   color: var(--tp-info);
-  border: 1px solid rgba(61, 90, 128, 0.08);
+  border: 1px solid var(--tp-info-bg);
 }
 
 .current-status .el-icon {

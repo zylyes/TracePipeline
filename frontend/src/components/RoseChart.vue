@@ -1,5 +1,5 @@
 <template>
-  <div class="rose-chart">
+  <div class="rose-chart tp-card">
     <div class="rose-toolbar">
       <el-radio-group v-model="viewMode" size="small">
         <el-radio-button label="chart">ECharts</el-radio-button>
@@ -31,6 +31,7 @@ import { PolarComponent, TooltipComponent, TitleComponent } from 'echarts/compon
 import { Refresh } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { loadImageBase64 } from '@/utils/image'
+import { getEchartsFontFamily, baseTitleStyle, baseTooltipStyle, baseAnimationConfig, baseSeriesAnimation, CHART_COLOR_PRIMARY } from '@/utils/echarts-theme'
 
 use([CanvasRenderer, BarChart, PolarComponent, TooltipComponent, TitleComponent])
 
@@ -43,7 +44,6 @@ const viewMode = ref('chart')
 const roseImageUrl = ref('')
 const chartWrapper = ref<HTMLElement>()
 
-// 视图交互状态
 const zoomLevel = ref(1)
 const rotationOffset = ref(0)
 const isDragging = ref(false)
@@ -95,15 +95,14 @@ const chartOption = computed(() => {
 
   const binWidth = 10
   const halfBins = new Array(18).fill(0)
+  const font = getEchartsFontFamily()
 
-  // 分箱：走向折叠到半圆 [0, 180)
   props.strikes.forEach(s => {
     const deg = ((s % 180) + 180) % 180
     const idx = Math.min(Math.floor(deg / binWidth), 17)
     halfBins[idx]++
   })
 
-  // 构建 36 个类目的数据（0-180° 和 180-360° 镜像对称）
   const data: number[] = []
   const categories: string[] = []
   for (let i = 0; i < 18; i++) {
@@ -118,17 +117,18 @@ const chartOption = computed(() => {
   }
 
   const baseMax = Math.max(...data, 1)
-  // zoomLevel 只影响显示范围，不改变数据本身
   const maxCount = Math.ceil(baseMax / Math.max(0.2, zoomLevel.value))
 
   return {
+    ...baseAnimationConfig(),
     title: {
       text: '走向玫瑰图',
       left: 'center',
-      textStyle: { fontFamily: '"Times New Roman", "SimSun", serif', fontSize: 16 }
+      textStyle: { ...baseTitleStyle() },
     },
     tooltip: {
       trigger: 'item',
+      ...baseTooltipStyle(),
       formatter: (params: any) => {
         const idx = params.dataIndex
         const halfIdx = idx % 18
@@ -142,22 +142,22 @@ const chartOption = computed(() => {
       data: categories,
       startAngle: 90 + rotationOffset.value,
       axisLabel: {
-        fontFamily: '"Times New Roman", serif',
+        fontFamily: font,
         fontSize: 11,
-        color: '#666',
+        color: '#5a5a6e',
       },
-      axisLine: { lineStyle: { color: '#999' } },
-      splitLine: { show: true, lineStyle: { color: '#e0e0e0' } },
+      axisLine: { lineStyle: { color: '#8a8a9a' } },
+      splitLine: { show: true, lineStyle: { color: '#e8eaed' } },
     },
     radiusAxis: {
       min: 0,
       max: maxCount,
       axisLabel: {
-        fontFamily: '"Times New Roman", serif',
+        fontFamily: font,
         fontSize: 10,
-        color: '#666',
+        color: '#5a5a6e',
       },
-      splitLine: { lineStyle: { color: '#e0e0e0' } },
+      splitLine: { lineStyle: { color: '#e8eaed' } },
     },
     series: [{
       type: 'bar',
@@ -165,14 +165,15 @@ const chartOption = computed(() => {
       data: data,
       barWidth: '95%',
       itemStyle: {
-        color: '#C94C4C',
+        color: CHART_COLOR_PRIMARY,
         opacity: 0.75,
         borderWidth: 0.5,
-        borderColor: '#7A1F1F',
+        borderColor: '#A0503A',
       },
       emphasis: {
-        itemStyle: { opacity: 1, color: '#B85C38' }
+        itemStyle: { opacity: 1, color: '#E08A6A' }
       },
+      ...baseSeriesAnimation(),
     }],
   }
 })
@@ -180,10 +181,7 @@ const chartOption = computed(() => {
 
 <style scoped lang="scss">
 .rose-chart {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+  border: 1px solid var(--tp-border-light);
 }
 .rose-toolbar {
   display: flex;
@@ -193,8 +191,9 @@ const chartOption = computed(() => {
 }
 .chart-hint {
   text-align: right;
+  font-family: var(--tp-font-body);
   font-size: 11px;
-  color: #909399;
+  color: var(--tp-text-muted);
   margin-bottom: 4px;
   user-select: none;
 }

@@ -5,9 +5,9 @@
         <!-- Logo 区域 -->
         <div class="splash-logo">
           <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-            <circle cx="32" cy="32" r="30" fill="#1E2935" stroke="#B85C38" stroke-width="3"/>
-            <circle cx="32" cy="32" r="24" fill="none" stroke="#B85C38" stroke-width="1" opacity="0.3"/>
-            <g stroke="#B85C38" stroke-linecap="round">
+            <circle cx="32" cy="32" r="30" fill="#1A2332" stroke="#C96B4F" stroke-width="3"/>
+            <circle cx="32" cy="32" r="24" fill="none" stroke="#C96B4F" stroke-width="1" opacity="0.3"/>
+            <g stroke="#C96B4F" stroke-linecap="round">
               <line x1="32" y1="4"  x2="32" y2="10" stroke-width="2.5"/>
               <line x1="32" y1="54" x2="32" y2="60" stroke-width="2.5"/>
               <line x1="4"  y1="32" x2="10" y2="32" stroke-width="2.5"/>
@@ -25,14 +25,14 @@
               <line x1="57.5" y1="22.3" x2="53.5" y2="23.8" stroke-width="1.2"/>
               <line x1="57.5" y1="40.2" x2="53.5" y2="38.7" stroke-width="1.2"/>
             </g>
-            <text x="32" y="16" text-anchor="middle" fill="#B85C38" font-size="10" font-weight="bold" font-family="Times New Roman, serif">N</text>
-            <polygon points="32,6 35,30 32,25 29,30" fill="#B85C38"/>
+            <text x="32" y="16" text-anchor="middle" fill="#C96B4F" font-size="10" font-weight="bold" font-family="Times New Roman, serif">N</text>
+            <polygon points="32,6 35,30 32,25 29,30" fill="#C96B4F"/>
             <polygon points="32,58 35,34 32,38 29,34" fill="#7f8c8d" opacity="0.8"/>
-            <circle cx="32" cy="32" r="3" fill="#B85C38"/>
-            <circle cx="32" cy="32" r="1.5" fill="#1E2935"/>
-            <line x1="16" y1="48" x2="48" y2="16" stroke="#B85C38" stroke-width="1.5" opacity="0.8" stroke-dasharray="4,2"/>
-            <circle cx="16" cy="48" r="1.5" fill="#B85C38" opacity="0.8"/>
-            <circle cx="48" cy="16" r="1.5" fill="#B85C38" opacity="0.8"/>
+            <circle cx="32" cy="32" r="3" fill="#C96B4F"/>
+            <circle cx="32" cy="32" r="1.5" fill="#1A2332"/>
+            <line x1="16" y1="48" x2="48" y2="16" stroke="#C96B4F" stroke-width="1.5" opacity="0.8" stroke-dasharray="4,2"/>
+            <circle cx="16" cy="48" r="1.5" fill="#C96B4F" opacity="0.8"/>
+            <circle cx="48" cy="16" r="1.5" fill="#C96B4F" opacity="0.8"/>
           </svg>
         </div>
 
@@ -166,7 +166,7 @@ onMounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(145deg, #1A2332 0%, #0f1620 100%);
+  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, #0f1620 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -183,27 +183,38 @@ onMounted(() => {
 
 .splash-logo {
   margin-bottom: 24px;
-  animation: logoFloat 3s ease-in-out infinite;
+  animation: logoFloat 3s ease-in-out infinite, logoEntry 0.8s var(--tp-easing-expo) forwards;
+}
+
+@keyframes logoEntry {
+  from { opacity: 0; transform: scale(0.6) rotate(-15deg); filter: drop-shadow(0 0 0 transparent); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); filter: drop-shadow(0 4px 12px var(--tp-brand-accent-glow)); }
 }
 
 @keyframes logoFloat {
   0%, 100% {
     transform: translateY(0);
-    filter: drop-shadow(0 4px 12px rgba(184, 92, 56, 0.2));
+    filter: drop-shadow(0 4px 12px var(--tp-brand-accent-glow));
   }
   50% {
     transform: translateY(-6px);
-    filter: drop-shadow(0 8px 20px rgba(184, 92, 56, 0.3));
+    filter: drop-shadow(0 8px 20px var(--tp-brand-accent-shadow-md));
   }
 }
 
 .splash-title {
   font-family: var(--tp-font-heading);
-  font-size: 32px;
+  font-size: var(--tp-font-size-hero);
   font-weight: 700;
   color: #fff;
   margin: 0 0 8px 0;
   letter-spacing: 2px;
+  animation: titleSlideIn 0.6s 0.2s var(--tp-easing-expo) both;
+}
+
+@keyframes titleSlideIn {
+  from { opacity: 0; transform: translateY(12px); letter-spacing: 6px; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: 2px; }
 }
 
 .splash-subtitle {
@@ -212,6 +223,12 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.55);
   margin: 0 0 48px 0;
   letter-spacing: 1px;
+  animation: subtitleFade 0.5s 0.4s var(--tp-easing-expo) both;
+}
+
+@keyframes subtitleFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .progress-container {
@@ -229,15 +246,24 @@ onMounted(() => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #B85C38 0%, #d4785a 50%, #B85C38 100%);
+  background: linear-gradient(90deg, var(--tp-brand-accent) 0%, var(--tp-brand-accent-light) 50%, var(--tp-brand-accent) 100%);
   background-size: 200% 100%;
   border-radius: 2px;
-  transition: width 0.2s ease-out;
+  transition: width var(--tp-duration-fast) var(--tp-easing);
   position: relative;
+  animation: progressShimmer 2s linear infinite;
+  box-shadow: 0 0 8px var(--tp-brand-accent-glow), 0 0 20px rgba(201, 107, 79, 0.08);
 
   &.progress-error {
-    background: linear-gradient(90deg, #c0392b 0%, #e6a23c 100%);
+    background: linear-gradient(90deg, var(--tp-danger) 0%, var(--tp-warning) 100%);
+    animation: none;
+    box-shadow: 0 0 8px rgba(192, 57, 43, 0.3);
   }
+}
+
+@keyframes progressShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .progress-sweep {
@@ -271,7 +297,7 @@ onMounted(() => {
 
 .progress-percent {
   font-size: 13px;
-  color: #B85C38;
+  color: var(--tp-brand-accent);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -280,14 +306,14 @@ onMounted(() => {
   margin-top: 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--tp-space-2);
   padding: 10px 16px;
-  background: rgba(230, 162, 60, 0.1);
+  background: var(--tp-warning-bg);
   border: 1px solid rgba(230, 162, 60, 0.25);
   border-radius: var(--tp-radius-md);
-  font-size: 12px;
-  color: #e6a23c;
   font-family: var(--tp-font-body);
+  font-size: 12px;
+  color: var(--tp-warning);
 
   .el-icon {
     font-size: 14px;

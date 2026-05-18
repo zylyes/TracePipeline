@@ -38,7 +38,7 @@
         <!-- 侧边栏 -->
         <aside :class="['sidebar', { collapsed: sidebarCollapsed }]">
           <div class="sidebar-header" @click.stop="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? '展开' : '收起'">
-            <GeoIcon class="logo-icon" :size="20" color="#B85C38" />
+            <GeoIcon class="logo-icon" :size="20" color="#C96B4F" />
             <div v-if="!sidebarCollapsed" class="logo-text-group">
               <span class="logo-text">TracePipeline</span>
               <span class="logo-version">v{{ appVersion }}</span>
@@ -606,6 +606,18 @@ const bootSteps: BootStep[] = [
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
   transition: justify-content padding 0.25s var(--tp-easing);
+  position: relative;
+}
+
+.sidebar-header::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 10%;
+  right: 10%;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, var(--tp-brand-accent-bg), transparent);
+  pointer-events: none;
 }
 
 .sidebar-header:hover {
@@ -667,6 +679,18 @@ const bootSteps: BootStep[] = [
   overflow: hidden;
 }
 
+.menu-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--tp-radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  opacity: 0;
+  transform: scaleX(0.3);
+  transition: all var(--tp-duration-normal) var(--tp-easing-expo);
+  transform-origin: left center;
+}
+
 .sidebar.collapsed .menu-item {
   justify-content: center;
   padding: 0;
@@ -695,22 +719,33 @@ const bootSteps: BootStep[] = [
 }
 
 .menu-item:hover {
-  background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.9);
+}
+
+.menu-item:hover::before {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .menu-item:hover .menu-icon {
   opacity: 1;
+  transform: scale(1.1);
 }
 
 .menu-item.active {
-  background: rgba(184, 92, 56, 0.12);
   color: #fff;
+  animation: menuGlow 3s ease-in-out infinite;
+}
+
+@keyframes menuGlow {
+  0%, 100% { background: var(--tp-brand-accent-border); }
+  50% { background: rgba(201, 107, 79, 0.16); }
 }
 
 .menu-item.active .menu-icon {
   opacity: 1;
   color: var(--tp-brand-accent-light);
+  transform: scale(1.05);
 }
 
 .menu-active-indicator {
@@ -720,9 +755,16 @@ const bootSteps: BootStep[] = [
   transform: translateY(-50%);
   width: 3px;
   height: 18px;
-  background: var(--tp-brand-accent);
+  background: linear-gradient(180deg, var(--tp-brand-accent-light), var(--tp-brand-accent));
   border-radius: 0 2px 2px 0;
-  box-shadow: var(--tp-shadow-accent);
+  box-shadow: 0 0 8px var(--tp-brand-accent-glow);
+  transition: all var(--tp-duration-normal) var(--tp-easing-expo);
+  animation: indicatorPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes indicatorPulse {
+  0%, 100% { box-shadow: 0 0 6px var(--tp-brand-accent-glow); height: 18px; }
+  50% { box-shadow: 0 0 14px rgba(201, 107, 79, 0.3); height: 22px; }
 }
 
 /* ── 侧边栏底部 ── */
@@ -859,6 +901,7 @@ const bootSteps: BootStep[] = [
   border-radius: 50%;
   background: var(--tp-success);
   animation: tp-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(46, 125, 90, 0.4);
 }
 
 .status-running .status-text {

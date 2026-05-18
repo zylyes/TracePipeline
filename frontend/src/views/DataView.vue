@@ -257,8 +257,8 @@ onActivated(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--tp-icon-md);
+  height: var(--tp-icon-md);
   border-radius: var(--tp-radius-sm);
   background: var(--tp-info-bg);
   color: var(--tp-info);
@@ -266,7 +266,7 @@ onActivated(() => {
 
 .info-title {
   font-family: var(--tp-font-heading);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--tp-text-primary);
 }

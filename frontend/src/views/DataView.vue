@@ -42,13 +42,14 @@
       </el-descriptions>
     </div>
 
-    <DataTable
-      v-if="selectedOutcrop"
-      :outcrop="selectedOutcrop"
-      :source="source"
-      :show-node-tabs="pipelineStore.lastEnableNodeRecognition"
-      :key="selectedOutcrop + source"
-    />
+    <div class="table-container" v-if="selectedOutcrop">
+      <DataTable
+        :outcrop="selectedOutcrop"
+        :source="source"
+        :show-node-tabs="pipelineStore.lastEnableNodeRecognition"
+        :key="selectedOutcrop + source"
+      />
+    </div>
   </div>
 </template>
 
@@ -80,7 +81,7 @@ async function loadOutcrops(force = false) {
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
-      files = await api.scan_files()
+      files = await api.scan_files(force)
       cacheStore.setScan(files!)
     }
     outcrops.value = files!.map((f: any) => f.outcrop)
@@ -89,13 +90,15 @@ async function loadOutcrops(force = false) {
     const queryOutcrop = route.query.outcrop as string | undefined
     if (queryOutcrop && outcrops.value.includes(queryOutcrop)) {
       selectedOutcrop.value = queryOutcrop
-      await onOutcropChange()
+      await onOutcropChange(force)
       return
     }
 
     if (outcrops.value.length && !selectedOutcrop.value) {
       selectedOutcrop.value = outcrops.value[0]
-      await onOutcropChange()
+    }
+    if (selectedOutcrop.value) {
+      await onOutcropChange(force)
     }
   } catch (e) {
     console.error(e)
@@ -153,7 +156,7 @@ onActivated(() => {
     hasInitializedData = true
     loadOutcrops()
   } else if (!cacheStore.isScanValid) {
-    loadOutcrops()
+    loadOutcrops(true)
   }
 })
 </script>
@@ -162,7 +165,16 @@ onActivated(() => {
 .data-view {
   padding: var(--tp-space-5) var(--tp-space-6);
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.table-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-title {

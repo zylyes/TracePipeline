@@ -415,7 +415,7 @@ function startPolling() {
           appStore.updateLastOperation('处理完成')
           // 处理完成后使所有数据缓存失效，确保其他页面刷新时获取最新结果
           cacheStore.invalidateAll()
-          loadFiles()
+          loadFiles(true)
           break
         }
         case 'error': {

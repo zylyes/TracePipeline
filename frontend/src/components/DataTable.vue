@@ -1,6 +1,6 @@
 <template>
   <div class="data-table">
-    <el-tabs v-if="source === 'output'" v-model="activeTab" @tab-change="handleTabChange">
+    <el-tabs v-if="source === 'output'" v-model="activeTab" @tab-change="handleTabChange" style="flex-shrink:0">
       <el-tab-pane label="裂隙情况" name="裂隙情况" />
       <el-tab-pane label="计算数据" name="计算数据" />
       <el-tab-pane label="原始端点" name="原始端点" />
@@ -12,19 +12,21 @@
     </el-tabs>
     <div v-else class="source-hint">原始输入数据</div>
 
-    <el-empty v-if="!loading && total === 0" description="该分区暂无数据" />
-    <el-table v-else :data="tableData" size="small" stripe style="width: 100%" v-loading="loading">
-      <el-table-column
-        v-for="col in columns"
-        :key="col"
-        :prop="col"
-        :label="col"
-        sortable
-        show-overflow-tooltip
-      />
-    </el-table>
+    <div class="table-scroll" v-if="loading || total > 0">
+      <el-table :data="tableData" size="small" stripe style="width: 100%; height: 100%" height="100%" v-loading="loading">
+        <el-table-column
+          v-for="col in columns"
+          :key="col"
+          :prop="col"
+          :label="col"
+          sortable
+          show-overflow-tooltip
+        />
+      </el-table>
+    </div>
+    <el-empty v-else-if="!loading" description="该分区暂无数据" />
 
-    <div class="pagination-bar">
+    <div class="pagination-bar" style="flex-shrink:0">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
@@ -137,6 +139,11 @@ onMounted(() => {
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .source-hint {
   padding: 8px 0;
@@ -145,6 +152,12 @@ onMounted(() => {
   color: #606266;
   border-bottom: 1px solid #e4e7ed;
   margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .pagination-bar {
   display: flex;
@@ -152,5 +165,6 @@ onMounted(() => {
   gap: 12px;
   margin-top: 12px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 </style>

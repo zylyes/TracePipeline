@@ -10,9 +10,9 @@
 
     <!-- 统计警告 -->
     <el-alert
-      v-if="stats.warning"
-      :title="stats.warning"
-      type="warning"
+      v-if="alertMessage"
+      :title="alertMessage"
+      :type="alertType"
       :closable="false"
       show-icon
       class="stats-warning"
@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { Document, Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import StatCards from '@/components/StatCards.vue'
@@ -104,6 +104,23 @@ const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
 const stats = ref<any>({})
 
+const alertType = computed<'success' | 'warning' | 'error'>(() => {
+  const source = stats.value?.area_source
+  if (source === 'hull_buffered') return 'warning'
+  if (source === 'window_equivalent') return 'error'
+  return 'success'
+})
+
+const alertMessage = computed<string>(() => {
+  const source = stats.value?.area_source
+  const warning = stats.value?.warning
+  if (source === 'hull_buffered') return warning || '面积来源已更换至缓冲凸包'
+  if (source === 'window_equivalent') return warning || '面积来源已更换至圆窗等效面积'
+  if (source === 'hull' && warning) return warning
+  if (warning) return warning
+  return ''
+})
+
 // 图片 URL
 const rawImageUrl = ref('')
 const rotatedImageUrl = ref('')
@@ -121,13 +138,15 @@ async function loadOutcrops(force = false) {
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
-      files = await api.scan_files()
+      files = await api.scan_files(force)
       cacheStore.setScan(files!)
     }
     outcrops.value = files!.map((f: any) => f.outcrop)
     if (outcrops.value.length && !selectedOutcrop.value) {
       selectedOutcrop.value = outcrops.value[0]
-      await loadStats()
+    }
+    if (selectedOutcrop.value) {
+      await loadStats(force)
     }
   } catch (e) {
     ElMessage.error('加载露头列表失败')
@@ -238,8 +257,8 @@ onActivated(() => {
   if (!hasInitializedStats) {
     hasInitializedStats = true
     loadOutcrops()
-  } else if (!cacheStore.isScanValid) {
-    loadOutcrops()
+  } else if (!cacheStore.isScanValid || !cacheStore.isResultsValid) {
+    loadOutcrops(true)
   }
 })
 </script>
@@ -274,6 +293,7 @@ onActivated(() => {
 }
 
 .stats-warning {
+  width: 100%;
   margin-bottom: var(--tp-space-4);
   border-radius: var(--tp-radius-md);
 }

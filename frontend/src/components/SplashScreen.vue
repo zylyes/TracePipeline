@@ -5,9 +5,15 @@
         <!-- Logo 区域 -->
         <div class="splash-logo">
           <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="80" height="80">
-            <circle cx="32" cy="32" r="30" fill="#1A2332" stroke="#C96B4F" stroke-width="3"/>
-            <circle cx="32" cy="32" r="24" fill="none" stroke="#C96B4F" stroke-width="1" opacity="0.3"/>
-            <g stroke="#C96B4F" stroke-linecap="round">
+            <defs>
+              <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="var(--tp-brand-accent-light)" />
+                <stop offset="100%" stop-color="var(--tp-brand-accent)" />
+              </linearGradient>
+            </defs>
+            <circle class="draw-circle" cx="32" cy="32" r="30" fill="#1E293B" stroke="url(#logo-gradient)" stroke-width="3"/>
+            <circle cx="32" cy="32" r="24" fill="none" stroke="url(#logo-gradient)" stroke-width="1" opacity="0.3"/>
+            <g class="draw-lines" stroke="url(#logo-gradient)" stroke-linecap="round">
               <line x1="32" y1="4"  x2="32" y2="10" stroke-width="2.5"/>
               <line x1="32" y1="54" x2="32" y2="60" stroke-width="2.5"/>
               <line x1="4"  y1="32" x2="10" y2="32" stroke-width="2.5"/>
@@ -25,14 +31,14 @@
               <line x1="57.5" y1="22.3" x2="53.5" y2="23.8" stroke-width="1.2"/>
               <line x1="57.5" y1="40.2" x2="53.5" y2="38.7" stroke-width="1.2"/>
             </g>
-            <text x="32" y="16" text-anchor="middle" fill="#C96B4F" font-size="10" font-weight="bold" font-family="Times New Roman, serif">N</text>
-            <polygon points="32,6 35,30 32,25 29,30" fill="#C96B4F"/>
-            <polygon points="32,58 35,34 32,38 29,34" fill="#7f8c8d" opacity="0.8"/>
-            <circle cx="32" cy="32" r="3" fill="#C96B4F"/>
-            <circle cx="32" cy="32" r="1.5" fill="#1A2332"/>
-            <line x1="16" y1="48" x2="48" y2="16" stroke="#C96B4F" stroke-width="1.5" opacity="0.8" stroke-dasharray="4,2"/>
-            <circle cx="16" cy="48" r="1.5" fill="#C96B4F" opacity="0.8"/>
-            <circle cx="48" cy="16" r="1.5" fill="#C96B4F" opacity="0.8"/>
+            <text class="draw-text" x="32" y="16" text-anchor="middle" fill="url(#logo-gradient)" font-size="10" font-weight="bold" font-family="Times New Roman, serif">N</text>
+            <polygon class="draw-poly-1" points="32,6 35,30 32,25 29,30" fill="url(#logo-gradient)"/>
+            <polygon class="draw-poly-2" points="32,58 35,34 32,38 29,34" fill="#94A3B8" opacity="0.8"/>
+            <circle cx="32" cy="32" r="3" fill="url(#logo-gradient)"/>
+            <circle cx="32" cy="32" r="1.5" fill="#1E293B"/>
+            <line class="draw-path" x1="16" y1="48" x2="48" y2="16" stroke="url(#logo-gradient)" stroke-width="1.5" opacity="0.8" stroke-dasharray="4,2"/>
+            <circle class="draw-point-1" cx="16" cy="48" r="1.5" fill="url(#logo-gradient)" opacity="0.8"/>
+            <circle class="draw-point-2" cx="48" cy="16" r="1.5" fill="url(#logo-gradient)" opacity="0.8"/>
           </svg>
         </div>
 
@@ -183,12 +189,60 @@ onMounted(() => {
 
 .splash-logo {
   margin-bottom: 24px;
-  animation: logoFloat 3s ease-in-out infinite, logoEntry 0.8s var(--tp-easing-expo) forwards;
+  animation: logoFloat 4s ease-in-out infinite, logoEntry 1.2s var(--tp-easing-smooth) forwards;
+}
+
+/* ── Logo 绘制动画 ── */
+.draw-circle {
+  stroke-dasharray: 190;
+  stroke-dashoffset: 190;
+  animation: drawStroke 1.5s var(--tp-easing-smooth) forwards;
+}
+
+.draw-lines {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: drawStroke 1s 0.3s var(--tp-easing-smooth) forwards;
+}
+
+.draw-path {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: drawStroke 1.2s 0.5s var(--tp-easing-smooth) forwards;
+}
+
+.draw-poly-1, .draw-poly-2 {
+  opacity: 0;
+  animation: fadeIn 0.8s 1s forwards;
+}
+
+.draw-text {
+  opacity: 0;
+  animation: fadeIn 0.8s 0.8s forwards;
+}
+
+.draw-point-1, .draw-point-2 {
+  opacity: 0;
+  transform-origin: center;
+  animation: popIn 0.5s 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes drawStroke {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0); }
+  to { opacity: 0.8; transform: scale(1); }
 }
 
 @keyframes logoEntry {
-  from { opacity: 0; transform: scale(0.6) rotate(-15deg); filter: drop-shadow(0 0 0 transparent); }
-  to { opacity: 1; transform: scale(1) rotate(0deg); filter: drop-shadow(0 4px 12px var(--tp-brand-accent-glow)); }
+  from { opacity: 0; transform: scale(0.85) translateY(10px); filter: drop-shadow(0 0 0 transparent); }
+  to { opacity: 1; transform: scale(1) translateY(0); filter: drop-shadow(0 4px 12px var(--tp-brand-accent-glow)); }
 }
 
 @keyframes logoFloat {
@@ -197,8 +251,8 @@ onMounted(() => {
     filter: drop-shadow(0 4px 12px var(--tp-brand-accent-glow));
   }
   50% {
-    transform: translateY(-6px);
-    filter: drop-shadow(0 8px 20px var(--tp-brand-accent-shadow-md));
+    transform: translateY(-8px);
+    filter: drop-shadow(0 12px 24px var(--tp-brand-accent-shadow-md));
   }
 }
 

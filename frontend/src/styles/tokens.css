@@ -18,74 +18,74 @@ html, body, #app {
 
 :root {
   /* ── 核心品牌色 ── */
-  --tp-brand-primary: #162030;
-  --tp-brand-accent: #C96B4F;
-  --tp-brand-accent-light: #E08A6A;
-  --tp-brand-accent-dark: #A0503A;
+  --tp-brand-primary: #2C3E50; /* Brighter, sophisticated slate blue */
+  --tp-brand-accent: #D35400; /* Vibrant terracotta / burnt orange for clear contrast */
+  --tp-brand-accent-light: #E67E22; /* Lighter earth orange */
+  --tp-brand-accent-dark: #A04000; /* Deeper terracotta for active states */
 
   /* ── 表面色系统（Surface） ── */
-  --tp-bg-base: #eef0f3;
-  --tp-bg-raised: #f5f6f9;
-  --tp-bg-primary: #f8f9fa;
-  --tp-bg-elevated: #ffffff;
-  --tp-bg-sunken: #f0f2f5;
-  --tp-bg-sidebar: #162030;
-  --tp-bg-sidebar-hover: #1e2d3d;
-  --tp-bg-sidebar-active: #253544;
-  --tp-bg-card: #ffffff;
-  --tp-bg-hover: #f5f7fa;
-  --tp-bg-overlay: rgba(22, 32, 48, 0.6);
+  --tp-bg-base: #F8FAFC; /* Brighter, airier background */
+  --tp-bg-raised: #FFFFFF;
+  --tp-bg-primary: #FFFFFF;
+  --tp-bg-elevated: #FFFFFF;
+  --tp-bg-sunken: #F1F5F9; /* Softer sunken contrast */
+  --tp-bg-sidebar: #2C3E50; /* Slate blue sidebar */
+  --tp-bg-sidebar-hover: #34495E;
+  --tp-bg-sidebar-active: #3E5B76;
+  --tp-bg-card: #FFFFFF;
+  --tp-bg-hover: #F1F5F9;
+  --tp-bg-overlay: rgba(44, 62, 80, 0.6);
 
   /* ── 文字色系统 ── */
-  --tp-text-primary: #1a1a2e;
-  --tp-text-secondary: #5a5a6e;
-  --tp-text-tertiary: #8a8a9a;
-  --tp-text-muted: #a0a0b0;
-  --tp-text-inverse: #ffffff;
-  --tp-text-on-accent: #ffffff;
+  --tp-text-primary: #1E293B; /* Slightly softer than pure black, excellent for reading */
+  --tp-text-secondary: #475569;
+  --tp-text-tertiary: #94A3B8;
+  --tp-text-muted: #CBD5E1;
+  --tp-text-inverse: #FFFFFF;
+  --tp-text-on-accent: #FFFFFF;
 
   /* ── 语义色 ── */
-  --tp-success: #2E7D5A;
-  --tp-success-light: #e8f5e9;
-  --tp-success-bg: rgba(46, 125, 90, 0.08);
-  --tp-warning: #E6A23C;
-  --tp-warning-light: #fdf6ec;
-  --tp-warning-bg: rgba(230, 162, 60, 0.08);
-  --tp-danger: #c0392b;
-  --tp-danger-light: #fef0f0;
-  --tp-danger-bg: rgba(192, 57, 43, 0.08);
-  --tp-info: #3d5a80;
-  --tp-info-light: #f0f9ff;
-  --tp-info-bg: rgba(61, 90, 128, 0.08);
+  --tp-success: #059669; /* Emerald */
+  --tp-success-light: #D1FAE5;
+  --tp-success-bg: rgba(5, 150, 105, 0.08);
+  --tp-warning: #D97706;
+  --tp-warning-light: #FEF3C7;
+  --tp-warning-bg: rgba(217, 119, 6, 0.08);
+  --tp-danger: #DC2626;
+  --tp-danger-light: #FEE2E2;
+  --tp-danger-bg: rgba(220, 38, 38, 0.08);
+  --tp-info: #2563EB;
+  --tp-info-light: #DBEAFE;
+  --tp-info-bg: rgba(37, 99, 235, 0.08);
 
   /* ── 边框与分隔线 ── */
-  --tp-border: #e8eaed;
-  --tp-border-light: #f0f0f0;
-  --tp-border-medium: #d0d4dc;
-  --tp-divider: rgba(0, 0, 0, 0.06);
+  --tp-border: #E5E7EB;
+  --tp-border-light: #F3F4F6;
+  --tp-border-medium: #D1D5DB;
+  --tp-divider: rgba(0, 0, 0, 0.05);
 
   /* ── 多层复合阴影 ── */
   /* sm: 基础抬升 */
-  --tp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
-  /* md: 卡片悬浮 */
-  --tp-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.03), 0 8px 16px rgba(0, 0, 0, 0.04);
+  --tp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  /* md: 卡片悬浮 - softer, larger blur */
+  --tp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.03), 0 2px 4px rgba(0, 0, 0, 0.02);
   /* lg: 显著抬升 */
-  --tp-shadow-lg: 0 8px 12px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06);
+  --tp-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.03);
   /* xl: 模态/弹窗 */
-  --tp-shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.06), 0 24px 48px rgba(0, 0, 0, 0.08);
+  --tp-shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
   /* inset: 内阴影 */
-  --tp-shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+  --tp-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.03);
   /* accent-glow: 强调色光晕 */
-  --tp-shadow-accent: 0 0 0 3px rgba(201, 107, 79, 0.15);
+  --tp-shadow-accent: 0 0 0 3px rgba(192, 57, 43, 0.15);
   /* sidebar-item: 侧边栏项光晕 */
-  --tp-shadow-sidebar-item: 0 0 12px rgba(201, 107, 79, 0.12);
+  --tp-shadow-sidebar-item: 0 0 16px rgba(192, 57, 43, 0.15);
 
   /* ── 圆角系统 ── */
   --tp-radius-xs: 4px;
-  --tp-radius-sm: 6px;
-  --tp-radius-md: 8px;
-  --tp-radius-lg: 12px;
-  --tp-radius-xl: 16px;
+  --tp-radius-sm: 8px;
+  --tp-radius-md: 10px;
+  --tp-radius-lg: 14px; /* Increased for modern smooth look */
+  --tp-radius-xl: 20px;
   --tp-radius-full: 9999px;
 
   /* ── 间距尺度（4px 基数） ── */
@@ -101,18 +101,20 @@ html, body, #app {
 
   /* ── 动画 ── */
   --tp-duration-instant: 0.1s;
-  --tp-duration-fast: 0.15s;
-  --tp-duration-normal: 0.25s;
-  --tp-duration-slow: 0.4s;
-  --tp-duration-slower: 0.6s;
+  --tp-duration-fast: 0.2s;
+  --tp-duration-normal: 0.3s;
+  --tp-duration-slow: 0.5s;
+  --tp-duration-slower: 0.8s;
   /* 标准缓动 */
   --tp-easing: cubic-bezier(0.4, 0, 0.2, 1);
-  /* 出场缓动（更现代） */
+  /* 出场缓动（更现代, 丝滑） */
   --tp-easing-expo: cubic-bezier(0.16, 1, 0.3, 1);
   /* 弹跳缓动 */
   --tp-easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* 弹性缓动 */
   --tp-easing-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* 极其顺滑的 UI 过渡曲线 */
+  --tp-easing-smooth: cubic-bezier(0.25, 1, 0.5, 1);
 
   /* ── 响应式断点 ── */
   --tp-breakpoint-xs: 480px;
@@ -130,12 +132,12 @@ html, body, #app {
   --tp-tracking-wide: 0.02em;
 
   /* ── 品牌色透明变体 ── */
-  --tp-brand-accent-bg: rgba(201, 107, 79, 0.08);
-  --tp-brand-accent-border: rgba(201, 107, 79, 0.12);
-  --tp-brand-accent-glow: rgba(201, 107, 79, 0.2);
-  --tp-brand-accent-shadow-sm: 0 2px 8px rgba(201, 107, 79, 0.15);
-  --tp-brand-accent-shadow-md: 0 4px 14px rgba(201, 107, 79, 0.25);
-  --tp-brand-accent-shadow-lg: 0 8px 24px rgba(201, 107, 79, 0.3);
+  --tp-brand-accent-bg: rgba(192, 57, 43, 0.08);
+  --tp-brand-accent-border: rgba(192, 57, 43, 0.15);
+  --tp-brand-accent-glow: rgba(192, 57, 43, 0.25);
+  --tp-brand-accent-shadow-sm: 0 4px 12px rgba(192, 57, 43, 0.2);
+  --tp-brand-accent-shadow-md: 0 6px 18px rgba(192, 57, 43, 0.25);
+  --tp-brand-accent-shadow-lg: 0 10px 30px rgba(192, 57, 43, 0.3);
 
   /* ── 图标尺寸 ── */
   --tp-icon-sm: 24px;
@@ -162,17 +164,17 @@ html, body, #app {
   --tp-chart-c8: #7EB8A0;
 
   /* ── Element Plus 变量覆写 ── */
-  --el-color-primary: #162030;
-  --el-color-primary-light-3: #4a5568;
-  --el-color-primary-light-5: #7a8598;
-  --el-color-primary-light-7: #a0a8b8;
-  --el-color-primary-light-8: #c8cdd5;
-  --el-color-primary-light-9: #e8eaed;
-  --el-color-primary-dark-2: #0d1520;
-  --el-color-success: #2E7D5A;
-  --el-color-warning: #E6A23C;
-  --el-color-danger: #c0392b;
-  --el-color-info: #3d5a80;
+  --el-color-primary: #1A2639;
+  --el-color-primary-light-3: #4A5B75;
+  --el-color-primary-light-5: #7A8CA6;
+  --el-color-primary-light-7: #B0BECE;
+  --el-color-primary-light-8: #CBD5E1;
+  --el-color-primary-light-9: #E2E8F0;
+  --el-color-primary-dark-2: #0F172A;
+  --el-color-success: #059669;
+  --el-color-warning: #D97706;
+  --el-color-danger: #DC2626;
+  --el-color-info: #2563EB;
   --el-border-radius-base: var(--tp-radius-sm);
   --el-border-radius-small: var(--tp-radius-xs);
   --el-box-shadow-light: var(--tp-shadow-sm);
@@ -215,14 +217,15 @@ html, body, #app {
 .tp-card {
   background: var(--tp-bg-card);
   border-radius: var(--tp-radius-lg);
-  box-shadow: var(--tp-shadow-md);
+  box-shadow: var(--tp-shadow-sm);
   border: 1px solid var(--tp-border-light);
-  transition: all var(--tp-duration-normal) var(--tp-easing);
+  transition: all var(--tp-duration-normal) var(--tp-easing-smooth);
 }
 
 .tp-card:hover {
-  box-shadow: var(--tp-shadow-lg), 0 0 0 1px var(--tp-brand-accent-border);
-  transform: translateY(-1px);
+  box-shadow: var(--tp-shadow-lg);
+  transform: translateY(-2px);
+  border-color: var(--tp-border-medium);
 }
 
 /* ── 卡片微光扫过效果（hover时触发） ── */
@@ -234,24 +237,35 @@ html, body, #app {
 .tp-card-glow::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-  transition: left 0.6s var(--tp-easing-expo);
+  top: -50%;
+  left: -150%;
+  width: 100%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  transition: all 0s;
   z-index: 1;
   pointer-events: none;
 }
 
 .tp-card-glow:hover::before {
-  left: 120%;
+  animation: shimmer-sweep 1.2s var(--tp-easing-smooth);
+}
+
+@keyframes shimmer-sweep {
+  0% { left: -150%; }
+  100% { left: 150%; }
 }
 
 /* ── 运行状态呼吸灯 ── */
 @keyframes tp-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px rgba(5, 150, 105, 0.4); }
+  50% { opacity: 0.6; transform: scale(0.9); box-shadow: 0 0 12px rgba(5, 150, 105, 0.8); }
 }
 
 .tp-pulse {
@@ -312,8 +326,8 @@ html, body, #app {
 
 /* ── 光晕呼吸 ── */
 @keyframes tp-glow-breathe {
-  0%, 100% { box-shadow: 0 0 4px rgba(201, 107, 79, 0.1); }
-  50% { box-shadow: 0 0 12px rgba(201, 107, 79, 0.2); }
+  0%, 100% { box-shadow: 0 0 4px rgba(211, 84, 0, 0.15); }
+  50% { box-shadow: 0 0 16px rgba(211, 84, 0, 0.35); }
 }
 
 .tp-glow-breathe {

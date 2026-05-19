@@ -9,7 +9,31 @@
   border-radius: var(--tp-radius-sm);
   font-weight: 500;
   letter-spacing: 0.3px;
-  transition: all var(--tp-duration-normal) var(--tp-easing);
+  transition: all var(--tp-duration-normal) var(--tp-easing-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle button ripple effect via after pseudo element */
+.el-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%) scale(0);
+  border-radius: 50%;
+  opacity: 0;
+  transition: transform var(--tp-duration-slow) var(--tp-easing-smooth),
+              opacity var(--tp-duration-slow) var(--tp-easing-smooth);
+}
+
+.el-button:active::after {
+  transform: translate(-50%, -50%) scale(2.5);
+  opacity: 1;
+  transition: 0s;
 }
 
 .el-button--primary {
@@ -20,27 +44,30 @@
 
 .el-button--primary:hover,
 .el-button--primary:focus {
-  background: var(--tp-brand-accent);
-  border-color: var(--tp-brand-accent);
-  box-shadow: var(--tp-brand-accent-shadow-sm);
+  background: var(--tp-bg-sidebar-hover);
+  border-color: var(--tp-bg-sidebar-hover);
+  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.2);
+  transform: translateY(-1px);
 }
 
 .el-button--primary:active {
-  background: var(--tp-brand-accent-dark);
-  border-color: var(--tp-brand-accent-dark);
-  box-shadow: var(--tp-brand-accent-glow);
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(44, 62, 80, 0.2);
 }
 
 .el-button--default {
-  border-color: var(--tp-border);
+  border-color: var(--tp-border-medium);
   color: var(--tp-text-secondary);
+  background: var(--tp-bg-elevated);
 }
 
 .el-button--default:hover,
 .el-button--default:focus {
-  border-color: var(--tp-brand-accent-light);
+  border-color: var(--tp-brand-accent);
   color: var(--tp-brand-accent);
   background: var(--tp-brand-accent-bg);
+  box-shadow: 0 4px 12px var(--tp-brand-accent-bg);
+  transform: translateY(-1px);
 }
 
 /* 文字按钮 */
@@ -87,18 +114,21 @@
   --el-table-border-color: var(--tp-border-light);
   --el-table-text-color: var(--tp-text-primary);
   --el-table-header-text-color: var(--tp-text-primary);
+  border-radius: var(--tp-radius-md);
+  overflow: hidden;
 }
 
 .el-table thead th.el-table__cell {
   font-weight: 600;
   font-size: 13px;
   color: var(--tp-text-primary);
-  background: linear-gradient(180deg, var(--tp-bg-sunken), var(--tp-bg-base));
-  border-bottom: 1px solid var(--tp-border-light);
+  background: var(--tp-bg-sunken);
+  border-bottom: 1px solid var(--tp-border-medium);
 }
 
 .el-table .cell {
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
@@ -308,8 +338,17 @@
 
 /* ── 加载 ── */
 .el-loading-mask {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(2px);
+  background: rgba(248, 250, 252, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.el-loading-spinner .path {
+  stroke: var(--tp-brand-accent);
+}
+
+.el-loading-spinner .el-loading-text {
+  color: var(--tp-brand-accent);
+  font-family: var(--tp-font-body);
 }
 
 /* ── 分页 ── */

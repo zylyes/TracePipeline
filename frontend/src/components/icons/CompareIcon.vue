@@ -25,6 +25,6 @@
 <script setup lang="ts">
 withDefaults(defineProps<{ size?: number; color?: string }>(), {
   size: 24,
-  color: '#4A5568',
+  color: '#C2703A',
 })
 </script>

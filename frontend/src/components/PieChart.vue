@@ -36,6 +36,10 @@ const option = computed(() => {
       radius: ['40%', '70%'],
       avoidLabelOverlap: false,
       itemStyle: { borderRadius: 6, borderColor: cssVar('--tp-bg-elevated') || '#ffffff', borderWidth: 2 },
+      emphasis: {
+        itemStyle: { shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.12)' },
+        scaleSize: 8,
+      },
       label: { show: true, formatter: '{b}: {c}', fontFamily: font, color: cssVar('--tp-text-primary') || '#1a1a2e' },
       data: [
         { value: props.typeCounts.type_i, name: 'I型', itemStyle: { color: CHART_COLOR_TERTIARY } },

@@ -1,7 +1,8 @@
 /**
- * TracePipeline — ECharts 统一主题配置
- * 地质学术配色 + 全局字体从 CSS 变量运行时读取并展开为 Canvas 可用的字体名
+ * TracePipeline — ECharts 统一主题配置 v2
+ * 地质科学主题配色 + 全局字体从 CSS 变量运行时读取并展开为 Canvas 可用的字体名
  * 所有图表组件统一引用此模块
+ * 配色与 tokens.css 中 --tp-chart-c1~c10 保持同步
  */
 
 /**
@@ -55,17 +56,21 @@ export function getEchartsHeadingFont(): string {
 }
 
 /**
- * 图表配色 — 与 tokens.css 中 --tp-chart-c1~c8 保持同步
+ * 图表配色 — 与 tokens.css 中 --tp-chart-c1~c10 保持同步
+ * 地质科学主题：色相均匀分布，相邻色相间隔 ≥ 40°
+ * 融入地质色语义：蓝=深度/水体 青碧=矿物 赭石=砂岩 紫=构造应力 红=断层
  */
 const CHART_COLORS = [
-  '#2C3E50', // Brighter slate
-  '#D35400', // Terracotta
-  '#E67E22', // Earth orange
-  '#3E5B76', // Lighter slate
-  '#059669', // Emerald
-  '#94A3B8', // Muted slate
-  '#D97706', // Amber/Sand
-  '#2563EB', // Bright info blue
+  '#0369A1', // 深蓝——深度/水体
+  '#0D9488', // 青碧——矿物/岩体
+  '#C2703A', // 赭石——砂岩/沉积
+  '#7C3AED', // 蓝紫——构造应力
+  '#DC2626', // 鲜红——断层/危险
+  '#0EA5E9', // 天蓝——浅层/天空
+  '#65A30D', // 草绿——植被/地表
+  '#DB2777', // 品红——特殊标注
+  '#EA580C', // 橙——次级沉积
+  '#6D28D9', // 暗紫——深层构造
 ] as const
 
 export function getChartColors(): string[] {
@@ -95,10 +100,10 @@ export function baseTooltipStyle() {
   const font = getEchartsFontFamily()
   return {
     backgroundColor: 'rgba(255,255,255,0.96)',
-    borderColor: '#E5E7EB' /* = --tp-border */,
+    borderColor: '#E2E8F0',
     borderWidth: 1,
-    textStyle: { fontFamily: font, fontSize: 12, color: '#111827' /* = --tp-text-primary */ },
-    extraCssText: 'border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.05);',
+    textStyle: { fontFamily: font, fontSize: 12, color: '#1A202C' },
+    extraCssText: 'border-radius:10px;box-shadow:0 12px 24px rgba(0,0,0,0.06);backdrop-filter:blur(8px);',
   }
 }
 

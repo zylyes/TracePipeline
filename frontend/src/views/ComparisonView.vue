@@ -119,7 +119,7 @@ import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
-import { getChartColors, CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, CHART_COLOR_TERTIARY } from '@/utils/echarts-theme'
+import { getChartColors, getEchartsFontFamily } from '@/utils/echarts-theme'
 import type { ComparisonRow, PipelineResult } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
@@ -186,14 +186,14 @@ function safeFloat(val: string): number | null {
   return isNaN(n) ? null : n
 }
 
-const echartsFont = 'var(--tp-font-data)'
+const echartsFont = getEchartsFontFamily()
 
 const chartColors = getChartColors()
-const GEO_C1 = chartColors[0] // #C96B4F
-const GEO_C2 = chartColors[1] // #4A7C9B
-const GEO_C3 = chartColors[2] // #4A9E7A
-const GEO_C4 = chartColors[3] // #6B8EBB
-const GEO_C5 = chartColors[5] // #8AAFC4
+const GEO_C1 = chartColors[0]
+const GEO_C2 = chartColors[1]
+const GEO_C3 = chartColors[2]
+const GEO_C4 = chartColors[3]
+const GEO_C5 = chartColors[5]
 
 const barOption = computed(() => {
   const outcrops = tableData.value.map(d => d.outcrop)

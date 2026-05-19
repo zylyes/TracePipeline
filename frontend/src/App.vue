@@ -38,7 +38,7 @@
         <!-- 侧边栏 -->
         <aside :class="['sidebar', { collapsed: sidebarCollapsed }]">
           <div class="sidebar-header" @click.stop="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? '展开' : '收起'">
-            <GeoIcon class="logo-icon" :size="20" color="#C96B4F" />
+            <GeoIcon class="logo-icon" :size="20" color="#0F766E" />
             <div v-if="!sidebarCollapsed" class="logo-text-group">
               <span class="logo-text">TracePipeline</span>
               <span class="logo-version">v{{ appVersion }}</span>
@@ -517,6 +517,8 @@ const bootSteps: BootStep[] = [
   user-select: none;
   position: relative;
   z-index: 100;
+  /* 微妙的底部边线分隔 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .title-bar-center {
@@ -612,12 +614,13 @@ const bootSteps: BootStep[] = [
 .sidebar-header::after {
   content: '';
   position: absolute;
-  bottom: -4px;
-  left: 10%;
-  right: 10%;
-  height: 4px;
-  background: linear-gradient(90deg, transparent, var(--tp-brand-accent-bg), transparent);
+  bottom: -3px;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--tp-geo-emerald, rgba(15, 118, 110, 0.5)), transparent);
   pointer-events: none;
+  border-radius: 1px;
 }
 
 .sidebar-header:hover {
@@ -734,12 +737,7 @@ const bootSteps: BootStep[] = [
 
 .menu-item.active {
   color: var(--tp-text-inverse);
-  animation: menuGlow 3s ease-in-out infinite;
-}
-
-@keyframes menuGlow {
-  0%, 100% { background: var(--tp-brand-accent-border); }
-  50% { background: rgba(211, 84, 0, 0.2); }
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .menu-item.active .menu-icon {
@@ -753,18 +751,12 @@ const bootSteps: BootStep[] = [
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 4px;
-  height: 20px;
-  background: linear-gradient(180deg, var(--tp-brand-accent-light), var(--tp-brand-accent));
-  border-radius: 0 4px 4px 0;
-  box-shadow: 0 0 10px var(--tp-brand-accent-glow);
+  width: 3px;
+  height: 18px;
+  background: var(--tp-brand-accent-light);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px var(--tp-brand-accent-glow);
   transition: all var(--tp-duration-normal) var(--tp-easing-expo);
-  animation: indicatorPulse 2.5s ease-in-out infinite;
-}
-
-@keyframes indicatorPulse {
-  0%, 100% { box-shadow: 0 0 6px var(--tp-brand-accent-glow); height: 20px; }
-  50% { box-shadow: 0 0 16px rgba(211, 84, 0, 0.4); height: 26px; }
 }
 
 /* ── 侧边栏底部 ── */
@@ -856,8 +848,9 @@ const bootSteps: BootStep[] = [
 /* ── 状态栏 ── */
 .status-bar {
   height: 36px;
-  background: var(--tp-bg-elevated);
+  background: var(--tp-bg-raised);
   border-top: 1px solid var(--tp-border-light);
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.02);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -903,7 +896,7 @@ const bootSteps: BootStep[] = [
   border-radius: 50%;
   background: var(--tp-success);
   animation: tp-pulse 2s ease-in-out infinite;
-  box-shadow: 0 0 6px rgba(46, 125, 90, 0.4);
+  box-shadow: 0 0 6px var(--tp-success-border);
 }
 
 .status-running .status-text {

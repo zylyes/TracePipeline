@@ -167,12 +167,11 @@ const chartOption = computed(() => {
       barWidth: '95%',
       itemStyle: {
         color: CHART_COLOR_PRIMARY,
-        opacity: 0.75,
-        borderWidth: 0.5,
-        borderColor: '#A0503A',
+        opacity: 0.82,
+        borderWidth: 0,
       },
       emphasis: {
-        itemStyle: { opacity: 1, color: '#E08A6A' }
+        itemStyle: { opacity: 1 }
       },
       ...baseSeriesAnimation(),
     }],

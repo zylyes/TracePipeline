@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Download, RefreshRight, Setting, Upload } from '@element-plus/icons-vue'
 import ConfigForm from '@/components/ConfigForm.vue'
 import StylePreview from '@/components/StylePreview.vue'
@@ -92,10 +92,25 @@ async function saveStyleConfig() {
 
 async function resetProcessingConfig() {
   try {
+    await ElMessageBox.confirm(
+      '确定要将处理参数重置为默认值吗？<div class="tp-confirm-warning">此操作不可撤销</div>',
+      '重置处理设置',
+      {
+        confirmButtonText: '确认重置',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        showClose: false,
+        confirmButtonClass: 'tp-confirm-danger-btn',
+        customClass: 'tp-confirm-box',
+      },
+    )
+  } catch {
+    return
+  }
+  try {
     const cfg = await configStore.resetProcessingConfig()
     form.value = { ...cfg }
-    // 样式保持不变
-    // 同步侧边栏路径
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
     ElMessage.success('处理参数已重置为默认')
@@ -106,8 +121,24 @@ async function resetProcessingConfig() {
 
 async function resetStyleConfig() {
   try {
+    await ElMessageBox.confirm(
+      '确定要将样式设置重置为默认值吗？<div class="tp-confirm-warning">此操作不可撤销</div>',
+      '重置样式设置',
+      {
+        confirmButtonText: '确认重置',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        showClose: false,
+        confirmButtonClass: 'tp-confirm-danger-btn',
+        customClass: 'tp-confirm-box',
+      },
+    )
+  } catch {
+    return
+  }
+  try {
     const cfg = await configStore.resetStyleConfig()
-    // 强制用本地默认值覆盖，避免空对象导致组件不同步
     styleConfig.value = { ...DEFAULT_STYLE }
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
@@ -120,14 +151,29 @@ async function resetStyleConfig() {
 
 async function resetAllConfig() {
   try {
+    await ElMessageBox.confirm(
+      '确定要恢复所有默认配置吗？此操作将重置全部设置。<div class="tp-confirm-warning">此操作不可撤销</div>',
+      '重置所有设置',
+      {
+        confirmButtonText: '确认重置',
+        cancelButtonText: '取消',
+        type: 'error',
+        dangerouslyUseHTMLString: true,
+        showClose: false,
+        confirmButtonClass: 'tp-confirm-danger-btn',
+        customClass: 'tp-confirm-box',
+      },
+    )
+  } catch {
+    return
+  }
+  try {
     const cfg = await configStore.resetConfig()
     form.value = { ...cfg }
-    // 强制用本地默认值覆盖，避免空对象导致组件不同步
     styleConfig.value = { ...DEFAULT_STYLE }
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
-    // 同步侧边栏路径
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
     ElMessage.success('已恢复所有默认配置')

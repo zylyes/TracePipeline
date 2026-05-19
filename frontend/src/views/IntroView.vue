@@ -5,7 +5,7 @@
       <div class="hero-texture"></div>
       <div class="hero-content">
         <div class="hero-logo-wrap">
-          <GeoIcon class="hero-logo" :size="48" color="#C96B4F" />
+          <GeoIcon class="hero-logo" :size="80" color="var(--tp-brand-accent)" />
         </div>
         <h1 class="hero-title">TracePipeline</h1>
         <p class="hero-subtitle">节理迹线数据处理与可视化系统</p>
@@ -27,7 +27,7 @@
         <div v-for="mod in modules" :key="mod.path" class="module-card" @click="$router.push(mod.path)">
           <div class="module-accent" :style="{ background: mod.color }" />
           <div class="module-body">
-            <component :is="mod.icon" :size="32" :color="mod.color" class="module-icon" />
+            <component :is="mod.icon" :size="40" :color="mod.color" class="module-icon" />
             <h3 class="module-name">{{ mod.name }}</h3>
             <p class="module-desc">{{ mod.desc }}</p>
           </div>
@@ -85,35 +85,35 @@ const modules = [
     desc: '批量处理露头数据，自动计算迹线参数与节点识别',
     path: '/processing',
     icon: ProcessIcon,
-    color: '#C96B4F',
+    color: '#0369A1', // c1 深蓝
   },
   {
     name: '统计',
     desc: '密度指标、迹长直方图、裂隙类型饼图与结果浏览',
     path: '/statistics',
     icon: StatsIcon,
-    color: '#2E7D5A',
+    color: '#0D9488', // c2 青碧
   },
   {
     name: '对比',
     desc: '多露头参数对比表格与柱状图，直观比较差异',
     path: '/comparison',
     icon: CompareIcon,
-    color: '#4A5568',
+    color: '#C2703A', // c3 赭石
   },
   {
     name: '数据',
     desc: '裂隙情况、端点坐标、走向与迹长等多维度浏览',
     path: '/data',
     icon: DataIcon,
-    color: '#7B1FA2',
+    color: '#7C3AED', // c4 蓝紫
   },
   {
     name: '配置',
     desc: '全局参数、绘图样式与开发者模式灵活调整',
     path: '/config',
     icon: ConfigIcon,
-    color: '#B89A6A',
+    color: '#DC2626', // c5 鲜红
   },
 ]
 
@@ -172,11 +172,8 @@ const steps = [
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-brand-accent-bg);
-  border: 1px solid var(--tp-brand-accent-border);
+  width: 104px;
+  height: 104px;
   margin-bottom: 16px;
   animation: logoWrapEntry 0.6s var(--tp-easing-expo) both, logoWrapFloat 4s 0.6s ease-in-out infinite;
 }
@@ -187,8 +184,8 @@ const steps = [
 }
 
 @keyframes logoWrapFloat {
-  0%, 100% { transform: translateY(0); box-shadow: 0 4px 16px var(--tp-brand-accent-glow); }
-  50% { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(201, 107, 79, 0.2); }
+  0%, 100% { transform: translateY(0); filter: drop-shadow(0 4px 16px var(--tp-brand-accent-glow)); }
+  50% { transform: translateY(-4px); filter: drop-shadow(0 8px 24px var(--tp-brand-accent-shadow-md)); }
 }
 
 .hero-logo {
@@ -524,8 +521,8 @@ const steps = [
   }
 
   .hero-logo-wrap {
-    width: 56px;
-    height: 56px;
+    width: 88px;
+    height: 88px;
     margin-bottom: 12px;
   }
 

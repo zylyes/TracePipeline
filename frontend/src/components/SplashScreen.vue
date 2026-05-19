@@ -166,7 +166,7 @@ onMounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, #0f1620 100%);
+  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, var(--el-color-primary-dark-2) 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -206,7 +206,7 @@ onMounted(() => {
   font-family: var(--tp-font-heading);
   font-size: var(--tp-font-size-hero);
   font-weight: 700;
-  color: #fff;
+  color: var(--tp-text-inverse);
   margin: 0 0 8px 0;
   letter-spacing: 2px;
   animation: titleSlideIn 0.6s 0.2s var(--tp-easing-expo) both;

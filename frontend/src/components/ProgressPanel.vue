@@ -168,7 +168,7 @@ const progressColor = computed(() => {
   letter-spacing: 0.5px;
   background: var(--tp-brand-accent);
   border-color: var(--tp-brand-accent);
-  color: #fff;
+  color: var(--tp-text-inverse);
   box-shadow: var(--tp-brand-accent-shadow-sm);
   transition: all var(--tp-duration-normal) var(--tp-easing);
   position: relative;

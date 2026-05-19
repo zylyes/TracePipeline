@@ -137,11 +137,11 @@ const steps = [
 /* ── Hero ───────────────────────────────────────────── */
 .hero-section {
   position: relative;
-  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, #2c3e50 60%, var(--tp-brand-primary) 100%);
+  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, var(--tp-bg-sidebar-hover) 60%, var(--tp-brand-primary) 100%);
   border-radius: var(--tp-radius-xl);
   padding: 36px 40px;
   text-align: center;
-  color: #fff;
+  color: var(--tp-text-inverse);
   margin-bottom: var(--tp-space-5);
   overflow: visible;
 }
@@ -200,7 +200,7 @@ const steps = [
   font-size: var(--tp-font-size-hero);
   font-weight: 700;
   margin: 0 0 8px;
-  color: #fff;
+  color: var(--tp-text-inverse);
   animation: heroTitleIn 0.7s 0.15s var(--tp-easing-expo) both;
 }
 
@@ -417,7 +417,7 @@ const steps = [
   height: 28px;
   border-radius: 50%;
   background: var(--tp-brand-accent);
-  color: #fff;
+  color: var(--tp-text-inverse);
   font-size: 13px;
   font-weight: 700;
   display: flex;

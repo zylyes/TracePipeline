@@ -561,12 +561,12 @@ const bootSteps: BootStep[] = [
 
 .win-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--tp-text-inverse);
 }
 
 .win-btn.close:hover {
-  background: #c0392b;
-  color: #fff;
+  background: var(--tp-danger);
+  color: var(--tp-text-inverse);
 }
 
 .win-btn svg {
@@ -584,7 +584,7 @@ const bootSteps: BootStep[] = [
 .sidebar {
   width: 152px;
   background: var(--tp-brand-primary);
-  color: #fff;
+  color: var(--tp-text-inverse);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -733,7 +733,7 @@ const bootSteps: BootStep[] = [
 }
 
 .menu-item.active {
-  color: #fff;
+  color: var(--tp-text-inverse);
   animation: menuGlow 3s ease-in-out infinite;
 }
 

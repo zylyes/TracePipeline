@@ -247,7 +247,7 @@ function onMouseUp() {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  color: #fff;
+  color: var(--tp-text-inverse);
   flex-shrink: 0;
 }
 
@@ -291,7 +291,7 @@ function onMouseUp() {
 }
 
 .nav-arrow:hover {
-  color: #fff;
+  color: var(--tp-text-inverse);
   background: rgba(255,255,255,0.1);
 }
 

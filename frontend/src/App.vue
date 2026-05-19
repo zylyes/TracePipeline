@@ -739,7 +739,7 @@ const bootSteps: BootStep[] = [
 
 @keyframes menuGlow {
   0%, 100% { background: var(--tp-brand-accent-border); }
-  50% { background: rgba(201, 107, 79, 0.16); }
+  50% { background: rgba(211, 84, 0, 0.2); }
 }
 
 .menu-item.active .menu-icon {
@@ -753,18 +753,18 @@ const bootSteps: BootStep[] = [
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 18px;
+  width: 4px;
+  height: 20px;
   background: linear-gradient(180deg, var(--tp-brand-accent-light), var(--tp-brand-accent));
-  border-radius: 0 2px 2px 0;
-  box-shadow: 0 0 8px var(--tp-brand-accent-glow);
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 10px var(--tp-brand-accent-glow);
   transition: all var(--tp-duration-normal) var(--tp-easing-expo);
   animation: indicatorPulse 2.5s ease-in-out infinite;
 }
 
 @keyframes indicatorPulse {
-  0%, 100% { box-shadow: 0 0 6px var(--tp-brand-accent-glow); height: 18px; }
-  50% { box-shadow: 0 0 14px rgba(201, 107, 79, 0.3); height: 22px; }
+  0%, 100% { box-shadow: 0 0 6px var(--tp-brand-accent-glow); height: 20px; }
+  50% { box-shadow: 0 0 16px rgba(211, 84, 0, 0.4); height: 26px; }
 }
 
 /* ── 侧边栏底部 ── */
@@ -863,9 +863,11 @@ const bootSteps: BootStep[] = [
   justify-content: space-between;
   gap: 16px;
   padding: 0 20px;
+  font-family: var(--tp-font-body);
   font-size: 13px;
   color: var(--tp-text-tertiary);
   flex-shrink: 0;
+  transition: background var(--tp-duration-normal) var(--tp-easing-smooth);
 }
 
 .status-group {
@@ -945,17 +947,17 @@ const bootSteps: BootStep[] = [
 /* 页面切换动画 */
 .page-slide-enter-active,
 .page-slide-leave-active {
-  transition: all 0.3s var(--tp-easing-expo);
+  transition: opacity 0.4s var(--tp-easing-smooth), transform 0.4s var(--tp-easing-smooth);
 }
 
 .page-slide-enter-from {
   opacity: 0;
-  transform: translateX(16px);
+  transform: translateY(12px) scale(0.98);
 }
 
 .page-slide-leave-to {
   opacity: 0;
-  transform: translateX(-16px);
+  transform: translateY(-8px) scale(0.99);
 }
 
 /* ── 右下角 resize grip ── */

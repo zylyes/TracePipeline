@@ -14,14 +14,14 @@
 
 /* ── 字体栈定义 ─────────────────────────────── */
 :root {
-  /* 西文与数字：Times New Roman 体系（优先级最高） */
-  --tp-font-latin: "Times New Roman", "Liberation Serif", "Georgia", "Palatino Linotype", "Book Antiqua", serif;
+  /* 西文与数字：Times New Roman 严格优先 */
+  --tp-font-latin: "Times New Roman", "Liberation Serif", "Georgia", serif;
 
-  /* 中文标题：黑体体系 */
-  --tp-font-heading-zh: "SimHei", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  /* 中文标题：黑体体系严格优先 */
+  --tp-font-heading-zh: "SimHei", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
 
-  /* 中文正文：宋体体系 */
-  --tp-font-body-zh: "SimSun", "STSong", "Songti SC", "NSimSun", "Noto Serif SC", serif;
+  /* 中文正文：宋体体系严格优先 */
+  --tp-font-body-zh: "SimSun", "STSong", "Songti SC", "NSimSun", serif;
 
   /* 等宽：用于代码、日志、时间戳 */
   --tp-font-mono: "Consolas", "Courier New", "Liberation Mono", "Lucida Console", monospace;

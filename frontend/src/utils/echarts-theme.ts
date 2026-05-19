@@ -58,14 +58,14 @@ export function getEchartsHeadingFont(): string {
  * 图表配色 — 与 tokens.css 中 --tp-chart-c1~c8 保持同步
  */
 const CHART_COLORS = [
-  '#C96B4F', // = --tp-chart-c1
-  '#4A7C9B', // = --tp-chart-c2
-  '#4A9E7A', // = --tp-chart-c3
-  '#6B8EBB', // = --tp-chart-c4
-  '#B89A6A', // = --tp-chart-c5
-  '#8AAFC4', // = --tp-chart-c6
-  '#D4A07A', // = --tp-chart-c7
-  '#7EB8A0', // = --tp-chart-c8
+  '#2C3E50', // Brighter slate
+  '#D35400', // Terracotta
+  '#E67E22', // Earth orange
+  '#3E5B76', // Lighter slate
+  '#059669', // Emerald
+  '#94A3B8', // Muted slate
+  '#D97706', // Amber/Sand
+  '#2563EB', // Bright info blue
 ] as const
 
 export function getChartColors(): string[] {
@@ -78,35 +78,35 @@ export const CHART_COLOR_TERTIARY = CHART_COLORS[2]
 
 export function baseTextStyle() {
   const font = getEchartsFontFamily()
-  return { fontFamily: font, fontSize: 12, color: '#5a5a6e' /* = --tp-text-secondary */ }
+  return { fontFamily: font, fontSize: 12, color: '#4B5563' /* = --tp-text-secondary */ }
 }
 
 export function baseTitleStyle() {
   const font = getEchartsHeadingFont()
-  return { fontFamily: font, fontSize: 16, fontWeight: 600 as const, color: '#1a1a2e' /* = --tp-text-primary */ }
+  return { fontFamily: font, fontSize: 16, fontWeight: 600 as const, color: '#111827' /* = --tp-text-primary */ }
 }
 
 export function baseAxisLabelStyle() {
   const font = getEchartsFontFamily()
-  return { fontFamily: font, fontSize: 11, color: '#5a5a6e' /* = --tp-text-secondary */ }
+  return { fontFamily: font, fontSize: 11, color: '#4B5563' /* = --tp-text-secondary */ }
 }
 
 export function baseTooltipStyle() {
   const font = getEchartsFontFamily()
   return {
     backgroundColor: 'rgba(255,255,255,0.96)',
-    borderColor: '#e8eaed' /* = --tp-border */,
+    borderColor: '#E5E7EB' /* = --tp-border */,
     borderWidth: 1,
-    textStyle: { fontFamily: font, fontSize: 12, color: '#1a1a2e' /* = --tp-text-primary */ },
-    extraCssText: 'border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.08);',
+    textStyle: { fontFamily: font, fontSize: 12, color: '#111827' /* = --tp-text-primary */ },
+    extraCssText: 'border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.05);',
   }
 }
 
 export function baseAnimationConfig() {
   return {
-    animationDuration: 600,
+    animationDuration: 800,
     animationEasing: 'cubicOut' as const,
-    animationDurationUpdate: 300,
+    animationDurationUpdate: 500,
     animationEasingUpdate: 'cubicInOut' as const,
   }
 }

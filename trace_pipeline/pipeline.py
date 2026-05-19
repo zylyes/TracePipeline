@@ -75,12 +75,17 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
     Returns:
         RunResult — 不可变结果对象，.status 为 "success" 或 "error"。
     """
-    # 子进程安全：若由 ProcessPoolExecutor 调用，需独立初始化日志
+    # 子进程安全：若由 ProcessPoolExecutor 调用，需独立初始化日志并重置 matplotlib 后端
     from multiprocessing import current_process
 
     if current_process().name != "MainProcess":
+        # 强制子进程使用非交互式后端，防止继承父进程 Tkinter/Qt 状态导致崩溃
+        try:
+            import matplotlib
+            matplotlib.use("Agg", force=True)
+        except Exception:
+            pass
         from .logging import setup_worker_logging
-
         setup_worker_logging()
 
     pipeline_start = time.perf_counter()
@@ -287,7 +292,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 **node_summary,
             )
 
-        except (FileNotFoundError, ValueError, OSError) as exc:
+        except (FileNotFoundError, ValueError, OSError, KeyError, TypeError, IndexError) as exc:
             total_duration = (time.perf_counter() - pipeline_start) * 1000
             logger.error(
                 "处理 [%s] 失败 (%s): %s (%.3f ms)",
@@ -295,6 +300,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
             )
             return RunResult.failure(cfg.table_stem, str(exc), error_type=type(exc).__name__)
+        except (MemoryError, KeyboardInterrupt):
+            # 系统级异常不应静默捕获，直接抛出以保留崩溃现场
+            raise
         except Exception as exc:
             total_duration = (time.perf_counter() - pipeline_start) * 1000
             import traceback

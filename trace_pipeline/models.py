@@ -190,18 +190,18 @@ class RunConfig:
     output_prefix: str
     table_stem: str
     outcrop: str
-    export_rose_plot: bool = True
+    export_rose_plot: bool = False
     rose_bin_width: float = 10.0
-    rose_dpi: int = 400
-    trace_dpi: int = 300
+    rose_dpi: int = 600
+    trace_dpi: int = 600
     rotated_trace_dpi: int = 600
     window_strategy: str = "auto"
     auto_density_threshold: float = 5.0
     tangent_window_count: int = 3
     min_intersections: int = 5
     style: dict[str, Any] = field(default_factory=dict)
-    enable_node_recognition: bool = True
-    node_merge_tolerance: float = 1e-6
+    enable_node_recognition: bool = False
+    node_merge_tolerance: float = 0.01
     show_node_overlay: bool = True
 
     def __post_init__(self) -> None:

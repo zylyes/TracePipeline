@@ -50,14 +50,22 @@ class PipelineService:
         return self._running
 
     def shutdown(self, timeout: float = 30.0) -> None:
-        """优雅关闭：等待后台线程完成，防止文件写入被强制中断。"""
+        """优雅关闭：等待后台线程完成，防止文件写入被强制中断。
+
+        若超时仍未完成，记录警告并强制继续关闭流程（依赖 daemon=False
+        时主进程等待；若主进程退出，则线程被强制终止）。
+        """
         if not self._running:
             return
         logger.info("正在等待后台流水线完成 (timeout=%.1fs)...", timeout)
         if hasattr(self, "_worker_thread") and self._worker_thread.is_alive():
             self._worker_thread.join(timeout=timeout)
             if self._worker_thread.is_alive():
-                logger.warning("后台流水线未在超时时间内完成")
+                logger.warning(
+                    "后台流水线未在 %.1fs 内完成，将强制关闭。"
+                    "当前可能正在执行长时间绘图或 Excel 写入操作。",
+                    timeout,
+                )
 
     def _emit(self, event: dict[str, Any]) -> None:
         with self._lock:

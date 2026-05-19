@@ -89,31 +89,58 @@ class GuiApi:
         """解析并校验路径在项目根目录内，防止路径遍历攻击。
 
         校验规则：
-        1. 拒绝包含 ".." 的原始输入
-        2. URL 解码后再次检查 ".."
-        3. 拒绝 Windows 设备名
-        4. 解析符号链接（realpath）
-        5. 限制在 base 目录下
+        1. 拒绝包含 ".." 的原始输入（多层 URL 编码后仍检查）
+        2. URL 递归解码后再次检查 ".."
+        3. 拒绝 Windows 设备名（检查所有路径段）
+        4. 解析符号链接后限制在 base 目录下
+        5. 拒绝非预期扩展名（防止 XSS）
         """
         from urllib.parse import unquote
 
-        decoded = unquote(path)
+        # 递归 URL 解码（防御双重编码如 %252e%252e）
+        decoded = path
+        for _ in range(5):
+            new_decoded = unquote(decoded)
+            if new_decoded == decoded:
+                break
+            decoded = new_decoded
+        else:
+            # 超过 5 次解码仍未稳定，视为攻击
+            logger.warning("拒绝过度 URL 编码的路径: %s", path)
+            return None
+
+        # 在任何阶段检查路径遍历
         for check_path in (path, decoded):
             p_check = Path(check_path)
             if ".." in p_check.parts:
                 logger.warning("拒绝包含 .. 的路径: %s", path)
                 return None
-
-        stem = Path(path).stem.upper()
-        if stem in self._WINDOWS_DEVICE_NAMES:
-            logger.warning("拒绝 Windows 设备名路径: %s", path)
-            return None
+            # 检查 Windows 设备名（所有路径段）
+            for part in p_check.parts:
+                if part.upper() in self._WINDOWS_DEVICE_NAMES:
+                    logger.warning("拒绝 Windows 设备名路径: %s", path)
+                    return None
 
         p = Path(decoded)
         if not p.is_absolute():
             p = PROJECT_ROOT / p
-        p = Path(p).resolve().absolute()
-        base = Path(base or PROJECT_ROOT).resolve().absolute()
+
+        # resolve() 会跟随符号链接；同时检查 base 自身是否被符号链接篡改
+        try:
+            p = p.resolve().absolute()
+            base = Path(base or PROJECT_ROOT).resolve().absolute()
+        except (OSError, RuntimeError) as exc:
+            logger.warning("路径解析失败 %s: %s", path, exc)
+            return None
+
+        # 确保 base 仍是原始项目根目录（防御 base 被符号链接指向外部）
+        expected_base = PROJECT_ROOT.resolve().absolute()
+        try:
+            base.relative_to(expected_base)
+        except ValueError:
+            logger.warning("base 目录越权: %s", base)
+            return None
+
         try:
             p.relative_to(base)
         except ValueError:
@@ -562,6 +589,8 @@ class GuiApi:
 
     # 图片读取上限：5MB，防止大图片导致内存溢出
     _MAX_IMAGE_SIZE = 5 * 1024 * 1024
+    # 安全的图片扩展名白名单（禁止 SVG 防止 XSS；禁止 html/htm 等）
+    _SAFE_IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
     def get_image(self, path: str) -> str:
         """读取图片文件并返回 base64 data URL。限制在项目根目录内，单文件上限 5MB。"""
@@ -575,9 +604,12 @@ class GuiApi:
             if size > self._MAX_IMAGE_SIZE:
                 logger.warning("get_image 拒绝: 文件过大 %s (%d bytes > %d limit)", path, size, self._MAX_IMAGE_SIZE, extra={"stage": "api_get_image", "path": path, "size_bytes": size})
                 return ""
+            ext = p.suffix.lower()
+            if ext not in self._SAFE_IMAGE_EXTENSIONS:
+                logger.warning("get_image 拒绝: 不安全的文件扩展名 %s", ext, extra={"stage": "api_get_image", "path": path, "ext": ext})
+                return ""
             with open(p, "rb") as f:
                 data = f.read()
-            ext = p.suffix.lower()
             mime = {
                 ".png": "image/png",
                 ".jpg": "image/jpeg",
@@ -585,8 +617,7 @@ class GuiApi:
                 ".gif": "image/gif",
                 ".bmp": "image/bmp",
                 ".webp": "image/webp",
-                ".svg": "image/svg+xml",
-            }.get(ext, "application/octet-stream")
+            }[ext]
             b64 = base64.b64encode(data).decode("utf-8")
             logger.debug("get_image → %s (%d bytes)", path, len(data), extra={"stage": "api_get_image", "path": path, "size_bytes": len(data)})
             return f"data:{mime};base64,{b64}"

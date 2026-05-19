@@ -5,8 +5,13 @@
 """
 import multiprocessing
 
+# 必须在 if __name__ == "__main__" 之前设置启动方法，
+# 但必须确保它只在主程序入口执行一次。
+# 以下代码在模块导入时即执行，若已被其他库设置则会捕获 RuntimeError。
+_spawn_set = False
 try:
     multiprocessing.set_start_method("spawn")
+    _spawn_set = True
 except RuntimeError:
     if multiprocessing.get_start_method(allow_none=True) != "spawn":
         import warnings

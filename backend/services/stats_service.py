@@ -26,22 +26,7 @@ from trace_pipeline.plotting.overlays import (
 logger = logging.getLogger(__name__)
 
 
-def _to_native(val: Any, _depth: int = 0) -> Any:
-    """将 numpy 类型转换为原生 Python 类型，确保 JSON 可序列化。"""
-    _MAX_DEPTH = 20
-    if _depth > _MAX_DEPTH:
-        return str(val)
-    if isinstance(val, np.integer):
-        return int(val)
-    if isinstance(val, np.floating):
-        return float(val)
-    if isinstance(val, np.ndarray):
-        return val.tolist()
-    if isinstance(val, dict):
-        return {k: _to_native(v, _depth + 1) for k, v in val.items()}
-    if isinstance(val, (list, tuple)):
-        return [_to_native(v, _depth + 1) for v in val]
-    return val
+from trace_pipeline.utils.numpy_compat import to_native as _to_native
 
 
 class StatsService:
@@ -255,22 +240,21 @@ class StatsService:
         return result
 
     def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        """返回多露头对比数据（优先走缓存）。"""
-        results: list[dict[str, Any]] = []
-        missing: list[str] = []
+        """返回多露头对比数据（保持输入顺序）。"""
+        result_map: dict[str, dict[str, Any]] = {}
         for oc in outcrops:
             key = self._make_key(oc, config)
             cached = self._cache.get(key)
             if cached and (time.monotonic() - cached[1] < self._cache_ttl):
-                results.append(cached[0])
-            else:
-                missing.append(oc)
-        # 仅对缺失或已过期的露头重新计算
-        for oc in missing:
-            stats = self.get_stats(oc, config)
-            if "error" not in stats:
-                results.append(stats)
-        return results
+                result_map[oc] = cached[0]
+        # 对缺失或已过期的露头重新计算
+        for oc in outcrops:
+            if oc not in result_map:
+                stats = self.get_stats(oc, config)
+                if "error" not in stats:
+                    result_map[oc] = stats
+        # 按输入顺序返回
+        return [result_map[oc] for oc in outcrops if oc in result_map]
 
     def invalidate_cache(self, outcrop: str | None = None) -> None:
         """使统计缓存失效。"""

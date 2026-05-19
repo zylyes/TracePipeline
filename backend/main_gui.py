@@ -40,17 +40,6 @@ def get_screen_size() -> tuple[int, int]:
     return 1920, 1080
 
 
-def _subclass_for_drag_resize(window) -> bool:
-    """子类化 pywebview 窗口以启用原生拖拽和 resize（Windows 专用）。
-
-    注意：pywebview 6.x 使用 WinForms (.NET) 后端，.NET 消息泵在 CLR 层
-    拦截了 WM_NCHITTEST，导致 SetWindowLongPtrW 替换的底层 WndProc 收不到
-    该消息。因此此函数已失效，拖拽和 resize 改由前端 JS 实现。
-    """
-    logger.info("Win32 子类化已弃用，拖拽/resize 由前端 JS 实现")
-    return True
-
-
 def get_window_position(window_width: int, window_height: int) -> tuple[int, int]:
     """根据屏幕尺寸和窗口尺寸计算居中坐标。
 
@@ -67,10 +56,11 @@ def get_window_position(window_width: int, window_height: int) -> tuple[int, int
     # 确保不会超出屏幕边界（坐标为负值）
     return max(0, x), max(0, y)
 
-# 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
-import matplotlib
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+from trace_pipeline.utils.paths import get_project_root
 
-matplotlib.use('Agg')
+# 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
+force_noninteractive_backend()
 
 import webview
 
@@ -80,10 +70,7 @@ from trace_pipeline.cli.logging_setup import setup_logging
 from backend.gui_api import GuiApi
 from backend.webview2_checker import WebView2Checker
 
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = Path(sys._MEIPASS)
-else:
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = get_project_root()
 STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 ICON_PATH = PROJECT_ROOT / "reference" / "ECUT.ico"
 
@@ -177,7 +164,6 @@ def main() -> None:
     # 窗口显示后再次强制居中，并子类化启用原生拖拽 / resize
     def on_shown():
         window.move(x, y)
-        _subclass_for_drag_resize(window)
         logger.info("窗口显示后强制居中到 (%d, %d)", x, y, extra={"stage": "window_shown", "x": x, "y": y})
 
     window.events.shown += on_shown

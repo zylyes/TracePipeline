@@ -112,7 +112,10 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
     # ── NaN / Inf 检测 ──────────────────────────────────────────
     numeric_cols = df.iloc[:, :_MIN_COLUMNS].apply(pd.to_numeric, errors="coerce")
     nan_mask = numeric_cols.isna()
-    inf_mask = np.isinf(numeric_cols.values)
+    inf_mask = np.zeros(numeric_cols.shape, dtype=bool)
+    for col in numeric_cols.columns:
+        if np.issubdtype(numeric_cols[col].dtype, np.number):
+            inf_mask[:, numeric_cols.columns.get_loc(col)] = np.isinf(numeric_cols[col].values)
     if nan_mask.any().any() or inf_mask.any():
         nan_rows = nan_mask.any(axis=1).to_numpy().nonzero()[0].tolist()
         inf_rows = inf_mask.any(axis=1).nonzero()[0].tolist()

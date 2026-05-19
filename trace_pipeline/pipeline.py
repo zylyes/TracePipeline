@@ -80,11 +80,8 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
     if current_process().name != "MainProcess":
         # 强制子进程使用非交互式后端，防止继承父进程 Tkinter/Qt 状态导致崩溃
-        try:
-            import matplotlib
-            matplotlib.use("Agg", force=True)
-        except Exception:
-            pass
+        from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+        force_noninteractive_backend()
         from .logging import setup_worker_logging
         setup_worker_logging()
 

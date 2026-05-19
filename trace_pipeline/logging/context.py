@@ -49,9 +49,9 @@ class LogContext:
 
 
 def _generate_request_id() -> str:
-    """生成一个简单的请求ID（时间戳+随机后缀）。"""
-    import random
-    return f"{time.time_ns():x}-{random.randint(1000, 9999)}"
+    """生成一个独特的请求ID（时间戳+UUID短前缀）。"""
+    import uuid
+    return f"{time.time_ns():x}-{uuid.uuid4().hex[:8]}"
 
 
 class _TimedContext:

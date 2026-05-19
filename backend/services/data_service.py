@@ -2,18 +2,16 @@
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+from trace_pipeline.utils.paths import get_project_root
 
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = Path(sys.executable).parent
-else:
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+logger = logging.getLogger(__name__)
+PROJECT_ROOT = get_project_root()
 
 # 前端分区名 -> Excel Sheet 名 映射
 SECTION_MAP = {
@@ -157,7 +155,7 @@ class DataService:
                 if j >= len(row):
                     break
                 val = row.iloc[j]
-                record[h] = float(val) if pd.notna(val) and isinstance(val, (int, float)) else (str(val) if pd.notna(val) else "")
+                record[h] = float(val) if pd.notna(val) and isinstance(val, (int, float, np.integer)) else (str(val) if pd.notna(val) else "")
             if record:
                 data.append(record)
 

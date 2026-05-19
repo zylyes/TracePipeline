@@ -226,13 +226,13 @@ def compute_trace_statistics(
 
     # 2. 圆窗诊断（完全独立于凸包面积）
     # 数据依赖：endpoints -> circle_window_p20（独立路径）
-    hull_area_placeholder = _convex_hull_area(local_segments)
+    hull_area = _convex_hull_area(local_segments)
     selected_strategy, diagnostics = _select_window_diagnostics(
         local_segments,
         finite_scanline_length,
         trace.count,
         config,
-        hull_area_placeholder,
+        hull_area,
     )
 
     type_i_count = trace_types.count("I")
@@ -242,8 +242,7 @@ def compute_trace_statistics(
     estimated_p20 = _aggregate_window_metric(diagnostics, "p20")
     estimated_p21 = _aggregate_window_metric(diagnostics, "p21")
 
-    # 3. 露头面积估算（独立路径：endpoints -> hull_area）
-    hull_area = _convex_hull_area(local_segments)
+    # 3. 露头面积估算（复用第 2 步已计算的 hull_area）
     hull_vertices = _compute_convex_hull(local_segments)
 
     # 4. 观测迹长

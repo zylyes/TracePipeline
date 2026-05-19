@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..geometry.segments import is_degenerate_segment, segment_intersection
+from ..geometry.segments import segment_intersection
 from .models import NodeAnalysis, NodeRecognitionConfig, TraceIntersection, TraceNode
 
 logger = logging.getLogger(__name__)

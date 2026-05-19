@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.scripts]
-trace-pipeline = "trace_pipeline.cli.dispatcher:main"
+trace-pipeline = "trace_pipeline.cli.main:main"
 
 [project.optional-dependencies]
 dev = [

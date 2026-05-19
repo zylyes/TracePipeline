@@ -10,21 +10,18 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import sys
 import threading
 import time
-from pathlib import Path
+from collections import OrderedDict
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from trace_pipeline.utils.paths import get_project_root
 
-if getattr(sys, "frozen", False):
-    _PREVIEW_BASE = Path(sys.executable).parent
-else:
-    _PREVIEW_BASE = Path(__file__).resolve().parent.parent.parent
-PREVIEW_DIR = _PREVIEW_BASE / "output" / "preview"
+logger = logging.getLogger(__name__)
+PREVIEW_DIR = get_project_root() / "output" / "preview"
 PREVIEW_DPI = 300
 CACHE_TTL = 300  # 5 分钟
+CACHE_MAX_SIZE = 50  # 最大缓存条目数
 
 # 线程安全锁
 _PREVIEW_LOCK = threading.Lock()
@@ -45,8 +42,20 @@ class PreviewService:
     def __init__(self, sample_outcrop: str = "", **kwargs: Any) -> None:
         # sample_outcrop 参数已废弃，仅保留兼容性
         _ = sample_outcrop, kwargs
-        self._cache: dict[str, tuple[float, dict[str, str]]] = {}
+        self._cache: OrderedDict[str, tuple[float, dict[str, str]]] = OrderedDict()
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _evict_expired(self) -> None:
+        """淘汰过期超过 2 倍 TTL 的条目，保持缓存大小可控。"""
+        now = time.monotonic()
+        expired = [k for k, (ts, _) in self._cache.items() if now - ts > CACHE_TTL * 2]
+        for k in expired:
+            del self._cache[k]
+
+    def _trim_cache(self) -> None:
+        """当缓存超过上限时移除最旧的条目。"""
+        while len(self._cache) > CACHE_MAX_SIZE:
+            self._cache.popitem(last=False)
 
     def generate(self, config: dict[str, Any]) -> dict[str, Any]:
         """生成预览图。
@@ -78,6 +87,8 @@ class PreviewService:
             paths = self._generate_images(config, style_hash)
             with _PREVIEW_LOCK:
                 self._cache[style_hash] = (time.monotonic(), paths)
+                self._evict_expired()
+                self._trim_cache()
             duration = (time.perf_counter() - start) * 1000
             logger.info(
                 "预览生成完成 [%s]: %d 张图 (%.3f ms)",

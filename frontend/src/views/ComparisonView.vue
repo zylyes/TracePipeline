@@ -321,25 +321,31 @@ async function loadComparison(force = false) {
     const images: GridImage[] = []
     for (const result of results!) {
       if (result.raw_plot) {
-        images.push({
-          outcrop: result.outcrop,
-          type: '原始迹线',
-          src: await loadImageBase64(result.raw_plot),
-        })
+        try {
+          images.push({
+            outcrop: result.outcrop,
+            type: '原始迹线',
+            src: await loadImageBase64(result.raw_plot),
+          })
+        } catch { images.push({ outcrop: result.outcrop, type: '原始迹线', src: '' }) }
       }
       if (result.rotated_plot) {
-        images.push({
-          outcrop: result.outcrop,
-          type: '旋转迹线',
-          src: await loadImageBase64(result.rotated_plot),
-        })
+        try {
+          images.push({
+            outcrop: result.outcrop,
+            type: '旋转迹线',
+            src: await loadImageBase64(result.rotated_plot),
+          })
+        } catch { images.push({ outcrop: result.outcrop, type: '旋转迹线', src: '' }) }
       }
       if (pipelineStore.lastExportRosePlot && result.rose_plot) {
-        images.push({
-          outcrop: result.outcrop,
-          type: '走向玫瑰',
-          src: await loadImageBase64(result.rose_plot),
-        })
+        try {
+          images.push({
+            outcrop: result.outcrop,
+            type: '走向玫瑰',
+            src: await loadImageBase64(result.rose_plot),
+          })
+        } catch { images.push({ outcrop: result.outcrop, type: '走向玫瑰', src: '' }) }
       }
     }
     allImages.value = images

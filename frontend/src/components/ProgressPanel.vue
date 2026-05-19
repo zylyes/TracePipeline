@@ -12,6 +12,7 @@
       <el-button
         :icon="VideoPlay"
         :loading="running"
+        :disabled="running"
         @click="emit('run')"
         size="default"
         class="run-btn"
@@ -75,9 +76,13 @@ const maxParallel = Math.max(4, Math.min((navigator.hardwareConcurrency || 4) * 
 
 const parallel = defineModel<number>('parallel', { default: 1 })
 
-// 数值变化时持久化到 localStorage
-watch(parallel, (val) => {
-  localStorage.setItem(STORAGE_KEY_PARALLEL, String(val))
+// 数值变化时持久化到 localStorage（300ms 防抖）
+let parallelDebounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(parallel, (val: number) => {
+  if (parallelDebounceTimer) clearTimeout(parallelDebounceTimer)
+  parallelDebounceTimer = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY_PARALLEL, String(val))
+  }, 300)
 })
 
 // 挂载时从 localStorage 恢复（上限受当前 maxParallel 限制）

@@ -163,7 +163,11 @@ class DailyRotatingJsonHandler(logging.FileHandler):
         return _LOG_SEQ_FMT.format(prefix=_LOG_FILE_PREFIX, seq=seq + 1)
 
     def _archive_old_days(self) -> None:
-        """将非当天的日期目录打包为 zip 后删除。"""
+        """将非当天的日期目录打包为 zip 后删除。
+
+        多进程安全：通过检查目标 zip 是否已存在 + 异常静默处理，
+        避免 ProcessPoolExecutor 下多个 worker 同时归档导致竞态。
+        """
         today_name = self._day_dir.name
         if not self._log_dir.is_dir():
             return
@@ -185,6 +189,14 @@ class DailyRotatingJsonHandler(logging.FileHandler):
                 continue
 
             zip_path = self._log_dir / f"{entry.name}.zip"
+            # 竞态防护：若 zip 已存在，说明其他进程已归档，直接尝试删除原目录
+            if zip_path.exists():
+                try:
+                    shutil.rmtree(entry, onerror=on_rm_error)
+                except OSError:
+                    pass
+                continue
+
             try:
                 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
                     for file_path in entry.rglob("*"):
@@ -193,6 +205,12 @@ class DailyRotatingJsonHandler(logging.FileHandler):
                             zf.write(file_path, arcname)
                 # 打包成功后递归删除原目录及其所有内容
                 shutil.rmtree(entry, onerror=on_rm_error)
+            except FileExistsError:
+                # 其他进程刚好在同一时刻创建了 zip，尝试清理原目录即可
+                try:
+                    shutil.rmtree(entry, onerror=on_rm_error)
+                except OSError:
+                    pass
             except OSError as exc:
                 # 打包失败不打断启动，只发警告
                 logging.getLogger(__name__).warning("日志归档失败 %s: %s", entry, exc)

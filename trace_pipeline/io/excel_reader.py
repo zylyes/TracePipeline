@@ -109,6 +109,19 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
             pass
 
     total_cells = min(len(first_rows), _MAX_SKIP_ROWS) * _MIN_COLUMNS
+    # ── NaN / Inf 检测 ──────────────────────────────────────────
+    numeric_cols = df.iloc[:, :_MIN_COLUMNS].apply(pd.to_numeric, errors="coerce")
+    nan_mask = numeric_cols.isna()
+    inf_mask = np.isinf(numeric_cols.values)
+    if nan_mask.any().any() or inf_mask.any():
+        nan_rows = nan_mask.any(axis=1).to_numpy().nonzero()[0].tolist()
+        inf_rows = inf_mask.any(axis=1).nonzero()[0].tolist()
+        bad_rows = sorted(set(nan_rows + inf_rows))[:5]  # 最多报告前 5 行
+        raise ValueError(
+            f"迹线表 {path.name} 前 {_MIN_COLUMNS} 列包含非法数值 "
+            f"(NaN 或 Inf)，问题行号（0-based）: {bad_rows}"
+        )
+
     if total_cells > 0 and numeric_count / total_cells < 0.5:
         logger.warning(
             "迹线表 %s 前%d行中数值占比过低 (%d/%d)，可能包含非数据行",

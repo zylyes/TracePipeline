@@ -1,12 +1,12 @@
 /* ================================================
    TracePipeline — Element Plus 全局样式覆盖
-   确保所有组件与自定义设计系统一致
+   非字体样式布局 / 颜色 / 动画 / 组件外观
+   字体统一由 fonts.css 管理
    ================================================ */
 
 /* ── 按钮 ── */
 .el-button {
   border-radius: var(--tp-radius-sm);
-  font-family: var(--tp-font-heading);
   font-weight: 500;
   letter-spacing: 0.3px;
   transition: all var(--tp-duration-normal) var(--tp-easing);
@@ -15,7 +15,7 @@
 .el-button--primary {
   background: var(--tp-brand-primary);
   border-color: var(--tp-brand-primary);
-  color: #fff;
+  color: var(--tp-text-inverse);
 }
 
 .el-button--primary:hover,
@@ -75,6 +75,11 @@
   box-shadow: 0 0 0 1px var(--tp-brand-accent) inset, var(--tp-shadow-accent);
 }
 
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--tp-text-muted);
+}
+
 /* ── 表格 ── */
 .el-table {
   --el-table-header-bg-color: var(--tp-bg-sunken);
@@ -85,16 +90,14 @@
 }
 
 .el-table thead th.el-table__cell {
-  font-family: var(--tp-font-heading);
   font-weight: 600;
   font-size: 13px;
   color: var(--tp-text-primary);
-  background: var(--tp-bg-sunken);
+  background: linear-gradient(180deg, var(--tp-bg-sunken), var(--tp-bg-base));
   border-bottom: 1px solid var(--tp-border-light);
 }
 
 .el-table .cell {
-  font-family: var(--tp-font-body);
   font-size: 13px;
 }
 
@@ -104,13 +107,11 @@
 
 /* 表格内标签 */
 .el-table .el-tag {
-  font-family: var(--tp-font-heading);
   font-weight: 500;
 }
 
 /* ── 标签页 ── */
 .el-tabs__item {
-  font-family: var(--tp-font-heading);
   font-weight: 500;
   font-size: 13px;
   transition: all var(--tp-duration-normal);
@@ -119,13 +120,13 @@
 .el-tabs__active-bar {
   height: 2px;
   border-radius: 1px;
+  box-shadow: 0 0 6px rgba(201, 107, 79, 0.2);
 }
 
 /* ── 消息提示 ── */
 .el-message {
   border-radius: var(--tp-radius-md);
   box-shadow: var(--tp-shadow-lg);
-  font-family: var(--tp-font-body);
   animation: messageSlideIn 0.35s var(--tp-easing-expo);
 }
 
@@ -154,7 +155,6 @@
 
 /* ── 空状态 ── */
 .el-empty__description {
-  font-family: var(--tp-font-body);
   color: var(--tp-text-tertiary);
 }
 
@@ -170,7 +170,6 @@
 }
 
 .el-dialog__title {
-  font-family: var(--tp-font-heading);
   font-weight: 600;
   font-size: 16px;
   color: var(--tp-text-primary);
@@ -178,7 +177,6 @@
 
 .el-dialog__body {
   padding: 20px 24px;
-  font-family: var(--tp-font-body);
   color: var(--tp-text-primary);
 }
 
@@ -205,7 +203,6 @@
 }
 
 .el-dropdown-menu__item {
-  font-family: var(--tp-font-body);
   font-size: 13px;
 }
 
@@ -262,13 +259,11 @@
 
 /* ── 描述列表 ── */
 .el-descriptions__label {
-  font-family: var(--tp-font-heading);
   font-weight: 500;
   color: var(--tp-text-secondary);
 }
 
 .el-descriptions__content {
-  font-family: var(--tp-font-body);
   color: var(--tp-text-primary);
 }
 
@@ -278,17 +273,11 @@
 }
 
 .el-alert__title {
-  font-family: var(--tp-font-heading);
   font-weight: 500;
-}
-
-.el-alert__description {
-  font-family: var(--tp-font-body);
 }
 
 /* ── 标签 ── */
 .el-tag {
-  font-family: var(--tp-font-heading);
   font-weight: 500;
   border-radius: var(--tp-radius-sm);
 }
@@ -324,10 +313,6 @@
 }
 
 /* ── 分页 ── */
-.el-pagination {
-  font-family: var(--tp-font-body);
-}
-
 .el-pagination .el-input__wrapper {
   box-shadow: 0 0 0 1px var(--tp-border) inset;
 }
@@ -337,32 +322,24 @@
   border-right: none;
 }
 
-.el-menu-item {
-  font-family: var(--tp-font-heading);
-}
-
 /* ── 表单 ── */
 .el-form-item__label {
-  font-family: var(--tp-font-heading);
   font-weight: 500;
   color: var(--tp-text-secondary);
 }
 
 /* ── 弹出确认框 ── */
 .el-popconfirm__main {
-  font-family: var(--tp-font-body);
+  color: var(--tp-text-primary);
 }
 
 /* ── Tooltip ── */
 .el-tooltip__popper {
-  font-family: var(--tp-font-body);
   border-radius: var(--tp-radius-sm);
 }
 
 /* ── 树形控件 ── */
-.el-tree-node__label {
-  font-family: var(--tp-font-body);
-}
+/* 字体由 fonts.css 管理 */
 
 /* ── 时间线 ── */
 .el-timeline-item__node {
@@ -370,11 +347,68 @@
 }
 
 .el-timeline-item__timestamp {
-  font-family: var(--tp-font-data);
   color: var(--tp-text-muted);
 }
 
 /* ── 图片预览遮罩 ── */
 .el-image-viewer__wrapper {
   backdrop-filter: blur(4px);
+}
+
+/* ── 折叠面板 ── */
+.el-collapse {
+  border-color: var(--tp-border-light);
+}
+
+.el-collapse-item__header {
+  font-weight: 500;
+  color: var(--tp-text-primary);
+  border-color: var(--tp-border-light);
+}
+
+.el-collapse-item__content {
+  color: var(--tp-text-secondary);
+}
+
+/* ── 分割线 ── */
+.el-divider__text {
+  font-weight: 500;
+  color: var(--tp-text-secondary);
+}
+
+/* ── 步骤条 ── */
+.el-step__title {
+  font-weight: 500;
+}
+
+/* ── 骨架屏 ── */
+.el-skeleton__item {
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-sm);
+}
+
+/* ── 结果页 ── */
+.el-result__title {
+  font-weight: 600;
+}
+
+.el-result__subtitle {
+  color: var(--tp-text-secondary);
+}
+
+/* ── 抽屉 ── */
+.el-drawer {
+  border-radius: var(--tp-radius-xl) 0 0 var(--tp-radius-xl);
+}
+
+/* ── 返回顶部 ── */
+.el-backtop {
+  border-radius: var(--tp-radius-sm);
+  box-shadow: var(--tp-shadow-md);
+  color: var(--tp-brand-accent);
+}
+
+/* ── 日历数字 ── */
+.el-calendar-table .el-calendar-day {
+  font-family: var(--tp-font-data);
 }

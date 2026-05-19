@@ -33,12 +33,13 @@ _STYLE_CONSTANTS: dict[str, tuple[str, str]] = {
 }
 
 # 字号相关配置键（向后兼容：global_font_size 映射到 label_font_size）
-_FONT_SIZE_KEYS = ("title_font_size", "label_font_size", "tick_font_size")
+_FONT_SIZE_KEYS = ("title_font_size", "heading_font_size", "label_font_size", "tick_font_size")
 
 _STYLE_LOCK = threading.Lock()
 
 WESTERN_PRIMARY_FONT = "Times New Roman"
 CJK_PRIMARY_FONT = "SimSun"
+CJK_HEADING_FONT = "SimHei"
 
 # 论文常用西文字体（优先 Times New Roman）
 WESTERN_FONT_CANDIDATES: list[str] = [
@@ -70,6 +71,8 @@ CJK_SANS_CANDIDATES: list[str] = [
 __all__ = [
     "configure_style",
     "text_font_kwargs",
+    "heading_font_kwargs",
+    "body_font_kwargs",
 ]
 
 
@@ -115,8 +118,40 @@ def _current_font_family() -> list[str]:
 
 
 def text_font_kwargs(**kwargs: object) -> dict[str, Any]:
-    """返回绘图文本统一使用的字体参数。"""
+    """返回绘图文本统一使用的字体参数（Times New Roman 优先，中文回退宋体）。"""
     merged: dict[str, Any] = {"fontfamily": _current_font_family()}
+    merged.update(kwargs)
+    return merged
+
+
+def heading_font_kwargs(**kwargs: object) -> dict[str, Any]:
+    """返回绘图标题使用的字体参数（Times New Roman 优先，中文回退黑体）。"""
+    cache = _get_font_cache()
+    heading_stack = _dedupe_fonts([
+        WESTERN_PRIMARY_FONT,
+        CJK_HEADING_FONT,
+        *cache["western"],
+        *cache["cjk_sans"],
+        *cache["cjk_serif"],
+        "sans-serif",
+    ])
+    merged: dict[str, Any] = {"fontfamily": heading_stack}
+    merged.update(kwargs)
+    return merged
+
+
+def body_font_kwargs(**kwargs: object) -> dict[str, Any]:
+    """返回绘图正文使用的字体参数（Times New Roman 优先，中文回退宋体）。"""
+    cache = _get_font_cache()
+    body_stack = _dedupe_fonts([
+        WESTERN_PRIMARY_FONT,
+        CJK_PRIMARY_FONT,
+        *cache["western"],
+        *cache["cjk_serif"],
+        *cache["cjk_sans"],
+        "serif",
+    ])
+    merged: dict[str, Any] = {"fontfamily": body_stack}
     merged.update(kwargs)
     return merged
 
@@ -182,6 +217,10 @@ def configure_style() -> None:
     matplotlib.rcParams["figure.dpi"] = 300
     matplotlib.rcParams["savefig.dpi"] = 300
     matplotlib.rcParams["savefig.facecolor"] = "white"
+
+    # 标题默认使用黑体（与前端字体规范一致）
+    matplotlib.rcParams["axes.titleweight"] = "bold"
+    matplotlib.rcParams["figure.titleweight"] = "bold"
 
     logger.debug("matplotlib 全局样式已配置（论文风格）")
 

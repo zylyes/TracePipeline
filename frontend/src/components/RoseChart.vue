@@ -96,6 +96,7 @@ const chartOption = computed(() => {
   const binWidth = 10
   const halfBins = new Array(18).fill(0)
   const font = getEchartsFontFamily()
+  const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined
 
   props.strikes.forEach(s => {
     const deg = ((s % 180) + 180) % 180
@@ -144,10 +145,10 @@ const chartOption = computed(() => {
       axisLabel: {
         fontFamily: font,
         fontSize: 11,
-        color: '#5a5a6e',
+        color: cssVar('--tp-text-secondary') || '#5a5a6e',
       },
-      axisLine: { lineStyle: { color: '#8a8a9a' } },
-      splitLine: { show: true, lineStyle: { color: '#e8eaed' } },
+      axisLine: { lineStyle: { color: cssVar('--tp-text-tertiary') || '#8a8a9a' } },
+      splitLine: { show: true, lineStyle: { color: cssVar('--tp-border') || '#e8eaed' } },
     },
     radiusAxis: {
       min: 0,
@@ -155,9 +156,9 @@ const chartOption = computed(() => {
       axisLabel: {
         fontFamily: font,
         fontSize: 10,
-        color: '#5a5a6e',
+        color: cssVar('--tp-text-secondary') || '#5a5a6e',
       },
-      splitLine: { lineStyle: { color: '#e8eaed' } },
+      splitLine: { lineStyle: { color: cssVar('--tp-border') || '#e8eaed' } },
     },
     series: [{
       type: 'bar',

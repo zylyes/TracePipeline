@@ -25,17 +25,18 @@ const props = defineProps<{
 
 const option = computed(() => {
   const font = getEchartsFontFamily()
+  const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined
   return {
     ...baseAnimationConfig(),
     title: { text: 'I/II/III 型分类', left: 'center', textStyle: { ...baseTitleStyle(), fontSize: 14 } },
     tooltip: { trigger: 'item', ...baseTooltipStyle() },
-    legend: { bottom: '0%', left: 'center', textStyle: { fontFamily: font, fontSize: 12, color: '#5a5a6e' } },
+    legend: { bottom: '0%', left: 'center', textStyle: { fontFamily: font, fontSize: 12, color: cssVar('--tp-text-secondary') || '#5a5a6e' } },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
       avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 6, borderColor: '#ffffff', borderWidth: 2 },
-      label: { show: true, formatter: '{b}: {c}', fontFamily: font, color: '#1a1a2e' },
+      itemStyle: { borderRadius: 6, borderColor: cssVar('--tp-bg-elevated') || '#ffffff', borderWidth: 2 },
+      label: { show: true, formatter: '{b}: {c}', fontFamily: font, color: cssVar('--tp-text-primary') || '#1a1a2e' },
       data: [
         { value: props.typeCounts.type_i, name: 'I型', itemStyle: { color: CHART_COLOR_TERTIARY } },
         { value: props.typeCounts.type_ii, name: 'II型', itemStyle: { color: CHART_COLOR_SECONDARY } },

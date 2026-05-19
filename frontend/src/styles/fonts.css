@@ -26,9 +26,9 @@
   /* 等宽：用于代码、日志、时间戳 */
   --tp-font-mono: "Consolas", "Courier New", "Liberation Mono", "Lucida Console", monospace;
 
-  /* 组合栈：中文在先确保中文走黑体/宋体，英文/数字自动回退至 Times New Roman */
-  --tp-font-heading: var(--tp-font-heading-zh), var(--tp-font-latin);
-  --tp-font-body: var(--tp-font-body-zh), var(--tp-font-latin);
+  /* 组合栈：Times New Roman 优先确保英文/数字走 TNR，中文自动回退至黑体/宋体 */
+  --tp-font-heading: var(--tp-font-latin), var(--tp-font-heading-zh);
+  --tp-font-body: var(--tp-font-latin), var(--tp-font-body-zh);
   /* 数据栈：Times New Roman 优先确保数字/英文统一，中文回退至宋体 */
   --tp-font-data: var(--tp-font-latin), var(--tp-font-body-zh);
 }
@@ -69,11 +69,13 @@ h2 { font-size: 22px; }
 h3 { font-size: 18px; }
 h4 { font-size: 15px; }
 
-/* ── 正文与段落：中文宋体 ────────────────────── */
+/* ── 正文：Times New Roman 优先，中文自动回退宋体 ────── */
 p, span, div, li, td, th, label,
 .tp-body, .tp-text {
   font-family: var(--tp-font-body);
 }
+/* 注：.el-table .cell 使用 --tp-font-data（TNR 优先于宋体），
+   已在下方统一定义，不在此处覆盖 */
 
 /* ── 数据、数字、英文强制 Times New Roman ─────── */
 .tp-data, .tp-num, .tp-value,
@@ -99,8 +101,7 @@ code, pre, kbd, samp,
 /* ── 表单控件显式继承 ────────────────────────── */
 button, input, select, textarea,
 .el-input__inner, .el-textarea__inner,
-.el-select .el-input__inner,
-.el-button {
+.el-select .el-input__inner {
   font-family: var(--tp-font-body);
 }
 
@@ -133,10 +134,7 @@ button, input, select, textarea,
 .el-table thead td {
   font-family: var(--tp-font-heading);
   font-weight: 600;
-}
-
-.el-table .cell {
-  font-family: var(--tp-font-body);
+  font-size: 13px;
 }
 
 .el-table .cell .tp-data,
@@ -233,10 +231,4 @@ canvas {
   font-family: var(--tp-font-latin);
 }
 
-/* ── 全局英文/数字强制 Times New Roman ────────── */
-/* Unicode 范围选择器：确保基本拉丁字母与数字始终使用 TNR */
-@font-face {
-  font-family: "TP-Latin-Override";
-  src: local("Times New Roman"), local("Liberation Serif"), local("Georgia");
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+0020-002F, U+003A-0040, U+005B-0060, U+007B-007E;
-}
+

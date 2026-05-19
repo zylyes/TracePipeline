@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { getChartColors, CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, CHART_COLOR_TERTIARY } from '@/utils/echarts-theme'
 
 const props = defineProps<{
   stats: {
@@ -46,10 +47,17 @@ const nodeDensity = computed(() => {
   return count / area
 })
 
+const chartColors = getChartColors()
 const CARD_COLORS = [
-  '#4A7C9B', '#C96B4F', '#4A9E7A',
-  '#6B8EBB', '#8AAFC4', '#B89A6A',
-  '#D4A07A', '#7EB8A0', '#4A9E7A',
+  chartColors[1], // #4A7C9B
+  chartColors[0], // #C96B4F
+  chartColors[2], // #4A9E7A
+  chartColors[3], // #6B8EBB
+  chartColors[5], // #8AAFC4
+  chartColors[4], // #B89A6A
+  chartColors[6], // #D4A07A
+  chartColors[7], // #7EB8A0
+  chartColors[2], // #4A9E7A
 ]
 
 const cards = computed(() => {
@@ -157,6 +165,7 @@ function formatValue(v: number | null | undefined) {
   font-weight: 700;
   color: var(--tp-text-primary);
   line-height: 1.2;
+  font-feature-settings: "tnum" 1;
 }
 
 .stat-unit {

@@ -27,6 +27,7 @@ const option = computed(() => {
   const bins = props.histogram.bins
   const xData = edges.slice(0, -1).map((v, i) => `${v.toFixed(1)}-${edges[i+1].toFixed(1)}`)
   const font = getEchartsFontFamily()
+  const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined
 
   return {
     ...baseAnimationConfig(),
@@ -40,7 +41,7 @@ const option = computed(() => {
       nameLocation: 'middle',
       nameGap: 38,
       nameTextStyle: { fontFamily: font },
-      axisLabel: { rotate: 40, fontSize: 10, fontFamily: font, color: '#5a5a6e' },
+      axisLabel: { rotate: 40, fontSize: 10, fontFamily: font, color: cssVar('--tp-text-secondary') || '#5a5a6e' },
     },
     yAxis: {
       type: 'value',

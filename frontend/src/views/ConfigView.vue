@@ -39,8 +39,7 @@ defineOptions({ name: 'Config' })
 const appStore = useAppStore()
 const configStore = useConfigStore()
 
-const form = ref<ConfigData>({})
-const styleConfig = ref<ConfigData>({
+const DEFAULT_STYLE = {
   trace_line_color: '#000000',
   trace_line_width: 0.85,
   hull_line_color: '#1565C0',
@@ -52,7 +51,10 @@ const styleConfig = ref<ConfigData>({
   rose_grid_color: '#d9d9d9',
   title_font_size: 10.4,
   node_style: 'default',
-})
+}
+
+const form = ref<ConfigData>({})
+const styleConfig = ref<ConfigData>({ ...DEFAULT_STYLE })
 const fileInputRef = ref<HTMLInputElement>()
 
 async function reloadConfig() {
@@ -106,19 +108,7 @@ async function resetStyleConfig() {
   try {
     const cfg = await configStore.resetStyleConfig()
     // 强制用本地默认值覆盖，避免空对象导致组件不同步
-    styleConfig.value = {
-      trace_line_color: '#000000',
-      trace_line_width: 0.85,
-      hull_line_color: '#1565C0',
-      hull_fill_alpha: 0.08,
-      circle_window_line_color: '#E65100',
-      circle_window_fill_alpha: 0.08,
-      rose_bar_color: '#C94C4C',
-      rose_bar_edge: '#7A1F1F',
-      rose_grid_color: '#d9d9d9',
-      title_font_size: 10.4,
-      node_style: 'default',
-    }
+    styleConfig.value = { ...DEFAULT_STYLE }
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
@@ -133,19 +123,7 @@ async function resetAllConfig() {
     const cfg = await configStore.resetConfig()
     form.value = { ...cfg }
     // 强制用本地默认值覆盖，避免空对象导致组件不同步
-    styleConfig.value = {
-      trace_line_color: '#000000',
-      trace_line_width: 0.85,
-      hull_line_color: '#1565C0',
-      hull_fill_alpha: 0.08,
-      circle_window_line_color: '#E65100',
-      circle_window_fill_alpha: 0.08,
-      rose_bar_color: '#C94C4C',
-      rose_bar_edge: '#7A1F1F',
-      rose_grid_color: '#d9d9d9',
-      title_font_size: 10.4,
-      node_style: 'default',
-    }
+    styleConfig.value = { ...DEFAULT_STYLE }
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }

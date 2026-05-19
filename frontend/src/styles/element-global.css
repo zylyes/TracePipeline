@@ -1,12 +1,12 @@
 /* ================================================
-   TracePipeline — Element Plus 全局样式覆盖
-   非字体样式布局 / 颜色 / 动画 / 组件外观
+   TracePipeline — Element Plus 全局样式覆盖 v2
+   现代化设计语言：柔和圆角、细腻阴影、克制动效
    字体统一由 fonts.css 管理
    ================================================ */
 
 /* ── 按钮 ── */
 .el-button {
-  border-radius: var(--tp-radius-sm);
+  border-radius: var(--tp-radius-md);
   font-weight: 500;
   letter-spacing: 0.3px;
   transition: all var(--tp-duration-normal) var(--tp-easing-smooth);
@@ -44,15 +44,15 @@
 
 .el-button--primary:hover,
 .el-button--primary:focus {
-  background: var(--tp-bg-sidebar-hover);
-  border-color: var(--tp-bg-sidebar-hover);
-  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.2);
+  background: var(--tp-bg-sidebar-active);
+  border-color: var(--tp-bg-sidebar-active);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
   transform: translateY(-1px);
 }
 
 .el-button--primary:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(44, 62, 80, 0.2);
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);
 }
 
 .el-button--default {
@@ -70,6 +70,10 @@
   transform: translateY(-1px);
 }
 
+.el-button--default:active {
+  transform: translateY(0) scale(0.98);
+}
+
 /* 文字按钮 */
 .el-button--link {
   color: var(--tp-brand-accent);
@@ -83,7 +87,7 @@
 .el-input__wrapper,
 .el-textarea__inner,
 .el-select .el-input__wrapper {
-  border-radius: var(--tp-radius-sm);
+  border-radius: var(--tp-radius-md);
   box-shadow: 0 0 0 1px var(--tp-border) inset;
   transition: all var(--tp-duration-normal);
 }
@@ -150,7 +154,8 @@
 .el-tabs__active-bar {
   height: 2px;
   border-radius: 1px;
-  box-shadow: 0 0 6px rgba(201, 107, 79, 0.2);
+  background-color: var(--tp-brand-accent);
+  box-shadow: 0 0 6px var(--tp-brand-accent-glow);
 }
 
 /* ── 消息提示 ── */
@@ -167,19 +172,19 @@
 
 .el-message--success {
   background: var(--tp-success-light);
-  border-color: rgba(46, 125, 90, 0.15);
+  border-color: var(--tp-success-border);
   color: var(--tp-success);
 }
 
 .el-message--warning {
   background: var(--tp-warning-light);
-  border-color: rgba(230, 162, 60, 0.15);
+  border-color: var(--tp-warning-border);
   color: var(--tp-warning);
 }
 
 .el-message--error {
   background: var(--tp-danger-light);
-  border-color: rgba(192, 57, 43, 0.15);
+  border-color: var(--tp-danger-border);
   color: var(--tp-danger);
 }
 
@@ -190,13 +195,15 @@
 
 /* ── 对话框 ── */
 .el-dialog {
-  border-radius: var(--tp-radius-xl);
-  box-shadow: var(--tp-shadow-xl);
+  border-radius: var(--tp-radius-2xl, 24px);
+  box-shadow: var(--tp-shadow-2xl, var(--tp-shadow-xl));
+  overflow: hidden;
 }
 
 .el-dialog__header {
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--tp-border-light);
+  background: var(--tp-bg-sunken);
 }
 
 .el-dialog__title {
@@ -227,13 +234,22 @@
 
 /* ── 下拉菜单 ── */
 .el-dropdown-menu {
-  border-radius: var(--tp-radius-md);
+  border-radius: var(--tp-radius-lg);
   box-shadow: var(--tp-shadow-lg);
   border: 1px solid var(--tp-border-light);
+  padding: 4px;
 }
 
 .el-dropdown-menu__item {
   font-size: 13px;
+  border-radius: var(--tp-radius-sm);
+  padding: 8px 12px;
+  transition: all var(--tp-duration-fast);
+}
+
+.el-dropdown-menu__item:hover {
+  background: var(--tp-brand-accent-bg);
+  color: var(--tp-brand-accent);
 }
 
 /* ── 开关 ── */
@@ -309,37 +325,38 @@
 /* ── 标签 ── */
 .el-tag {
   font-weight: 500;
-  border-radius: var(--tp-radius-sm);
+  border-radius: var(--tp-radius-md);
+  padding: 0 10px;
 }
 
 .el-tag--success {
   background: var(--tp-success-bg);
-  border-color: rgba(46, 125, 90, 0.12);
+  border-color: var(--tp-success-border);
   color: var(--tp-success);
 }
 
 .el-tag--info {
   background: var(--tp-info-bg);
-  border-color: rgba(61, 90, 128, 0.12);
+  border-color: var(--tp-info-border);
   color: var(--tp-info);
 }
 
 .el-tag--warning {
   background: var(--tp-warning-bg);
-  border-color: rgba(230, 162, 60, 0.12);
+  border-color: var(--tp-warning-border);
   color: var(--tp-warning);
 }
 
 .el-tag--danger {
   background: var(--tp-danger-bg);
-  border-color: rgba(192, 57, 43, 0.12);
+  border-color: var(--tp-danger-border);
   color: var(--tp-danger);
 }
 
 /* ── 加载 ── */
 .el-loading-mask {
-  background: rgba(248, 250, 252, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(247, 248, 250, 0.8);
+  backdrop-filter: blur(6px);
 }
 
 .el-loading-spinner .path {
@@ -372,9 +389,127 @@
   color: var(--tp-text-primary);
 }
 
+/* ── MessageBox 确认弹窗 ── */
+.tp-confirm-box {
+  border-radius: var(--tp-radius-lg) !important;
+  box-shadow: var(--tp-shadow-xl), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+  width: 360px !important;
+  max-width: 90vw;
+}
+
+.tp-confirm-box .el-message-box__header {
+  padding: 14px 20px 12px;
+  background: var(--tp-bg-sunken);
+}
+
+.tp-confirm-box .el-message-box__title {
+  font-family: var(--tp-font-heading);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tp-text-primary);
+}
+
+.tp-confirm-box .el-message-box__content {
+  padding: 16px 20px;
+  color: var(--tp-text-primary);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.tp-confirm-box .el-message-box__message p {
+  margin: 0;
+}
+
+.tp-confirm-box .tp-confirm-warning {
+  display: block;
+  margin-top: 8px;
+  padding: 3px 8px;
+  background: var(--tp-danger-bg);
+  border: 1px solid var(--tp-danger-border);
+  border-radius: var(--tp-radius-xs);
+  color: var(--tp-danger);
+  font-weight: 600;
+  font-size: 12px;
+  width: fit-content;
+}
+
+.tp-confirm-box .el-message-box__btns {
+  padding: 12px 20px 14px;
+  gap: 10px;
+}
+
+.tp-confirm-box .el-message-box__btns .el-button {
+  min-width: 80px;
+  padding: 8px 16px;
+  border-radius: var(--tp-radius-lg);
+  font-weight: 600;
+  font-size: 13px;
+  transition: all var(--tp-duration-normal) var(--tp-easing-smooth);
+}
+
+.tp-confirm-box .el-message-box__btns .el-button:hover {
+  transform: translateY(-1px);
+}
+
+.tp-confirm-box .el-message-box__btns .el-button:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.tp-confirm-box .el-message-box__btns .tp-confirm-danger-btn {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #fff;
+}
+
+.tp-confirm-box .el-message-box__btns .tp-confirm-danger-btn:hover,
+.tp-confirm-box .el-message-box__btns .tp-confirm-danger-btn:focus {
+  background: #B91C1C;
+  border-color: #B91C1C;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+}
+
+.tp-confirm-box .el-message-box__btns .tp-confirm-danger-btn:active {
+  background: #991B1B;
+  border-color: #991B1B;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+}
+
+.tp-confirm-box .el-message-box__close {
+  color: var(--tp-text-muted);
+  transition: color var(--tp-duration-fast);
+}
+
+.tp-confirm-box .el-message-box__close:hover {
+  color: var(--tp-danger);
+}
+
+/* MessageBox 入场动画 */
+.el-overlay-dialog .tp-confirm-box {
+  animation: tpConfirmEnter 0.28s var(--tp-easing-expo);
+}
+
+@keyframes tpConfirmEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* ── Tooltip ── */
 .el-tooltip__popper {
-  border-radius: var(--tp-radius-sm);
+  border-radius: var(--tp-radius-md);
+  box-shadow: var(--tp-shadow-md);
+}
+
+/* ── Popover ── */
+.el-popover.el-popper {
+  border-radius: var(--tp-radius-lg);
+  box-shadow: var(--tp-shadow-lg);
 }
 
 /* ── 树形控件 ── */
@@ -437,7 +572,8 @@
 
 /* ── 抽屉 ── */
 .el-drawer {
-  border-radius: var(--tp-radius-xl) 0 0 var(--tp-radius-xl);
+  border-radius: var(--tp-radius-2xl, 24px) 0 0 var(--tp-radius-2xl, 24px);
+  box-shadow: var(--tp-shadow-2xl, var(--tp-shadow-xl));
 }
 
 /* ── 返回顶部 ── */

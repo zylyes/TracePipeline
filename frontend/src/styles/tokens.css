@@ -1,6 +1,7 @@
 /* ================================================
-   TracePipeline — 设计 Tokens 系统
+   TracePipeline — 设计 Tokens 系统 v2
    专业稳重 + 精致细节 现代化设计语言
+   地质科学主题配色：学术蓝 + 地质暖色 + 数据高区分度
    ================================================ */
 
 /* ── 全局重置：消除默认边距与边框盒 ── */
@@ -18,74 +19,87 @@ html, body, #app {
 
 :root {
   /* ── 核心品牌色 ── */
-  --tp-brand-primary: #2C3E50; /* Brighter, sophisticated slate blue */
-  --tp-brand-accent: #D35400; /* Vibrant terracotta / burnt orange for clear contrast */
-  --tp-brand-accent-light: #E67E22; /* Lighter earth orange */
-  --tp-brand-accent-dark: #A04000; /* Deeper terracotta for active states */
+  --tp-brand-primary: #1A365D; /* 深邃的学术蓝，更加沉稳 */
+  --tp-brand-accent: #0284C7; /* 现代明亮的主题蓝，科技感更强 */
+  --tp-brand-accent-light: #38BDF8; /* 浅蓝 */
+  --tp-brand-accent-dark: #0369A1; /* 深蓝 */
 
-  /* ── 表面色系统（Surface） ── */
-  --tp-bg-base: #F8FAFC; /* Brighter, airier background */
-  --tp-bg-raised: #FFFFFF;
+  /* ── 地质主题辅助色 ── */
+  --tp-geo-terracotta: #C2703A; /* 赭石色——岩体/砂岩暖色 */
+  --tp-geo-emerald: #0F766E; /* 翡翠色——矿物绿 */
+  --tp-geo-slate: #475569; /* 岩板灰——中性沉稳 */
+  --tp-geo-amber: #B45309; /* 琥珀色——地质沉积暖黄 */
+
+  /* ── 表面色系统（Surface）── 现代化多层表面 ── */
+  --tp-bg-base: #F7F8FA; /* 极淡冷灰底层——干净通透 */
+  --tp-bg-raised: #FFFFFF; /* 一级抬升：卡片/面板 */
   --tp-bg-primary: #FFFFFF;
-  --tp-bg-elevated: #FFFFFF;
-  --tp-bg-sunken: #F1F5F9; /* Softer sunken contrast */
-  --tp-bg-sidebar: #2C3E50; /* Slate blue sidebar */
-  --tp-bg-sidebar-hover: #34495E;
-  --tp-bg-sidebar-active: #3E5B76;
+  --tp-bg-elevated: #FFFFFF; /* 二级抬升：弹窗/浮层 */
+  --tp-bg-sunken: #EEF0F4; /* 面板凹陷色——更明显的凹陷感 */
+  --tp-bg-sidebar: #1A365D; /* 侧边栏深蓝 */
+  --tp-bg-sidebar-hover: #234570; /* 侧边栏 hover——更微妙 */
+  --tp-bg-sidebar-active: #2D5A8E; /* 侧边栏 active——更明亮 */
   --tp-bg-card: #FFFFFF;
-  --tp-bg-hover: #F1F5F9;
-  --tp-bg-overlay: rgba(44, 62, 80, 0.6);
+  --tp-bg-hover: #E8ECF1; /* 通用 hover 背景——更柔和 */
+  --tp-bg-overlay: rgba(26, 32, 44, 0.72); /* 遮罩层 */
 
   /* ── 文字色系统 ── */
-  --tp-text-primary: #1E293B; /* Slightly softer than pure black, excellent for reading */
-  --tp-text-secondary: #475569;
-  --tp-text-tertiary: #94A3B8;
-  --tp-text-muted: #CBD5E1;
+  --tp-text-primary: #1A202C; /* 提升对比度的正文黑 */
+  --tp-text-secondary: #4A5568;
+  --tp-text-tertiary: #718096;
+  --tp-text-muted: #A0AEC0;
   --tp-text-inverse: #FFFFFF;
   --tp-text-on-accent: #FFFFFF;
 
   /* ── 语义色 ── */
-  --tp-success: #059669; /* Emerald */
+  --tp-success: #10B981; /* 现代绿 */
   --tp-success-light: #D1FAE5;
-  --tp-success-bg: rgba(5, 150, 105, 0.08);
-  --tp-warning: #D97706;
+  --tp-success-bg: rgba(16, 185, 129, 0.08);
+  --tp-warning: #F59E0B; /* 现代橙 */
   --tp-warning-light: #FEF3C7;
-  --tp-warning-bg: rgba(217, 119, 6, 0.08);
-  --tp-danger: #DC2626;
+  --tp-warning-bg: rgba(245, 158, 11, 0.08);
+  --tp-danger: #EF4444; /* 现代红 */
   --tp-danger-light: #FEE2E2;
-  --tp-danger-bg: rgba(220, 38, 38, 0.08);
-  --tp-info: #2563EB;
+  --tp-danger-bg: rgba(239, 68, 68, 0.08);
+  --tp-info: #3B82F6;
   --tp-info-light: #DBEAFE;
-  --tp-info-bg: rgba(37, 99, 235, 0.08);
+  --tp-info-bg: rgba(59, 130, 246, 0.08);
 
-  /* ── 边框与分隔线 ── */
-  --tp-border: #E5E7EB;
-  --tp-border-light: #F3F4F6;
-  --tp-border-medium: #D1D5DB;
-  --tp-divider: rgba(0, 0, 0, 0.05);
+  /* ── 语义色边框变体 ── */
+  --tp-success-border: rgba(16, 185, 129, 0.12);
+  --tp-warning-border: rgba(245, 158, 11, 0.12);
+  --tp-danger-border: rgba(239, 68, 68, 0.12);
+  --tp-info-border: rgba(59, 130, 246, 0.12);
+  --tp-border: #E2E8F0;
+  --tp-border-light: #EDF2F7;
+  --tp-border-medium: #CBD5E0;
+  --tp-divider: rgba(0, 0, 0, 0.06);
 
-  /* ── 多层复合阴影 ── */
+  /* ── 多层复合阴影（柔和现代感 + 更大模糊半径）── */
   /* sm: 基础抬升 */
-  --tp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
-  /* md: 卡片悬浮 - softer, larger blur */
-  --tp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.03), 0 2px 4px rgba(0, 0, 0, 0.02);
+  --tp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 4px rgba(0, 0, 0, 0.02);
+  /* md: 卡片悬浮——更柔和 */
+  --tp-shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -2px rgba(0, 0, 0, 0.03);
   /* lg: 显著抬升 */
-  --tp-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.03);
+  --tp-shadow-lg: 0 12px 20px -4px rgba(0, 0, 0, 0.05), 0 4px 8px -2px rgba(0, 0, 0, 0.03);
   /* xl: 模态/弹窗 */
-  --tp-shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
+  --tp-shadow-xl: 0 24px 32px -8px rgba(0, 0, 0, 0.08), 0 12px 16px -4px rgba(0, 0, 0, 0.04);
+  /* 2xl: 最高层级浮层 */
+  --tp-shadow-2xl: 0 32px 48px -12px rgba(0, 0, 0, 0.10), 0 16px 24px -6px rgba(0, 0, 0, 0.05);
   /* inset: 内阴影 */
-  --tp-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.03);
-  /* accent-glow: 强调色光晕 */
-  --tp-shadow-accent: 0 0 0 3px rgba(192, 57, 43, 0.15);
+  --tp-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  /* accent-glow: 强调色光晕 (克制光效) */
+  --tp-shadow-accent: 0 0 0 3px rgba(2, 132, 199, 0.12);
   /* sidebar-item: 侧边栏项光晕 */
-  --tp-shadow-sidebar-item: 0 0 16px rgba(192, 57, 43, 0.15);
+  --tp-shadow-sidebar-item: 0 0 12px rgba(2, 132, 199, 0.18);
 
-  /* ── 圆角系统 ── */
+  /* ── 圆角系统（现代微圆角，更精致）── */
   --tp-radius-xs: 4px;
-  --tp-radius-sm: 8px;
-  --tp-radius-md: 10px;
-  --tp-radius-lg: 14px; /* Increased for modern smooth look */
-  --tp-radius-xl: 20px;
+  --tp-radius-sm: 6px;
+  --tp-radius-md: 10px; /* 卡片圆角——更柔和 */
+  --tp-radius-lg: 14px; /* 大卡片圆角 */
+  --tp-radius-xl: 18px; /* 弹窗圆角 */
+  --tp-radius-2xl: 24px; /* 特大圆角 */
   --tp-radius-full: 9999px;
 
   /* ── 间距尺度（4px 基数） ── */
@@ -132,12 +146,12 @@ html, body, #app {
   --tp-tracking-wide: 0.02em;
 
   /* ── 品牌色透明变体 ── */
-  --tp-brand-accent-bg: rgba(192, 57, 43, 0.08);
-  --tp-brand-accent-border: rgba(192, 57, 43, 0.15);
-  --tp-brand-accent-glow: rgba(192, 57, 43, 0.25);
-  --tp-brand-accent-shadow-sm: 0 4px 12px rgba(192, 57, 43, 0.2);
-  --tp-brand-accent-shadow-md: 0 6px 18px rgba(192, 57, 43, 0.25);
-  --tp-brand-accent-shadow-lg: 0 10px 30px rgba(192, 57, 43, 0.3);
+  --tp-brand-accent-bg: rgba(2, 132, 199, 0.08);
+  --tp-brand-accent-border: rgba(2, 132, 199, 0.15);
+  --tp-brand-accent-glow: rgba(2, 132, 199, 0.25);
+  --tp-brand-accent-shadow-sm: 0 4px 12px rgba(2, 132, 199, 0.15);
+  --tp-brand-accent-shadow-md: 0 6px 18px rgba(2, 132, 199, 0.20);
+  --tp-brand-accent-shadow-lg: 0 10px 30px rgba(2, 132, 199, 0.25);
 
   /* ── 图标尺寸 ── */
   --tp-icon-sm: 24px;
@@ -153,28 +167,33 @@ html, body, #app {
   --tp-font-size-xs: 11px;
   --tp-font-size-hero: 32px;
 
-  /* ── ECharts 地质学术配色（学术期刊风格，中等明度） ── */
-  --tp-chart-c1: #C96B4F;
-  --tp-chart-c2: #4A7C9B;
-  --tp-chart-c3: #4A9E7A;
-  --tp-chart-c4: #6B8EBB;
-  --tp-chart-c5: #B89A6A;
-  --tp-chart-c6: #8AAFC4;
-  --tp-chart-c7: #D4A07A;
-  --tp-chart-c8: #7EB8A0;
+  /* ── 图表配色：地质科学主题高区分度配色 ── */
+  /* 色相均匀分布在色轮上，相邻色相间隔 ≥ 40°，确保视觉区分度 */
+  /* 同时融入地质色语义：蓝=深度/水体 绿=矿物 橙=砂岩/沉积 红=断层 */
+  --tp-chart-c1: #0369A1; /* 深蓝——深度/水体 */
+  --tp-chart-c2: #0D9488; /* 青碧——矿物/岩体 */
+  --tp-chart-c3: #C2703A; /* 赭石——砂岩/沉积 */
+  --tp-chart-c4: #7C3AED; /* 蓝紫——构造应力 */
+  --tp-chart-c5: #DC2626; /* 鲜红——断层/危险 */
+  --tp-chart-c6: #0EA5E9; /* 天蓝——浅层/天空 */
+  --tp-chart-c7: #65A30D; /* 草绿——植被/地表 */
+  --tp-chart-c8: #DB2777; /* 品红——特殊标注 */
+  /* 扩展色（10色+） */
+  --tp-chart-c9: #EA580C; /* 橙——次级沉积 */
+  --tp-chart-c10: #6D28D9; /* 暗紫——深层构造 */
 
   /* ── Element Plus 变量覆写 ── */
-  --el-color-primary: #1A2639;
-  --el-color-primary-light-3: #4A5B75;
-  --el-color-primary-light-5: #7A8CA6;
-  --el-color-primary-light-7: #B0BECE;
-  --el-color-primary-light-8: #CBD5E1;
-  --el-color-primary-light-9: #E2E8F0;
-  --el-color-primary-dark-2: #0F172A;
-  --el-color-success: #059669;
-  --el-color-warning: #D97706;
-  --el-color-danger: #DC2626;
-  --el-color-info: #2563EB;
+  --el-color-primary: #0284C7;
+  --el-color-primary-light-3: #38BDF8;
+  --el-color-primary-light-5: #7DD3FC;
+  --el-color-primary-light-7: #BAE6FD;
+  --el-color-primary-light-8: #E0F2FE;
+  --el-color-primary-light-9: #F0F9FF;
+  --el-color-primary-dark-2: #0369A1;
+  --el-color-success: #10B981;
+  --el-color-warning: #F59E0B;
+  --el-color-danger: #EF4444;
+  --el-color-info: #3B82F6;
   --el-border-radius-base: var(--tp-radius-sm);
   --el-border-radius-small: var(--tp-radius-xs);
   --el-box-shadow-light: var(--tp-shadow-sm);
@@ -223,9 +242,26 @@ html, body, #app {
 }
 
 .tp-card:hover {
+  box-shadow: var(--tp-shadow-md);
+  transform: translateY(-1px);
+  border-color: var(--tp-border);
+}
+
+/* 卡片——可交互变体（hover 抬升更明显） */
+.tp-card-interactive {
+  cursor: pointer;
+}
+
+.tp-card-interactive:hover {
   box-shadow: var(--tp-shadow-lg);
   transform: translateY(-2px);
-  border-color: var(--tp-border-medium);
+  border-color: var(--tp-brand-accent-border);
+}
+
+/* 卡片——强调色边框变体 */
+.tp-card-accent {
+  border-color: var(--tp-brand-accent-border);
+  box-shadow: var(--tp-shadow-sm), 0 0 0 1px var(--tp-brand-accent-border);
 }
 
 /* ── 卡片微光扫过效果（hover时触发） ── */
@@ -244,7 +280,7 @@ html, body, #app {
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.15) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   transform: rotate(30deg);
@@ -264,8 +300,8 @@ html, body, #app {
 
 /* ── 运行状态呼吸灯 ── */
 @keyframes tp-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px rgba(5, 150, 105, 0.4); }
-  50% { opacity: 0.6; transform: scale(0.9); box-shadow: 0 0 12px rgba(5, 150, 105, 0.8); }
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px var(--tp-success-border); }
+  50% { opacity: 0.6; transform: scale(0.9); box-shadow: 0 0 14px rgba(16, 185, 129, 0.45); }
 }
 
 .tp-pulse {
@@ -379,9 +415,10 @@ html, body, #app {
 /* ── 毛玻璃容器 ── */
 .tp-glass {
   background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: var(--tp-shadow-sm);
 }
 
 /* ── 渐变分隔线 ── */
@@ -397,4 +434,39 @@ html, body, #app {
   outline: 2px solid var(--tp-brand-accent);
   outline-offset: 2px;
   border-radius: var(--tp-radius-sm);
+}
+
+/* ── 现代辅助工具类 ── */
+/* 内嵌面板（凹陷效果） */
+.tp-sunken {
+  background: var(--tp-bg-sunken);
+  border-radius: var(--tp-radius-md);
+  box-shadow: var(--tp-shadow-inset);
+}
+
+/* 表面分隔线（非渐变） */
+.tp-surface-border {
+  border: 1px solid var(--tp-border-light);
+  border-radius: var(--tp-radius-md);
+}
+
+/* 强调色淡底（用于高亮行/区域） */
+.tp-accent-bg {
+  background: var(--tp-brand-accent-bg);
+  border-radius: var(--tp-radius-sm);
+}
+
+/* 文字截断（单行） */
+.tp-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 文字截断（多行，需配合 --tp-line-clamp 变量使用） */
+.tp-line-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: var(--tp-line-clamp, 2);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

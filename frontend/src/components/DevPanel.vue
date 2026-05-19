@@ -178,7 +178,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onActivated } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api/pywebview'
 import { useConfigStore } from '@/stores/config'
 import { useCacheStore } from '@/stores/cache'
@@ -271,6 +271,23 @@ async function saveDevConfig() {
 }
 
 async function resetDevConfig() {
+  try {
+    await ElMessageBox.confirm(
+      '确定要将高级配置重置为默认值吗？<div class="tp-confirm-warning">此操作不可撤销</div>',
+      '重置高级配置',
+      {
+        confirmButtonText: '确认重置',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        showClose: false,
+        confirmButtonClass: 'tp-confirm-danger-btn',
+        customClass: 'tp-confirm-box',
+      },
+    )
+  } catch {
+    return
+  }
   advanced.value = {
     window_strategy: 'auto',
     auto_density_threshold: 5.0,

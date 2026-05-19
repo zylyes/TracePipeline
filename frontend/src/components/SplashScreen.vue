@@ -7,14 +7,19 @@
           <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="80" height="80">
             <defs>
               <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="var(--tp-brand-accent-light)" />
-                <stop offset="100%" stop-color="var(--tp-brand-accent)" />
+                <stop offset="0%" stop-color="#F8FAFC" />
+                <stop offset="50%" stop-color="#CBD5E1" />
+                <stop offset="100%" stop-color="#94A3B8" />
+              </linearGradient>
+              <linearGradient id="needle-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#EF4444" />
+                <stop offset="100%" stop-color="#B91C1C" />
               </linearGradient>
             </defs>
-            <circle class="draw-circle" cx="32" cy="32" r="30" fill="#1E293B" stroke="url(#logo-gradient)" stroke-width="3"/>
-            <circle cx="32" cy="32" r="24" fill="none" stroke="url(#logo-gradient)" stroke-width="1" opacity="0.3"/>
-            <g class="draw-lines" stroke="url(#logo-gradient)" stroke-linecap="round">
-              <line x1="32" y1="4"  x2="32" y2="10" stroke-width="2.5"/>
+            <circle class="draw-circle" cx="32" cy="32" r="31" fill="none" stroke="url(#logo-gradient)" stroke-width="2"/>
+            <circle cx="32" cy="32" r="30" fill="none" stroke="url(#logo-gradient)" stroke-width="1.5"/>
+            <circle cx="32" cy="32" r="24" fill="none" stroke="#64748B" stroke-width="1" opacity="0.3"/>
+            <g class="draw-lines" stroke="#94A3B8" stroke-linecap="round">
               <line x1="32" y1="54" x2="32" y2="60" stroke-width="2.5"/>
               <line x1="4"  y1="32" x2="10" y2="32" stroke-width="2.5"/>
               <line x1="54" y1="32" x2="60" y2="32" stroke-width="2.5"/>
@@ -31,14 +36,14 @@
               <line x1="57.5" y1="22.3" x2="53.5" y2="23.8" stroke-width="1.2"/>
               <line x1="57.5" y1="40.2" x2="53.5" y2="38.7" stroke-width="1.2"/>
             </g>
-            <text class="draw-text" x="32" y="16" text-anchor="middle" fill="url(#logo-gradient)" font-size="10" font-weight="bold" font-family="Times New Roman, serif">N</text>
-            <polygon class="draw-poly-1" points="32,6 35,30 32,25 29,30" fill="url(#logo-gradient)"/>
-            <polygon class="draw-poly-2" points="32,58 35,34 32,38 29,34" fill="#94A3B8" opacity="0.8"/>
-            <circle cx="32" cy="32" r="3" fill="url(#logo-gradient)"/>
-            <circle cx="32" cy="32" r="1.5" fill="#1E293B"/>
-            <line class="draw-path" x1="16" y1="48" x2="48" y2="16" stroke="url(#logo-gradient)" stroke-width="1.5" opacity="0.8" stroke-dasharray="4,2"/>
-            <circle class="draw-point-1" cx="16" cy="48" r="1.5" fill="url(#logo-gradient)" opacity="0.8"/>
-            <circle class="draw-point-2" cx="48" cy="16" r="1.5" fill="url(#logo-gradient)" opacity="0.8"/>
+            <text class="draw-text" x="32" y="10.5" text-anchor="middle" fill="url(#needle-gradient)" font-size="10" font-weight="bold" font-family="Times New Roman, serif">N</text>
+            <polygon class="draw-poly-1" points="32,6 35,30 32,25 29,30" fill="url(#needle-gradient)"/>
+            <polygon class="draw-poly-2" points="32,58 35,34 32,38 29,34" fill="#94A3B8" opacity="0.9"/>
+            <circle cx="32" cy="32" r="3.5" fill="#334155"/>
+            <circle cx="32" cy="32" r="2" fill="url(#needle-gradient)"/>
+            <line class="draw-path" x1="16" y1="48" x2="48" y2="16" stroke="#991B1B" stroke-width="1.5" opacity="0.8" stroke-dasharray="4,2"/>
+            <circle class="draw-point-1" cx="16" cy="48" r="2" fill="url(#needle-gradient)" opacity="0.9"/>
+            <circle class="draw-point-2" cx="48" cy="16" r="2" fill="url(#needle-gradient)" opacity="0.9"/>
           </svg>
         </div>
 
@@ -194,8 +199,8 @@ onMounted(() => {
 
 /* ── Logo 绘制动画 ── */
 .draw-circle {
-  stroke-dasharray: 190;
-  stroke-dashoffset: 190;
+  stroke-dasharray: 200; /* 周长为 2 * PI * r = 2 * 3.14 * 31 = 194.68，略微改大以确保闭合 */
+  stroke-dashoffset: 200;
   animation: drawStroke 1.5s var(--tp-easing-smooth) forwards;
 }
 
@@ -206,9 +211,8 @@ onMounted(() => {
 }
 
 .draw-path {
-  stroke-dasharray: 50;
-  stroke-dashoffset: 50;
-  animation: drawStroke 1.2s 0.5s var(--tp-easing-smooth) forwards;
+  opacity: 0;
+  animation: fadeIn 1.2s 0.5s var(--tp-easing-smooth) forwards;
 }
 
 .draw-poly-1, .draw-poly-2 {
@@ -306,12 +310,12 @@ onMounted(() => {
   transition: width var(--tp-duration-fast) var(--tp-easing);
   position: relative;
   animation: progressShimmer 2s linear infinite;
-  box-shadow: 0 0 8px var(--tp-brand-accent-glow), 0 0 20px rgba(201, 107, 79, 0.08);
+  box-shadow: 0 0 8px var(--tp-brand-accent-glow), 0 0 20px var(--tp-brand-accent-bg);
 
   &.progress-error {
     background: linear-gradient(90deg, var(--tp-danger) 0%, var(--tp-warning) 100%);
     animation: none;
-    box-shadow: 0 0 8px rgba(192, 57, 43, 0.3);
+    box-shadow: 0 0 8px var(--tp-danger-border);
   }
 }
 
@@ -363,7 +367,7 @@ onMounted(() => {
   gap: var(--tp-space-2);
   padding: 10px 16px;
   background: var(--tp-warning-bg);
-  border: 1px solid rgba(230, 162, 60, 0.25);
+  border: 1px solid var(--tp-warning-border);
   border-radius: var(--tp-radius-md);
   font-family: var(--tp-font-body);
   font-size: 12px;

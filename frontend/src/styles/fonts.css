@@ -1,5 +1,5 @@
 /* ================================================
-   TracePipeline — 全局字体系统
+   TracePipeline — 全局字体系统 v2
    离线系统字体策略（无外部 CDN 依赖）
    中英文混排字体渲染规范：
      - 中文标题 → 黑体 (SimHei)
@@ -7,24 +7,26 @@
      - 英文/数字 → Times New Roman
    CSS font-family 机制会自动将字符匹配到
    列表中首个能渲染该字符的字体，因此：
-     - 标题栈 = 黑体 + Times New Roman → 中文走黑体，英文走 TNR
-     - 正文栈 = 宋体 + Times New Roman → 中文走宋体，英文走 TNR
-     - 数据栈 = Times New Roman + 宋体 → 英文数字走 TNR，中文回退宋体
+     - 标题栈 = TNR + 黑体 → 英文走 TNR，中文走黑体
+     - 正文栈 = TNR + 宋体 → 英文走 TNR，中文走宋体
+     - 数据栈 = TNR + 宋体 → 英文数字走 TNR，中文回退宋体
+   降级策略：
+     Windows → macOS → Linux → 通用衬线/无衬线
    ================================================ */
 
 /* ── 字体栈定义 ─────────────────────────────── */
 :root {
-  /* 西文与数字：Times New Roman 严格优先 */
-  --tp-font-latin: "Times New Roman", "Liberation Serif", "Georgia", serif;
+  /* 西文与数字：Times New Roman 严格优先，跨平台完整降级 */
+  --tp-font-latin: "Times New Roman", "Times NR", "Liberation Serif", "Georgia", "Noto Serif", "DejaVu Serif", serif;
 
-  /* 中文标题：黑体体系严格优先 */
-  --tp-font-heading-zh: "SimHei", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  /* 中文标题：黑体体系严格优先（Windows → macOS → Linux → 通用无衬线） */
+  --tp-font-heading-zh: "SimHei", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 
-  /* 中文正文：宋体体系严格优先 */
-  --tp-font-body-zh: "SimSun", "STSong", "Songti SC", "NSimSun", serif;
+  /* 中文正文：宋体体系严格优先（Windows → macOS → Linux → 通用衬线） */
+  --tp-font-body-zh: "SimSun", "STSong", "Songti SC", "NSimSun", "WenQuanYi Micro Song", "Noto Serif CJK SC", "Source Han Serif SC", serif;
 
-  /* 等宽：用于代码、日志、时间戳 */
-  --tp-font-mono: "Consolas", "Courier New", "Liberation Mono", "Lucida Console", monospace;
+  /* 等宽：用于代码、日志、时间戳（Windows → macOS → Linux → 通用等宽） */
+  --tp-font-mono: "Consolas", "SF Mono", "Monaco", "Courier New", "Liberation Mono", "Lucida Console", "DejaVu Sans Mono", monospace;
 
   /* 组合栈：Times New Roman 优先确保英文/数字走 TNR，中文自动回退至黑体/宋体 */
   --tp-font-heading: var(--tp-font-latin), var(--tp-font-heading-zh);
@@ -38,8 +40,6 @@ html {
   /* Windows 下中文字体默认使用子像素抗锯齿（ClearType），
      全局强制 grayscale/antialiased 会导致字体发虚 */
   -webkit-font-smoothing: auto;
-  /* 确保 lang 属性驱动的字体选择 */
-  lang-attr-font-selection: auto;
 }
 
 body {
@@ -47,10 +47,14 @@ body {
   font-size: 15px;
   line-height: 1.6;
   color: var(--tp-text-primary);
-  /* macOS 单独处理 */
   -moz-osx-font-smoothing: auto;
-  /* 改善中英文混排时的基线对齐 */
+  /* 中英文混排：optimizeLegibility 在大段文本中影响性能，
+     改用 optimizeSpeed + 手动字距控制以兼顾渲染质量与性能 */
   text-rendering: optimizeSpeed;
+  /* 中英文混排基线对齐：统一字距，避免 CJK 与 Latin 间距不均 */
+  letter-spacing: 0.01em;
+  /* CJK 标点压缩：允许中文标点在行首/行尾自动调整 */
+  -webkit-text-spacing: auto;
 }
 
 /* ── 标题层级：中文黑体 ─────────────────────── */
@@ -229,6 +233,25 @@ canvas {
 [lang="en-US"],
 [lang="en-GB"] {
   font-family: var(--tp-font-latin);
+}
+
+/* ── 中英文混排间距优化 ──────────────────────── */
+/* CJK 字符与 Latin 字符之间的间距自动调整，
+   避免中文与英文/数字紧贴时间距过窄或过宽 */
+.tp-cjk-spacing {
+  text-autospace: ideograph-alpha ideograph-numeric;
+}
+
+/* 紧凑排版：适用于表格、数据密集区域 */
+.tp-dense-text {
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+/* 宽松排版：适用于段落、说明文字 */
+.tp-relaxed-text {
+  line-height: 1.75;
+  letter-spacing: 0.02em;
 }
 
 

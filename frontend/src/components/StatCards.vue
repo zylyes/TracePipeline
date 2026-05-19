@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getChartColors, CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY, CHART_COLOR_TERTIARY } from '@/utils/echarts-theme'
+import { getChartColors } from '@/utils/echarts-theme'
 
 const props = defineProps<{
   stats: {
@@ -48,32 +48,22 @@ const nodeDensity = computed(() => {
 })
 
 const chartColors = getChartColors()
-const CARD_COLORS = [
-  chartColors[1], // #4A7C9B
-  chartColors[0], // #C96B4F
-  chartColors[2], // #4A9E7A
-  chartColors[3], // #6B8EBB
-  chartColors[5], // #8AAFC4
-  chartColors[4], // #B89A6A
-  chartColors[6], // #D4A07A
-  chartColors[7], // #7EB8A0
-  chartColors[2], // #4A9E7A
-]
 
 const cards = computed(() => {
+  const cc = chartColors
   const base = [
-    { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹', color: '#4A7C9B' },
-    { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²', color: '#C96B4F' },
-    { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹', color: '#4A9E7A' },
+    { label: '线密度 P10', value: props.stats?.p10, unit: 'm⁻¹', color: cc[0] },
+    { label: '面密度 P20', value: props.stats?.p20, unit: 'm⁻²', color: cc[1] },
+    { label: '长度密度 P21', value: props.stats?.p21, unit: 'm⁻¹', color: cc[2] },
   ]
   if (props.showNodes !== false && ns.value) {
     base.push(
-      { label: '节点总数', value: ns.value?.node_count, unit: '个', color: '#6B8EBB' },
-      { label: '节点密度', value: nodeDensity.value, unit: '个/m²', color: '#8AAFC4' },
-      { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条', color: '#B89A6A' },
-      { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个', color: '#D4A07A' },
-      { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个', color: '#7EB8A0' },
-      { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个', color: '#4A9E7A' },
+      { label: '节点总数', value: ns.value?.node_count, unit: '个', color: cc[4] },
+      { label: '节点密度', value: nodeDensity.value, unit: '个/m²', color: cc[6] },
+      { label: '退化跳过', value: ns.value?.degenerate_skipped, unit: '条', color: cc[5] },
+      { label: '交叉节点 X', value: ns.value?.node_x_count, unit: '个', color: cc[3] },
+      { label: '三叉节点 Y', value: ns.value?.node_y_count, unit: '个', color: cc[7] },
+      { label: '孤立端点 I', value: ns.value?.node_i_count, unit: '个', color: cc[6] },
     )
   }
   return base

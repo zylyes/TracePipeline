@@ -52,7 +52,7 @@ const option = computed(() => {
     series: [{
       data: bins,
       type: 'bar',
-      itemStyle: { color: CHART_COLOR_SECONDARY },
+      itemStyle: { color: CHART_COLOR_SECONDARY, borderRadius: [4, 4, 0, 0] },
       barWidth: '60%',
       ...baseSeriesAnimation(),
     }],

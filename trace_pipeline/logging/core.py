@@ -93,18 +93,14 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False, default=_json_default)
 
 
+from trace_pipeline.utils.numpy_compat import to_native as _to_native
+
+
 def _json_default(obj: Any) -> Any:
     """处理 numpy 等不可 JSON 序列化的类型。"""
-    # 延迟导入，避免硬依赖
-    mod = type(obj).__module__
-    if mod == "numpy":
-        import numpy as np
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, (np.integer, np.floating)):
-            return obj.item()
-        if isinstance(obj, np.bool_):
-            return bool(obj)
+    result = _to_native(obj, max_depth=1)
+    if result is not obj:
+        return result
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 

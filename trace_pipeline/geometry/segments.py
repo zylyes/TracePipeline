@@ -73,7 +73,7 @@ def segment_intersection(
     if abs(denom) < tol:
         # 检查是否共线
         if abs(cross2d(dx3, dy3, dx1, dy1)) < tol:
-            return None  # 共线重叠由 collinear_overlap 单独处理
+            return collinear_overlap(a1, a2, b1, b2, tol)
         return None
 
     t = cross2d(dx3, dy3, dx2, dy2) / denom

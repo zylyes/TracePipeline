@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -121,6 +120,50 @@ class ReportService:
         return results
 
     # ------------------------------------------------------------------
+    # 共享：提取报告数据上下文（消除 docx/pdf 之间的重复）
+    # ------------------------------------------------------------------
+    def _build_report_context(
+        self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]
+    ) -> dict[str, Any]:
+        """返回报告所需的统计文本行和图片路径，供各格式渲染器共用。"""
+        stat_lines: list[str] = []
+        if report_type in ("full", "stats"):
+            stat_lines = [
+                f"露头标识: {outcrop}",
+                f"测线走向: {trace.scanline_azimuth:.2f}°",
+                f"迹线条数: {trace.count}",
+                f"平均迹长: {statistics.mean_trace_length:.4f} m",
+                f"线密度 P10: {statistics.p10:.4f} m⁻¹",
+                f"面密度 P20: {statistics.p20:.4f} m⁻²",
+                f"长度密度 P21: {statistics.p21:.4f} m⁻¹",
+                f"测线长度: {statistics.scanline_length:.4f} m",
+                f"露头面积: {statistics.outcrop_area:.4f} m² (来源: {statistics.outcrop_area_source or 'unknown'})",
+                f"圆窗策略: {statistics.window_strategy or 'auto'}",
+                f"I 型迹线数: {statistics.type_i_count}",
+                f"II 型迹线数: {statistics.type_ii_count}",
+                f"III 型迹线数: {statistics.type_iii_count}",
+            ]
+            if statistics.window_validation_warning:
+                stat_lines.append(f"警告: {statistics.window_validation_warning}")
+
+        img_names: list[str] = []
+        if report_type in ("full", "plots"):
+            out_dir = Path(config.get("output_dir", "output"))
+            if not out_dir.is_absolute():
+                out_dir = PROJECT_ROOT / out_dir
+            out_dir = out_dir.resolve()
+            for img_name in [
+                f"{outcrop}_raw(n={trace.count}).png",
+                f"{outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
+                f"{outcrop}_rose(bin={config.get('rose_bin_width', 10.0)}).png",
+            ]:
+                img_path = out_dir / img_name
+                if img_path.exists():
+                    img_names.append(str(img_path))
+
+        return {"title": f"{outcrop} 迹线分析报告", "stat_lines": stat_lines, "img_paths": img_names}
+
+    # ------------------------------------------------------------------
     # Word
     # ------------------------------------------------------------------
     def _gen_docx(self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]) -> str:
@@ -133,10 +176,10 @@ class ReportService:
             logger.warning("python-docx 未安装")
             return ""
 
+        ctx = self._build_report_context(outcrop, trace, statistics, report_type, config)
         try:
             doc = Document()
 
-            # 设置默认字体（英文 TNR，中文宋体；标题黑体）
             def _set_style_font(style, western="Times New Roman", east_asia="SimSun", size=None, bold=False):
                 style.font.name = western
                 if size is None:
@@ -150,12 +193,7 @@ class ReportService:
             for lvl in [0, 1, 2, 3]:
                 try:
                     name = 'Title' if lvl == 0 else f'Heading {lvl}'
-                    _set_style_font(
-                        doc.styles[name],
-                        size=Pt([20, 16, 14, 12][lvl]),
-                        bold=True,
-                        east_asia="SimHei"
-                    )
+                    _set_style_font(doc.styles[name], size=Pt([20, 16, 14, 12][lvl]), bold=True, east_asia="SimHei")
                 except KeyError:
                     pass
 
@@ -167,43 +205,17 @@ class ReportService:
                         run.element.rPr.rFonts.set(qn('w:eastAsia'), 'SimSun')
                 return p
 
-            title = doc.add_heading(f"{outcrop} 迹线分析报告", level=0)
+            title = doc.add_heading(ctx["title"], level=0)
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in title.runs:
                 run.font.name = 'Times New Roman'
                 if run.element.rPr is not None:
                     run.element.rPr.rFonts.set(qn('w:eastAsia'), 'SimHei')
 
-            if report_type in ("full", "stats"):
-                _add_para(f"露头标识: {outcrop}")
-                _add_para(f"测线走向: {trace.scanline_azimuth:.2f}°")
-                _add_para(f"迹线条数: {trace.count}")
-                _add_para(f"平均迹长: {statistics.mean_trace_length:.4f} m")
-                _add_para(f"线密度 P10: {statistics.p10:.4f} m⁻¹")
-                _add_para(f"面密度 P20: {statistics.p20:.4f} m⁻²")
-                _add_para(f"长度密度 P21: {statistics.p21:.4f} m⁻¹")
-                _add_para(f"测线长度: {statistics.scanline_length:.4f} m")
-                _add_para(f"露头面积: {statistics.outcrop_area:.4f} m² (来源: {statistics.outcrop_area_source or 'unknown'})")
-                _add_para(f"圆窗策略: {statistics.window_strategy or 'auto'}")
-                _add_para(f"I 型迹线数: {statistics.type_i_count}")
-                _add_para(f"II 型迹线数: {statistics.type_ii_count}")
-                _add_para(f"III 型迹线数: {statistics.type_iii_count}")
-                if statistics.window_validation_warning:
-                    _add_para(f"警告: {statistics.window_validation_warning}")
-
-            if report_type in ("full", "plots"):
-                out_dir = Path(config.get("output_dir", "output"))
-                if not out_dir.is_absolute():
-                    out_dir = PROJECT_ROOT / out_dir
-                out_dir = out_dir.resolve()
-                for img_name in [
-                    f"{outcrop}_raw(n={trace.count}).png",
-                    f"{outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
-                    f"{outcrop}_rose(bin={config.get('rose_bin_width', 10.0)}).png",
-                ]:
-                    img_path = out_dir / img_name
-                    if img_path.exists():
-                        doc.add_picture(str(img_path), width=Inches(5.5))
+            for line in ctx["stat_lines"]:
+                _add_para(line)
+            for img_path in ctx["img_paths"]:
+                doc.add_picture(img_path, width=Inches(5.5))
 
             path = REPORT_DIR / f"{outcrop}_report.docx"
             doc.save(str(path))
@@ -228,8 +240,8 @@ class ReportService:
             logger.warning("reportlab 未安装")
             return ""
 
+        ctx = self._build_report_context(outcrop, trace, statistics, report_type, config)
         try:
-            # 跨平台字体注册
             font_path, font_name = _find_system_font()
             if font_path and font_name:
                 try:
@@ -240,64 +252,22 @@ class ReportService:
             else:
                 font_name = "Times-Roman"
 
-            path = REPORT_DIR / f"{outcrop}_report.pdf"
-            doc = SimpleDocTemplate(str(path), pagesize=A4)
+            doc = SimpleDocTemplate(str(REPORT_DIR / f"{outcrop}_report.pdf"), pagesize=A4)
             styles = getSampleStyleSheet()
-            title_style = ParagraphStyle(
-                "CustomTitle",
-                parent=styles["Heading1"],
-                fontName=font_name,
-                fontSize=18,
-                alignment=TA_CENTER,
-                spaceAfter=20,
-            )
-            body_style = ParagraphStyle(
-                "CustomBody",
-                parent=styles["BodyText"],
-                fontName=font_name,
-                fontSize=11,
-                spaceAfter=8,
-            )
+            title_style = ParagraphStyle("CustomTitle", parent=styles["Heading1"], fontName=font_name, fontSize=18, alignment=TA_CENTER, spaceAfter=20)
+            body_style = ParagraphStyle("CustomBody", parent=styles["BodyText"], fontName=font_name, fontSize=11, spaceAfter=8)
 
-            story = []
-            story.append(Paragraph(f"{outcrop} 迹线分析报告", title_style))
-            story.append(Spacer(1, 12))
-
-            if report_type in ("full", "stats"):
-                story.append(Paragraph(f"露头标识: {outcrop}", body_style))
-                story.append(Paragraph(f"测线走向: {trace.scanline_azimuth:.2f}°", body_style))
-                story.append(Paragraph(f"迹线条数: {trace.count}", body_style))
-                story.append(Paragraph(f"平均迹长: {statistics.mean_trace_length:.4f} m", body_style))
-                story.append(Paragraph(f"线密度 P10: {statistics.p10:.4f} m⁻¹", body_style))
-                story.append(Paragraph(f"面密度 P20: {statistics.p20:.4f} m⁻²", body_style))
-                story.append(Paragraph(f"长度密度 P21: {statistics.p21:.4f} m⁻¹", body_style))
-                story.append(Paragraph(f"测线长度: {statistics.scanline_length:.4f} m", body_style))
-                story.append(Paragraph(f"露头面积: {statistics.outcrop_area:.4f} m² (来源: {statistics.outcrop_area_source or 'unknown'})", body_style))
-                story.append(Paragraph(f"圆窗策略: {statistics.window_strategy or 'auto'}", body_style))
-                story.append(Paragraph(f"I 型迹线数: {statistics.type_i_count}", body_style))
-                story.append(Paragraph(f"II 型迹线数: {statistics.type_ii_count}", body_style))
-                story.append(Paragraph(f"III 型迹线数: {statistics.type_iii_count}", body_style))
-                if statistics.window_validation_warning:
-                    story.append(Paragraph(f"警告: {statistics.window_validation_warning}", body_style))
+            story = [Paragraph(ctx["title"], title_style), Spacer(1, 12)]
+            for line in ctx["stat_lines"]:
+                story.append(Paragraph(line, body_style))
+            if ctx["stat_lines"]:
+                story.append(Spacer(1, 12))
+            for img_path in ctx["img_paths"]:
+                story.append(RLImage(img_path, width=400, height=300))
                 story.append(Spacer(1, 12))
 
-            if report_type in ("full", "plots"):
-                out_dir = Path(config.get("output_dir", "output"))
-                if not out_dir.is_absolute():
-                    out_dir = PROJECT_ROOT / out_dir
-                out_dir = out_dir.resolve()
-                for img_name in [
-                    f"{outcrop}_raw(n={trace.count}).png",
-                    f"{outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
-                    f"{outcrop}_rose(bin={config.get('rose_bin_width', 10.0)}).png",
-                ]:
-                    img_path = out_dir / img_name
-                    if img_path.exists():
-                        story.append(RLImage(str(img_path), width=400, height=300))
-                        story.append(Spacer(1, 12))
-
             doc.build(story)
-            return str(path.resolve())
+            return str((REPORT_DIR / f"{outcrop}_report.pdf").resolve())
         except Exception as exc:
             logger.exception("PDF 生成失败: %s", exc)
             return ""

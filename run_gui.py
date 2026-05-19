@@ -9,6 +9,9 @@ import ctypes
 import sys
 from pathlib import Path
 
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+from trace_pipeline.utils.paths import get_project_root
+
 # 在导入任何 GUI 库之前设置 DPI 感知，确保获取正确的屏幕物理像素
 # Per-Monitor V2 (-4) 是 Windows 10 1607+ 推荐方案，支持多显示器不同 DPI
 try:
@@ -20,12 +23,10 @@ except Exception:
         pass
 
 # 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
-import matplotlib
-
-matplotlib.use('Agg')
+force_noninteractive_backend()
 
 # 确保项目根目录在 PYTHONPATH
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = get_project_root()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

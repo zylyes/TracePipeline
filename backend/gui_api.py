@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import base64
-import contextlib
 import json
 import logging
 import os
-import sys
 import time
+
+from backend.utils.cache import DirectoryChangeDetector
 from pathlib import Path
 from typing import Any
 
@@ -23,12 +23,12 @@ from backend.services.preview_service import PreviewService
 from backend.services.report_service import REPORT_DIR, ReportService
 from backend.services.stats_service import StatsService
 from trace_pipeline.logging import LogContext
+from trace_pipeline.utils.paths import get_project_root
+
+from backend.utils.security import PathSecurityChecker
 
 logger = logging.getLogger(__name__)
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = Path(sys.executable).parent
-else:
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = get_project_root()
 
 
 class GuiApi:
@@ -55,8 +55,8 @@ class GuiApi:
         # 重资源操作的运行锁
         self._preview_running = False
         self._report_running = False
-        # output 目录变更检测：记录上次的 mtime + 文件数量快照
-        self._output_snapshot: tuple[float, int] | None = None
+        # output 目录变更检测器
+        self._output_detector = DirectoryChangeDetector()
         self._sync_services_from_config(self._config.get())
         cfg = self._config.get()
         logger.info(
@@ -79,74 +79,13 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 内部辅助
     # ------------------------------------------------------------------
-    _WINDOWS_DEVICE_NAMES = frozenset({
-        "CON", "PRN", "AUX", "NUL",
-        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-    })
-
     def _safe_path(self, path: str, base: Path | None = None) -> Path | None:
         """解析并校验路径在项目根目录内，防止路径遍历攻击。
 
-        校验规则：
-        1. 拒绝包含 ".." 的原始输入（多层 URL 编码后仍检查）
-        2. URL 递归解码后再次检查 ".."
-        3. 拒绝 Windows 设备名（检查所有路径段）
-        4. 解析符号链接后限制在 base 目录下
-        5. 拒绝非预期扩展名（防止 XSS）
+        委托给 PathSecurityChecker 实现。
         """
-        from urllib.parse import unquote
-
-        # 递归 URL 解码（防御双重编码如 %252e%252e）
-        decoded = path
-        for _ in range(5):
-            new_decoded = unquote(decoded)
-            if new_decoded == decoded:
-                break
-            decoded = new_decoded
-        else:
-            # 超过 5 次解码仍未稳定，视为攻击
-            logger.warning("拒绝过度 URL 编码的路径: %s", path)
-            return None
-
-        # 在任何阶段检查路径遍历
-        for check_path in (path, decoded):
-            p_check = Path(check_path)
-            if ".." in p_check.parts:
-                logger.warning("拒绝包含 .. 的路径: %s", path)
-                return None
-            # 检查 Windows 设备名（所有路径段）
-            for part in p_check.parts:
-                if part.upper() in self._WINDOWS_DEVICE_NAMES:
-                    logger.warning("拒绝 Windows 设备名路径: %s", path)
-                    return None
-
-        p = Path(decoded)
-        if not p.is_absolute():
-            p = PROJECT_ROOT / p
-
-        # resolve() 会跟随符号链接；同时检查 base 自身是否被符号链接篡改
-        try:
-            p = p.resolve().absolute()
-            base = Path(base or PROJECT_ROOT).resolve().absolute()
-        except (OSError, RuntimeError) as exc:
-            logger.warning("路径解析失败 %s: %s", path, exc)
-            return None
-
-        # 确保 base 仍是原始项目根目录（防御 base 被符号链接指向外部）
-        expected_base = PROJECT_ROOT.resolve().absolute()
-        try:
-            base.relative_to(expected_base)
-        except ValueError:
-            logger.warning("base 目录越权: %s", base)
-            return None
-
-        try:
-            p.relative_to(base)
-        except ValueError:
-            logger.warning("拒绝越权路径: %s", p)
-            return None
-        return p
+        checker = PathSecurityChecker(PROJECT_ROOT)
+        return checker.safe_path(path, base)
 
     def _sync_services_from_config(self, cfg: dict[str, Any]) -> None:
         """用校验后的统一配置同步 FileService / DataService 路径。"""
@@ -164,36 +103,15 @@ class GuiApi:
     def _check_output_changed(self) -> bool:
         """检测 output 目录是否发生了外部变更（如手动删除/添加文件）。
 
-        通过比较目录 mtime 和文件数量快照来判断。
         返回 True 表示检测到变更，并已自动使后端缓存失效。
         """
         out_dir = self._resolve_output_dir()
-        if not out_dir.exists():
-            current_snapshot = (-1.0, 0)
-        else:
-            try:
-                mtime = out_dir.stat().st_mtime
-                file_count = sum(1 for _ in out_dir.iterdir())
-                current_snapshot = (mtime, file_count)
-            except OSError:
-                current_snapshot = (-1.0, 0)
-
-        if self._output_snapshot is None:
-            self._output_snapshot = current_snapshot
-            return False
-
-        if current_snapshot != self._output_snapshot:
-            logger.info(
-                "检测到 output 目录变更: 旧快照=%s, 新快照=%s，使缓存失效",
-                self._output_snapshot, current_snapshot,
-                extra={"stage": "output_dir_changed", "old": self._output_snapshot, "new": current_snapshot},
-            )
-            self._output_snapshot = current_snapshot
+        changed = self._output_detector.has_changed(out_dir)
+        if changed:
+            logger.info("检测到 output 目录变更，使缓存失效", extra={"stage": "output_dir_changed"})
             self._file.invalidate_cache()
             self._stats.invalidate_cache()
-            return True
-
-        return False
+        return changed
 
     # ------------------------------------------------------------------
     # 配置
@@ -212,11 +130,7 @@ class GuiApi:
         merged = self._config.set(config)
         self._sync_services_from_config(merged)
         duration = (time.perf_counter() - start) * 1000
-        logger.info(
-            "set_config 完成 → %d 个字段 (%.3f ms)",
-            len(merged), duration,
-            extra={"stage": "api_set_config", "field_count": len(merged), "changed_keys": list(config.keys()), "duration_ms": round(duration, 3)},
-        )
+        logger.info("set_config 完成 → %d 个字段 (%.3f ms)", len(merged), duration, extra={"stage": "api_set_config", "field_count": len(merged), "changed_keys": list(config.keys()), "duration_ms": round(duration, 3)})
         return merged
 
     def reset_config(self) -> dict[str, Any]:
@@ -225,10 +139,7 @@ class GuiApi:
         default = self._config.reset()
         self._sync_services_from_config(default)
         duration = (time.perf_counter() - start) * 1000
-        logger.info(
-            "reset_config 完成 → 恢复默认 (%.3f ms)", duration,
-            extra={"stage": "api_reset_config", "duration_ms": round(duration, 3)},
-        )
+        logger.info("reset_config 完成 → 恢复默认 (%.3f ms)", duration, extra={"stage": "api_reset_config", "duration_ms": round(duration, 3)})
         return default
 
     def reset_processing_config(self) -> dict[str, Any]:
@@ -237,10 +148,7 @@ class GuiApi:
         cfg = self._config.reset_processing()
         self._sync_services_from_config(cfg)
         duration = (time.perf_counter() - start) * 1000
-        logger.info(
-            "reset_processing_config 完成 (%.3f ms)", duration,
-            extra={"stage": "api_reset_processing", "duration_ms": round(duration, 3)},
-        )
+        logger.info("reset_processing_config 完成 (%.3f ms)", duration, extra={"stage": "api_reset_processing_config", "duration_ms": round(duration, 3)})
         return cfg
 
     def reset_style_config(self) -> dict[str, Any]:
@@ -249,10 +157,7 @@ class GuiApi:
         cfg = self._config.reset_style()
         self._sync_services_from_config(cfg)
         duration = (time.perf_counter() - start) * 1000
-        logger.info(
-            "reset_style_config 完成 (%.3f ms)", duration,
-            extra={"stage": "api_reset_style", "duration_ms": round(duration, 3)},
-        )
+        logger.info("reset_style_config 完成 (%.3f ms)", duration, extra={"stage": "api_reset_style_config", "duration_ms": round(duration, 3)})
         return cfg
 
     # ------------------------------------------------------------------
@@ -327,24 +232,24 @@ class GuiApi:
     # ------------------------------------------------------------------
     def get_results(self) -> list[dict[str, Any]]:
         """获取已完成的处理结果列表（通过扫描 output 目录）。"""
+        from trace_pipeline.utils.output_paths import find_output_images
+
         self._check_output_changed()
         import re
         out_dir = self._resolve_output_dir()
         results = []
-        # 使用更严格的正则匹配文件名模式
         raw_pattern = re.compile(r"^(.+)_raw\(n=\d+\)\.png$")
         for png in sorted(out_dir.glob("*.png")):
             match = raw_pattern.match(png.name)
             if not match:
                 continue
             stem = match.group(1)
-            rot_files = sorted(out_dir.glob(f"{stem}_rotated(strike=*.png"))
-            rose_files = sorted(out_dir.glob(f"{stem}_rose(bin=*.png"))
+            images = find_output_images(out_dir, stem)
             results.append({
                 "outcrop": stem,
-                "raw_plot": str(png.resolve()),
-                "rotated_plot": str(rot_files[0].resolve()) if rot_files else "",
-                "rose_plot": str(rose_files[0].resolve()) if rose_files else "",
+                "raw_plot": str(images["raw"].resolve()) if images["raw"] else "",
+                "rotated_plot": str(images["rotated"].resolve()) if images["rotated"] else "",
+                "rose_plot": str(images["rose"].resolve()) if images["rose"] else "",
             })
         logger.debug(
             "get_results → %d 个结果", len(results),
@@ -360,7 +265,7 @@ class GuiApi:
         if "error" in result:
             logger.warning(
                 "get_stats [%s] 失败: %s (%.3f ms)", outcrop, result["error"], duration,
-                extra={"stage": "api_get_stats", "outcrop": outcrop, "duration_ms": round(duration, 3)},
+                extra={"stage": "api_get_stats", "outcrop": outcrop, "duration_ms": round(duration, 3), "error": result["error"]},
             )
         else:
             logger.info(
@@ -402,7 +307,7 @@ class GuiApi:
         if "error" in result:
             logger.warning(
                 "get_data [%s/%s] 失败: %s (%.3f ms)", outcrop, section, result["error"], duration,
-                extra={"stage": "api_get_data", "outcrop": outcrop, "section": section, "source": source, "duration_ms": round(duration, 3)},
+                extra={"stage": "api_get_data", "outcrop": outcrop, "section": section, "source": source, "duration_ms": round(duration, 3), "error": result["error"]},
             )
         else:
             logger.debug(
@@ -431,21 +336,18 @@ class GuiApi:
             return {"status": "busy", "message": "已有预览任务正在运行"}
         self._preview_running = True
         try:
-            start = time.perf_counter()
             merged = {**self._config.get(), **config}
             result = self._preview.generate(merged)
-            duration = (time.perf_counter() - start) * 1000
             status = result.get("status", "unknown")
             img_count = len(result.get("images", []))
             logger.info(
-                "generate_preview → status=%s, %d 张预览图 (%.3f ms)",
-                status, img_count, duration,
+                "generate_preview → status=%s, %d 张预览图",
+                status, img_count,
                 extra={
                     "stage": "api_preview",
                     "status": status,
                     "image_count": img_count,
                     "style_keys": list(merged.get("style", {}).keys()),
-                    "duration_ms": round(duration, 3),
                 },
             )
             return result
@@ -467,14 +369,8 @@ class GuiApi:
             return {"error": "已有报告任务正在运行"}
         self._report_running = True
         try:
-            start = time.perf_counter()
             self._audit.log("generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt})
             result = self._report.generate(outcrop, report_type, fmt, self._config.get())
-            duration = (time.perf_counter() - start) * 1000
-            logger.info(
-                "generate_report 完成: %s (%.3f ms)", outcrop, duration,
-                extra={"stage": "api_report", "outcrop": outcrop, "duration_ms": round(duration, 3)},
-            )
             return result
         finally:
             self._report_running = False
@@ -483,7 +379,6 @@ class GuiApi:
         import zipfile
         from datetime import datetime
 
-        start = time.perf_counter()
         self._audit.log("generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt})
         cfg = self._config.get()
         files = []
@@ -512,30 +407,40 @@ class GuiApi:
         else:
             REPORT_DIR.mkdir(parents=True, exist_ok=True)
             zip_path = REPORT_DIR / f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        # 安全基准目录：报告产物须在 REPORT_DIR 或输出目录内
+        output_base = Path(cfg.get("output_dir", "output"))
+        if not output_base.is_absolute():
+            output_base = PROJECT_ROOT / output_base
+        output_base = output_base.resolve()
+        safe_base = REPORT_DIR.resolve() if REPORT_DIR.exists() else output_base
+
         try:
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
                 for f in files:
-                    fp = Path(f)
-                    fp_safe = self._safe_path(fp.name, base=Path(cfg.get("output_dir", "output")))
+                    # 校验完整路径（而非仅文件名），防止路径遍历绕过
+                    fp_safe = self._safe_path(f, base=safe_base)
                     if fp_safe is None:
                         logger.warning("ZIP 中跳过越权路径: %s", f)
                         continue
-                    zf.write(f, arcname=fp.name)
+                    if not fp_safe.exists():
+                        logger.warning("ZIP 中跳过不存在的文件: %s", f)
+                        continue
+                    zf.write(str(fp_safe), arcname=fp_safe.name)
         except Exception as exc:
             logger.warning("ZIP 创建失败: %s", exc)
             return {"error": f"ZIP 创建失败: {exc}"}
 
         for f in files:
+            # 安全校验后再删除，仅允许删除安全基准内的文件
+            fp_clean = self._safe_path(f, base=safe_base)
+            if fp_clean is None or not fp_clean.exists():
+                logger.debug("跳过清理越权/不存在文件: %s", f)
+                continue
             try:
-                os.remove(f)
+                os.remove(str(fp_clean))
             except Exception as exc:
                 logger.debug("清理中间文件失败: %s → %s", f, exc)
 
-        duration = (time.perf_counter() - start) * 1000
-        logger.info(
-            "generate_reports_zip 完成: %d 个文件 (%.3f ms)", len(files), duration,
-            extra={"stage": "api_reports_zip", "file_count": len(files), "duration_ms": round(duration, 3)},
-        )
         return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
 
     def get_provenance(self, outcrop: str) -> dict[str, Any]:

@@ -308,10 +308,12 @@ async function saveParams() {
 }
 
 async function startPipeline() {
+  if (pipelineStore.running) return
   if (selectedFiles.value.length === 0) {
     ElMessage.warning('请至少选择一个文件')
     return
   }
+  stopPolling()
   pipelineStore.reset()
   processingLogs.value = []
   currentStatus.value = ''
@@ -362,6 +364,7 @@ let pollErrorCount = 0
 const MAX_POLL_ERRORS = 5
 
 function startPolling() {
+  if (pollTimer) clearInterval(pollTimer)
   pollErrorCount = 0
   pollAbortController = new AbortController()
   pollTimer = window.setInterval(async () => {

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -44,9 +43,9 @@ class FileService:
         results: list[dict[str, Any]] = []
         for tf in tables:
             outcrop = tf.outcrop
-            # 检查 output 中是否已有结果（通配匹配）
-            has_raw = bool(list(self._output_dir.glob(f"{outcrop}_raw*.png")))
-            has_rotated = bool(list(self._output_dir.glob(f"{outcrop}_rotated*.png")))
+            # 检查 output 中是否已有结果（短路求值）
+            has_raw = next(self._output_dir.glob(f"{outcrop}_raw*.png"), None) is not None
+            has_rotated = next(self._output_dir.glob(f"{outcrop}_rotated*.png"), None) is not None
             status = "completed" if has_raw and has_rotated else "pending"
             results.append({
                 "stem": tf.stem,

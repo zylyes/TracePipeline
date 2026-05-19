@@ -22,9 +22,11 @@ class PipelineService:
     """后台线程执行流水线，前端通过轮询获取进度。"""
 
     def __init__(self) -> None:
-        self._queue: deque[dict[str, Any]] = deque(maxlen=1000)
+        self._queue: deque[dict[str, Any]] = deque()
         self._lock = threading.Lock()
         self._running = False
+        self._shutdown_event = threading.Event()
+        self._worker_thread: threading.Thread | None = None
 
     def run(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
         """启动后台线程，非阻塞返回。"""
@@ -33,10 +35,11 @@ class PipelineService:
                 return {"status": "busy", "message": "已有任务正在运行"}
             self._running = True
             self._queue.clear()
+            self._shutdown_event.clear()
         self._worker_thread = threading.Thread(
             target=self._run_background,
             args=(targets, config),
-            daemon=False,
+            daemon=True,  # daemon=True 确保主进程关闭时线程不会阻止退出
         )
         self._worker_thread.start()
         return {"status": "started", "total": len(targets)}
@@ -50,15 +53,17 @@ class PipelineService:
         return self._running
 
     def shutdown(self, timeout: float = 30.0) -> None:
-        """优雅关闭：等待后台线程完成，防止文件写入被强制中断。
+        """优雅关闭：发送取消信号并等待后台线程完成。
 
-        若超时仍未完成，记录警告并强制继续关闭流程（依赖 daemon=False
-        时主进程等待；若主进程退出，则线程被强制终止）。
+        设置 shutdown_event 让工作线程在两个目标之间提前退出，
+        然后 join(timeout) 等待线程结束。daemon=True 确保即使
+        超时后主进程仍能退出而不会被后台线程阻塞。
         """
         if not self._running:
             return
         logger.info("正在等待后台流水线完成 (timeout=%.1fs)...", timeout)
-        if hasattr(self, "_worker_thread") and self._worker_thread.is_alive():
+        self._shutdown_event.set()
+        if self._worker_thread is not None and self._worker_thread.is_alive():
             self._worker_thread.join(timeout=timeout)
             if self._worker_thread.is_alive():
                 logger.warning(
@@ -95,6 +100,17 @@ class PipelineService:
                 })
 
                 for idx, outcrop in enumerate(targets, 1):
+                    # 检查关闭信号，在两个目标之间提前退出
+                    if self._shutdown_event.is_set():
+                        logger.info("收到关闭信号，停止处理剩余目标（已完成 %d/%d）", idx - 1, total)
+                        self._emit({
+                            "type": "complete",
+                            "current": idx - 1,
+                            "total": total,
+                            "message": "处理已被取消",
+                            "results": completed_results,
+                        })
+                        break
                     table_stem = f"{outcrop}_process"
                     item_start = time.perf_counter()
                     logger.info(

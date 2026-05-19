@@ -18,6 +18,7 @@ from openpyxl.utils import get_column_letter
 from ..analysis.models import NodeAnalysis
 from ..geology.statistics import TraceStatistics
 from ..models import TraceData
+from ..utils.fonts import classify_text, is_cjk
 
 logger = logging.getLogger(__name__)
 
@@ -77,34 +78,7 @@ _CJK_FONT = "SimSun"
 _WESTERN_FONT = "Times New Roman"
 
 
-def _is_cjk(char: str) -> bool:
-    """判断单个字符是否属于 CJK（中文）Unicode 区块。"""
-    cp = ord(char)
-    return (
-        (0x4E00 <= cp <= 0x9FFF)      # CJK 统一汉字
-        or (0x3400 <= cp <= 0x4DBF)   # 扩展 A
-        or (0x20000 <= cp <= 0x2A6DF) # 扩展 B
-        or (0xF900 <= cp <= 0xFAFF)   # 兼容汉字
-        or (0x2F800 <= cp <= 0x2FA1F) # 兼容补充
-        or (0x3000 <= cp <= 0x303F)   # CJK 符号与标点
-        or (0xFF00 <= cp <= 0xFFEF)   # 全角字符
-        or (0x2E80 <= cp <= 0x2FFF)   # 偏旁部首 / 康熙部首 / 表意描述符
-        or (0x31C0 <= cp <= 0x31EF)   # CJK 笔画
-    )
 
-
-def _classify_text(text: str) -> str:
-    """返回 'cjk' / 'latin' / 'mixed'。"""
-    has_cjk = False
-    has_other = False
-    for ch in text:
-        if _is_cjk(ch):
-            has_cjk = True
-        else:
-            has_other = True
-        if has_cjk and has_other:
-            return "mixed"
-    return "cjk" if has_cjk else "latin"
 
 
 def _build_mixed_font_text(
@@ -117,16 +91,16 @@ def _build_mixed_font_text(
     current_text = ""
     current_cjk: bool | None = None
     for ch in value:
-        is_cjk = _is_cjk(ch)
+        ch_is_cjk = is_cjk(ch)
         if current_cjk is None:
             current_cjk = is_cjk
             current_text = ch
-        elif is_cjk == current_cjk:
+        elif ch_is_cjk == current_cjk:
             current_text += ch
         else:
             blocks.append(_make_text_block(current_text, current_cjk, bold, color))
             current_text = ch
-            current_cjk = is_cjk
+            current_cjk = ch_is_cjk
     if current_text:
         assert current_cjk is not None
         blocks.append(_make_text_block(current_text, current_cjk, bold, color))
@@ -153,7 +127,7 @@ def _apply_cell_font(cell, *, bold: bool = False, color: str | None = None) -> N
     if value is None:
         return
     if isinstance(value, str):
-        classification = _classify_text(value)
+        classification = classify_text(value)
         if classification == "mixed":
             cell.value = _build_mixed_font_text(value, bold=bold, color=color)
         else:

@@ -4,14 +4,12 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
 from trace_pipeline.config import (
     DEFAULT_CONFIG,
     DEFAULT_CONFIG_PATH,
-    PROJECT_ROOT,
     load_config,
     validate_config,
 )
@@ -88,8 +86,18 @@ class ConfigService:
         return self._config
 
     def _save(self) -> None:
-        """将当前配置写回 JSON 文件。"""
-        self._path.write_text(
-            json.dumps(self._config, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """将当前配置原子写入 JSON 文件（先写临时文件再替换，防止写入中断损坏配置）。"""
+        tmp_path = self._path.with_suffix(self._path.suffix + ".tmp")
+        try:
+            tmp_path.write_text(
+                json.dumps(self._config, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            tmp_path.replace(self._path)
+        except Exception:
+            # 清理临时文件，避免残留
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise

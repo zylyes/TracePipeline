@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict
@@ -22,10 +21,9 @@ logger = logging.getLogger(__name__)
 # 路径常量
 # ===========================================================================
 
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = Path(sys.executable).parent
-else:
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from trace_pipeline.utils.paths import get_project_root
+
+PROJECT_ROOT = get_project_root()
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.json"
 
 # ===========================================================================

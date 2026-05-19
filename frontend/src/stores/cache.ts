@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 
 const SCAN_TTL = 30_000      // 文件扫描缓存 30s
 const STATS_TTL = 300_000    // 统计数据缓存 5min
+const STATS_MAX_COUNT = 100  // 统计数据最大条目数
 const COMPARISON_TTL = 300_000 // 对比数据缓存 5min
 const RESULTS_TTL = 5_000    // 结果列表缓存 5s（output 目录可被外部删除，需快速感知变更）
   const IMAGE_TTL = 600_000    // 图片缓存 10min
@@ -61,6 +62,10 @@ export const useCacheStore = defineStore('cache', () => {
   }
 
   function setStats(outcrop: string, data: any) {
+    if (statsCache.value.size >= STATS_MAX_COUNT) {
+      const firstKey = statsCache.value.keys().next().value
+      if (firstKey !== undefined) statsCache.value.delete(firstKey)
+    }
     statsCache.value.set(outcrop, { data, timestamp: Date.now() })
   }
 

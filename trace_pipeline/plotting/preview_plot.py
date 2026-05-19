@@ -15,7 +15,38 @@ from matplotlib.patches import Circle, Polygon, Rectangle
 
 from ._helpers import new_figure, save_figure
 from .style import configure_style, text_font_kwargs
+from .trace_plot import segments_to_xy
 from ..geology.transforms import normalize_coordinates, normalize_points_like_lines
+from ._layout import (
+    _ANNOTATION_LINE_WIDTH,
+    _ANNOTATION_ZORDER,
+    _MIN_DATA_SPAN,
+    _FRAME_BOTTOM,
+    _FRAME_LEFT,
+    _FRAME_WIDTH,
+    _STATS_W,
+    _STATS_H,
+    _LEGEND_W,
+    _LEGEND_BOTTOM_MARGIN,
+    _HARD_GAP,
+    _SINGLE_FRAME_TOP,
+    _DOUBLE_FRAME_TOP,
+    _STATS_AXES_BOUNDS,
+    _SCALE_AXES_BOUNDS,
+    _TRACE_AXES_BOUNDS,
+    _choose_scale_length,
+    _add_scale_bar_band,
+    _add_north_arrow,
+    _style_trace_axes,
+    _style_trace_data_axes,
+    _resolve_layout,
+    _add_outer_frame,
+    _blank_panel_axes,
+    _statistics_font_size,
+    _split_statistics_line,
+    _add_statistics_box,
+    _resolve_node_style,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,27 +147,11 @@ _DEMO_STATS_LINES = (
 # ── 布局常量（与 trace_plot.py 一致）─────────────────────
 
 _PREVIEW_DPI = 300
-_MIN_DATA_SPAN = 1.0
-_FRAME_BOTTOM = 0.055
-_FRAME_LEFT = 0.035
-_FRAME_WIDTH = 0.93
-_SINGLE_FRAME_TOP = 0.900
-_DOUBLE_FRAME_TOP = 0.855
-_TRACE_AXES_BOUNDS = (0.065, 0.205, 0.57, 0.645)
-_STATS_AXES_BOUNDS = (0.66, 0.155, 0.285, 0.61)
 _COMPASS_AXES_BOUNDS = (0.76, 0.765, 0.12, 0.095)
-_SCALE_AXES_BOUNDS = (0.065, 0.075, 0.57, 0.09)
 _LEGEND_AXES_BOUNDS = (0.66, 0.095, 0.285, 0.20)
 _COMPASS_W = 0.12
 _COMPASS_H = 0.095
-_STATS_W = 0.285
-_STATS_H = 0.46
-_LEGEND_W = 0.285
 _LEGEND_H = 0.20
-_LEGEND_BOTTOM_MARGIN = 0.010
-_HARD_GAP = 0.020
-_ANNOTATION_LINE_WIDTH = 0.75
-_ANNOTATION_ZORDER = 12
 
 # ── 节点标记样式 ─────────────────────────────────────────
 
@@ -147,35 +162,7 @@ _NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
 }
 
 # 节点样式预设（供 node_style 选择）
-_NODE_STYLE_PRESETS: dict[str, dict[str, dict[str, object]]] = {
-    "default": {
-        "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    },
-    "solid": {
-        "I": {"marker": "o", "markerfacecolor": "#2E7D32", "markeredgecolor": "#1B5E20", "markeredgewidth": 1.0},
-        "Y": {"marker": "^", "markerfacecolor": "#C62828", "markeredgecolor": "#B71C1C", "markeredgewidth": 1.0},
-        "X": {"marker": "X", "markerfacecolor": "#1565C0", "markeredgecolor": "#0D47A1", "markeredgewidth": 1.0},
-    },
-    "hollow": {
-        "I": {"marker": "o", "markerfacecolor": "none", "markeredgecolor": "#4CAF50", "markeredgewidth": 1.2},
-        "Y": {"marker": "^", "markerfacecolor": "none", "markeredgecolor": "#F44336", "markeredgewidth": 1.2},
-        "X": {"marker": "X", "markerfacecolor": "none", "markeredgecolor": "#2196F3", "markeredgewidth": 1.2},
-    },
-    "dark": {
-        "I": {"marker": "o", "markerfacecolor": "#1B5E20", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "Y": {"marker": "^", "markerfacecolor": "#B71C1C", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "X": {"marker": "X", "markerfacecolor": "#0D47A1", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    },
-}
 
-def _resolve_node_style(style: dict[str, Any]) -> dict[str, dict[str, object]]:
-    """根据 style 中的 node_style 预设名返回对应的节点标记样式字典。"""
-    preset_name = style.get("node_style", "default")
-    if preset_name in _NODE_STYLE_PRESETS:
-        return _NODE_STYLE_PRESETS[preset_name]
-    return _NODE_STYLE_PRESETS["default"]
 
 
 @dataclass(frozen=True)
@@ -207,14 +194,7 @@ def _style_val(style: dict[str, Any], key: str, default: Any) -> Any:
 # ── 几何辅助 ─────────────────────────────────────────────
 
 
-def _segments_to_xy(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    seg_arr = np.asarray(segments, dtype=float)
-    n_segments = seg_arr.shape[0]
-    if n_segments == 0:
-        return np.array([]), np.array([])
-    x_values = np.column_stack([seg_arr[:, 0], seg_arr[:, 2], np.full((n_segments,), np.nan)]).ravel()
-    y_values = np.column_stack([seg_arr[:, 1], seg_arr[:, 3], np.full((n_segments,), np.nan)]).ravel()
-    return x_values, y_values
+
 
 
 def _data_bounds(
@@ -243,223 +223,29 @@ def _data_bounds(
     return float(min(all_x)), float(max(all_x)), float(min(all_y)), float(max(all_y))
 
 
-def _choose_scale_length(base_span: float) -> float:
-    target = base_span / 5.0
-    if target <= 0.0:
-        return 1.0
-    exponent = math.floor(math.log10(target))
-    base = target / (10.0 ** exponent)
-    if base <= 1.0:
-        scale = 1.0
-    elif base <= 2.0:
-        scale = 2.0
-    elif base <= 5.0:
-        scale = 5.0
-    else:
-        scale = 10.0
-    return scale * (10.0 ** exponent)
 
 
 # ── 装饰元素绘制 ─────────────────────────────────────────
 
 
-def _add_scale_bar_band(ax, xlim: tuple[float, float], scale_length: float) -> None:
-    """在独立比例尺带中绘制与数据轴同尺度的比例尺。"""
-    ax.set_xlim(*xlim)
-    ax.set_ylim(0.0, 1.0)
-    ax.set_axis_off()
-
-    x_span = xlim[1] - xlim[0]
-    x0 = xlim[0] + x_span * 0.04
-    if x0 + scale_length > xlim[1]:
-        x0 = xlim[1] - scale_length - x_span * 0.04
-    x1 = x0 + scale_length
-    y = 0.62
-    tick = 0.17
-
-    ax.plot(
-        [x0, x1], [y, y], color="black", linewidth=_ANNOTATION_LINE_WIDTH,
-        solid_capstyle="butt", clip_on=True, zorder=_ANNOTATION_ZORDER,
-    )
-    ax.plot(
-        [x0, x0], [y - tick, y + tick], color="black", linewidth=_ANNOTATION_LINE_WIDTH,
-        clip_on=True, zorder=_ANNOTATION_ZORDER,
-    )
-    ax.plot(
-        [x1, x1], [y - tick, y + tick], color="black", linewidth=_ANNOTATION_LINE_WIDTH,
-        clip_on=True, zorder=_ANNOTATION_ZORDER,
-    )
-    label = f"{scale_length:g} m" if scale_length >= 1.0 else f"{scale_length * 100:g} cm"
-    ax.text(
-        (x0 + x1) / 2.0, y - tick * 0.85, label,
-        ha="center", va="top", clip_on=True, zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=7.2, color="black"),
-    )
 
 
-def _add_north_arrow(
-    ax, north_angle_deg: float, *,
-    center: tuple[float, float] | None = None,
-    arrow_len: float | None = None,
-) -> None:
-    """在主图右上角绘制指北针（transAxes 坐标，不遮挡数据区）。"""
-    if not math.isfinite(north_angle_deg):
-        logger.warning("north_angle_deg 非有限值 (%s)，回退到 90.0°", north_angle_deg)
-        north_angle_deg = 90.0
-
-    angle = math.radians(north_angle_deg)
-    dx, dy = math.cos(angle), math.sin(angle)
-    arrow_len = 0.06 if arrow_len is None else arrow_len
-    label_gap = arrow_len * 0.25
-
-    if center is None:
-        center_x, center_y = 0.86, 0.86
-    else:
-        center_x, center_y = center
-    base_x = center_x - arrow_len * dx * 0.50
-    base_y = center_y - arrow_len * dy * 0.50
-    tip_x = center_x + arrow_len * dx * 0.50
-    tip_y = center_y + arrow_len * dy * 0.50
-    label_x = tip_x + label_gap * dx
-    label_y = tip_y + label_gap * dy
-
-    ax.annotate(
-        "", xy=(tip_x, tip_y), xytext=(base_x, base_y),
-        xycoords=ax.transAxes, textcoords=ax.transAxes,
-        arrowprops=dict(arrowstyle="->", color="black", lw=0.85, mutation_scale=11),
-        clip_on=True, zorder=_ANNOTATION_ZORDER,
-    )
-    ax.text(
-        label_x, label_y, "N", ha="center", va="center",
-        transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
-    )
 
 
-def _style_trace_axes(ax) -> None:
-    ax.set_aspect("equal", adjustable="box")
-    ax.axis("off")
-    ax.set_facecolor("white")
 
 
-def _style_trace_data_axes(ax) -> None:
-    _style_trace_axes(ax)
 
 
-def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
-    title_lines = title.count("\n") + 1 if title else 1
-    frame_top = _DOUBLE_FRAME_TOP if title_lines >= 2 else _SINGLE_FRAME_TOP
-    frame_h = frame_top - _FRAME_BOTTOM
-
-    # 统计框整体上移，占据原指北针位置
-    stats_y1 = frame_top - _LEGEND_BOTTOM_MARGIN
-    stats_y0 = stats_y1 - _STATS_H
-
-    # 图例放在统计框下方，动态高度，底边余量 0.055
-    legend_y1 = stats_y0 - _HARD_GAP
-    legend_y0 = _FRAME_BOTTOM + 0.055
-    legend_h = legend_y1 - legend_y0
-
-    info_left = _STATS_AXES_BOUNDS[0]
-
-    return {
-        "trace_outer_frame": (_FRAME_LEFT, _FRAME_BOTTOM, _FRAME_WIDTH, frame_h),
-        "trace_data": _TRACE_AXES_BOUNDS,
-        "trace_statistics": (info_left, stats_y0, _STATS_W, _STATS_H),
-        "trace_legend": (info_left, legend_y0, _LEGEND_W, legend_h),
-        "trace_scale": _SCALE_AXES_BOUNDS,
-    }
 
 
-def _add_outer_frame(fig, bounds: tuple[float, float, float, float]):
-    frame_ax = fig.add_axes(bounds, label="trace_outer_frame")
-    frame_ax.set_xlim(0.0, 1.0)
-    frame_ax.set_ylim(0.0, 1.0)
-    frame_ax.set_xticks([])
-    frame_ax.set_yticks([])
-    frame_ax.patch.set_alpha(0.0)
-    for spine in frame_ax.spines.values():
-        spine.set_linewidth(0.75)
-        spine.set_color("black")
-    frame_ax.set_zorder(0)
-    return frame_ax
 
 
-def _blank_panel_axes(fig, bounds: tuple[float, float, float, float], label: str):
-    ax = fig.add_axes(bounds, label=label)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_frame_on(False)
-    ax.set_facecolor("none")
-    return ax
 
 
-def _add_statistics_box(ax, stats_lines: tuple[str, ...]) -> None:
-    if not stats_lines:
-        return
-    panel_x0, panel_y0, panel_x1, panel_y1 = 0.02, 0.02, 0.98, 0.98
-    panel_width = panel_x1 - panel_x0
-    panel_height = panel_y1 - panel_y0
-    height_scale = panel_height / 0.50
-    x_label = panel_x0 + panel_width * 0.06
-    x_value = panel_x1 - panel_width * 0.04
-    title_y = panel_y1 - 0.045 * height_scale
-    rule_y = panel_y1 - 0.080 * height_scale
-    first_row_y = panel_y1 - 0.120 * height_scale
-    bottom_y = panel_y0 + 0.045 * height_scale
-    row_step = (first_row_y - bottom_y) / max(len(stats_lines) - 1, 1)
-    font_size = _statistics_font_size(len(stats_lines))
-
-    ax.add_patch(
-        Rectangle(
-            (panel_x0, panel_y0), panel_width, panel_height,
-            facecolor="white", edgecolor="0.68", linewidth=0.6, alpha=0.94,
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER - 0.5,
-        )
-    )
-    ax.text(
-        x_label, title_y, "统计信息", ha="left", va="center",
-        transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-        **text_font_kwargs(fontsize=7.2, fontweight="bold", color="black"),
-    )
-    ax.plot(
-        [x_label, x_value], [rule_y, rule_y], color="0.42", linewidth=0.6,
-        transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER,
-    )
-    for index, line in enumerate(stats_lines):
-        y = first_row_y - row_step * index
-        label, value = _split_statistics_line(line)
-        ax.text(
-            x_label, y, label, ha="left", va="center",
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=font_size, color="0.20"),
-        )
-        ax.text(
-            x_value, y, value, ha="right", va="center",
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=font_size, color="black"),
-        )
 
 
-def _statistics_font_size(row_count: int) -> float:
-    if row_count <= 8:
-        return 6.8
-    if row_count <= 10:
-        return 5.8
-    if row_count <= 12:
-        return 5.5
-    if row_count <= 18:
-        return 5.1
-    return 4.7
 
 
-def _split_statistics_line(line: str) -> tuple[str, str]:
-    text = str(line).strip()
-    for separator in (":", "："):
-        if separator in text:
-            label, value = text.split(separator, 1)
-            return label.strip(), value.strip()
-    return text, ""
 
 
 def _add_preview_legend(
@@ -646,7 +432,7 @@ def render_preview_trace(
             ax.add_patch(patch)
 
     # 2. 迹线
-    x_plot, y_plot = _segments_to_xy(segments)
+    x_plot, y_plot = segments_to_xy(segments)
     ax.plot(
         x_plot, y_plot, "-", color=trace_line_color, linewidth=trace_line_width, zorder=10,
     )

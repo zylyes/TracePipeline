@@ -3,17 +3,16 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from trace_pipeline.utils.paths import get_project_root
 
-if getattr(sys, "frozen", False):
-    _PROJECT_ROOT = Path(sys.executable).parent
-else:
-    _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+logger = logging.getLogger(__name__)
+_PROJECT_ROOT = get_project_root()
+_MAX_LOG_FILES = 3      # 最多读取最新 3 个 jsonl 文件
+_MAX_FILE_SIZE = 10 * 1024 * 1024  # 单文件读取上限 10MB
 
 
 class LogService:
@@ -48,9 +47,13 @@ class LogService:
         if not files:
             return []
 
-        # 读取所有 jsonl 文件内容，合并后按时间排序
+        # 限制读取最新 N 个文件，避免内存溢出
+        files = files[:_MAX_LOG_FILES]
         records: list[dict[str, Any]] = []
         for f in files:
+            if f.stat().st_size > _MAX_FILE_SIZE:
+                logger.debug("日志文件过大，跳过: %s", f)
+                continue
             try:
                 with f.open("r", encoding="utf-8") as fh:
                     for line in fh:

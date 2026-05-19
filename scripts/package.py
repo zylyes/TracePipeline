@@ -101,13 +101,12 @@ def read_version() -> str:
     return version
 
 
+from trace_pipeline.utils.formatting import format_file_size
+
+
 def format_size(num_bytes: int) -> str:
     """将字节数格式化为人类可读的字符串。"""
-    for unit in ("B", "KB", "MB", "GB"):
-        if num_bytes < 1024:
-            return f"{num_bytes:.1f} {unit}"
-        num_bytes /= 1024
-    return f"{num_bytes:.1f} TB"
+    return format_file_size(num_bytes)
 
 
 def dir_size(path: Path) -> int:
@@ -117,6 +116,48 @@ def dir_size(path: Path) -> int:
         if f.is_file():
             total += f.stat().st_size
     return total
+
+
+def generate_requirements() -> Path:
+    """从 pyproject.toml 的 [project.dependencies] 正则提取生成 requirements.txt。
+
+    零额外依赖，仅在内容变化时写入，避免无意义的文件戳变更。
+    """
+    toml_path = PROJECT_ROOT / "pyproject.toml"
+    req_path = PROJECT_ROOT / "requirements.txt"
+
+    content = toml_path.read_text(encoding="utf-8")
+
+    match = re.search(
+        r'\[project\]\s*\n.*?dependencies\s*=\s*\[(.*?)\]',
+        content, re.DOTALL,
+    )
+    if not match:
+        warn(f"{toml_path} 中未找到 [project.dependencies]")
+        return req_path
+
+    deps = re.findall(r'"([^"]+)"', match.group(1))
+    if not deps:
+        warn("dependencies 列表为空")
+        return req_path
+
+    new_content = "\n".join([
+        "# Core dependencies for trace-pipeline",
+        "# Auto-generated from pyproject.toml — DO NOT EDIT MANUALLY",
+        f"# Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}",
+        "# Install with: pip install -r requirements.txt",
+        "",
+        *deps,
+    ]) + "\n"
+
+    old = req_path.read_text(encoding="utf-8") if req_path.exists() else ""
+    if new_content == old:
+        info("requirements.txt 已是最新，跳过更新")
+        return req_path
+
+    req_path.write_text(new_content, encoding="utf-8")
+    info(f"requirements.txt 已生成: {len(deps)} 个依赖")
+    return req_path
 
 
 # ---------------------------------------------------------------------------
@@ -449,6 +490,11 @@ def main() -> int:
         action="store_true",
         help="跳过便捷版（自解压）生成",
     )
+    parser.add_argument(
+        "--gen-requirements",
+        action="store_true",
+        help="仅生成 requirements.txt 后退出",
+    )
     args = parser.parse_args()
 
     print(f"\n{CYAN}{'=' * 60}{RESET}")
@@ -468,6 +514,15 @@ def main() -> int:
     version = read_version()
     print()
 
+    # ---- 步骤 0.5: 生成 requirements.txt ----
+    info(">>> 步骤 0.5: 生成 requirements.txt")
+    generate_requirements()
+
+    if args.gen_requirements:
+        info("requirements.txt 已生成，退出")
+        return 0
+
+    print()
     # ---- 步骤 0: 前端构建 ----
     if not args.skip_frontend:
         info(">>> 步骤 0: 前端构建")

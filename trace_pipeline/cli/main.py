@@ -1,6 +1,7 @@
 """CLI 顶层编排：串联参数解析、配置加载、文件发现与执行。"""
 from __future__ import annotations
 
+import multiprocessing
 import sys
 
 from ..config import apply_cli_overrides, load_config, resolve_config_base_dir, resolve_io_paths
@@ -15,14 +16,20 @@ from ..models import PipelineStatus
 __all__ = ["main"]
 
 
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+
+
 def _init_plotting() -> None:
     """延迟初始化 matplotlib 后端（仅在需要绘图时调用）。"""
-    import matplotlib
-    matplotlib.use("Agg")
+    force_noninteractive_backend()
 
 
 def main() -> None:
     """CLI 入口：配置加载 → 文件发现 → 目标决策 → 执行 → 汇总。"""
+    try:
+        multiprocessing.set_start_method("spawn")
+    except RuntimeError:
+        pass
     args = parse_args()
     logger = setup_logging()
 

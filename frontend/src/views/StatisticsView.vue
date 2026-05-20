@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onActivated } from 'vue'
 import { Document, Picture } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { msg } from '@/utils/message'
 import StatCards from '@/components/StatCards.vue'
 import HistogramChart from '@/components/HistogramChart.vue'
 import PieChart from '@/components/PieChart.vue'
@@ -149,7 +149,7 @@ async function loadOutcrops(force = false) {
       await loadStats(force)
     }
   } catch (e) {
-    ElMessage.error('加载露头列表失败')
+    msg.error('加载露头列表失败')
   }
 }
 
@@ -177,7 +177,7 @@ async function loadStats(force = false) {
       }
     }
     if (res.error) {
-      ElMessage.error(res.error)
+      msg.error(res.error)
       return
     }
     stats.value = res
@@ -201,7 +201,7 @@ async function loadStats(force = false) {
       }
     }
   } catch (e) {
-    ElMessage.error('加载统计失败')
+    msg.error('加载统计失败')
   } finally {
     isLoadingStats = false
   }
@@ -221,26 +221,26 @@ const exportLoading = ref(false)
 
 async function exportReport() {
   if (!selectedOutcrop.value) {
-    ElMessage.warning('请先选择一个露头')
+    msg.warning('请先选择一个露头')
     return
   }
   exportLoading.value = true
   try {
     const res = await api.generate_report(selectedOutcrop.value, 'full', 'both')
     if (res.error) {
-      ElMessage.error(res.error)
+      msg.error(res.error)
       return
     }
     const paths: string[] = []
     if (res.docx) paths.push(res.docx)
     if (res.pdf) paths.push(res.pdf)
     if (paths.length) {
-      ElMessage.success(`统计报告已导出: ${paths.join(', ')}`)
+      msg.success(`统计报告已导出: ${paths.join(', ')}`)
     } else {
-      ElMessage.warning('未生成任何报告文件')
+      msg.warning('未生成任何报告文件')
     }
   } catch (e) {
-    ElMessage.error('导出统计报告失败')
+    msg.error('导出统计报告失败')
     console.error(e)
   } finally {
     exportLoading.value = false

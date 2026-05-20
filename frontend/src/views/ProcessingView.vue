@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { msg } from '@/utils/message'
 import { Loading, Document, Setting, List } from '@element-plus/icons-vue'
 import FileList from '@/components/FileList.vue'
 import ProgressPanel from '@/components/ProgressPanel.vue'
@@ -216,7 +216,7 @@ async function loadFiles(force = false) {
       status: f.status === 'completed' ? 'completed' : 'pending',
     })) as TraceFile[]
   } catch (e) {
-    ElMessage.error('扫描文件失败')
+    msg.error('扫描文件失败')
     console.error('[ProcessingView] loadFiles error:', e)
   }
 }
@@ -260,10 +260,10 @@ async function handleOpenImage(row: TraceFile) {
       }
       openImageModal(result)
     } else {
-      ElMessage.warning('未找到该露头的处理结果图片')
+      msg.warning('未找到该露头的处理结果图片')
     }
   } catch (e) {
-    ElMessage.error('获取图片列表失败')
+    msg.error('获取图片列表失败')
     console.error(e)
   }
 }
@@ -299,9 +299,9 @@ async function saveParams() {
       enable_node_recognition: params.value.enable_node_recognition,
     }
     await configStore.saveConfig(payload)
-    ElMessage.success('处理参数已保存')
+    msg.success('处理参数已保存')
   } catch (e) {
-    ElMessage.error('保存处理参数失败')
+    msg.error('保存处理参数失败')
   } finally {
     syncingParams = false
   }
@@ -310,7 +310,7 @@ async function saveParams() {
 async function startPipeline() {
   if (pipelineStore.running) return
   if (selectedFiles.value.length === 0) {
-    ElMessage.warning('请至少选择一个文件')
+    msg.warning('请至少选择一个文件')
     return
   }
   stopPolling()
@@ -345,15 +345,15 @@ async function startPipeline() {
       appStore.updateLastOperation('启动流水线')
     } else if (res.status === 'error') {
       addLog('error', `启动失败: ${res.message || '配置校验错误'}`)
-      ElMessage.error(res.message || '启动失败')
+      msg.error(res.message || '启动失败')
       appStore.pipelineStatus = 'error'
     } else {
       addLog('error', `启动失败: ${res.message || '未知错误'}`)
-      ElMessage.warning(res.message || '启动失败')
+      msg.warning(res.message || '启动失败')
     }
   } catch (e) {
     addLog('error', '启动流水线失败')
-    ElMessage.error('启动流水线失败')
+    msg.error('启动流水线失败')
     appStore.pipelineStatus = 'error'
   }
 }
@@ -398,7 +398,20 @@ function startPolling() {
               }
               addLog('success', info)
             } else {
-              addLog('error', `${evt.result.outcrop} 处理失败：${evt.result.error || '未知错误'}`)
+              const errType = evt.result.error_type || ''
+              let errHint = ''
+              if (errType === 'PermissionError') {
+                errHint = '文件被占用或权限不足，请关闭已打开的输出文件（如 Excel/WPS）后重试'
+              } else if (errType === 'FileNotFoundError') {
+                errHint = '输入文件不存在，请检查文件路径'
+              }
+              const errDetail = errHint ? `${errHint}` : (evt.result.error || '未知错误')
+              addLog('error', `${evt.result.outcrop} 处理失败：${errDetail}`)
+              if (errType === 'PermissionError') {
+                msg.warning(`${evt.result.outcrop} 处理失败：${errHint}`, 3000)
+              } else if (errType === 'FileNotFoundError') {
+                msg.warning(`${evt.result.outcrop} 处理失败：${errHint}`, 3000)
+              }
             }
             const fileIdx = files.value.findIndex((f) => f.outcrop === evt.result.outcrop)
             if (fileIdx >= 0) {
@@ -414,7 +427,7 @@ function startPolling() {
           stopPolling()
           addLog('success', `全部处理完成 — 总耗时 ${duration}s`)
           currentStatus.value = ''
-          ElMessage.success(`处理完成（${duration}s）`)
+          msg.success(`处理完成（${duration}s）`)
           appStore.updateLastOperation('处理完成')
           // 处理完成后使所有数据缓存失效，确保其他页面刷新时获取最新结果
           cacheStore.invalidateAll()
@@ -428,7 +441,7 @@ function startPolling() {
           stopPolling()
           addLog('error', `处理出错：${evt.message || '未知错误'} — 已运行 ${duration}s`)
           currentStatus.value = ''
-          ElMessage.error(evt.message)
+          msg.error(evt.message)
           appStore.updateLastOperation('处理出错')
           break
         }
@@ -440,7 +453,7 @@ function startPolling() {
         pipelineStore.running = false
         appStore.pipelineStatus = 'error'
         addLog('error', `轮询失败（连续 ${MAX_POLL_ERRORS} 次），已停止`)
-        ElMessage.error('与后端通信失败，请检查后端是否仍在运行')
+        msg.error('与后端通信失败，请检查后端是否仍在运行')
       }
     }
   }, POLL_INTERVAL)
@@ -593,7 +606,7 @@ onUnmounted(() => {
 }
 
 .log-count {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--tp-text-muted);
   font-family: var(--tp-font-data);
 }
@@ -606,7 +619,7 @@ onUnmounted(() => {
   background: var(--tp-info-light);
   border-radius: var(--tp-radius-md);
   margin-bottom: var(--tp-space-3);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-info);
   border: 1px solid var(--tp-info-bg);
 }
@@ -618,7 +631,7 @@ onUnmounted(() => {
 .log-list {
   max-height: 320px;
   overflow-y: auto;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
 }
 

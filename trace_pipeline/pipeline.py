@@ -289,7 +289,36 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 **node_summary,
             )
 
-        except (FileNotFoundError, ValueError, OSError, KeyError, TypeError, IndexError) as exc:
+        except PermissionError as exc:
+            total_duration = (time.perf_counter() - pipeline_start) * 1000
+            exc_str = str(exc)
+            logger.error(
+                "处理 [%s] 失败 (%s): %s (%.3f ms)",
+                cfg.outcrop, type(exc).__name__, exc_str, total_duration,
+                extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
+            )
+            friendly = (
+                f"文件被占用或权限不足，无法写入。"
+                f"请关闭已打开的输出文件（如 Excel/WPS）后重试。"
+                f"原始错误: {exc_str}"
+            )
+            return RunResult.failure(
+                cfg.table_stem, friendly,
+                error_type=type(exc).__name__,
+            )
+        except FileNotFoundError as exc:
+            total_duration = (time.perf_counter() - pipeline_start) * 1000
+            logger.error(
+                "处理 [%s] 失败 (%s): %s (%.3f ms)",
+                cfg.outcrop, type(exc).__name__, exc, total_duration,
+                extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
+            )
+            friendly = f"输入文件不存在，请检查文件路径。原始错误: {exc}"
+            return RunResult.failure(
+                cfg.table_stem, friendly,
+                error_type=type(exc).__name__,
+            )
+        except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:
             total_duration = (time.perf_counter() - pipeline_start) * 1000
             logger.error(
                 "处理 [%s] 失败 (%s): %s (%.3f ms)",

@@ -71,7 +71,7 @@ from backend.webview2_checker import WebView2Checker
 
 PROJECT_ROOT = get_project_root()
 STATIC_DIR = PROJECT_ROOT / "backend" / "static"
-ICON_PATH = PROJECT_ROOT / "reference" / "ECUT.ico"
+ICON_PATH = PROJECT_ROOT / "reference" / "favicon.ico"
 
 logger = logging.getLogger(__name__)
 

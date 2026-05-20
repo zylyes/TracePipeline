@@ -20,6 +20,7 @@ export interface PipelineResult {
   window_strategy: string
   area_source: string
   error?: string
+  error_type?: string
   node_count?: number
   node_x_count?: number
   node_y_count?: number

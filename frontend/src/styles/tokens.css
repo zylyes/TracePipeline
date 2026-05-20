@@ -162,9 +162,9 @@ html, body, #app {
   --tp-font-size-2xl: 26px;
   --tp-font-size-xl: 22px;
   --tp-font-size-lg: 18px;
-  --tp-font-size-base: 15px;
-  --tp-font-size-sm: 13px;
-  --tp-font-size-xs: 11px;
+  --tp-font-size-base: 16px;
+  --tp-font-size-sm: 14px;
+  --tp-font-size-xs: 12px;
   --tp-font-size-hero: 32px;
 
   /* ── 图表配色：地质科学主题高区分度配色 ── */

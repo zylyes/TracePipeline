@@ -29,7 +29,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ("backend/static", "backend/static"),
-        ("reference/ECUT.ico", "reference"),
+        ("reference/favicon.ico", "reference"),
     ],
     hiddenimports=[
         # matplotlib Agg 后端（run_gui.py 中 matplotlib.use('Agg') 显式设置）
@@ -126,7 +126,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon="reference/ECUT.ico",
+    icon="reference/favicon.ico",
 )
 
 # ---------- COLLECT ----------

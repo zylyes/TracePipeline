@@ -162,7 +162,7 @@ watch(() => props.files, () => {
 
 .empty-hint {
   color: var(--tp-text-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--tp-font-body);
 }
 

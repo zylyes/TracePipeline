@@ -24,7 +24,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
+import { msg } from '@/utils/message'
 import { Refresh, Download, RefreshRight, Setting, Upload } from '@element-plus/icons-vue'
 import ConfigForm from '@/components/ConfigForm.vue'
 import StylePreview from '@/components/StylePreview.vue'
@@ -66,9 +67,9 @@ async function reloadConfig() {
     }
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
-    ElMessage.success('配置已重新加载')
+    msg.success('配置已重新加载')
   } catch (e) {
-    ElMessage.error('重新加载配置失败')
+    msg.error('重新加载配置失败')
   }
 }
 
@@ -84,9 +85,9 @@ async function saveStyleConfig() {
     if (saved.style && typeof saved.style === 'object') {
       styleConfig.value = { ...saved.style }
     }
-    ElMessage.success('样式设置已保存')
+    msg.success('样式设置已保存')
   } catch (e) {
-    ElMessage.error('保存样式设置失败')
+    msg.error('保存样式设置失败')
   }
 }
 
@@ -113,9 +114,9 @@ async function resetProcessingConfig() {
     form.value = { ...cfg }
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
-    ElMessage.success('处理参数已重置为默认')
+    msg.success('处理参数已重置为默认')
   } catch (e) {
-    ElMessage.error('重置处理参数失败')
+    msg.error('重置处理参数失败')
   }
 }
 
@@ -143,9 +144,9 @@ async function resetStyleConfig() {
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
-    ElMessage.success('样式设置已重置为默认')
+    msg.success('样式设置已重置为默认')
   } catch (e) {
-    ElMessage.error('重置样式设置失败')
+    msg.error('重置样式设置失败')
   }
 }
 
@@ -176,9 +177,9 @@ async function resetAllConfig() {
     }
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
-    ElMessage.success('已恢复所有默认配置')
+    msg.success('已恢复所有默认配置')
   } catch (e) {
-    ElMessage.error('重置失败')
+    msg.error('重置失败')
   }
 }
 
@@ -188,9 +189,9 @@ async function exportJSON() {
     if (!folder) return
     const jsonStr = JSON.stringify(configStore.config, null, 2)
     await api.export_config_json(folder, jsonStr)
-    ElMessage.success(`配置已导出到 ${folder}`)
+    msg.success(`配置已导出到 ${folder}`)
   } catch (e) {
-    ElMessage.error('导出配置失败')
+    msg.error('导出配置失败')
   }
 }
 
@@ -211,9 +212,9 @@ async function importJSON(event: Event) {
     }
     if (imported.input_dir) appStore.inputDir = imported.input_dir
     if (imported.output_dir) appStore.outputDir = imported.output_dir
-    ElMessage.success(`已导入配置: ${file.name}`)
+    msg.success(`已导入配置: ${file.name}`)
   } catch (e) {
-    ElMessage.error('导入失败：无效的 JSON 文件')
+    msg.error('导入失败：无效的 JSON 文件')
   } finally {
     // 重置 input 以允许重复选择同一文件
     input.value = ''

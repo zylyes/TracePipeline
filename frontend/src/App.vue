@@ -138,10 +138,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { ElMessage } from 'element-plus'
+import { msg } from '@/utils/message'
 import { FolderOpened, Document, Timer, Files, Folder, Clock } from '@element-plus/icons-vue'
 import GeoIcon from '@/components/GeoIcon.vue'
 import SplashScreen from '@/components/SplashScreen.vue'
@@ -162,11 +162,15 @@ const appVersion = __APP_VERSION__
 const showSplash = ref(true)
 const sidebarCollapsed = ref(false)
 
+watch(sidebarCollapsed, (collapsed) => {
+  document.documentElement.style.setProperty('--sidebar-half', collapsed ? '28px' : '76px')
+}, { immediate: true })
+
 function onSplashComplete(payload: { errors: Array<{ step: string; error: string }> }) {
   showSplash.value = false
   if (payload.errors.length > 0) {
     const failedSteps = payload.errors.map(e => e.step.replace(/正在|\.{3}/g, '')).join('、')
-    ElMessage.warning(`初始化未完成: ${failedSteps}，进入页面后将自动重试`)
+    msg.warning(`初始化未完成: ${failedSteps}，进入页面后将自动重试`)
   }
 }
 
@@ -213,9 +217,9 @@ async function openLogsDir() {
 async function copyPath(path: string) {
   try {
     await navigator.clipboard.writeText(path)
-    ElMessage.success({ message: `已复制路径`, duration: 1500 })
+    msg.success(`已复制路径`, 1500)
   } catch {
-    ElMessage.info(path)
+    msg.info(path)
   }
 }
 
@@ -534,7 +538,7 @@ const bootSteps: BootStep[] = [
 
 .title-bar-page {
   font-family: var(--tp-font-heading);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.5px;
@@ -648,7 +652,7 @@ const bootSteps: BootStep[] = [
 
 .logo-text {
   font-family: var(--tp-font-heading);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
   line-height: 1.2;
@@ -656,7 +660,7 @@ const bootSteps: BootStep[] = [
 
 .logo-version {
   font-family: var(--tp-font-data);
-  font-size: 10px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
 }
 
@@ -790,7 +794,7 @@ const bootSteps: BootStep[] = [
   padding: 0 10px;
   border-radius: var(--tp-radius-sm);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.55);
   transition: all var(--tp-duration-normal);
   white-space: nowrap;
@@ -832,7 +836,7 @@ const bootSteps: BootStep[] = [
 
 .dev-toggle :deep(.el-switch__label) {
   color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ── 主内容区 ── */

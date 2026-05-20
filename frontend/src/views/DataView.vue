@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { msg } from '@/utils/message'
 import { InfoFilled } from '@element-plus/icons-vue'
 import DataTable from '@/components/DataTable.vue'
 import { usePipelineStore } from '@/stores/pipeline'
@@ -102,7 +102,7 @@ async function loadOutcrops(force = false) {
     }
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载露头列表失败')
+    msg.error('加载露头列表失败')
   }
 }
 
@@ -132,7 +132,7 @@ async function onOutcropChange(force = false) {
     basicInfo.value = stats
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载统计数据失败')
+    msg.error('加载统计数据失败')
   } finally {
     isLoadingData = false
   }

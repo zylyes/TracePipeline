@@ -105,14 +105,14 @@ const percentage = computed(() => {
 })
 
 const progressStatus = computed(() => {
-  if (!props.running && props.progress.current > 0 && props.progress.current >= props.progress.total) {
-    return 'success'
-  }
   return undefined
 })
 
 const progressColor = computed(() => {
   if (props.running) return 'var(--tp-brand-accent)'
+  if (!props.running && props.progress.current > 0 && props.progress.current >= props.progress.total) {
+    return 'var(--tp-success)'
+  }
   return 'var(--tp-brand-primary)'
 })
 </script>
@@ -209,7 +209,7 @@ const progressColor = computed(() => {
 .parallel-control {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-text-secondary);
   background: var(--tp-bg-sunken);
   padding: 6px 12px;
@@ -220,11 +220,11 @@ const progressColor = computed(() => {
 .parallel-label {
   font-family: var(--tp-font-heading);
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .parallel-limit {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--tp-text-secondary);
 }
 
@@ -286,9 +286,5 @@ const progressColor = computed(() => {
 :deep(.modern-progress .el-progress-bar__inner) {
   border-radius: var(--tp-radius-full);
   transition: width 0.4s var(--tp-easing-expo);
-}
-
-:deep(.modern-progress.el-progress--success .el-progress-bar__inner) {
-  background: var(--tp-success);
 }
 </style>

@@ -13,9 +13,11 @@ from typing import Any
 import numpy as np
 from matplotlib.patches import Circle, Polygon, Rectangle
 
-from ._helpers import new_figure, save_figure
-from .style import configure_style, text_font_kwargs
+from ._helpers import new_figure, save_figure, add_data_north_arrow, compute_data_bounds
+from .style import configure_style, text_font_kwargs, apply_axis_text_fonts
 from .trace_plot import segments_to_xy
+from .rose_plot import _compute_rose_histogram
+from ..geology.angles import fold_strikes_to_semicircle
 from ..geology.transforms import normalize_coordinates, normalize_points_like_lines
 from ._layout import (
     _ANNOTATION_LINE_WIDTH,
@@ -153,16 +155,7 @@ _COMPASS_W = 0.12
 _COMPASS_H = 0.095
 _LEGEND_H = 0.20
 
-# ── 节点标记样式 ─────────────────────────────────────────
-
-_NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
-    "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
-}
-
-# 节点样式预设（供 node_style 选择）
-
+# ── 节点标记样式（与 trace_plot.py 共享，通过 _layout._resolve_node_style 使用）────────
 
 
 @dataclass(frozen=True)
@@ -181,6 +174,9 @@ class PreviewDemoData:
     scanline_azimuth: float = _DEMO_SCANLINE_AZIMUTH
     north_angle_deg: float = _DEMO_NORTH_ANGLE_DEG
     stats_lines: tuple[str, ...] = _DEMO_STATS_LINES
+
+
+_DEMO_DATA = PreviewDemoData()
 
 
 # ── 样式读取辅助 ─────────────────────────────────────────
@@ -203,49 +199,25 @@ def _data_bounds(
     circles: tuple[dict[str, float], ...] | None = None,
     nodes: tuple[dict[str, Any], ...] | None = None,
 ) -> tuple[float, float, float, float]:
-    all_x, all_y = [], []
-    if segments.size > 0:
-        all_x.extend(segments[:, [0, 2]].ravel().tolist())
-        all_y.extend(segments[:, [1, 3]].ravel().tolist())
+    extra_xs_parts: list[np.ndarray] = []
+    extra_ys_parts: list[np.ndarray] = []
     if hull_vertices is not None and hull_vertices.size > 0:
-        all_x.extend(hull_vertices[:, 0].tolist())
-        all_y.extend(hull_vertices[:, 1].tolist())
+        extra_xs_parts.append(hull_vertices[:, 0])
+        extra_ys_parts.append(hull_vertices[:, 1])
     if circles:
-        for c in circles:
-            all_x.extend([c["center_x"] - c["radius"], c["center_x"] + c["radius"]])
-            all_y.extend([c["center_y"] - c["radius"], c["center_y"] + c["radius"]])
+        cx = np.array([x for c in circles for x in (c["center_x"] - c["radius"], c["center_x"] + c["radius"])], dtype=float)
+        cy = np.array([y for c in circles for y in (c["center_y"] - c["radius"], c["center_y"] + c["radius"])], dtype=float)
+        extra_xs_parts.append(cx)
+        extra_ys_parts.append(cy)
     if nodes:
-        for n in nodes:
-            all_x.append(n["x"])
-            all_y.append(n["y"])
-    if not all_x:
-        return 0.0, 1.0, 0.0, 1.0
-    return float(min(all_x)), float(max(all_x)), float(min(all_y)), float(max(all_y))
-
-
+        extra_xs_parts.append(np.array([n["x"] for n in nodes], dtype=float))
+        extra_ys_parts.append(np.array([n["y"] for n in nodes], dtype=float))
+    extra_xs = np.concatenate(extra_xs_parts) if extra_xs_parts else None
+    extra_ys = np.concatenate(extra_ys_parts) if extra_ys_parts else None
+    return compute_data_bounds(segments, extra_xs=extra_xs, extra_ys=extra_ys)
 
 
 # ── 装饰元素绘制 ─────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def _add_preview_legend(
@@ -349,17 +321,21 @@ def render_preview_trace(
     is_rotated: bool = False,
     dpi: int = _PREVIEW_DPI,
     demo: PreviewDemoData | None = None,
+    max_figsize: tuple[float, float] = (36.0, 25.0),
 ) -> str:
     """绘制并保存预览迹线图。
 
     所有几何数据来自 ``PreviewDemoData`` 硬编码常量，与真实运行结果完全解耦。
     样式参数通过 ``style`` 字典传入，不修改任何模块级全局变量。
 
+    Args:
+        max_figsize: (max_width, max_height) figsize 英寸上限。
+
     Returns:
         输出文件的完整路径。
     """
     configure_style()
-    data = demo if demo is not None else PreviewDemoData()
+    data = demo if demo is not None else _DEMO_DATA
     segments = data.rotated_endpoints if is_rotated else data.endpoints
     title = (
         f"迹线长度图\n标尺（走向={data.scanline_azimuth:.1f}°）（预览）"
@@ -401,8 +377,8 @@ def render_preview_trace(
     xlim = (x_min - left_pad, x_max + right_pad)
     scale_length = _choose_scale_length(base_span)
 
-    figsize_w = max(12.0, min(base_span * 0.35 / _TRACE_AXES_BOUNDS[2], 36.0))
-    figsize_h = max(8.0, min(base_span * 0.35 / _TRACE_AXES_BOUNDS[3], 25.0))
+    figsize_w = max(12.0, min(base_span * 0.35 / _TRACE_AXES_BOUNDS[2], max_figsize[0]))
+    figsize_h = max(8.0, min(base_span * 0.35 / _TRACE_AXES_BOUNDS[3], max_figsize[1]))
 
     fig, ax = new_figure((figsize_w, figsize_h), dpi=dpi)
     ax.remove()
@@ -456,25 +432,7 @@ def render_preview_trace(
     _north_x = xlim[0] + x_span * 0.05
     _north_y = (y_max + top_pad) - y_span * 0.08
     _arrow_len = base_span * 0.10
-    _angle = math.radians(north_angle)
-    _dx, _dy = math.cos(_angle), math.sin(_angle)
-    _label_gap = _arrow_len * 0.25
-    _base_x = _north_x - _arrow_len * _dx * 0.50
-    _base_y = _north_y - _arrow_len * _dy * 0.50
-    _tip_x = _north_x + _arrow_len * _dx * 0.50
-    _tip_y = _north_y + _arrow_len * _dy * 0.50
-    _label_x = _tip_x + _label_gap * _dx
-    _label_y = _tip_y + _label_gap * _dy
-    ax.annotate(
-        "", xy=(_tip_x, _tip_y), xytext=(_base_x, _base_y),
-        arrowprops=dict(arrowstyle="->", color="black", lw=0.85, mutation_scale=11),
-        clip_on=False, zorder=15,
-    )
-    ax.text(
-        _label_x, _label_y, "N", ha="center", va="center",
-        clip_on=False, zorder=15,
-        **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
-    )
+    add_data_north_arrow(ax, north_angle, _north_x, _north_y, _arrow_len)
 
     scale_ax = _blank_panel_axes(fig, layout_bounds["trace_scale"], "trace_scale")
     _add_scale_bar_band(scale_ax, xlim, scale_length)
@@ -495,15 +453,17 @@ def render_preview_rose(
     style: dict[str, Any],
     dpi: int = _PREVIEW_DPI,
     demo: PreviewDemoData | None = None,
+    max_figsize: tuple[float, float] = (12.0, 12.0),
 ) -> str:
     """绘制并保存预览玫瑰图。
 
     分箱宽度固定为 10°（样式预览无需调整）。
-    """
-    import math
 
+    Args:
+        max_figsize: (max_width, max_height) figsize 英寸上限。
+    """
     configure_style()
-    data = demo if demo is not None else PreviewDemoData()
+    data = demo if demo is not None else _DEMO_DATA
     strikes = data.joint_strikes
 
     rose_bar_color = _style_val(style, "rose_bar_color", "#C94C4C")
@@ -511,20 +471,7 @@ def render_preview_rose(
     rose_grid_color = _style_val(style, "rose_grid_color", "#d9d9d9")
 
     bin_width = 10.0
-    from ..geology.angles import fold_strikes_to_semicircle
-
-    folded = fold_strikes_to_semicircle(strikes)
-    edges = np.arange(0.0, 180.0, bin_width, dtype=float)
-    if edges.size == 0 or not np.isclose(edges[0], 0.0):
-        edges = np.insert(edges, 0, 0.0)
-    if not np.isclose(edges[-1], 180.0):
-        edges = np.append(edges, 180.0)
-    counts, _ = np.histogram(folded, bins=edges)
-    centers = (edges[:-1] + edges[1:]) / 2.0
-    widths = np.deg2rad(np.diff(edges))
-    theta = np.deg2rad(np.concatenate([centers, centers + 180.0]))
-    radii = np.concatenate([counts, counts])
-    bar_widths = np.concatenate([widths, widths])
+    theta, radii, bar_widths = _compute_rose_histogram(strikes, bin_width=bin_width)
 
     fig, ax = new_figure((12, 12), dpi=dpi, subplot_kw={"projection": "polar"})
     polar_ax = ax
@@ -554,8 +501,6 @@ def render_preview_rose(
     polar_ax.spines["polar"].set_linewidth(0.7)
     polar_ax.spines["polar"].set_color("black")
 
-    # 字体
-    from .style import apply_axis_text_fonts
     apply_axis_text_fonts(polar_ax)
     polar_ax.set_title("产状玫瑰花瓣图（预览）", pad=14, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)

@@ -5,6 +5,9 @@ import base64
 import json
 import logging
 import os
+import subprocess
+import sys
+import threading
 import time
 
 from backend.utils.cache import DirectoryChangeDetector
@@ -52,9 +55,9 @@ class GuiApi:
         self._audit = AuditService()
         self._window: Any = None
         self._window_maximized = False
-        # 重资源操作的运行锁
-        self._preview_running = False
-        self._report_running = False
+        # 重资源操作的运行锁（线程安全）
+        self._preview_lock = threading.Lock()
+        self._report_lock = threading.Lock()
         # output 目录变更检测器
         self._output_detector = DirectoryChangeDetector()
         self._sync_services_from_config(self._config.get())
@@ -331,10 +334,9 @@ class GuiApi:
     # 预览
     # ------------------------------------------------------------------
     def generate_preview(self, config: dict[str, Any]) -> dict[str, Any]:
-        if self._preview_running:
+        if not self._preview_lock.acquire(blocking=False):
             logger.warning("generate_preview 被拒绝: 已有预览任务正在运行", extra={"stage": "api_preview_reject"})
             return {"status": "busy", "message": "已有预览任务正在运行"}
-        self._preview_running = True
         try:
             merged = {**self._config.get(), **config}
             result = self._preview.generate(merged)
@@ -352,7 +354,7 @@ class GuiApi:
             )
             return result
         finally:
-            self._preview_running = False
+            self._preview_lock.release()
 
     # ------------------------------------------------------------------
     # 日志
@@ -364,16 +366,15 @@ class GuiApi:
     # 毕设功能（开发者选项）
     # ------------------------------------------------------------------
     def generate_report(self, outcrop: str, report_type: str, fmt: str) -> dict[str, Any]:
-        if self._report_running:
+        if not self._report_lock.acquire(blocking=False):
             logger.warning("generate_report 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"})
-            return {"error": "已有报告任务正在运行"}
-        self._report_running = True
+            return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
             self._audit.log("generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt})
             result = self._report.generate(outcrop, report_type, fmt, self._config.get())
             return result
         finally:
-            self._report_running = False
+            self._report_lock.release()
 
     def generate_reports_zip(self, targets: list[str], report_type: str, fmt: str, save_path: str | None = None) -> dict[str, Any]:
         import zipfile
@@ -485,7 +486,12 @@ class GuiApi:
             logger.warning("open_directory 失败: 目标不是目录 → %s", path, extra={"stage": "api_open_dir", "path": path})
             return False
         try:
-            os.startfile(str(target))
+            if sys.platform == "win32":
+                os.startfile(str(target))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(target)])
+            else:
+                subprocess.Popen(["xdg-open", str(target)])
             logger.info("open_directory → %s", target, extra={"stage": "api_open_dir", "path": str(target)})
             return True
         except Exception as exc:

@@ -229,13 +229,17 @@ class DailyRotatingJsonHandler(logging.FileHandler):
                 continue
 
     def emit(self, record: logging.LogRecord) -> None:
-        """重写 emit 以支持按大小自动分片。"""
-        if self._log_path.exists() and self._log_path.stat().st_size > self._max_bytes:
-            self._rotate()
+        """重写 emit 以支持按大小自动分片（线程安全）。"""
+        with self._ARCHIVE_LOCK:
+            if self._log_path.exists() and self._log_path.stat().st_size > self._max_bytes:
+                self._rotate()
         super().emit(record)
 
     def _rotate(self) -> None:
-        """同目录内分片：run_001.jsonl -> run_001_part_1.jsonl。"""
+        """同目录内分片：run_001.jsonl -> run_001_part_1.jsonl。
+
+        调用方须持有 _ARCHIVE_LOCK，确保 close→rename→open 原子性。
+        """
         self.close()
         base = self._log_path.stem
         part = 1

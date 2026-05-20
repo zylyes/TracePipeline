@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -11,8 +12,40 @@ from trace_pipeline.utils.paths import get_project_root
 
 logger = logging.getLogger(__name__)
 _PROJECT_ROOT = get_project_root()
-_MAX_LOG_FILES = 3      # 最多读取最新 3 个 jsonl 文件
-_MAX_FILE_SIZE = 10 * 1024 * 1024  # 单文件读取上限 10MB
+_MAX_LOG_FILES = 3
+_MAX_FILE_SIZE = 10 * 1024 * 1024
+_READ_CHUNK = 65536
+
+
+def _tail_lines(path: Path, max_lines: int) -> list[str]:
+    """从文件末尾反向读取最多 max_lines 行（高效 tail）。"""
+    lines: list[str] = []
+    with path.open("rb") as fh:
+        fh.seek(0, os.SEEK_END)
+        pos = fh.tell()
+        buf = bytearray()
+        while pos > 0 and len(lines) < max_lines:
+            read_size = min(_READ_CHUNK, pos)
+            pos -= read_size
+            fh.seek(pos)
+            chunk = fh.read(read_size)
+            buf[:0] = chunk
+            while True:
+                nl = buf.rfind(b"\n")
+                if nl == -1:
+                    break
+                line = buf[nl + 1:].decode("utf-8", errors="replace").strip()
+                if line:
+                    lines.append(line)
+                    if len(lines) >= max_lines:
+                        break
+                del buf[nl:]
+        if buf and len(lines) < max_lines:
+            line = buf.decode("utf-8", errors="replace").strip()
+            if line:
+                lines.append(line)
+    lines.reverse()
+    return lines
 
 
 class LogService:
@@ -39,41 +72,34 @@ class LogService:
     def get_logs(self, tail: int = 100, level: str = "INFO") -> list[str]:
         """读取最新日志文件的最后 N 行，返回格式化字符串列表。
 
-        Args:
-            tail: 返回最近多少条。
-            level: 过滤级别（DEBUG/INFO/WARNING/ERROR/ALL）。
+        使用反向读取避免全量加载大文件。
         """
         files = self._latest_jsonl_files()
         if not files:
             return []
 
-        # 限制读取最新 N 个文件，避免内存溢出
         files = files[:_MAX_LOG_FILES]
+        overread = tail * 4
         records: list[dict[str, Any]] = []
         for f in files:
             if f.stat().st_size > _MAX_FILE_SIZE:
                 logger.debug("日志文件过大，跳过: %s", f)
                 continue
             try:
-                with f.open("r", encoding="utf-8") as fh:
-                    for line in fh:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            rec = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
-                        if not isinstance(rec, dict):
-                            continue
-                        records.append(rec)
+                raw_lines = _tail_lines(f, overread)
+                for line in raw_lines:
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(rec, dict):
+                        continue
+                    records.append(rec)
             except OSError as exc:
                 logger.warning("读取日志文件失败 %s: %s", f, exc)
 
-        # 按时间戳排序
         records.sort(key=lambda r: r.get("timestamp", ""))
 
-        # 级别过滤
         if level != "ALL":
             level_order = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "WARN": 30, "ERROR": 40, "CRITICAL": 50}
             threshold = level_order.get(level, 20)
@@ -82,11 +108,9 @@ class LogService:
                 if level_order.get(r.get("level", "INFO"), 20) >= threshold
             ]
 
-        # 取尾部
         if len(records) > tail:
             records = records[-tail:]
 
-        # 格式化为人类可读字符串
         lines: list[str] = []
         for r in records:
             ts = r.get("timestamp", "")

@@ -8,10 +8,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from trace_pipeline.utils.paths import get_project_root
+from backend.utils.path_utils import resolve_path, error_response
 
 logger = logging.getLogger(__name__)
-PROJECT_ROOT = get_project_root()
 
 # 前端分区名 -> Excel Sheet 名 映射
 SECTION_MAP = {
@@ -43,16 +42,9 @@ INPUT_HEADERS = [
 class DataService:
     """读取 output/{outcrop}_traces.xlsx（多工作表）或 input/{outcrop}_process.xlsx 并分页返回。"""
 
-    @staticmethod
-    def _resolve(p: str) -> Path:
-        path = Path(p)
-        if not path.is_absolute():
-            path = PROJECT_ROOT / p
-        return path.resolve()
-
     def __init__(self, output_dir: str = "output", input_dir: str = "input") -> None:
-        self._output_dir = self._resolve(output_dir)
-        self._input_dir = self._resolve(input_dir)
+        self._output_dir = resolve_path(output_dir)
+        self._input_dir = resolve_path(input_dir)
 
     def get_data(
         self,
@@ -73,7 +65,7 @@ class DataService:
                 "get_data [%s/%s] 失败: 文件不存在", outcrop, section,
                 extra={"stage": "data_get", "outcrop": outcrop, "section": section, "source": source, "path": str(path)},
             )
-            return {"error": f"文件不存在: {path}"}
+            return error_response(f"文件不存在: {path}")
 
         sheet_name = SECTION_MAP.get(section, section)
         try:
@@ -85,13 +77,13 @@ class DataService:
                 "get_data [%s/%s] 失败: 工作表不存在", outcrop, section,
                 extra={"stage": "data_get", "outcrop": outcrop, "section": section, "sheet": sheet_name},
             )
-            return {"error": f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件"}
+            return error_response(f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件")
         except Exception as exc:
             logger.warning(
                 "get_data [%s/%s] 失败: %s", outcrop, section, exc,
                 extra={"stage": "data_get", "outcrop": outcrop, "section": section, "error": str(exc)},
             )
-            return {"error": str(exc)}
+            return error_response(str(exc))
 
         data = df.to_dict("records")
         total = len(data)
@@ -131,7 +123,7 @@ class DataService:
         if not path.exists():
             path = self._input_dir / f"{table_stem}.xls"
             if not path.exists():
-                return {"error": f"输入文件不存在: {self._input_dir / table_stem}.xlsx/.xls"}
+                return error_response(f"输入文件不存在: {self._input_dir / table_stem}.xlsx/.xls")
 
         try:
             df = pd.read_excel(path, sheet_name=outcrop, header=None)
@@ -139,10 +131,10 @@ class DataService:
             try:
                 df = pd.read_excel(path, header=None)
             except Exception as exc:
-                return {"error": str(exc)}
+                return error_response(str(exc))
 
         if len(df) < 1:
-            return {"error": "输入文件为空"}
+            return error_response("输入文件为空")
 
         headers = INPUT_HEADERS
         data = []
@@ -176,9 +168,9 @@ class DataService:
 
     def set_input_dir(self, path: str) -> None:
         """动态更新输入目录。"""
-        self._input_dir = self._resolve(path)
+        self._input_dir = resolve_path(path)
 
     def update_dirs(self, output_dir: str, input_dir: str) -> None:
         """同时更新输入/输出目录。"""
-        self._output_dir = self._resolve(output_dir)
-        self._input_dir = self._resolve(input_dir)
+        self._output_dir = resolve_path(output_dir)
+        self._input_dir = resolve_path(input_dir)

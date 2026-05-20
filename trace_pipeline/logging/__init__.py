@@ -8,7 +8,7 @@
 """
 from __future__ import annotations
 
-from .context import LogContext, get_request_id, set_request_id, timed
+from .context import LogContext, get_request_id, set_request_id, timed, timed_ctx
 from .core import JsonFormatter, DailyRotatingJsonHandler, setup_logging, setup_worker_logging
 
 __all__ = [
@@ -20,4 +20,5 @@ __all__ = [
     "setup_logging",
     "setup_worker_logging",
     "timed",
+    "timed_ctx",
 ]

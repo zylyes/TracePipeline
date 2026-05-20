@@ -1,12 +1,72 @@
-"""目录变更检测与缓存管理工具。"""
+"""目录变更检测与统一 TTL 缓存工具。"""
 from __future__ import annotations
 
 import logging
+import time
+from collections import OrderedDict
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DirectoryChangeDetector"]
+__all__ = ["DirectoryChangeDetector", "TTLCache"]
+
+
+class TTLCache:
+    """线程安全的 TTL + LRU 缓存。
+
+    Args:
+        ttl: 缓存条目生存时间（秒）。
+        maxsize: 最大缓存条目数，0 表示无上限。
+    """
+
+    def __init__(self, ttl: float = 300.0, maxsize: int = 0) -> None:
+        self._ttl = ttl
+        self._maxsize = maxsize
+        self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+
+    def get(self, key: str) -> Any | None:
+        """获取缓存值，过期或不存在返回 None。"""
+        entry = self._store.get(key)
+        if entry is None:
+            return None
+        ts, value = entry
+        if time.monotonic() - ts > self._ttl:
+            del self._store[key]
+            return None
+        self._store.move_to_end(key)
+        return value
+
+    def set(self, key: str, value: Any) -> None:
+        """写入缓存，并淘汰过期/超限条目。"""
+        self._store[key] = (time.monotonic(), value)
+        self._store.move_to_end(key)
+        self._evict_expired()
+        self._trim()
+
+    def invalidate(self, key: str | None = None) -> None:
+        """使指定键或全部缓存失效。"""
+        if key is None:
+            self._store.clear()
+        else:
+            self._store.pop(key, None)
+
+    def invalidate_prefix(self, prefix: str) -> None:
+        """使所有以 prefix 开头的键失效。"""
+        keys = [k for k in self._store if k.startswith(prefix)]
+        for k in keys:
+            del self._store[k]
+
+    def _evict_expired(self) -> None:
+        now = time.monotonic()
+        expired = [k for k, (ts, _) in self._store.items() if now - ts > self._ttl * 2]
+        for k in expired:
+            del self._store[k]
+
+    def _trim(self) -> None:
+        if self._maxsize > 0:
+            while len(self._store) > self._maxsize:
+                self._store.popitem(last=False)
 
 
 class DirectoryChangeDetector:

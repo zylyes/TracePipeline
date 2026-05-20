@@ -160,7 +160,7 @@ function formatValue(v: number | null | undefined) {
 
 .stat-unit {
   font-family: var(--tp-font-body);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-text-tertiary);
   font-weight: 500;
 }

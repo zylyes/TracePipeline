@@ -162,6 +162,7 @@ class PipelineService:
                         "window_strategy": result.window_strategy,
                         "area_source": result.area_source,
                         "error": result.error,
+                        "error_type": result.error_type,
                         "node_count": result.node_count,
                         "node_x_count": result.node_x_count,
                         "node_y_count": result.node_y_count,
@@ -175,15 +176,20 @@ class PipelineService:
                         )
                     else:
                         logger.error(
-                            "%s 处理失败: %s (%.3f ms)", outcrop, result.error, item_duration,
-                            extra={"stage": "item_end", "outcrop": outcrop, "error": result.error, "duration_ms": round(item_duration, 3)},
+                            "%s 处理失败 [%s]: %s (%.3f ms)", outcrop, result.error_type, result.error, item_duration,
+                            extra={"stage": "item_end", "outcrop": outcrop, "error": result.error, "error_type": result.error_type, "duration_ms": round(item_duration, 3)},
                         )
+                    fail_hint = ""
+                    if result.error_type == "PermissionError":
+                        fail_hint = "（文件被占用，请关闭 Excel/WPS 后重试）"
+                    elif result.error_type == "FileNotFoundError":
+                        fail_hint = "（输入文件不存在）"
                     self._emit({
                         "type": "file_complete",
                         "current": idx,
                         "total": total,
                         "filename": table_stem,
-                        "message": f"{outcrop} 处理完成" if result.status is PipelineStatus.SUCCESS else f"{outcrop} 处理失败",
+                        "message": f"{outcrop} 处理完成" if result.status is PipelineStatus.SUCCESS else f"{outcrop} 处理失败{fail_hint}",
                         "result": result_dict,
                     })
 

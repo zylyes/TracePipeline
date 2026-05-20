@@ -349,12 +349,12 @@ onMounted(() => {
 
 .progress-text {
   font-family: var(--tp-font-body);
-  font-size: 13px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
 
 .progress-percent {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-brand-accent);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -370,7 +370,7 @@ onMounted(() => {
   border: 1px solid var(--tp-warning-border);
   border-radius: var(--tp-radius-md);
   font-family: var(--tp-font-body);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--tp-warning);
 
   .el-icon {

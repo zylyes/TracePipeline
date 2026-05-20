@@ -31,9 +31,7 @@
             <h3 class="module-name">{{ mod.name }}</h3>
             <p class="module-desc">{{ mod.desc }}</p>
           </div>
-          <div class="module-arrow">
-            <ArrowRight :size="14" />
-          </div>
+
         </div>
       </div>
     </div>
@@ -249,7 +247,7 @@ const steps = [
   color: rgba(255, 255, 255, 0.75);
   padding: 4px 14px;
   border-radius: var(--tp-radius-full);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-family: var(--tp-font-data);
@@ -290,13 +288,14 @@ const steps = [
   height: 3px;
   width: 100%;
   flex-shrink: 0;
-  opacity: 0.85;
-  transition: height var(--tp-duration-normal) var(--tp-easing-expo);
+  opacity: 0;
+  transform: scaleX(0);
+  transition: all 0.35s var(--tp-easing-expo);
 }
 
 .module-card:hover .module-accent {
-  height: 4px;
   opacity: 1;
+  transform: scaleX(1);
 }
 
 .module-body {
@@ -330,35 +329,10 @@ const steps = [
 
 .module-desc {
   font-family: var(--tp-font-body);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-text-secondary);
   line-height: 1.55;
   margin: 0;
-}
-
-.module-arrow {
-  position: absolute;
-  bottom: 10px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--tp-bg-base);
-  color: var(--tp-text-muted);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: all var(--tp-duration-normal) var(--tp-easing-expo);
-}
-
-.module-card:hover .module-arrow {
-  visibility: visible;
-  opacity: 1;
-  color: var(--tp-brand-accent);
-  transform: translateX(3px);
 }
 
 /* ── 快速开始 ──────────────────────────────────────── */
@@ -415,7 +389,7 @@ const steps = [
   border-radius: 50%;
   background: var(--tp-brand-accent);
   color: var(--tp-text-inverse);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -441,7 +415,7 @@ const steps = [
 
 .step-content p {
   font-family: var(--tp-font-body);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-text-secondary);
   line-height: 1.55;
   margin: 0;
@@ -646,12 +620,6 @@ const steps = [
 
   .module-desc {
     font-size: 12px;
-  }
-
-  .module-arrow {
-    bottom: 50%;
-    right: 10px;
-    transform: translateY(50%);
   }
 
   .step-item {

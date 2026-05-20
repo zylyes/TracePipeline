@@ -107,7 +107,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onActivated, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { msg } from '@/utils/message'
 import { TrendCharts, Picture } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -351,7 +351,7 @@ async function loadComparison(force = false) {
     allImages.value = images
   } catch (e) {
     console.error('对比页加载失败', e)
-    ElMessage.error('对比页加载失败')
+    msg.error('对比页加载失败')
   } finally {
     loading.value = false
     isLoadingComparison = false
@@ -405,7 +405,7 @@ onActivated(() => {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--tp-font-body);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--tp-text-primary);
   border: 1px solid var(--tp-border-light);
   table-layout: fixed;
@@ -512,7 +512,7 @@ onActivated(() => {
 }
 
 .chart-tip {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tp-text-muted);
 }
 

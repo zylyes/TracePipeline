@@ -178,7 +178,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onActivated } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
+import { msg } from '@/utils/message'
 import { api } from '@/api/pywebview'
 import { useConfigStore } from '@/stores/config'
 import { useCacheStore } from '@/stores/cache'
@@ -263,10 +264,10 @@ async function saveDevConfig() {
       min_intersections: advanced.value.min_intersections,
       node_merge_tolerance: advanced.value.node_merge_tolerance,
     })
-    ElMessage.success('高级配置已保存')
+    msg.success('高级配置已保存')
     emit('saved')
   } catch (e) {
-    ElMessage.error('保存高级配置失败')
+    msg.error('保存高级配置失败')
   }
 }
 
@@ -305,10 +306,10 @@ async function resetDevConfig() {
       min_intersections: advanced.value.min_intersections,
       node_merge_tolerance: advanced.value.node_merge_tolerance,
     })
-    ElMessage.success('高级配置已重置')
+    msg.success('高级配置已重置')
     emit('reset')
   } catch (e) {
-    ElMessage.error('重置高级配置失败')
+    msg.error('重置高级配置失败')
   }
 }
 
@@ -332,14 +333,14 @@ async function generateReport() {
   let targets: string[] = []
   if (reportScope.value === 'selected') {
     if (selectedOutcrops.value.length === 0) {
-      ElMessage.warning('请至少选择一个露头')
+      msg.warning('请至少选择一个露头')
       return
     }
     targets = selectedOutcrops.value
   } else {
     targets = outcropOptions.value
     if (targets.length === 0) {
-      ElMessage.warning('没有已完成的露头可导出')
+      msg.warning('没有已完成的露头可导出')
       return
     }
   }
@@ -358,12 +359,12 @@ async function generateReport() {
   try {
     const res = await api.generate_reports_zip(targets, reportType.value, reportFmt.value, savePath)
     if (res.error) {
-      ElMessage.error(res.error)
+      msg.error(res.error)
     } else if (res.zip_path) {
-      ElMessage.success(`报告已保存: ${res.zip_path}`)
+      msg.success(`报告已保存: ${res.zip_path}`)
     }
   } catch (e) {
-    ElMessage.error('打包报告失败')
+    msg.error('打包报告失败')
   } finally {
     reportLoading.value = false
   }
@@ -454,7 +455,7 @@ onActivated(() => {
 .backend-log-content pre {
   margin: 0;
   font-family: var(--tp-font-mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;

@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { msg } from '@/utils/message'
 import { api } from '@/api/pywebview'
 
 const props = defineProps<{
@@ -85,7 +85,7 @@ async function loadData() {
     const section = src === 'output' ? (SECTION_MAP[activeTab.value] || activeTab.value) : activeTab.value
     const res = await api.get_data(props.outcrop, section, page.value, pageSize.value, src)
     if (res.error) {
-      ElMessage.error(res.error)
+      msg.error(res.error)
       tableData.value = []
       columns.value = []
       total.value = 0
@@ -95,7 +95,7 @@ async function loadData() {
     columns.value = res.columns || []
     total.value = res.total || 0
   } catch (e) {
-    ElMessage.error('加载数据失败')
+    msg.error('加载数据失败')
   } finally {
     loading.value = false
   }

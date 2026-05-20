@@ -57,7 +57,7 @@ def get_window_position(window_width: int, window_height: int) -> tuple[int, int
     return max(0, x), max(0, y)
 
 from trace_pipeline.utils.mpl_init import force_noninteractive_backend
-from trace_pipeline.utils.paths import get_project_root
+from trace_pipeline.utils.paths import get_project_root, get_resource_root
 
 force_noninteractive_backend()
 
@@ -70,8 +70,9 @@ from backend.gui_api import GuiApi
 from backend.webview2_checker import WebView2Checker
 
 PROJECT_ROOT = get_project_root()
-STATIC_DIR = PROJECT_ROOT / "backend" / "static"
-ICON_PATH = PROJECT_ROOT / "reference" / "favicon.ico"
+RESOURCE_ROOT = get_resource_root()
+STATIC_DIR = RESOURCE_ROOT / "backend" / "static"
+ICON_PATH = RESOURCE_ROOT / "reference" / "favicon.ico"
 
 logger = logging.getLogger(__name__)
 

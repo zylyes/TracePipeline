@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from trace_pipeline.utils.paths import get_project_root
@@ -36,7 +36,7 @@ class AuditService:
             },
         )
         self._buffer.appendleft({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": action,
             "params": params or {},
             "result": result,

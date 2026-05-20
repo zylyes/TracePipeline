@@ -59,7 +59,6 @@ def get_window_position(window_width: int, window_height: int) -> tuple[int, int
 from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 from trace_pipeline.utils.paths import get_project_root
 
-# 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
 force_noninteractive_backend()
 
 import webview
@@ -74,26 +73,25 @@ PROJECT_ROOT = get_project_root()
 STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 ICON_PATH = PROJECT_ROOT / "reference" / "ECUT.ico"
 
-# 初始化统一结构化日志系统（控制台 + JSON Lines 文件）
-start_time = time.perf_counter()
-setup_logging()
-init_duration = (time.perf_counter() - start_time) * 1000
-
 logger = logging.getLogger(__name__)
-logger.info(
-    "=== 应用程序启动 ===",
-    extra={
-        "stage": "app_start",
-        "version": __version__,
-        "project_root": str(PROJECT_ROOT),
-        "static_dir": str(STATIC_DIR),
-        "icon_path": str(ICON_PATH),
-        "init_duration_ms": round(init_duration, 3),
-    },
-)
 
 
 def main() -> None:
+    start_time = time.perf_counter()
+    setup_logging()
+    init_duration = (time.perf_counter() - start_time) * 1000
+    logger.info(
+        "=== 应用程序启动 ===",
+        extra={
+            "stage": "app_start",
+            "version": __version__,
+            "project_root": str(PROJECT_ROOT),
+            "static_dir": str(STATIC_DIR),
+            "icon_path": str(ICON_PATH),
+            "init_duration_ms": round(init_duration, 3),
+        },
+    )
+
     start = time.perf_counter()
     api = GuiApi()
     logger.info("GuiApi 初始化完成 (%.3f ms)", (time.perf_counter() - start) * 1000, extra={"stage": "gui_api_init"})

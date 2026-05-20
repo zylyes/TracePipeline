@@ -14,7 +14,10 @@ from trace_pipeline.pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
 
-# 保护 matplotlib 全局状态，防止并发绘制时竞争
+# 保护 matplotlib 全局状态，防止并发绘制时竞争。
+# 注意：Agg 后端本身线程安全，但 configure_style 使用线程局部上下文管理器，
+# 且 PyInstaller 打包环境下 matplotlib 字体缓存非线程安全，因此保留全局锁。
+# 若需并行处理多个目标，可改为 per-target 锁 + 预初始化字体缓存。
 _EXECUTION_LOCK = threading.Lock()
 
 

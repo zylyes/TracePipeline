@@ -12,18 +12,15 @@ import json
 import logging
 import threading
 import time
-from collections import OrderedDict
 from typing import Any
 
+from backend.utils.cache import TTLCache
 from trace_pipeline.utils.paths import get_project_root
 
 logger = logging.getLogger(__name__)
 PREVIEW_DIR = get_project_root() / "output" / "preview"
 PREVIEW_DPI = 300
-CACHE_TTL = 300  # 5 分钟
-CACHE_MAX_SIZE = 50  # 最大缓存条目数
 
-# 线程安全锁
 _PREVIEW_LOCK = threading.Lock()
 
 
@@ -40,55 +37,27 @@ class PreviewService:
     """使用预设演示数据生成样式预览图，支持缓存。"""
 
     def __init__(self, sample_outcrop: str = "", **kwargs: Any) -> None:
-        # sample_outcrop 参数已废弃，仅保留兼容性
         _ = sample_outcrop, kwargs
-        self._cache: OrderedDict[str, tuple[float, dict[str, str]]] = OrderedDict()
+        self._cache = TTLCache(ttl=300.0, maxsize=50)
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 
-    def _evict_expired(self) -> None:
-        """淘汰过期超过 2 倍 TTL 的条目，保持缓存大小可控。"""
-        now = time.monotonic()
-        expired = [k for k, (ts, _) in self._cache.items() if now - ts > CACHE_TTL * 2]
-        for k in expired:
-            del self._cache[k]
-
-    def _trim_cache(self) -> None:
-        """当缓存超过上限时移除最旧的条目。"""
-        while len(self._cache) > CACHE_MAX_SIZE:
-            self._cache.popitem(last=False)
-
     def generate(self, config: dict[str, Any]) -> dict[str, Any]:
-        """生成预览图。
-
-        Args:
-            config: 必须包含 ``style`` 字典，以及可选的
-                    ``show_hull`` / ``show_circles`` / ``show_nodes`` 布尔开关。
-                    其他字段（路径、处理参数等）会被忽略。
-
-        Returns:
-            {"status": "ready", "paths": {...}, "images": [...]}
-            或 {"status": "error", "message": ...}
-        """
+        """生成预览图。"""
         style_hash = _hash_config(config)
         with _PREVIEW_LOCK:
-            if style_hash in self._cache:
-                ts, paths = self._cache[style_hash]
-                if time.monotonic() - ts < CACHE_TTL:
-                    logger.info(
-                        "预览缓存命中 [%s] (TTL剩余 %.0f秒)", style_hash[:8], CACHE_TTL - (time.monotonic() - ts),
-                        extra={"stage": "preview_cache_hit", "hash": style_hash, "ttl_remaining": round(CACHE_TTL - (time.monotonic() - ts))},
-                    )
-                    return {"status": "ready", "paths": paths, "images": self._to_images(paths)}
-                else:
-                    logger.debug("预览缓存过期 [%s]", style_hash[:8], extra={"stage": "preview_cache_expired", "hash": style_hash})
+            cached = self._cache.get(style_hash)
+            if cached is not None:
+                logger.info(
+                    "预览缓存命中 [%s]", style_hash[:8],
+                    extra={"stage": "preview_cache_hit", "hash": style_hash},
+                )
+                return {"status": "ready", "paths": cached, "images": self._to_images(cached)}
 
         start = time.perf_counter()
         try:
             paths = self._generate_images(config, style_hash)
             with _PREVIEW_LOCK:
-                self._cache[style_hash] = (time.monotonic(), paths)
-                self._evict_expired()
-                self._trim_cache()
+                self._cache.set(style_hash, paths)
             duration = (time.perf_counter() - start) * 1000
             logger.info(
                 "预览生成完成 [%s]: %d 张图 (%.3f ms)",
@@ -124,7 +93,7 @@ class PreviewService:
     def _generate_images(self, config: dict[str, Any], style_hash: str) -> dict[str, str]:
         """使用完全独立的 preview_plot 模块生成预览图。"""
         from trace_pipeline.plotting.preview_plot import (
-            PreviewDemoData,
+            _DEMO_DATA,
             render_preview_rose,
             render_preview_trace,
         )
@@ -137,7 +106,7 @@ class PreviewService:
 
         configure_style()
 
-        demo = PreviewDemoData()
+        demo = _DEMO_DATA
 
         raw_path = PREVIEW_DIR / f"preview_{style_hash}_raw.png"
         rotated_path = PREVIEW_DIR / f"preview_{style_hash}_rotated.png"

@@ -20,25 +20,30 @@ def _find_system_font() -> tuple[str, str]:
     import platform
     system = platform.system()
 
-    # Windows 字体候选
-    windows_candidates = [
-        (r"C:\Windows\Fonts\simsun.ttc", "SimSun"),
-        (r"C:\Windows\Fonts\SimSun.ttf", "SimSun"),
-        (r"C:\Windows\Fonts\msyh.ttc", "MicrosoftYaHei"),
-        (r"C:\Windows\Fonts\msyhbd.ttc", "MicrosoftYaHei"),
-        (r"C:\Windows\Fonts\simhei.ttf", "SimHei"),
-    ]
-
-    # Linux/macOS 字体候选
-    unix_candidates = [
-        ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "WenQuanYiZenHei"),
-        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVuSans"),
-        ("/System/Library/Fonts/PingFang.ttc", "PingFang"),
-        ("/System/Library/Fonts/STHeiti Light.ttc", "STHeiti"),
-        ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", "LiberationSans"),
-    ]
-
-    candidates = windows_candidates if system == "Windows" else unix_candidates
+    if system == "Windows":
+        windir = os.environ.get("WINDIR", r"C:\Windows")
+        fonts_dir = os.path.join(windir, "Fonts")
+        windows_candidates = [
+            (os.path.join(fonts_dir, "simsun.ttc"), "SimSun"),
+            (os.path.join(fonts_dir, "SimSun.ttf"), "SimSun"),
+            (os.path.join(fonts_dir, "msyh.ttc"), "MicrosoftYaHei"),
+            (os.path.join(fonts_dir, "msyhbd.ttc"), "MicrosoftYaHei"),
+            (os.path.join(fonts_dir, "simhei.ttf"), "SimHei"),
+        ]
+        candidates = windows_candidates
+    else:
+        unix_candidates = [
+            ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "WenQuanYiZenHei"),
+            ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVuSans"),
+            ("/usr/local/share/fonts/truetype/wqy/wqy-zenhei.ttc", "WenQuanYiZenHei"),
+            ("/System/Library/Fonts/PingFang.ttc", "PingFang"),
+            ("/System/Library/Fonts/STHeiti Light.ttc", "STHeiti"),
+            ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", "LiberationSans"),
+        ]
+        user_fonts = os.path.expanduser("~/.fonts")
+        for name, label in [("wqy-zenhei.ttc", "WenQuanYiZenHei"), ("NotoSansCJK-Regular.ttc", "NotoSansCJK")]:
+            unix_candidates.append((os.path.join(user_fonts, name), label))
+        candidates = unix_candidates
 
     for fp, fname in candidates:
         if os.path.exists(fp):

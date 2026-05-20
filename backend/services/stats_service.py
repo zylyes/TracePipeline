@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 
+from backend.utils.cache import TTLCache
 from trace_pipeline.analysis.models import NodeRecognitionConfig
 from trace_pipeline.analysis.nodes import recognize_trace_nodes
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
@@ -33,9 +34,8 @@ class StatsService:
     """读取已处理结果，返回统计指标和覆盖层几何。"""
 
     def __init__(self) -> None:
-        self._cache: dict[str, tuple[dict[str, Any], float]] = {}
-        self._cache_ttl = 300.0  # 5分钟缓存
-        logger.info("StatsService 已初始化（带统计缓存）", extra={"stage": "stats_service_init", "cache_ttl": self._cache_ttl})
+        self._cache = TTLCache(ttl=300.0)
+        logger.info("StatsService 已初始化（带统计缓存）", extra={"stage": "stats_service_init", "cache_ttl": self._cache._ttl})
 
     # 影响统计结果的关键配置字段子集
     _STAT_KEYS = {
@@ -56,15 +56,13 @@ class StatsService:
         start = time.perf_counter()
         key = self._make_key(outcrop, config)
         cached = self._cache.get(key)
-        if cached:
-            result, ts = cached
-            if time.monotonic() - ts < self._cache_ttl:
-                logger.debug(
-                    "get_stats 命中缓存 [%s]: trace_count=%s",
-                    outcrop, result.get("trace_count"),
-                    extra={"stage": "stats_cache_hit", "outcrop": outcrop, "trace_count": result.get("trace_count")},
-                )
-                return result
+        if cached is not None:
+            logger.debug(
+                "get_stats 命中缓存 [%s]: trace_count=%s",
+                outcrop, cached.get("trace_count"),
+                extra={"stage": "stats_cache_hit", "outcrop": outcrop, "trace_count": cached.get("trace_count")},
+            )
+            return cached
 
         cfg = config or {}
         input_dir = cfg.get("input_dir", "input")
@@ -236,7 +234,7 @@ class StatsService:
                 "duration_ms": round(duration, 3),
             },
         )
-        self._cache[key] = (result, time.monotonic())
+        self._cache.set(key, result)
         return result
 
     def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -245,8 +243,8 @@ class StatsService:
         for oc in outcrops:
             key = self._make_key(oc, config)
             cached = self._cache.get(key)
-            if cached and (time.monotonic() - cached[1] < self._cache_ttl):
-                result_map[oc] = cached[0]
+            if cached is not None:
+                result_map[oc] = cached
         # 对缺失或已过期的露头重新计算
         for oc in outcrops:
             if oc not in result_map:
@@ -259,11 +257,9 @@ class StatsService:
     def invalidate_cache(self, outcrop: str | None = None) -> None:
         """使统计缓存失效。"""
         if outcrop is None:
-            count = len(self._cache)
-            self._cache.clear()
+            count = len(self._cache._store)
+            self._cache.invalidate()
             logger.debug("stats 缓存已全部清空: %d 条", count, extra={"stage": "stats_cache_invalidate_all", "count": count})
         else:
-            keys = [k for k in self._cache if k.startswith(f"{outcrop}:")]
-            for k in keys:
-                del self._cache[k]
-            logger.debug("stats 缓存已失效 [%s]: %d 条", outcrop, len(keys), extra={"stage": "stats_cache_invalidate", "outcrop": outcrop, "count": len(keys)})
+            self._cache.invalidate_prefix(f"{outcrop}:")
+            logger.debug("stats 缓存已失效 [%s]", outcrop, extra={"stage": "stats_cache_invalidate", "outcrop": outcrop})

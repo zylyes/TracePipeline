@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, NamedTuple
 import numpy as np
 from matplotlib.patches import Circle, Polygon, Rectangle
 
-from ._helpers import new_figure, save_figure
+from ._helpers import new_figure, save_figure, add_data_north_arrow, compute_data_bounds
 from .style import configure_style, text_font_kwargs
 from ._layout import (
     _ANNOTATION_LINE_WIDTH,
@@ -211,34 +211,23 @@ def _data_bounds(
 ) -> tuple[float, float, float, float]:
     circles = _valid_circles(circle_windows)
     circle_xs, circle_ys = _circle_extents(circles)
-    if segments.size == 0:
-        if not circles:
-            return 0.0, 1.0, 0.0, 1.0
-        return float(circle_xs.min()), float(circle_xs.max()), float(circle_ys.min()), float(circle_ys.max())
 
-    seg_xs = segments[:, [0, 2]].ravel()
-    seg_ys = segments[:, [1, 3]].ravel()
-    if not np.isfinite(seg_xs).all() or not np.isfinite(seg_ys).all():
-        raise ValueError("segments 包含 NaN 或 inf，无法绘制迹线图")
-
+    extra_xs_parts: list[np.ndarray] = []
+    extra_ys_parts: list[np.ndarray] = []
     if circles:
-        seg_xs = np.concatenate([seg_xs, circle_xs])
-        seg_ys = np.concatenate([seg_ys, circle_ys])
-
+        extra_xs_parts.append(circle_xs)
+        extra_ys_parts.append(circle_ys)
     if hull_overlay is not None and hull_overlay.vertices.size > 0:
         hull_vertices = np.asarray(hull_overlay.vertices, dtype=float)
-        seg_xs = np.concatenate([seg_xs, hull_vertices[:, 0]])
-        seg_ys = np.concatenate([seg_ys, hull_vertices[:, 1]])
-
+        extra_xs_parts.append(hull_vertices[:, 0])
+        extra_ys_parts.append(hull_vertices[:, 1])
     if node_overlays:
-        node_xs = np.array([n.x for n in node_overlays], dtype=float)
-        node_ys = np.array([n.y for n in node_overlays], dtype=float)
-        seg_xs = np.concatenate([seg_xs, node_xs])
-        seg_ys = np.concatenate([seg_ys, node_ys])
+        extra_xs_parts.append(np.array([n.x for n in node_overlays], dtype=float))
+        extra_ys_parts.append(np.array([n.y for n in node_overlays], dtype=float))
 
-    return float(seg_xs.min()), float(seg_xs.max()), float(seg_ys.min()), float(seg_ys.max())
-
-
+    extra_xs = np.concatenate(extra_xs_parts) if extra_xs_parts else None
+    extra_ys = np.concatenate(extra_ys_parts) if extra_ys_parts else None
+    return compute_data_bounds(segments, extra_xs=extra_xs, extra_ys=extra_ys)
 
 
 def _build_decoration_layout(
@@ -415,13 +404,8 @@ def _add_legend(
     has_circles: bool,
     has_nodes: bool = False,
     node_overlays: Sequence[NodeOverlay] | None = None,
-    *,
-    anchor_x: float | None = None,
-    anchor_y: float | None = None,
-    loc: str | None = None,
 ) -> None:
-    """绘制自适应图例 — 布局与 preview_plot.py 完全一致。"""
-    _ = (anchor_x, anchor_y, loc)
+    """绘制自适应图例。"""
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
     ax.set_axis_off()
@@ -593,7 +577,6 @@ def render_trace_plot(
     hull_overlay: ConvexHullOverlay | None = None,
     area_source: str = "",
     node_overlays: Sequence[NodeOverlay] | None = None,
-    node_label_mode: str = "type",  # 预留参数：节点标签绘制模式（当前仅符号绘制已实现）
     style: dict[str, Any] | None = None,
     *,
     include_trace: bool = True,
@@ -675,38 +658,12 @@ def render_trace_plot(
     _apply_decoration_limits(ax, layout)
 
     if include_decorations:
-        # 3. 装饰元素 — 指北针画在数据轴左上角（与 preview_plot.py 一致）
+        # 3. 装饰元素 — 指北针画在数据轴左上角
         xlim, _ylim = _decoration_limits(layout)
         _north_x = xlim[0] + layout.x_span * 0.05
         _north_y = layout.data_y_max + layout.top_pad - layout.y_span * 0.08
         _arrow_len = layout.base_span * 0.10
-        _angle = math.radians(north_angle_deg)
-        _dx, _dy = math.cos(_angle), math.sin(_angle)
-        _label_gap = _arrow_len * 0.25
-        _base_x = _north_x - _arrow_len * _dx * 0.50
-        _base_y = _north_y - _arrow_len * _dy * 0.50
-        _tip_x = _north_x + _arrow_len * _dx * 0.50
-        _tip_y = _north_y + _arrow_len * _dy * 0.50
-        _label_x = _tip_x + _label_gap * _dx
-        _label_y = _tip_y + _label_gap * _dy
-        ax.annotate(
-            "",
-            xy=(_tip_x, _tip_y),
-            xytext=(_base_x, _base_y),
-            arrowprops=dict(arrowstyle="->", color="black", lw=0.85, mutation_scale=11),
-            clip_on=False,
-            zorder=15,
-        )
-        ax.text(
-            _label_x,
-            _label_y,
-            "N",
-            ha="center",
-            va="center",
-            clip_on=False,
-            zorder=15,
-            **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
-        )
+        add_data_north_arrow(ax, north_angle_deg, _north_x, _north_y, _arrow_len)
 
         scale_ax = _blank_panel_axes(fig, layout_bounds["trace_scale"], "trace_scale")
         _add_scale_bar_band(scale_ax, xlim, layout.scale_length)

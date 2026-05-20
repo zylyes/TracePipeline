@@ -32,6 +32,16 @@ def to_native(val: Any, max_depth: int = 20, _depth: int = 0) -> Any:
         return val.tolist()
     if isinstance(val, np.bool_):
         return bool(val)
+
+    try:
+        import pandas as pd
+        if isinstance(val, (pd.Timestamp,)):
+            return val.isoformat()
+        if isinstance(val, pd.Series):
+            return val.tolist()
+    except ImportError:
+        pass
+
     if isinstance(val, dict):
         return {k: to_native(v, max_depth, _depth + 1) for k, v in val.items()}
     if isinstance(val, (list, tuple)):

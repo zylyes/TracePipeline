@@ -42,6 +42,9 @@ class PathSecurityChecker:
             校验通过的绝对 Path，或 None（表示拒绝）。
         """
         # 递归 URL 解码（防御双重编码如 %252e%252e）
+        if not path or not path.strip():
+            logger.warning("拒绝空路径")
+            return None
         decoded = path
         for _ in range(5):
             new_decoded = unquote(decoded)

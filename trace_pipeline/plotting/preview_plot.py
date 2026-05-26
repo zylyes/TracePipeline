@@ -338,9 +338,9 @@ def render_preview_trace(
     data = demo if demo is not None else _DEMO_DATA
     segments = data.rotated_endpoints if is_rotated else data.endpoints
     title = (
-        f"迹线长度图\n标尺（走向={data.scanline_azimuth:.1f}°）（预览）"
+        f"旋转迹线图（测线走向={data.scanline_azimuth:.1f}°）（预览）"
         if is_rotated
-        else "迹线长度图（预览）"
+        else "原始迹线图（预览）"
     )
 
     trace_line_color = _style_val(style, "trace_line_color", "#000000")
@@ -443,8 +443,8 @@ def render_preview_trace(
     stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
     _add_statistics_box(stats_ax, data.stats_lines)
 
-    fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=float(title_font_size), fontweight="bold"))
-    return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.0, bbox_inches=None)
+    fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=float(title_font_size), fontweight="bold"))
+    return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08, bbox_inches="tight")
 
 
 def render_preview_rose(
@@ -502,7 +502,8 @@ def render_preview_rose(
     polar_ax.spines["polar"].set_color("black")
 
     apply_axis_text_fonts(polar_ax)
-    polar_ax.set_title("产状玫瑰花瓣图（预览）", pad=14, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
+    polar_ax.set_title("")
+    fig.suptitle("产状玫瑰花瓣图（预览）", y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)
 
 

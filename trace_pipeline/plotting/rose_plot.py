@@ -111,5 +111,6 @@ def render_rose_plot(
     polar_ax.spines["polar"].set_color("black")
 
     apply_axis_text_fonts(polar_ax)
-    polar_ax.set_title(title, pad=14, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
+    polar_ax.set_title("")
+    fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)

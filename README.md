@@ -1,10 +1,10 @@
 # 岩体节理测线坐标计算与绘图工具
 
-> **版本**: v3.2.0 | **语言**: Python >= 3.10 | **许可证**: MIT
+> **版本**: v3.6.3 | **语言**: Python >= 3.10 | **许可证**: MIT
 
 基于 Python 的岩体节理测线法数据处理与可视化系统，支持 **CLI 命令行**与**桌面 GUI（pywebview + Vue 3）**双模式。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原型算法完整移植为工程化 Python 代码。适用于高放废物地质处置场址的节理几何特征分析。
 
-**核心流水线**：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → 凸包/缓冲凸包露头面积 → 圆形取样窗法 4 策略自适应（tangent/hybrid/concentric + auto 6 因子加权评分）→ P10/P20/P21 密度统计 + Mauldon 迹长估计（实测优先四级回退：实测→凸包→缓冲凸包→圆窗等效）→ 节点识别（I/Y/X 拓扑分类，空间网格聚类 + 并查集）→ 多工作表 Excel 导出 → 迹线图（含比例尺、指北针、统计信息框、凸包/圆窗/节点覆盖层、自动避让布局）→ 玫瑰花瓣图。
+**核心流水线**：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → 测线长度估算 → 凸包/缓冲凸包露头面积 → 圆形取样窗法 4 策略自适应（tangent/hybrid/concentric + auto 6 因子加权评分）→ P10/P20/P21 密度统计（实测优先四级回退）→ Mauldon 迹长估计（三级回退：测段→端点→圆窗）→ 窗口一致性校验（自适应阈值）→ 节点识别（I/Y/X 拓扑分类，空间网格聚类 + 并查集）→ 多工作表 Excel 导出（6-9 sheet）→ 迹线图（含比例尺、指北针、LaTeX 统计信息框、凸包/圆窗/节点覆盖层、自动避让布局）→ 玫瑰花瓣图。
 
 > **毕业设计课题**: 26 届地球信息科学与技术专业 -- 周咏霖（学号 2022210162）
 > **指导教师**: 霍亮（讲师），地球与行星科学学院
@@ -29,7 +29,7 @@
 ├── run_trace_pipeline.py               # CLI 入口脚本
 ├── run_gui.py                          # GUI 入口脚本
 │
-├── trace_pipeline/                     # 核心计算包（44 .py 文件）
+├── trace_pipeline/                     # 核心计算包（51 .py 文件：9 __init__ + 42 业务模块）
 │   ├── __init__.py                     # 顶层公开 API（20 个导出，3 惰性导入）
 │   ├── __main__.py                     # python -m trace_pipeline 入口
 │   ├── models.py                       # TraceData / RunConfig / RunResult
@@ -44,12 +44,13 @@
 │   │   ├── endpoints.py                # 迹线端点向量化计算（复数运算）
 │   │   ├── transforms.py               # 坐标平移与旋转变换
 │   │   ├── statistics.py               # 统计编排层：P10/P20/P21 + 迹线分型
-│   │   ├── _stat_types.py              #   └─ 统计数据类（TraceStatistics 等，19 字段）
+│   │   ├── _stat_types.py              #   └─ 统计数据类（TraceStatistics 等，25 字段+1属性）
 │   │   ├── _stat_format.py             #   └─ LaTeX 统计信息框格式化
 │   │   ├── _circle_window.py           #   └─ 圆窗计数 + I/II/III 型分类
-│   │   ├── _convex_hull.py             #   └─ 凸包面积（Andrew 单调链算法）+ 几何工具
-│   │   ├── _window_strategies.py       #   └─ tangent/hybrid/concentric 策略
-│   │   └── _window_scoring.py          #   └─ 6 因子加权评分与策略自动选择
+│   │   ├── _convex_hull.py             #   └─ 凸包面积（Andrew 单调链算法）+ 缓冲凸包
+│   │   ├── _window_strategies.py       #   └─ tangent/hybrid/concentric 策略布局
+│   │   ├── _window_scoring.py          #   └─ auto 策略 6 因子加权评分与选择
+│   │   └── estimators/                 #   └─ 预留给估计器（待扩展）
 │   │
 │   ├── analysis/                       # 节点识别分析
 │   │   ├── __init__.py                 # 子包导出
@@ -73,7 +74,8 @@
 │   │   ├── rose_plot.py                # 玫瑰花瓣图
 │   │   ├── overlays.py                 # 覆盖层构建（圆窗/凸包/节点）
 │   │   ├── preview_plot.py             # 独立样式预览（与业务数据解耦）
-│   │   └── _helpers.py                 # Figure 工具（cm→inch、保存与关闭）
+│   │   ├── _helpers.py                 # Figure 工具（cm→inch、保存与关闭）
+│   │   └── _layout.py                  # 自动避让布局算法
 │   │
 │   ├── logging/                        # 结构化日志系统
 │   │   ├── __init__.py                 # 子包导出
@@ -87,11 +89,20 @@
 │       ├── interactive.py              # 交互式文件选择
 │       ├── dispatcher.py               # 目标决策与串/并行执行（ProcessPoolExecutor）
 │       └── logging_setup.py            # 向后兼容的日志初始化
+│   │
+│   └── utils/                           # 工具函数
+│       ├── __init__.py                  # 子包导出
+│       ├── fonts.py                     # CJK 字体检测
+│       ├── formatting.py                # 格式化工具
+│       ├── mpl_init.py                  # matplotlib Agg 后端强制
+│       ├── numpy_compat.py              # NumPy 兼容处理
+│       ├── output_paths.py              # 输出路径生成
+│       └── paths.py                     # 项目根路径解析
 │
 ├── backend/                            # GUI 后端（pywebview）
 │   ├── __init__.py                     # 包标记
 │   ├── main_gui.py                     # PyWebView 启动器（1400×900，WebView2 检测）
-│   ├── gui_api.py                      # JS API 入口（30+ 方法，路径安全校验）
+│   ├── gui_api.py                      # JS API 入口（33 方法，路径安全校验）
 │   ├── webview2_checker.py             # WebView2 Runtime 注册表检测
 │   └── services/                       # 后端服务层（9 个服务）
 │       ├── __init__.py                 # 服务层包标记
@@ -104,9 +115,15 @@
 │       ├── report_service.py           # Word/PDF 报告导出
 │       ├── log_service.py              # JSON Lines 日志读取
 │       └── audit_service.py            # 操作审计日志
+│   │
+│   └── utils/                           # 后端工具
+│       ├── __init__.py                  # 工具层包标记
+│       ├── cache.py                     # 缓存工具与目录变更检测
+│       ├── path_utils.py                # 路径工具
+│       └── security.py                  # 路径遍历防护（PathSecurityChecker）
 │
-├── frontend/                           # Vue 3 前端
-│   ├── package.json                    # v2.3.1，Vue 3 + Element Plus + ECharts
+├── frontend/                           # Vue 3 前端（43 源文件）
+│   ├── package.json                    # v3.6.3，Vue 3 + Element Plus + ECharts
 │   ├── vite.config.ts                  # 构建到 ../backend/static
 │   ├── tsconfig.json                   # TypeScript 配置
 │   └── src/
@@ -120,8 +137,8 @@
 │       │   ├── config.ts               # 配置 CRUD
 │       │   ├── pipeline.ts             # 流水线运行状态
 │       │   └── cache.ts               # 分层缓存（30s~10min TTL）
-│       ├── utils/                      # 工具函数（format.ts, image.ts）
-│       ├── styles/                     # 样式（tokens.css, fonts.css, element-override.scss）
+│       ├── utils/                      # 前端工具（format, image, echarts-theme, message）
+│       ├── styles/                     # 样式设计令牌（tokens, fonts, element-global）
 │       ├── views/                      # 6 页面视图
 │       │   ├── IntroView.vue           # 首页引导
 │       │   ├── ProcessingView.vue      # 流水线处理
@@ -146,7 +163,7 @@
 │           ├── StylePreview.vue        # 样式预览
 │           └── icons/                  # 自定义图标组件
 │
-├── tests/                              # pytest 单元测试（待重建）
+├── tests/                              # pytest 单元测试（4 文件，覆盖率目标 >= 85%）
 ├── input/                              # 输入目录（存放 *_process.xls*）
 ├── output/                             # 输出目录（Excel + 图片，含 reports/）
 ├── logs/                               # 运行日志（JSON Lines，按日轮转，保留 30 天）
@@ -180,7 +197,7 @@ graph TD
 
 | 原则 | 说明 |
 |------|------|
-| **不可变数据模型** | 7 个核心 `frozen=True` 数据类（`models.py`: `TraceData`、`RunConfig`、`RunResult`；`_stat_types.py`: `TraceStatistics`、`TraceStatisticsConfig`、`CircleWindowDiagnostic`；`endpoints.py`: `EndpointResult`），NumPy 数组深拷贝后设为 read-only |
+| **不可变数据模型** | 8 个核心不可变数据类型（`models.py`: `TraceData`、`RunConfig`、`RunResult`、`PipelineStatus`；`_stat_types.py`: `TraceStatistics`（25字段+1属性）、`TraceStatisticsConfig`、`CircleWindowDiagnostic`；`endpoints.py`: `EndpointResult`），另有 `analysis/models.py` 中 4 个节点分析类型，NumPy 数组深拷贝后设为 read-only |
 | **纯函数计算层** | `geology/` 子包全部为纯函数——接收数组，返回数组，无 I/O 无副作用 |
 | **向量化优先** | NumPy 广播 + 复数运算替代 `for` 循环；布尔 mask 索引替代多级 `if-else` |
 | **惰性导入** | `__init__.py` 通过 `__getattr__` 延迟加载 matplotlib 依赖，`import trace_pipeline` 不触发绘图初始化 |
@@ -207,6 +224,8 @@ graph TD
 | `numpy` | 向量化数值计算 |
 | `pandas` | Excel 表格读写 |
 | `matplotlib` | 迹线图与玫瑰图绘制 |
+| `scipy` | 空间几何算法支持 |
+| `shapely` | 几何图形缓冲与面积计算 |
 | `openpyxl` | .xlsx 读写引擎 |
 | `xlrd` | .xls 回退读取引擎 |
 | `Pillow` | 图像处理 |
@@ -266,7 +285,7 @@ uv run trace-pipeline
 | 旋转迹线图（600 DPI，含 LaTeX 统计框） | `O76_rotated(strike=298.0).png` | 8 |
 | 原始迹线图（600 DPI） | `O76_raw(n=19).png` | 8 |
 | Excel（多工作表） | `O76_traces.xlsx` | 8 |
-| 玫瑰花瓣图（可选，`export_rose_plot: true`） | `O76_rose(bin=10.0).png` | 8 |
+| 玫瑰花瓣图（`export_rose_plot: true`） | `O76_rose(bin=10.0).png` | 8 |
 
 > 全部 8 露头串行处理约 30-60 秒，加 `-p 4` 启用 4 线程并行。
 
@@ -282,7 +301,7 @@ python run_gui.py
 
 ### 启动流程
 1. 检测 Windows WebView2 Runtime（缺失时弹出下载提示）
-2. 初始化 9 个后端服务（配置、文件、流水线、统计、数据、预览、报告、日志、审计）
+2. 初始化 9 个后端服务（配置、文件、流水线、统计、数据、预览、报告、日志、审计）+ 路径安全校验
 3. 加载构建好的 Vue 前端（`backend/static/index.html`）
 4. 显示启动屏（4 步引导：WebView2→配置→文件扫描→服务就绪）
 
@@ -300,7 +319,7 @@ python run_gui.py
 ### 前后端通信
 
 ```
-Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (30+ 方法) → 9 个 Service
+Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (33 方法) → 9 个 Service
 ```
 
 ### 缓存架构
@@ -355,7 +374,7 @@ Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (30+ 方法) → 9 个 Ser
   "table_stem":               "O76_process",
   "outcrop":                  "O76",
   "process_all":              true,
-  "export_rose_plot":         false,
+  "export_rose_plot":         true,
   "rose_bin_width":           10.0,
   "rose_dpi":                 600,
   "trace_dpi":                600,
@@ -363,12 +382,12 @@ Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (30+ 方法) → 9 个 Ser
   "window_strategy":          "auto",
   "auto_density_threshold":   5.0,
   "tangent_window_count":     3,
+  "min_intersections":        5,
   "style":                    {},
-  "enable_node_recognition":  false,
+  "enable_node_recognition":  true,
   "node_merge_tolerance":     0.01,
   "show_node_overlay":        true,
-  "is_dev_mode":              false,
-  "min_intersections":        5
+  "is_dev_mode":              false
 }
 ```
 
@@ -457,9 +476,9 @@ python run_trace_pipeline.py -s -c my_config.json    # 自定义配置
   阶段2: 变换 — 倾向→走向转换 → 向量化端点计算 → 坐标规范化
            → 迹线统计（I/II/III 型 + P10/P20/P21 + 圆窗 + 凸包 + 窗口校验）
            → 覆盖层构建（圆窗/凸包）
-  阶段3: 节点识别（可选） — 候选点生成 → 空间网格聚类 → I/Y/X 拓扑分类
+  阶段3: 节点识别 — 候选点生成 → 空间网格聚类 → I/Y/X 拓扑分类
    阶段4: Excel 导出 — 多工作表布局写入
-  阶段5: 绘图 — 原始迹线图 + 旋转迹线图 + 玫瑰花瓣图（可选）
+   阶段5: 绘图 — 原始迹线图 + 旋转迹线图 + 玫瑰花瓣图
 ```
 
 ### 核心模块
@@ -598,7 +617,7 @@ dd + 90 & dd < 90
 | O82 | 20 | 273 | 6.43 | 18/2/0 | 1.6632 | 0.1241 (E) | 0.7973 (E) | concentric | 3 |
 | O83 | 20 | 265 | 6.45 | 18/2/0 | 2.1769 | 0.1564 (E) | 1.0081 (E) | concentric | 3 |
 
-> 上表由 `auto` 策略生成（2026-05-19 运行结果）。当前 8 个输入表缺少实测测线长度（第12列）和实测露头面积（第13列），因此 P20/P21 主要依赖凸包面积估算 (E)。来源标注：(M)=实测，(E)=凸包/端点估算，(W)=圆窗估计。
+> 上表由 `auto` 策略生成（2026-05-21 运行结果）。当前 8 个输入表缺少实测测线长度（第12列）和实测露头面积（第13列），因此 P20/P21 主要依赖凸包面积估算 (E)。来源标注：(M)=实测，(E)=凸包/端点估算，(W)=圆窗估计。
 
 ---
 
@@ -635,7 +654,8 @@ output/
 ├── O76_raw(n=19).png
 ├── O76_rotated(strike=298.0).png
 ├── O76_traces.xlsx
-├── ...（O77-O83 同理，共 24-32 个文件）
+├── ...（O77-O83 同理，共 32 个文件）
+└── preview/               # 样式预览图（15 张）
 └── reports/               # GUI 报告导出（可选）
 ```
 

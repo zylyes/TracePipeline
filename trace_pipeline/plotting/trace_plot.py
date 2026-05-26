@@ -681,6 +681,6 @@ def render_trace_plot(
         stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
         _add_statistics_box(stats_ax, statistics_lines, rect=(0.02, 0.02, 0.98, 0.98))
 
-        fig.suptitle(title, y=0.965, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
+        fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
 
-    return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.0, bbox_inches=None)
+    return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08, bbox_inches="tight")

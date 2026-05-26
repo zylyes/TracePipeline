@@ -196,7 +196,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 logger.debug("  5.1 绘制原始迹线图: %s (dpi=%d)", cfg.outcrop, cfg.trace_dpi, extra={"stage": "plot_substep", "substep": "raw"})
                 raw_plot = render_trace_plot(
                     trace.endpoints,
-                    "迹线长度图",
+                    "原始迹线图",
                     str(output_dir),
                     f"{cfg.outcrop}_raw(n={trace.count}).png",
                     dpi=cfg.trace_dpi,
@@ -205,14 +205,13 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     hull_overlay=raw_hull_overlay,
                     area_source=statistics.outcrop_area_source,
                     node_overlays=raw_node_overlays if cfg.show_node_overlay else None,
-                    node_label_mode=cfg.node_label_mode,
                     style=cfg.style,
                 )
                 logger.debug("  5.2 绘制旋转迹线图: %s (dpi=%d)", cfg.outcrop, cfg.rotated_trace_dpi, extra={"stage": "plot_substep", "substep": "rotated"})
 
                 rot_plot = render_trace_plot(
                     rotated,
-                    f"迹线长度图\n标尺（走向={trace.scanline_azimuth:.1f}°）",
+                    f"旋转迹线图（测线走向={trace.scanline_azimuth:.1f}°）",
                     str(output_dir),
                     f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
                     dpi=cfg.rotated_trace_dpi,
@@ -222,7 +221,6 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     hull_overlay=rotated_hull_overlay,
                     area_source=statistics.outcrop_area_source,
                     node_overlays=rotated_node_overlays if cfg.show_node_overlay else None,
-                    node_label_mode=cfg.node_label_mode,
                     style=cfg.style,
                 )
 

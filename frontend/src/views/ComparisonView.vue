@@ -58,7 +58,7 @@
           <el-radio-button label="length">面积/长度</el-radio-button>
         </el-radio-group>
       </div>
-      <v-chart class="chart" :option="barOption" autoresize />
+      <v-chart class="chart" :option="barOption" :init-options="chartInitOpts" autoresize />
     </div>
 
     <!-- 所有露头图片网格展示区 -->
@@ -132,6 +132,7 @@ const cacheStore = useCacheStore()
 const tableData = ref<ComparisonRow[]>([])
 const loading = ref(false)
 const chartMetric = ref('density')
+const chartInitOpts = { devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2) }
 
 // 图片筛选
 const imageFilter = ref('all')

@@ -15,7 +15,7 @@
       @wheel.prevent="onWheel"
       @mousedown="onMouseDown"
     >
-      <v-chart class="chart" :option="chartOption" autoresize />
+      <v-chart class="chart" :option="chartOption" :init-options="chartInitOpts" autoresize />
     </div>
     <img v-else-if="viewMode === 'image' && roseImageUrl" :src="roseImageUrl" class="rose-image" />
     <el-empty v-else description="暂无玫瑰图数据" />
@@ -34,6 +34,8 @@ import { loadImageBase64 } from '@/utils/image'
 import { getEchartsFontFamily, baseTitleStyle, baseTooltipStyle, baseAnimationConfig, baseSeriesAnimation, CHART_COLOR_PRIMARY } from '@/utils/echarts-theme'
 
 use([CanvasRenderer, BarChart, PolarComponent, TooltipComponent, TitleComponent])
+
+const chartInitOpts = { devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2) }
 
 const props = defineProps<{
   strikes: number[]

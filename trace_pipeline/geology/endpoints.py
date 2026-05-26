@@ -33,7 +33,6 @@ MATLAB ↔ Python 变量对照（见 reference/matlab/Coordinate.m）:
   r4=0,r6≠0       ┃ mask_only_right  → _compute_right_only
   r4≠0,r6≠0       ┃ mask_both        → _compute_bilateral
 
-历史文件名：geometry.py（位于 trace_pipeline 根）。
 """
 from __future__ import annotations
 

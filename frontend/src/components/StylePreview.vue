@@ -11,11 +11,11 @@
 
     <div class="preview-grid">
       <div class="preview-box" v-for="(img, idx) in previewImages" :key="img.key" @click="openViewer(idx)">
-        <div class="preview-label">{{ img.label }}</div>
         <div class="preview-img-wrapper" v-loading="loading">
           <img v-if="img.url" :src="img.url" class="preview-img" />
           <el-empty v-else description="修改配置后自动生成预览" />
         </div>
+        <div class="preview-label">{{ img.label }}</div>
       </div>
     </div>
 

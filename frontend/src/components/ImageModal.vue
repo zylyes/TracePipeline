@@ -15,7 +15,6 @@
         <div class="modal-body" v-loading="loading">
           <div class="img-grid">
             <div class="img-item" v-for="img in imageList" :key="img.key">
-              <div class="img-title">{{ img.title }}</div>
               <div class="img-wrapper">
                 <img
                   v-if="img.dataUrl"
@@ -25,6 +24,7 @@
                 />
                 <el-empty v-else description="图片未生成" />
               </div>
+              <div class="img-title">{{ img.title }}</div>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 <template>
   <div class="histogram-chart tp-card">
-    <v-chart class="chart" :option="option" autoresize />
+    <v-chart class="chart" :option="option" :init-options="chartInitOpts" autoresize />
   </div>
 </template>
 
@@ -14,6 +14,8 @@ import VChart from 'vue-echarts'
 import { getEchartsFontFamily, baseTitleStyle, baseAxisLabelStyle, baseTooltipStyle, baseAnimationConfig, baseSeriesAnimation, CHART_COLOR_SECONDARY } from '@/utils/echarts-theme'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, TitleComponent])
+
+const chartInitOpts = { devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2) }
 
 const props = defineProps<{
   histogram: {

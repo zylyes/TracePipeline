@@ -1,6 +1,6 @@
 <template>
   <div class="pie-chart tp-card">
-    <v-chart class="chart" :option="option" autoresize />
+    <v-chart class="chart" :option="option" :init-options="chartInitOpts" autoresize />
   </div>
 </template>
 
@@ -14,6 +14,8 @@ import VChart from 'vue-echarts'
 import { getEchartsFontFamily, baseTitleStyle, baseTooltipStyle, baseAnimationConfig, CHART_COLOR_TERTIARY, CHART_COLOR_SECONDARY, CHART_COLOR_PRIMARY } from '@/utils/echarts-theme'
 
 use([CanvasRenderer, PieChartType, TooltipComponent, LegendComponent, TitleComponent])
+
+const chartInitOpts = { devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2) }
 
 const props = defineProps<{
   typeCounts: {

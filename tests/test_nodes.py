@@ -34,6 +34,18 @@ class TestNodeRecognition:
         result = recognize_trace_nodes(endpoints, _make_config())
         assert result.node_count >= 1
 
+    def test_crossing_with_later_segment_starting_left_is_detected(self) -> None:
+        """索引更大的迹线可从更左侧开始，不能被 bbox 去重过滤漏掉。"""
+        endpoints = np.array([
+            [1, 0, 3, 0],
+            [0, -1, 4, 1],
+        ], dtype=float)
+
+        result = recognize_trace_nodes(endpoints, _make_config())
+
+        assert result.intersection_count == 1
+        assert any(node.node_type == "X" for node in result.nodes)
+
     def test_disabled_returns_empty(self) -> None:
         endpoints = np.array([[0, 0, 1, 1], [0, 1, 1, 0]], dtype=float)
         config = _make_config(enabled=False)

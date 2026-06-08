@@ -56,6 +56,8 @@ input/
 output/
 outputs/
 logs/
+cache/
+reports/
 .opencode/
 .claude/
 .codebuddy/
@@ -65,6 +67,7 @@ config.json
 
 # reference — 研究资料目录（全部忽略，仅保留 matlab/ 和 Markdown 文档）
 reference/*
+!reference/favicon.ico
 !reference/matlab/
 !reference/matlab/**
 !reference/*.md

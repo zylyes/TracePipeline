@@ -60,4 +60,7 @@ def error_response(message: str, *, status: str = "error") -> dict[str, Any]:
 
     所有服务层方法均应使用此函数返回错误，保证前端只需处理一种格式。
     """
-    return {"status": status, "message": message}
+    response: dict[str, Any] = {"status": status, "message": message}
+    if status == "error":
+        response["error"] = message
+    return response

@@ -72,7 +72,8 @@ class PathSecurityChecker:
                 return None
             # 检查 Windows 设备名（所有路径段）
             for part in p_check.parts:
-                if part.upper() in self._WINDOWS_DEVICE_NAMES:
+                device_candidate = part.rstrip(" .").split(".", 1)[0].upper()
+                if device_candidate in self._WINDOWS_DEVICE_NAMES:
                     logger.warning("拒绝 Windows 设备名路径: %s", path)
                     return None
 

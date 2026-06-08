@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { msg } from '@/utils/message'
@@ -155,7 +155,6 @@ import ConfigIcon from '@/components/icons/ConfigIcon.vue'
 import { useAppStore } from '@/stores/app'
 import { useConfigStore } from '@/stores/config'
 import { usePipelineStore } from '@/stores/pipeline'
-import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 
 const appVersion = __APP_VERSION__
@@ -177,7 +176,6 @@ function onSplashComplete(payload: { errors: Array<{ step: string; error: string
 const route = useRoute()
 const appStore = useAppStore()
 const configStore = useConfigStore()
-const cacheStore = useCacheStore()
 
 const menuItems = [
   { path: '/', label: '首页', icon: HomeIcon },
@@ -451,35 +449,9 @@ const bootSteps: BootStep[] = [
       const hasStoredNode = localStorage.getItem('tp_last_enable_node_recognition') !== null
       if (!hasStoredRose || !hasStoredNode) {
         pipelineStore.setLastRunConfig(
-          cfg.enable_node_recognition ?? true,
-          cfg.export_rose_plot ?? true
+          cfg.enable_node_recognition ?? false,
+          cfg.export_rose_plot ?? false
         )
-      }
-    }
-  },
-  {
-    label: '正在扫描工作目录...',
-    targetProgress: 65,
-    task: async () => {
-      // 确保后端缓存失效，扫描最新文件列表
-      const files = await api.scan_files(true)
-      if (!files || files.length === 0) {
-        throw new Error('未发现迹线表文件，请检查 input 目录')
-      }
-      cacheStore.setScan(files)
-    }
-  },
-  {
-    label: '正在加载统计数据...',
-    targetProgress: 90,
-    task: async () => {
-      const files = cacheStore.getScan()
-      if (files && files.length > 0) {
-        const firstOutcrop = files[0].outcrop
-        const stats = await api.get_stats(firstOutcrop)
-        if (!stats.error) {
-          cacheStore.setStats(firstOutcrop, stats)
-        }
       }
     }
   },

@@ -13,7 +13,7 @@ from backend.utils.path_utils import validate_outcrop_name
 
 logger = logging.getLogger(__name__)
 
-REPORT_DIR = PROJECT_ROOT / "output" / "reports"
+REPORT_DIR = PROJECT_ROOT / "reports"
 
 
 def _find_system_font() -> tuple[str, str]:

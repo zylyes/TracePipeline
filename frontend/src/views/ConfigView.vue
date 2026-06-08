@@ -2,7 +2,7 @@
   <div class="config-view">
     <h2 class="page-title">配置</h2>
     <ConfigForm v-model="form" :style-config="styleConfig" @style-change="onStyleChange" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
-    <StylePreview :style-config="styleConfig" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
+    <StylePreview :style-config="styleConfig" :preview-trigger="previewTrigger" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
     <DevPanel v-show="appStore.isDevMode" @saved="loadConfig" @reset="loadConfig" />
 
     <div class="action-bar tp-card">
@@ -56,6 +56,7 @@ const DEFAULT_STYLE = {
 
 const form = ref<ConfigData>({})
 const styleConfig = ref<ConfigData>({ ...DEFAULT_STYLE })
+const previewTrigger = ref(0)
 const fileInputRef = ref<HTMLInputElement>()
 
 async function reloadConfig() {
@@ -144,6 +145,7 @@ async function resetStyleConfig() {
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
+    previewTrigger.value += 1
     msg.success('样式设置已重置为默认')
   } catch (e) {
     msg.error('重置样式设置失败')
@@ -175,6 +177,7 @@ async function resetAllConfig() {
     if (cfg.style && typeof cfg.style === 'object') {
       styleConfig.value = { ...styleConfig.value, ...cfg.style }
     }
+    previewTrigger.value += 1
     if (cfg.input_dir) appStore.inputDir = cfg.input_dir
     if (cfg.output_dir) appStore.outputDir = cfg.output_dir
     msg.success('已恢复所有默认配置')
@@ -210,6 +213,7 @@ async function importJSON(event: Event) {
     form.value = { ...saved }
     if (saved.style && typeof saved.style === 'object') {
       styleConfig.value = { ...DEFAULT_STYLE, ...saved.style }
+      previewTrigger.value += 1
     }
     if (saved.input_dir) appStore.inputDir = saved.input_dir
     if (saved.output_dir) appStore.outputDir = saved.output_dir
@@ -224,6 +228,7 @@ async function importJSON(event: Event) {
 
 function onStyleChange(val: ConfigData) {
   styleConfig.value = { ...val }
+  previewTrigger.value += 1
 }
 
 onMounted(async () => {

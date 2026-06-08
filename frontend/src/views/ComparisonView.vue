@@ -85,11 +85,13 @@
           class="image-card"
           v-for="img in filteredImages"
           :key="img.outcrop + img.type"
+          @mouseenter="ensureImageLoaded(img)"
           @click="openViewer(img)"
         >
           <div class="image-label">{{ img.outcrop }} · {{ img.type }}</div>
           <div class="image-wrapper">
-            <img :src="img.src" class="grid-img" />
+            <img v-if="img.src" :src="img.src" class="grid-img" loading="lazy" />
+            <div v-else class="image-placeholder">{{ img.loading ? '加载中...' : '悬停加载预览' }}</div>
           </div>
         </div>
       </div>
@@ -106,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onActivated, computed } from 'vue'
+import { ref, watch, onActivated, computed } from 'vue'
 import { msg } from '@/utils/message'
 import { TrendCharts, Picture } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
@@ -128,6 +130,7 @@ defineOptions({ name: 'Comparison' })
 
 const pipelineStore = usePipelineStore()
 const cacheStore = useCacheStore()
+const INITIAL_IMAGE_PREFETCH_COUNT = 6
 
 const tableData = ref<ComparisonRow[]>([])
 const loading = ref(false)
@@ -160,7 +163,9 @@ const filteredImages = computed(() => {
 interface GridImage {
   outcrop: string
   type: string
+  path: string
   src: string
+  loading?: boolean
 }
 const allImages = ref<GridImage[]>([])
 
@@ -168,18 +173,52 @@ const viewerVisible = ref(false)
 const viewerImages = ref<Array<{ title: string; src: string }>>([])
 const viewerInitialIndex = ref(0)
 
-function openViewer(img: GridImage) {
+function syncViewerImages() {
   viewerImages.value = allImages.value.map(item => ({
     title: `${item.outcrop} · ${item.type}`,
     src: item.src,
   }))
+}
+
+async function ensureImageLoaded(img: GridImage) {
+  if (img.src || img.loading || !img.path) return
+  img.loading = true
+  try {
+    img.src = await loadImageBase64(img.path)
+    if (viewerVisible.value) syncViewerImages()
+  } finally {
+    img.loading = false
+  }
+}
+
+function prefetchGridImages() {
+  for (const img of filteredImages.value.slice(0, INITIAL_IMAGE_PREFETCH_COUNT)) {
+    void ensureImageLoaded(img)
+  }
+}
+
+function prefetchNearbyImages(index: number) {
+  for (const i of [index - 1, index, index + 1]) {
+    const img = allImages.value[i]
+    if (img) void ensureImageLoaded(img)
+  }
+}
+
+async function openViewer(img: GridImage) {
+  await ensureImageLoaded(img)
+  syncViewerImages()
   // 在全部图片中找到当前图片的索引
   const allIndex = allImages.value.findIndex(
     item => item.outcrop === img.outcrop && item.type === img.type
   )
   viewerInitialIndex.value = Math.max(0, allIndex)
   viewerVisible.value = true
+  prefetchNearbyImages(viewerInitialIndex.value)
 }
+
+watch(filteredImages, () => {
+  prefetchGridImages()
+})
 
 function safeFloat(val: string): number | null {
   if (val === '—' || val == null || val === '') return null
@@ -319,7 +358,7 @@ async function loadComparison(force = false) {
       }
     })
 
-    // 加载所有露头的所有图片（结果列表走缓存）
+    // 只保存图片路径；缩略图按需懒加载，避免一次性 base64 加载所有结果图。
     let results = force ? null : cacheStore.getResults()
     if (!results) {
       results = await api.get_results()
@@ -332,30 +371,34 @@ async function loadComparison(force = false) {
           images.push({
             outcrop: result.outcrop,
             type: '原始迹线',
-            src: await loadImageBase64(result.raw_plot),
+            path: result.raw_plot,
+            src: '',
           })
-        } catch { images.push({ outcrop: result.outcrop, type: '原始迹线', src: '' }) }
+        } catch { images.push({ outcrop: result.outcrop, type: '原始迹线', path: result.raw_plot, src: '' }) }
       }
       if (result.rotated_plot) {
         try {
           images.push({
             outcrop: result.outcrop,
             type: '旋转迹线',
-            src: await loadImageBase64(result.rotated_plot),
+            path: result.rotated_plot,
+            src: '',
           })
-        } catch { images.push({ outcrop: result.outcrop, type: '旋转迹线', src: '' }) }
+        } catch { images.push({ outcrop: result.outcrop, type: '旋转迹线', path: result.rotated_plot, src: '' }) }
       }
       if (pipelineStore.lastExportRosePlot && result.rose_plot) {
         try {
           images.push({
             outcrop: result.outcrop,
             type: '走向玫瑰',
-            src: await loadImageBase64(result.rose_plot),
+            path: result.rose_plot,
+            src: '',
           })
-        } catch { images.push({ outcrop: result.outcrop, type: '走向玫瑰', src: '' }) }
+        } catch { images.push({ outcrop: result.outcrop, type: '走向玫瑰', path: result.rose_plot, src: '' }) }
       }
     }
     allImages.value = images
+    prefetchGridImages()
   } catch (e) {
     console.error('对比页加载失败', e)
     msg.error('对比页加载失败')
@@ -365,19 +408,18 @@ async function loadComparison(force = false) {
   }
 }
 
-onMounted(() => {
-  hasInitializedComparison = true
-  loadComparison()
-})
-
 onActivated(() => {
   if (!hasInitializedComparison) {
     hasInitializedComparison = true
     loadComparison()
-  } else if (!cacheStore.isComparisonValid || !cacheStore.isScanValid || !cacheStore.isResultsValid) {
+  } else if (!cacheStore.isScanValid) {
     cacheStore.invalidateComparison()
     cacheStore.invalidateResults()
     loadComparison(true)
+  } else if (!cacheStore.isComparisonValid || !cacheStore.isResultsValid) {
+    if (!cacheStore.isComparisonValid) cacheStore.invalidateComparison()
+    if (!cacheStore.isResultsValid) cacheStore.invalidateResults()
+    loadComparison(false)
   }
 })
 </script>
@@ -622,5 +664,18 @@ onActivated(() => {
   max-width: 100%;
   max-height: 160px;
   object-fit: contain;
+}
+
+.image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 96px;
+  border: 1px dashed var(--tp-border-medium);
+  border-radius: var(--tp-radius-sm);
+  color: var(--tp-text-muted);
+  font-size: 12px;
+  background: var(--tp-bg-base);
 }
 </style>

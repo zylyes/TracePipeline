@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated } from 'vue'
+import { ref, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 import { msg } from '@/utils/message'
 import { InfoFilled } from '@element-plus/icons-vue'
@@ -145,11 +145,6 @@ function onSourceChange() {
     onOutcropChange()
   }
 }
-
-onMounted(() => {
-  hasInitializedData = true
-  loadOutcrops()
-})
 
 onActivated(() => {
   if (!hasInitializedData) {

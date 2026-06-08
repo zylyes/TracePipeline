@@ -260,7 +260,6 @@ def recognize_trace_nodes(
             & (valid_bbox[:, 2] >= x_min_i)  # bbox_j.x_max >= bbox_i.x_min
             & (valid_bbox[:, 1] <= y_max_i)  # bbox_j.y_min <= bbox_i.y_max
             & (valid_bbox[:, 3] >= y_min_i)  # bbox_j.y_max >= bbox_i.y_min
-            & (valid_bbox[:, 0] > bbox_i[0] - bbox_margin)  # 避免重复处理
         )
 
         # 只处理索引更大的迹线

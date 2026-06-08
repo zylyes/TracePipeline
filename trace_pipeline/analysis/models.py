@@ -23,8 +23,8 @@ _NODE_TYPE_LABELS: dict[str, str] = {
 class NodeRecognitionConfig:
     """节点识别配置。"""
 
-    enabled: bool = True
-    merge_tolerance: float = 1e-6
+    enabled: bool = False
+    merge_tolerance: float = 0.01
     show_overlay: bool = True
     label_mode: Literal["none", "type", "id"] = "type"
 

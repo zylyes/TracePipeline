@@ -1,6 +1,6 @@
 # 岩体节理测线坐标计算与绘图工具
 
-> **版本**: v3.7.6 | **语言**: Python >= 3.10 | **许可证**: MIT
+> **版本**: v3.8.2 | **语言**: Python >= 3.10 | **许可证**: MIT
 
 基于 Python 的岩体节理测线法数据处理与可视化系统，支持 **CLI 命令行**与**桌面 GUI（pywebview + Vue 3）**双模式。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原型算法完整移植为工程化 Python 代码。适用于高放废物地质处置场址的节理几何特征分析。
 
@@ -24,7 +24,7 @@
 
 ```
 .
-├── config.json                         # 默认配置文件
+├── config.example.json                 # 配置模板；运行 GUI 时会自动生成本地 config.json
 ├── pyproject.toml                      # 项目元数据与依赖（含 CLI 入口）
 ├── run_trace_pipeline.py               # CLI 入口脚本
 ├── run_gui.py                          # GUI 入口脚本
@@ -123,7 +123,7 @@
 │       └── security.py                  # 路径遍历防护（PathSecurityChecker）
 │
 ├── frontend/                           # Vue 3 前端（43 源文件）
-│   ├── package.json                    # v3.6.3，Vue 3 + Element Plus + ECharts
+│   ├── package.json                    # v3.8.2，Vue 3 + Element Plus + ECharts
 │   ├── vite.config.ts                  # 构建到 ../backend/static
 │   ├── tsconfig.json                   # TypeScript 配置
 │   └── src/
@@ -364,7 +364,7 @@ Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (33 方法) → 9 个 Serv
 
 ## 配置
 
-配置文件 `config.json`（项目根目录）控制所有运行参数：
+配置文件 `config.json`（项目根目录，本地生成且不提交）控制所有运行参数；仓库提供 `config.example.json` 作为模板：
 
 ```json
 {
@@ -374,7 +374,7 @@ Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (33 方法) → 9 个 Serv
   "table_stem":               "O76_process",
   "outcrop":                  "O76",
   "process_all":              true,
-  "export_rose_plot":         true,
+  "export_rose_plot":         false,
   "rose_bin_width":           10.0,
   "rose_dpi":                 600,
   "trace_dpi":                600,
@@ -384,7 +384,7 @@ Vue 3 前端 → pywebview.api (JS Bridge) → GuiApi (33 方法) → 9 个 Serv
   "tangent_window_count":     3,
   "min_intersections":        5,
   "style":                    {},
-  "enable_node_recognition":  true,
+  "enable_node_recognition":  false,
   "node_merge_tolerance":     0.01,
   "show_node_overlay":        true,
   "is_dev_mode":              false

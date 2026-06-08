@@ -76,10 +76,10 @@ class TTLCache:
 
 
 class DirectoryChangeDetector:
-    """通过比较目录 mtime 和文件数量快照，检测目录是否发生了外部变更。"""
+    """Detect external changes from a shallow directory content snapshot."""
 
     def __init__(self) -> None:
-        self._snapshot: tuple[float, int] | None = None
+        self._snapshot: tuple[Any, ...] | None = None
 
     def has_changed(self, directory: Path) -> bool:
         """检测目录是否发生了外部变更。
@@ -91,14 +91,21 @@ class DirectoryChangeDetector:
             True 表示检测到变更（且已更新内部快照），False 表示无变更。
         """
         if not directory.exists():
-            current_snapshot = (-1.0, 0)
+            current_snapshot = ("missing",)
         else:
             try:
-                mtime = directory.stat().st_mtime
-                file_count = sum(1 for _ in directory.iterdir())
-                current_snapshot = (mtime, file_count)
+                dir_stat = directory.stat()
+                children: list[tuple[str, bool, int, int]] = []
+                for child in directory.iterdir():
+                    try:
+                        stat = child.stat()
+                    except OSError:
+                        children.append((child.name, False, -1, -1))
+                        continue
+                    children.append((child.name, child.is_dir(), stat.st_size, stat.st_mtime_ns))
+                current_snapshot = (dir_stat.st_mtime_ns, tuple(sorted(children)))
             except OSError:
-                current_snapshot = (-1.0, 0)
+                current_snapshot = ("error",)
 
         if self._snapshot is None:
             self._snapshot = current_snapshot

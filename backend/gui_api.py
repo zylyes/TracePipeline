@@ -55,6 +55,7 @@ class GuiApi:
         self._report = ReportService()
         self._audit = AuditService()
         self._window: Any = None
+        self._user_selected_paths: set[Path] = set()
         self._window_maximized = False
         # 重资源操作的运行锁（线程安全）
         self._preview_lock = threading.Lock()
@@ -116,8 +117,23 @@ class GuiApi:
         raw = Path(path)
         if not raw.is_absolute():
             return self._safe_known_path(path)
+        try:
+            resolved = raw.resolve().absolute()
+        except (OSError, RuntimeError) as exc:
+            logger.warning("用户选择路径解析失败 %s: %s", path, exc)
+            return None
+        if resolved not in self._user_selected_paths:
+            logger.warning("拒绝未通过系统对话框登记的外部路径: %s", path)
+            return None
         base = raw if expect_dir else raw.parent
         return self._safe_path_in_base(path, base)
+
+    def _remember_user_selected_path(self, path: str) -> str:
+        try:
+            self._user_selected_paths.add(Path(path).resolve().absolute())
+        except (OSError, RuntimeError) as exc:
+            logger.warning("登记用户选择路径失败 %s: %s", path, exc)
+        return path
 
     def _sync_services_from_config(self, cfg: dict[str, Any]) -> None:
         """用校验后的统一配置同步 FileService / DataService 路径。"""
@@ -601,10 +617,12 @@ class GuiApi:
             )
             if isinstance(result, list) and result:
                 chosen = str(result[0])
+                self._remember_user_selected_path(chosen)
                 logger.info("ask_save_path → %s", chosen, extra={"stage": "api_ask_save_path", "selected": chosen})
                 return chosen
             if isinstance(result, str):
                 chosen = str(result)
+                self._remember_user_selected_path(chosen)
                 logger.info("ask_save_path → %s", chosen, extra={"stage": "api_ask_save_path", "selected": chosen})
                 return chosen
             logger.debug("ask_save_path → 用户取消选择", extra={"stage": "api_ask_save_path"})
@@ -623,9 +641,12 @@ class GuiApi:
                 webview.FileDialog.FOLDER, allow_multiple=False
             )
             if isinstance(result, list) and result:
-                logger.info("browse_folder → %s", result[0], extra={"stage": "api_browse_folder", "selected": str(result[0])})
-                return str(result[0])
+                chosen = str(result[0])
+                self._remember_user_selected_path(chosen)
+                logger.info("browse_folder → %s", chosen, extra={"stage": "api_browse_folder", "selected": chosen})
+                return chosen
             if isinstance(result, str):
+                self._remember_user_selected_path(result)
                 logger.info("browse_folder → %s", result, extra={"stage": "api_browse_folder", "selected": result})
                 return result
             logger.debug("browse_folder → 用户取消选择", extra={"stage": "api_browse_folder"})

@@ -6,7 +6,7 @@
   "table_stem": "O76_process",
   "outcrop": "O76",
   "process_all": true,
-  "export_rose_plot": true,
+  "export_rose_plot": false,
   "rose_bin_width": 10.0,
   "rose_dpi": 600,
   "trace_dpi": 600,

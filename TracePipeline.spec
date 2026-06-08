@@ -22,15 +22,21 @@ if _init_path.exists():
             _version = _stripped.split("=", 1)[1].strip().strip('"').strip("'")
             break
 
+# ---------- Bundled data ----------
+_datas = []
+if Path("backend/static").exists():
+    _datas.append(("backend/static", "backend/static"))
+if Path("reference/favicon.ico").exists():
+    _datas.append(("reference/favicon.ico", "reference"))
+_icon = "reference/favicon.ico" if Path("reference/favicon.ico").exists() else None
+
+
 # ---------- Analysis ----------
 a = Analysis(
     ["run_gui.py"],
     pathex=[],
     binaries=[],
-    datas=[
-        ("backend/static", "backend/static"),
-        ("reference/favicon.ico", "reference"),
-    ],
+    datas=_datas,
     hiddenimports=[
         # matplotlib Agg 后端（run_gui.py 中 matplotlib.use('Agg') 显式设置）
         "matplotlib.backends.backend_agg",
@@ -126,7 +132,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon="reference/favicon.ico",
+    icon=_icon,
 )
 
 # ---------- COLLECT ----------

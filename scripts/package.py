@@ -31,7 +31,7 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend"
 STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 DIST_DIR = PROJECT_ROOT / "dist"
 BUILD_DIR = PROJECT_ROOT / "build"
-ICON_FILE = PROJECT_ROOT / "reference" / "ECUT.ico"
+ICON_FILE = PROJECT_ROOT / "reference" / "favicon.ico"
 VENV_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
 _iscc = os.environ.get("ISCC_EXE", "")
 _7z = os.environ.get("SEVEN_ZIP", "")
@@ -311,6 +311,7 @@ def generate_iss(version: str) -> Path:
     """生成 Inno Setup 脚本，返回 .iss 文件路径。"""
     dist_dir_bs = str(DIST_DIR.resolve())
     icon_bs = str(ICON_FILE.resolve())
+    bundled_icon = f"reference\\{ICON_FILE.name}"
     # Windows 反斜杠转义给 Inno Setup
     lang_bs = str(ISS_LANG_DIR.resolve())
 
@@ -337,7 +338,7 @@ WizardStyle=modern
 OutputDir={dist_dir_bs}
 OutputBaseFilename={APP_NAME}-Setup-v{version}
 SetupIconFile={icon_bs}
-UninstallDisplayIcon={{app}}\\reference\\ECUT.ico
+UninstallDisplayIcon={{app}}\\{bundled_icon}
 UninstallDisplayName=TracePipeline v{version}
 VersionInfoVersion={version}
 
@@ -349,9 +350,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "{dist_dir_bs}\\{APP_NAME}\\*"; DestDir: "{{app}}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; IconFilename: "{{app}}\\reference\\ECUT.ico"
+Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; IconFilename: "{{app}}\\{bundled_icon}"
 Name: "{{group}}\\卸载 TracePipeline"; Filename: "{{uninstallexe}}"
-Name: "{{commondesktop}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; IconFilename: "{{app}}\\reference\\ECUT.ico"; Tasks: desktopicon
+Name: "{{commondesktop}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; IconFilename: "{{app}}\\{bundled_icon}"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "其他快捷方式"
@@ -484,6 +485,8 @@ def _setup_console() -> None:
 
 
 def main() -> int:
+    global ISCC_EXE, ISS_LANG_DIR, SEVEN_ZIP, SFX_MODULE
+
     _setup_console()
     parser = argparse.ArgumentParser(
         description="TracePipeline 应用打包脚本",
@@ -524,7 +527,6 @@ def main() -> int:
 
     _iscc = args.iscc_path or ISCC_EXE
     _se7z = args.seven_zip_path or SEVEN_ZIP
-    global ISCC_EXE, ISS_LANG_DIR, SEVEN_ZIP, SFX_MODULE
     ISCC_EXE = _iscc
     ISS_LANG_DIR = _iscc.parent / "Languages"
     SEVEN_ZIP = _se7z

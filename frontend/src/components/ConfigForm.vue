@@ -123,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 import { Brush as BrushIcon, RefreshLeft as RefreshLeftIcon, Folder, Brush } from '@element-plus/icons-vue'
 import { api } from '@/api/pywebview'
 import type { ConfigData } from '@/types'
@@ -149,9 +149,14 @@ const defaultForm: ConfigData = {
 
 const form = reactive<ConfigData>({ ...defaultForm, ...props.modelValue })
 const style = ref<ConfigData>({ ...props.styleConfig })
+let syncingFromProps = false
 
 watch(() => props.modelValue, (val) => {
+  syncingFromProps = true
   Object.assign(form, { ...defaultForm, ...val })
+  void nextTick(() => {
+    syncingFromProps = false
+  })
 }, { deep: true })
 
 watch(() => props.styleConfig, (val) => {
@@ -175,6 +180,7 @@ watch(
       payload.output_dir = newOutput
     }
     if (Object.keys(payload).length > 0) {
+      if (syncingFromProps) return
       if (pathSaving) return
       pathSaving = true
       try {

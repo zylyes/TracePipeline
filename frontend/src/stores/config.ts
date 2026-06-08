@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/api/pywebview'
+import { useCacheStore } from '@/stores/cache'
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref<Record<string, any>>({})
   const loading = ref(false)
+
+  function invalidateCaches() {
+    useCacheStore().invalidateAll()
+  }
 
   async function loadConfig() {
     loading.value = true
@@ -22,6 +27,7 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const saved = await api.set_config(payload)
       config.value = { ...saved }
+      invalidateCaches()
       return saved
     } finally {
       loading.value = false
@@ -33,6 +39,7 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const cfg = await api.reset_config()
       config.value = { ...cfg }
+      invalidateCaches()
       return cfg
     } finally {
       loading.value = false
@@ -44,6 +51,7 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const cfg = await api.reset_processing_config()
       config.value = { ...cfg }
+      invalidateCaches()
       return cfg
     } finally {
       loading.value = false
@@ -55,6 +63,7 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const cfg = await api.reset_style_config()
       config.value = { ...cfg }
+      invalidateCaches()
       return cfg
     } finally {
       loading.value = false

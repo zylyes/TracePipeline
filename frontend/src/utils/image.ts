@@ -22,9 +22,3 @@ export async function loadImageBase64(path: string): Promise<string> {
     return ''
   }
 }
-
-export function previewImage(images: Array<{ title: string; src: string }>, initialIndex = 0) {
-  // 通过事件总线或全局状态触发 ImageViewer
-  // 这里返回一个配置对象，由调用方通过组件绑定
-  return { images, initialIndex }
-}

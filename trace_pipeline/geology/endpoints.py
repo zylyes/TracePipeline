@@ -44,6 +44,7 @@ import numpy as np
 import pandas as pd
 
 from .angles import azimuth_to_cartesian_deg, dip_to_strike, fold_to_halfplane
+from ._stat_types import _EPS
 
 logger = logging.getLogger(__name__)
 
@@ -315,8 +316,9 @@ def compute_endpoints(
     ang_joint = np.mod(270.0 - joint_strike, 360.0)
 
     # ---- 侧向判定 ----
-    has_left = r5 != 0.0
-    has_right = r7 != 0.0
+    # 用容差比较而非精确 != 0.0:避免浮点残留值(如 1e-16)被误判为"有迹线"
+    has_left = np.abs(r5) > _EPS
+    has_right = np.abs(r7) > _EPS
 
     # ---- 复数向量 ----
     z1_base = r1 * np.exp(1j * rad_base)

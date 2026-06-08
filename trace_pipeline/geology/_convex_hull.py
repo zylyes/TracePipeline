@@ -7,9 +7,6 @@ import numpy as np
 
 from ._stat_types import _EPS
 
-__all__: list[str] = []
-
-
 def _cross_2d(a: np.ndarray, b: np.ndarray) -> float:
     """二维向量叉积（标量值）。"""
     return float(a[0] * b[1] - a[1] * b[0])

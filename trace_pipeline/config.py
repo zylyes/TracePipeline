@@ -54,6 +54,7 @@ class ConfigDict(TypedDict, total=False):
     show_node_overlay: bool
     is_dev_mode: bool
     min_intersections: int
+    node_label_mode: str
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -77,9 +78,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "node_merge_tolerance": 0.01,
     "show_node_overlay": True,
     "is_dev_mode": False,
+    "node_label_mode": "type",
 }
 
-_REQUIRED_KEYS = ("input_dir", "output_dir", "table_stem", "outcrop")
+_REQUIRED_KEYS = ("input_dir", "output_dir", "outcrop")
 
 # ===========================================================================
 # 配置加载
@@ -137,11 +139,23 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
         "配置文件加载成功: %s", path,
         extra={"stage": "config_load", "config_path": str(path), "keys": list(data.keys())},
     )
-    return validate_config(data)
+    base_dir = resolve_config_base_dir(path) if explicit_path else PROJECT_ROOT
+    return validate_config(data, base_dir=base_dir)
 
 
-def validate_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
-    """合并默认值、规范化类型并检查必填项；保留 style 子对象，对其它未知键发出警告。"""
+def validate_config(
+    cfg: Mapping[str, Any],
+    *,
+    resolve_paths: bool = True,
+    base_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """合并默认值、规范化类型并检查必填项；保留 style 子对象，对其它未知键发出警告。
+
+    Args:
+        cfg: 输入的配置映射。
+        resolve_paths: 是否将 input_dir / output_dir 解析为绝对路径。默认 True，
+                       确保下游服务在任何工作目录下都能找到文件。
+    """
     merged = dict(DEFAULT_CONFIG)
     # 保留 style 子对象，即使它在 DEFAULT_CONFIG 中为空 dict
     allowed_keys = set(DEFAULT_CONFIG.keys())
@@ -154,6 +168,12 @@ def validate_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
         k for k in _REQUIRED_KEYS
         if merged.get(k) is None or str(merged[k]).strip() == ""
     ]
+    # table_stem 在 process_all=True 时允许为空（批量模式从文件扫描获取）
+    if not merged.get("process_all", True):
+        for k in ("table_stem",):
+            v = merged.get(k)
+            if v is None or str(v).strip() == "":
+                missing.append(k)
     if missing:
         raise ValueError(f"缺少必要配置字段: {', '.join(missing)}")
 
@@ -162,6 +182,11 @@ def validate_config(cfg: Mapping[str, Any]) -> dict[str, Any]:
     for key in _REQUIRED_KEYS + ("output_prefix",):
         if key in merged:
             merged[key] = str(merged[key]).strip()
+
+    if resolve_paths:
+        path_base = Path(base_dir).expanduser().resolve() if base_dir else PROJECT_ROOT
+        merged["input_dir"] = str(_to_absolute(merged["input_dir"], path_base))
+        merged["output_dir"] = str(_to_absolute(merged["output_dir"], path_base))
 
     return merged
 
@@ -244,15 +269,14 @@ def apply_cli_overrides(cfg: dict[str, Any], **overrides: Any) -> dict[str, Any]
 
 
 def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:
-    """确保 input / output / logs 目录及 config.json 存在，缺失则自动创建。
+    """确保 input / output / logs 目录存在，缺失则自动创建。
 
     - 若传入 cfg，则使用 cfg 中的 input_dir / output_dir 而非默认路径。
     - 目录缺失时自动创建（含父目录），权限异常仅记录警告，不抛出。
-    - config.json 缺失时写入默认配置（同样静默处理写入异常）。
+    - 不再写入 config.json（该职责已由 backend/services/config_service.py 统一接管）。
     """
     base = PROJECT_ROOT
 
-    # 确定实际使用的输入/输出目录（统一转为 Path，兼容 str/Path 输入）
     if cfg:
         input_dir = Path(str(cfg.get("input_dir", base / "input")))
         output_dir = Path(str(cfg.get("output_dir", base / "output")))
@@ -261,9 +285,7 @@ def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:
         output_dir = base / "output"
 
     logs_dir = base / "logs"
-    config_path = DEFAULT_CONFIG_PATH
 
-    # 需要保障的目录列表
     dirs_to_ensure: list[tuple[str, Path]] = [
         ("input", input_dir),
         ("output", output_dir),
@@ -285,25 +307,6 @@ def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:
             logger.warning(
                 "创建目录 %s 失败: %s，程序将继续运行", dir_path, exc,
                 extra={"stage": "workspace_init", "dir": str(dir_path), "error_type": "OSError"},
-            )
-
-    # config.json 缺失时写入默认配置
-    if not config_path.exists():
-        try:
-            config_path.write_text(
-                json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            logger.info("自动创建默认配置: %s", config_path)
-        except PermissionError as exc:
-            logger.warning(
-                "无权限写入配置文件 %s: %s，程序将继续运行", config_path, exc,
-                extra={"stage": "workspace_init", "config_path": str(config_path), "error_type": "PermissionError"},
-            )
-        except OSError as exc:
-            logger.warning(
-                "写入配置文件 %s 失败: %s，程序将继续运行", config_path, exc,
-                extra={"stage": "workspace_init", "config_path": str(config_path), "error_type": "OSError"},
             )
 
 

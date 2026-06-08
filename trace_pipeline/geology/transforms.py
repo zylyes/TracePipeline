@@ -12,7 +12,7 @@ import math
 
 import numpy as np
 
-from .angles import azimuth_to_cartesian_deg, fold_strike_angle
+from .angles import fold_strike_angle
 
 __all__ = [
     "normalize_coordinates",
@@ -60,8 +60,8 @@ def _line_shift_vector(arr: np.ndarray, margin: float = 0.0) -> np.ndarray:
 
 def _shift_lines(arr: np.ndarray, shift: np.ndarray) -> np.ndarray:
     if float(shift[0]) == 0.0 and float(shift[1]) == 0.0:
-        return arr.copy()  # type: ignore[no-any-return]
-    return arr + np.array([shift[0], shift[1], shift[0], shift[1]], dtype=float)  # type: ignore[no-any-return]
+        return arr.copy()
+    return arr + np.array([shift[0], shift[1], shift[0], shift[1]], dtype=float)
 
 
 def _shift_to_nonnegative(arr: np.ndarray, margin: float = 0.0) -> np.ndarray:
@@ -77,20 +77,8 @@ def _rotation_matrix(azimuth_deg: float) -> np.ndarray:
 
 def _rotate_lines(arr: np.ndarray, rot_mat: np.ndarray) -> np.ndarray:
     if arr.size == 0:
-        return arr.copy()  # type: ignore[no-any-return]
-    return (arr.reshape(-1, 2) @ rot_mat.T).reshape(arr.shape)  # type: ignore[no-any-return]
-
-
-def local_points_to_global(points: np.ndarray, azimuth_deg: float) -> np.ndarray:
-    """将测线局部坐标点反投影到原始全局坐标系。"""
-    local = _validate_points(points)
-    if local.size == 0:
-        return local.copy()  # type: ignore[no-any-return]
-
-    angle = math.radians(azimuth_to_cartesian_deg(azimuth_deg))
-    along = np.array([math.cos(angle), math.sin(angle)], dtype=float)
-    left = np.array([-math.sin(angle), math.cos(angle)], dtype=float)
-    return local[:, [0]] * along + local[:, [1]] * left  # type: ignore[no-any-return]
+        return arr.copy()
+    return (arr.reshape(-1, 2) @ rot_mat.T).reshape(arr.shape)
 
 
 # ===========================================================================
@@ -131,7 +119,7 @@ def rotate_and_shift(lines: np.ndarray, azimuth_deg: float) -> np.ndarray:
     """
     arr = _validate_lines(lines)
     if arr.size == 0:
-        return arr.copy()  # type: ignore[no-any-return]
+        return arr.copy()
 
     # (N, 4) → (N×2, 2) 矩阵乘法 → (N, 4)
     rotated = _rotate_lines(arr, _rotation_matrix(azimuth_deg))
@@ -184,4 +172,4 @@ def normalize_points_like_lines(
     rotated_points = shifted_points @ rot_mat.T
 
     second_shift = _line_shift_vector(rotated_lines, margin=0.0)
-    return rotated_points + second_shift  # type: ignore[no-any-return]
+    return rotated_points + second_shift

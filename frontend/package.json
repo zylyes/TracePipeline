@@ -1,28 +1,30 @@
 {
   "name": "tracepipeline-gui",
   "private": true,
-  "version": "3.6.4",
+  "version": "3.7.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "vue": "^3.4.21",
-    "vue-router": "^4.3.0",
-    "pinia": "^2.1.7",
     "@element-plus/icons-vue": "^2.3.1",
-    "element-plus": "^2.6.3",
     "echarts": "^5.5.0",
-    "vue-echarts": "^6.6.9"
+    "element-plus": "^2.6.3",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21",
+    "vue-echarts": "^6.6.9",
+    "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@types/node": "^25.9.1",
     "@vitejs/plugin-vue": "^5.0.4",
+    "sass": "^1.74.1",
     "typescript": "^5.4.5",
     "vite": "^5.2.8",
-    "vue-tsc": "^2.0.11",
-    "sass": "^1.74.1"
+    "vue-tsc": "^2.0.11"
   },
   "note": "请确保 package-lock.json 已生成并提交到版本控制，以保证构建一致性。"
 }

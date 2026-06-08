@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { PipelineResult } from '@/types'
 
 const STORAGE_KEY_ROSE = 'tp_last_export_rose_plot'
 const STORAGE_KEY_NODE = 'tp_last_enable_node_recognition'
@@ -18,7 +19,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     filename: '',
     message: '',
   })
-  const results = ref<any[]>([])
+  const results = ref<PipelineResult[]>([])
 
   // 从 localStorage 恢复持久化状态，默认 true
   const lastEnableNodeRecognition = ref(loadBool(STORAGE_KEY_NODE, true))

@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from backend.utils.path_utils import resolve_path, error_response
+from backend.utils.path_utils import resolve_path, error_response, validate_outcrop_name
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,13 @@ class DataService:
         self._output_dir = resolve_path(output_dir)
         self._input_dir = resolve_path(input_dir)
 
+    @staticmethod
+    def _paginate(data: list, page: int, page_size: int) -> tuple[list, int]:
+        """按页切片,返回 (当前页数据, 总条数)。"""
+        total = len(data)
+        start = (page - 1) * page_size
+        return data[start:start + page_size], total
+
     def get_data(
         self,
         outcrop: str,
@@ -55,6 +62,10 @@ class DataService:
         source: str = "output",
     ) -> dict[str, Any]:
         """读取指定露头 Excel 的指定分区。"""
+        try:
+            validate_outcrop_name(outcrop)
+        except ValueError as exc:
+            return error_response(str(exc))
         if source == "input":
             return self._get_input_data(outcrop, page, page_size)
 
@@ -86,10 +97,7 @@ class DataService:
             return error_response(str(exc))
 
         data = df.to_dict("records")
-        total = len(data)
-        start = (page - 1) * page_size
-        end = start + page_size
-        page_data = data[start:end]
+        page_data, total = self._paginate(data, page, page_size)
 
         logger.debug(
             "get_data [%s/%s] page=%d: %d/%d 条",
@@ -119,11 +127,11 @@ class DataService:
     def _get_input_data(self, outcrop: str, page: int, page_size: int) -> dict[str, Any]:
         """读取 input 目录下的原始输入 Excel。"""
         table_stem = f"{outcrop}_process"
-        path = self._input_dir / f"{table_stem}.xlsx"
+        path = self._input_dir / f"{table_stem}.xls"
         if not path.exists():
-            path = self._input_dir / f"{table_stem}.xls"
+            path = self._input_dir / f"{table_stem}.xlsx"
             if not path.exists():
-                return error_response(f"输入文件不存在: {self._input_dir / table_stem}.xlsx/.xls")
+                return error_response(f"输入文件不存在: {self._input_dir / table_stem}.xls/.xlsx")
 
         try:
             df = pd.read_excel(path, sheet_name=outcrop, header=None)
@@ -151,10 +159,7 @@ class DataService:
             if record:
                 data.append(record)
 
-        total = len(data)
-        start = (page - 1) * page_size
-        end = start + page_size
-        page_data = data[start:end]
+        page_data, total = self._paginate(data, page, page_size)
 
         return {
             "outcrop": outcrop,

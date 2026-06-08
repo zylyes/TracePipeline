@@ -97,8 +97,8 @@ from trace_pipeline.utils.numpy_compat import to_native as _to_native
 
 
 def _json_default(obj: Any) -> Any:
-    """处理 numpy 等不可 JSON 序列化的类型。"""
-    result = _to_native(obj, max_depth=1)
+    """处理 numpy 等不可 JSON 序列化的类型，支持嵌套结构。"""
+    result = _to_native(obj, max_depth=10)
     if result is not obj:
         return result
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
@@ -293,31 +293,37 @@ def setup_logging(
     pkg_logger.propagate = False
 
     with _lock:
-        # 幂等：检查是否已有托管 Handler
-        has_console = any(
-            isinstance(h, logging.StreamHandler)
-            and not isinstance(h, logging.FileHandler)
-            and getattr(h, _MANAGED_ATTR, False)
-            for h in pkg_logger.handlers
+        # 幂等：复用已存在的托管 handler，避免二次调用时引用未初始化局部变量。
+        console = next(
+            (
+                h for h in pkg_logger.handlers
+                if isinstance(h, logging.StreamHandler)
+                and not isinstance(h, logging.FileHandler)
+                and getattr(h, _MANAGED_ATTR, False)
+            ),
+            None,
         )
-        has_file = any(
-            isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False)
-            for h in pkg_logger.handlers
+        file_handler = next(
+            (
+                h for h in pkg_logger.handlers
+                if isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False)
+            ),
+            None,
         )
 
-        if not has_console:
+        if console is None:
             console = logging.StreamHandler(sys.stdout)
-            console.setLevel(console_level)
             console.setFormatter(
                 logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
             )
             setattr(console, _MANAGED_ATTR, True)
             pkg_logger.addHandler(console)
+        console.setLevel(console_level)
 
-        if not has_file:
+        if file_handler is None:
             file_handler = DailyRotatingJsonHandler(log_dir=log_dir)
-            file_handler.setLevel(file_level)
             pkg_logger.addHandler(file_handler)
+        file_handler.setLevel(file_level)
 
         # 合并 backend 到 trace_pipeline：让 backend 的日志也写入同一个 run_XXX.jsonl
         backend_logger = logging.getLogger("backend")

@@ -11,10 +11,10 @@ import re
 from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING
 
-import numpy as np
 from matplotlib.patches import Rectangle
 
 from .style import text_font_kwargs
+from ._helpers import _north_arrow_geometry
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +230,11 @@ def _add_statistics_box(
     rule_y = panel_y1 - 0.080 * height_scale
     first_row_y = panel_y1 - 0.120 * height_scale
     bottom_y = panel_y0 + 0.045 * height_scale
-    row_step = (first_row_y - bottom_y) / max(len(rows) - 1, 1)
+    if len(rows) == 1:
+        first_row_y = (panel_y1 + panel_y0) / 2
+        row_step = 0
+    else:
+        row_step = (first_row_y - bottom_y) / (len(rows) - 1)
     font_size = _statistics_font_size(len(rows))
 
     ax.add_patch(
@@ -387,22 +391,16 @@ def _add_north_arrow(
         logger.warning("north_angle_deg 非有限值 (%s)，回退到 90.0°", north_angle_deg)
         north_angle_deg = 90.0
 
-    angle = math.radians(north_angle_deg)
-    dx, dy = math.cos(angle), math.sin(angle)
     arrow_len = _DEFAULT_ARROW_REL_LEN if arrow_len is None else arrow_len
-    label_gap = arrow_len * 0.25
 
     if center is None:
         center_x = _DEFAULT_ARROW_REL_X
         center_y = _DEFAULT_ARROW_REL_Y
     else:
         center_x, center_y = center
-    base_x = center_x - arrow_len * dx * 0.50
-    base_y = center_y - arrow_len * dy * 0.50
-    tip_x = center_x + arrow_len * dx * 0.50
-    tip_y = center_y + arrow_len * dy * 0.50
-    label_x = tip_x + label_gap * dx
-    label_y = tip_y + label_gap * dy
+    (base_x, base_y), (tip_x, tip_y), (label_x, label_y), _dx, _dy = _north_arrow_geometry(
+        north_angle_deg, center_x, center_y, arrow_len
+    )
 
     ax.annotate(
         "",
@@ -434,24 +432,105 @@ def _add_north_arrow(
 
 # ── 比例尺带 ─────────────────────────────────────────────
 
-def _add_scale_bar_band(
+def _render_legend(
     ax: plt.Axes,
-    xlim: tuple[float, float],
-    scale_length: float,
+    items: list[tuple[str, str]],
+    styles: dict[str, Any],
+    *,
+    row_spacing: float,
+    top_margin: float,
+    bottom_margin: float,
+    box_height_cap: float,
+    box_bottom: float,
+    first_row_offset: float,
 ) -> None:
-    """在独立比例尺带中绘制与数据轴同尺度的比例尺。"""
-    ax.set_xlim(*xlim)
+    """绘制自适应图例框(背景 + 图标行 + 文本)。
+
+    供数据图 _add_legend 与预览图 _add_preview_legend 共享,消除约 40 行
+    重复的布局/绘制骨架。布局间距与各图标样式由调用方算好后通过参数注入,
+    items 列表(由各自业务逻辑构建)决定显示哪些行。
+    """
+    ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
     ax.set_axis_off()
 
-    x_span = xlim[1] - xlim[0]
-    x0 = xlim[0] + x_span * 0.04
-    if x0 + scale_length > xlim[1]:
-        x0 = xlim[1] - scale_length - x_span * 0.04
-    x1 = x0 + scale_length
-    y = 0.62
-    tick = 0.17
+    n_items = len(items)
+    box_height = min(top_margin + n_items * row_spacing + bottom_margin, box_height_cap)
 
+    ax.add_patch(
+        Rectangle(
+            (0.02, box_bottom), 0.96, box_height,
+            facecolor="white", edgecolor="0.68", linewidth=0.6, alpha=0.94,
+            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER,
+        )
+    )
+
+    first_row_y = box_bottom + box_height - top_margin - first_row_offset
+    y_positions = tuple(first_row_y - i * row_spacing for i in range(n_items))
+    icon_h = 0.12
+    icon_half = icon_h / 2.0
+    for (kind, label), y in zip(items, y_positions, strict=False):
+        if kind == "trace":
+            ax.plot(
+                [0.08, 0.24], [y, y],
+                color=styles["trace_color"], linewidth=styles["trace_width"],
+                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+            )
+        elif kind == "hull":
+            ax.add_patch(
+                Rectangle(
+                    (0.08, y - icon_half), 0.16, icon_h,
+                    facecolor=styles["hull_fill"], alpha=styles["hull_alpha"],
+                    edgecolor=styles["hull_edge"], linewidth=styles["hull_lw"],
+                    linestyle=styles["hull_ls"],
+                    transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+                )
+            )
+        elif kind == "circle":
+            ax.add_patch(
+                Rectangle(
+                    (0.08, y - icon_half), 0.16, icon_h,
+                    facecolor=styles["circle_fill"], alpha=styles["circle_alpha"],
+                    edgecolor=styles["circle_edge"], linewidth=styles["circle_lw"],
+                    linestyle=styles["circle_ls"],
+                    transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+                )
+            )
+        elif kind.startswith("node_"):
+            node_type = kind.replace("node_", "")
+            node_ms = styles["node_style"]
+            ms = node_ms.get(node_type, node_ms["I"])
+            ax.plot(
+                0.16, y, linestyle="none", markersize=3.5,
+                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1, **ms,
+            )
+        else:
+            ax.plot(
+                [0.08, 0.24], [y, y], color="0.55", linewidth=0.65,
+                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+            )
+        ax.text(
+            0.31, y, label, ha="left", va="center",
+            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+            **text_font_kwargs(fontsize=5.8, color="black"),
+        )
+
+
+def _draw_scale_bar(
+    ax: plt.Axes,
+    x0: float,
+    x1: float,
+    y: float,
+    tick: float,
+    scale_length: float,
+    *,
+    label_offset_ratio: float,
+) -> None:
+    """绘制比例尺主体(横线 + 两端竖 tick + 标签文本)。
+
+    供数据轴版(_add_scale_bar)与独立比例尺带版(_add_scale_bar_band)共享,
+    消除两处约 30 行重复的绘制逻辑。坐标与文本偏移由调用方算好后传入。
+    """
     ax.plot(
         [x0, x1],
         [y, y],
@@ -479,7 +558,7 @@ def _add_scale_bar_band(
     )
     ax.text(
         (x0 + x1) / 2.0,
-        y - tick * 0.85,
+        y - tick * label_offset_ratio,
         _format_scale_label(scale_length),
         ha="center",
         va="top",
@@ -487,6 +566,27 @@ def _add_scale_bar_band(
         zorder=_ANNOTATION_ZORDER,
         **text_font_kwargs(fontsize=7.2, color="black"),
     )
+
+
+def _add_scale_bar_band(
+    ax: plt.Axes,
+    xlim: tuple[float, float],
+    scale_length: float,
+) -> None:
+    """在独立比例尺带中绘制与数据轴同尺度的比例尺。"""
+    ax.set_xlim(*xlim)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_axis_off()
+
+    x_span = xlim[1] - xlim[0]
+    x0 = xlim[0] + x_span * 0.04
+    if x0 + scale_length > xlim[1]:
+        x0 = xlim[1] - scale_length - x_span * 0.04
+    x1 = x0 + scale_length
+    y = 0.62
+    tick = 0.17
+
+    _draw_scale_bar(ax, x0, x1, y, tick, scale_length, label_offset_ratio=0.85)
 
 
 # ── 节点样式 ─────────────────────────────────────────────

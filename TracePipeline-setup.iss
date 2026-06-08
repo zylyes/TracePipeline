@@ -1,10 +1,11 @@
-; Inno Setup 6 安装脚本 — TracePipeline
-; 由 scripts/package.py 自动生成
+; Inno Setup 6 安装脚本 — TracePipeline (模板)
+; 由 scripts/package.py 运行时动态生成完整路径
+; 请勿手动编辑 OutputDir / SetupIconFile，运行 package.py 将自动填充
 
 [Setup]
 AppId={{7B3F1C9A-5D2E-40F8-A61B-C8E4D9F01236}}
 AppName=TracePipeline
-AppVersion=3.6.4
+AppVersion=3.7.6
 AppPublisher=ECUT
 AppPublisherURL=https://github.com/ECUT
 AppSupportURL=https://github.com/ECUT
@@ -13,19 +14,19 @@ DefaultGroupName=TracePipeline
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-OutputDir=C:\Users\Chinese\OneDrive\code\dist
-OutputBaseFilename=TracePipeline-Setup-v3.6.4
-SetupIconFile=C:\Users\Chinese\OneDrive\code\reference\ECUT.ico
+OutputDir=dist
+OutputBaseFilename=TracePipeline-Setup-v3.7.2
+SetupIconFile=reference\ECUT.ico
 UninstallDisplayIcon={app}\reference\ECUT.ico
-UninstallDisplayName=TracePipeline v3.6.4
-VersionInfoVersion=3.6.4
+UninstallDisplayName=TracePipeline v3.7.2
+VersionInfoVersion=3.7.2
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "D:\Inno Setup 6\Languages\ChineseSimplified.isl"
+Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "C:\Users\Chinese\OneDrive\code\dist\TracePipeline\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\TracePipeline\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\TracePipeline"; Filename: "{app}\TracePipeline.exe"; IconFilename: "{app}\reference\ECUT.ico"

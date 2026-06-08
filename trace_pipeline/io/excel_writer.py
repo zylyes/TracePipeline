@@ -26,7 +26,6 @@ __all__ = [
     "DEFAULT_LAYOUT",
     "ExcelLayout",
     "ExcelSection",
-    "build_excel_sections",
     "build_result_workbook_sections",
     "write_excel_multi_sheets",
 ]
@@ -78,9 +77,6 @@ _CJK_FONT = "SimSun"
 _WESTERN_FONT = "Times New Roman"
 
 
-
-
-
 def _build_mixed_font_text(
     value: str,
     bold: bool = False,
@@ -93,7 +89,7 @@ def _build_mixed_font_text(
     for ch in value:
         ch_is_cjk = is_cjk(ch)
         if current_cjk is None:
-            current_cjk = is_cjk
+            current_cjk = ch_is_cjk
             current_text = ch
         elif ch_is_cjk == current_cjk:
             current_text += ch
@@ -320,10 +316,6 @@ def build_result_workbook_sections(
     return sections
 
 
-# 保留旧别名
-build_excel_sections = build_result_workbook_sections
-
-
 def _build_node_sections(
     node_analysis: NodeAnalysis,
     trace: TraceData,
@@ -366,13 +358,14 @@ def _build_node_sections(
             "参数u": round(ev.u, 4),
             "事件类型": "相交" if ev.kind == "internal" else ("端点接触" if ev.kind == "endpoint" else "重叠"),
         })
-    inter_df = pd.DataFrame(inter_records) if inter_records else pd.DataFrame(columns=["迹线A", "迹线B", "交点X", "交点Y", "参数t", "参数u", "事件类型"])
-
-    return [
+    sections: list[ExcelSection] = [
         ExcelSection(stats_df, 0, 0, True, "节点统计"),
         ExcelSection(detail_df, 0, 0, True, "节点明细"),
-        ExcelSection(inter_df, 0, 0, True, "节点交点"),
     ]
+    if inter_records:
+        inter_df = pd.DataFrame(inter_records)
+        sections.append(ExcelSection(inter_df, 0, 0, True, "节点交点"))
+    return sections
 
 
 # ── 多工作表写入（新格式：每个分区一个 sheet）─────────────────────────

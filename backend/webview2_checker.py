@@ -3,8 +3,13 @@ from __future__ import annotations
 
 import logging
 import os
-import winreg
+import sys
 from pathlib import Path
+
+if sys.platform == "win32":
+    import winreg
+else:  # pragma: no cover - only exercised on non-Windows platforms
+    winreg = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +27,8 @@ class WebView2Checker:
 
     def is_installed(self) -> bool:
         """通过注册表检查 WebView2 是否存在。"""
+        if winreg is None:
+            return True
         for hive, key_path in _WEBVIEW2_REG_KEYS:
             try:
                 with winreg.OpenKey(hive, key_path) as key:

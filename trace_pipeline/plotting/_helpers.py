@@ -4,16 +4,16 @@ from __future__ import annotations
 import math
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
+
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+
+force_noninteractive_backend()
 
 import matplotlib.pyplot as plt
 
 from .style import text_font_kwargs
-
-if TYPE_CHECKING:
-    from matplotlib.patches import Rectangle as _Rectangle
 
 __all__ = ["new_figure", "save_figure", "add_data_north_arrow", "compute_data_bounds"]
 
@@ -77,6 +77,28 @@ def save_figure(
 _ANNOTATION_ZORDER = 12
 
 
+def _north_arrow_geometry(
+    north_angle_deg: float,
+    center_x: float,
+    center_y: float,
+    arrow_len: float,
+) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float], float, float]:
+    """计算指北针的 base/tip/label 坐标与方向分量。
+
+    供数据坐标版与 transAxes 版共享几何计算,消除重复。
+
+    Returns:
+        (base_xy, tip_xy, label_xy, dx, dy)
+    """
+    angle = math.radians(north_angle_deg)
+    dx, dy = math.cos(angle), math.sin(angle)
+    label_gap = arrow_len * 0.25
+    base = (center_x - arrow_len * dx * 0.50, center_y - arrow_len * dy * 0.50)
+    tip = (center_x + arrow_len * dx * 0.50, center_y + arrow_len * dy * 0.50)
+    label = (tip[0] + label_gap * dx, tip[1] + label_gap * dy)
+    return base, tip, label, dx, dy
+
+
 def add_data_north_arrow(
     ax: plt.Axes,
     north_angle_deg: float,
@@ -93,15 +115,9 @@ def add_data_north_arrow(
         north_y: 指北针中心 Y（数据坐标）。
         arrow_len: 箭头长度（数据坐标单位）。
     """
-    angle = math.radians(north_angle_deg)
-    dx, dy = math.cos(angle), math.sin(angle)
-    label_gap = arrow_len * 0.25
-    base_x = north_x - arrow_len * dx * 0.50
-    base_y = north_y - arrow_len * dy * 0.50
-    tip_x = north_x + arrow_len * dx * 0.50
-    tip_y = north_y + arrow_len * dy * 0.50
-    label_x = tip_x + label_gap * dx
-    label_y = tip_y + label_gap * dy
+    (base_x, base_y), (tip_x, tip_y), (label_x, label_y), _dx, _dy = _north_arrow_geometry(
+        north_angle_deg, north_x, north_y, arrow_len
+    )
     ax.annotate(
         "",
         xy=(tip_x, tip_y),

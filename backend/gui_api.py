@@ -44,6 +44,7 @@ class GuiApi:
     def __init__(self) -> None:
         import time
         t0 = time.perf_counter()
+        self._path_checker = PathSecurityChecker(PROJECT_ROOT)
         self._config = ConfigService()
         self._file = FileService()
         self._pipeline = PipelineService()
@@ -83,12 +84,40 @@ class GuiApi:
     # 内部辅助
     # ------------------------------------------------------------------
     def _safe_path(self, path: str, base: Path | None = None) -> Path | None:
-        """解析并校验路径在项目根目录内，防止路径遍历攻击。
+        """解析并校验路径在项目根目录内，防止路径遍历攻击。"""
+        return self._path_checker.safe_path(path, base)
 
-        委托给 PathSecurityChecker 实现。
-        """
-        checker = PathSecurityChecker(PROJECT_ROOT)
-        return checker.safe_path(path, base)
+    def _safe_path_in_base(self, path: str, base: Path) -> Path | None:
+        """校验路径位于指定可信目录内；可信目录可在项目根之外。"""
+        return self._path_checker.safe_path(path, base, allow_external_base=True)
+
+    def _resolve_configured_dir(self, key: str, default: str) -> Path:
+        value = Path(self._config.get().get(key, default))
+        if not value.is_absolute():
+            value = PROJECT_ROOT / value
+        return value.resolve()
+
+    def _trusted_file_bases(self) -> list[Path]:
+        return [
+            PROJECT_ROOT,
+            self._resolve_configured_dir("input_dir", "input"),
+            self._resolve_configured_dir("output_dir", "output"),
+            REPORT_DIR.resolve(),
+        ]
+
+    def _safe_known_path(self, path: str) -> Path | None:
+        for base in self._trusted_file_bases():
+            safe = self._safe_path_in_base(path, base)
+            if safe is not None:
+                return safe
+        return None
+
+    def _safe_user_selected_path(self, path: str, *, expect_dir: bool = False) -> Path | None:
+        raw = Path(path)
+        if not raw.is_absolute():
+            return self._safe_known_path(path)
+        base = raw if expect_dir else raw.parent
+        return self._safe_path_in_base(path, base)
 
     def _sync_services_from_config(self, cfg: dict[str, Any]) -> None:
         """用校验后的统一配置同步 FileService / DataService 路径。"""
@@ -96,6 +125,11 @@ class GuiApi:
         output_dir = cfg.get("output_dir", "output")
         self._file.set_dirs(input_dir, output_dir)
         self._data.update_dirs(output_dir, input_dir)
+
+    def _invalidate_data_caches(self) -> None:
+        self._file.invalidate_cache()
+        self._stats.invalidate_cache()
+        self._output_detector.invalidate()
 
     def _resolve_output_dir(self) -> Path:
         out_dir = Path(self._config.get().get("output_dir", "output"))
@@ -132,6 +166,7 @@ class GuiApi:
         self._audit.log("set_config", params={"keys": list(config.keys())})
         merged = self._config.set(config)
         self._sync_services_from_config(merged)
+        self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
         logger.info("set_config 完成 → %d 个字段 (%.3f ms)", len(merged), duration, extra={"stage": "api_set_config", "field_count": len(merged), "changed_keys": list(config.keys()), "duration_ms": round(duration, 3)})
         return merged
@@ -141,6 +176,7 @@ class GuiApi:
         self._audit.log("reset_config")
         default = self._config.reset()
         self._sync_services_from_config(default)
+        self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
         logger.info("reset_config 完成 → 恢复默认 (%.3f ms)", duration, extra={"stage": "api_reset_config", "duration_ms": round(duration, 3)})
         return default
@@ -150,6 +186,7 @@ class GuiApi:
         self._audit.log("reset_processing_config")
         cfg = self._config.reset_processing()
         self._sync_services_from_config(cfg)
+        self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
         logger.info("reset_processing_config 完成 (%.3f ms)", duration, extra={"stage": "api_reset_processing_config", "duration_ms": round(duration, 3)})
         return cfg
@@ -159,6 +196,7 @@ class GuiApi:
         self._audit.log("reset_style_config")
         cfg = self._config.reset_style()
         self._sync_services_from_config(cfg)
+        self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
         logger.info("reset_style_config 完成 (%.3f ms)", duration, extra={"stage": "api_reset_style_config", "duration_ms": round(duration, 3)})
         return cfg
@@ -380,69 +418,70 @@ class GuiApi:
         import zipfile
         from datetime import datetime
 
-        self._audit.log("generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt})
-        cfg = self._config.get()
-        files = []
-        errors = []
-        for oc in targets:
-            res = self._report.generate(oc, report_type, fmt, cfg)
-            if "error" in res:
-                errors.append(f"{oc}: {res['error']}")
-                continue
-            if "docx" in res and res["docx"]:
-                files.append(res["docx"])
-            if "pdf" in res and res["pdf"]:
-                files.append(res["pdf"])
-
-        if not files:
-            return {"error": "没有生成任何报告" + ("; ".join(errors) if errors else "")}
-
-        zip_path: Path
-        if save_path:
-            safe = self._safe_path(save_path, base=PROJECT_ROOT)
-            if safe is None:
-                logger.warning("generate_reports_zip 拒绝越权保存路径: %s", save_path)
-                return {"error": "保存路径越权"}
-            zip_path = safe
-            zip_path.parent.mkdir(parents=True, exist_ok=True)
-        else:
-            REPORT_DIR.mkdir(parents=True, exist_ok=True)
-            zip_path = REPORT_DIR / f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
-        # 安全基准目录：报告产物须在 REPORT_DIR 或输出目录内
-        output_base = Path(cfg.get("output_dir", "output"))
-        if not output_base.is_absolute():
-            output_base = PROJECT_ROOT / output_base
-        output_base = output_base.resolve()
-        safe_base = REPORT_DIR.resolve() if REPORT_DIR.exists() else output_base
-
+        # 与 generate_report 共用 _report_lock:避免并发写入同名 {outcrop}_report.docx 中间产物
+        if not self._report_lock.acquire(blocking=False):
+            logger.warning("generate_reports_zip 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"})
+            return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-                for f in files:
-                    # 校验完整路径（而非仅文件名），防止路径遍历绕过
-                    fp_safe = self._safe_path(f, base=safe_base)
-                    if fp_safe is None:
-                        logger.warning("ZIP 中跳过越权路径: %s", f)
-                        continue
-                    if not fp_safe.exists():
-                        logger.warning("ZIP 中跳过不存在的文件: %s", f)
-                        continue
-                    zf.write(str(fp_safe), arcname=fp_safe.name)
-        except Exception as exc:
-            logger.warning("ZIP 创建失败: %s", exc)
-            return {"error": f"ZIP 创建失败: {exc}"}
+            self._audit.log("generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt})
+            cfg = self._config.get()
+            files = []
+            errors = []
+            for oc in targets:
+                res = self._report.generate(oc, report_type, fmt, cfg)
+                if "error" in res:
+                    errors.append(f"{oc}: {res['error']}")
+                    continue
+                if "docx" in res and res["docx"]:
+                    files.append(res["docx"])
+                if "pdf" in res and res["pdf"]:
+                    files.append(res["pdf"])
 
-        for f in files:
-            # 安全校验后再删除，仅允许删除安全基准内的文件
-            fp_clean = self._safe_path(f, base=safe_base)
-            if fp_clean is None or not fp_clean.exists():
-                logger.debug("跳过清理越权/不存在文件: %s", f)
-                continue
+            if not files:
+                return {"error": "没有生成任何报告" + ("; ".join(errors) if errors else "")}
+
+            zip_path: Path
+            if save_path:
+                safe = self._safe_user_selected_path(save_path)
+                if safe is None:
+                    logger.warning("generate_reports_zip 拒绝越权保存路径: %s", save_path)
+                    return {"error": "保存路径越权"}
+                zip_path = safe
+                zip_path.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                REPORT_DIR.mkdir(parents=True, exist_ok=True)
+                zip_path = REPORT_DIR / f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            # 报告产物只允许来自受信目录；保存位置来自系统对话框时可在项目外。
             try:
-                os.remove(str(fp_clean))
+                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    for f in files:
+                        # 校验完整路径（而非仅文件名），防止路径遍历绕过
+                        fp_safe = self._safe_known_path(f)
+                        if fp_safe is None:
+                            logger.warning("ZIP 中跳过越权路径: %s", f)
+                            continue
+                        if not fp_safe.exists():
+                            logger.warning("ZIP 中跳过不存在的文件: %s", f)
+                            continue
+                        zf.write(str(fp_safe), arcname=fp_safe.name)
             except Exception as exc:
-                logger.debug("清理中间文件失败: %s → %s", f, exc)
+                logger.warning("ZIP 创建失败: %s", exc)
+                return {"error": f"ZIP 创建失败: {exc}"}
 
-        return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
+            for f in files:
+                # 安全校验后再删除，仅允许删除安全基准内的文件
+                fp_clean = self._safe_known_path(f)
+                if fp_clean is None or not fp_clean.exists():
+                    logger.debug("跳过清理越权/不存在文件: %s", f)
+                    continue
+                try:
+                    os.remove(str(fp_clean))
+                except Exception as exc:
+                    logger.debug("清理中间文件失败: %s → %s", f, exc)
+
+            return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
+        finally:
+            self._report_lock.release()
 
     def get_provenance(self, outcrop: str) -> dict[str, Any]:
         """数据溯源：返回 P10/P20/P21 的计算来源链。"""
@@ -476,9 +515,21 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 系统
     # ------------------------------------------------------------------
+    def open_external(self, url: str) -> bool:
+        """Open a trusted external URL in the system browser."""
+        if not url.startswith(("https://", "http://")):
+            logger.warning("open_external 拒绝非 HTTP(S) URL: %s", url)
+            return False
+        try:
+            import webbrowser
+            return webbrowser.open(url)
+        except Exception as exc:
+            logger.warning("open_external 失败: %s", exc, extra={"stage": "api_open_external", "error": str(exc)})
+            return False
+
     def open_directory(self, path: str) -> bool:
         """打开指定目录（支持相对路径，限制在项目根目录内）。"""
-        target = self._safe_path(path)
+        target = self._safe_known_path(path)
         if target is None or not target.exists():
             logger.warning("open_directory 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_open_dir", "path": path})
             return False
@@ -501,13 +552,13 @@ class GuiApi:
     # 图片读取上限：5MB，防止大图片导致内存溢出
     _MAX_IMAGE_SIZE = 5 * 1024 * 1024
     # 安全的图片扩展名白名单（禁止 SVG 防止 XSS；禁止 html/htm 等）
-    _SAFE_IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
+    _SAFE_IMAGE_EXTENSIONS: frozenset[str] = frozenset({".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"})
 
     def get_image(self, path: str) -> str:
         """读取图片文件并返回 base64 data URL。限制在项目根目录内，单文件上限 5MB。"""
         try:
             # 强制以 PROJECT_ROOT 为 base，防止通过修改 output_dir 配置绕过路径限制
-            p = self._safe_path(path, base=PROJECT_ROOT)
+            p = self._safe_known_path(path)
             if p is None or not p.exists():
                 logger.warning("get_image 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_get_image", "path": path})
                 return ""
@@ -586,7 +637,7 @@ class GuiApi:
     def export_config_json(self, folder: str, content: str) -> bool:
         """将 JSON 内容写入指定文件夹的 config.json 文件。限制在项目根目录内，并执行配置校验。"""
         try:
-            folder_path = self._safe_path(folder)
+            folder_path = self._safe_user_selected_path(folder, expect_dir=True)
             if folder_path is None:
                 logger.warning("export_config_json 失败: 路径越权 → %s", folder, extra={"stage": "api_export_config", "folder": folder})
                 return False

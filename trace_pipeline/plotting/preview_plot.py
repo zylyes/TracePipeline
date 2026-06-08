@@ -6,46 +6,27 @@
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-from matplotlib.patches import Circle, Polygon, Rectangle
+from matplotlib.patches import Circle, Polygon
 
 from ._helpers import new_figure, save_figure, add_data_north_arrow, compute_data_bounds
-from .style import configure_style, text_font_kwargs, apply_axis_text_fonts
+from .style import configure_style, text_font_kwargs
 from .trace_plot import segments_to_xy
-from .rose_plot import _compute_rose_histogram
-from ..geology.angles import fold_strikes_to_semicircle
+from .rose_plot import _compute_rose_histogram, _draw_rose_axes
 from ..geology.transforms import normalize_coordinates, normalize_points_like_lines
 from ._layout import (
-    _ANNOTATION_LINE_WIDTH,
-    _ANNOTATION_ZORDER,
     _MIN_DATA_SPAN,
-    _FRAME_BOTTOM,
-    _FRAME_LEFT,
-    _FRAME_WIDTH,
-    _STATS_W,
-    _STATS_H,
-    _LEGEND_W,
-    _LEGEND_BOTTOM_MARGIN,
-    _HARD_GAP,
-    _SINGLE_FRAME_TOP,
-    _DOUBLE_FRAME_TOP,
-    _STATS_AXES_BOUNDS,
-    _SCALE_AXES_BOUNDS,
     _TRACE_AXES_BOUNDS,
     _choose_scale_length,
+    _render_legend,
     _add_scale_bar_band,
-    _add_north_arrow,
-    _style_trace_axes,
     _style_trace_data_axes,
     _resolve_layout,
     _add_outer_frame,
     _blank_panel_axes,
-    _statistics_font_size,
-    _split_statistics_line,
     _add_statistics_box,
     _resolve_node_style,
 )
@@ -193,12 +174,11 @@ def _style_val(style: dict[str, Any], key: str, default: Any) -> Any:
 
 
 
-def _data_bounds(
-    segments: np.ndarray,
+def _extract_preview_extras(
     hull_vertices: np.ndarray | None = None,
     circles: tuple[dict[str, float], ...] | None = None,
     nodes: tuple[dict[str, Any], ...] | None = None,
-) -> tuple[float, float, float, float]:
+) -> tuple[np.ndarray | None, np.ndarray | None]:
     extra_xs_parts: list[np.ndarray] = []
     extra_ys_parts: list[np.ndarray] = []
     if hull_vertices is not None and hull_vertices.size > 0:
@@ -214,10 +194,7 @@ def _data_bounds(
         extra_ys_parts.append(np.array([n["y"] for n in nodes], dtype=float))
     extra_xs = np.concatenate(extra_xs_parts) if extra_xs_parts else None
     extra_ys = np.concatenate(extra_ys_parts) if extra_ys_parts else None
-    return compute_data_bounds(segments, extra_xs=extra_xs, extra_ys=extra_ys)
-
-
-# ── 装饰元素绘制 ─────────────────────────────────────────
+    return extra_xs, extra_ys
 
 
 def _add_preview_legend(
@@ -228,10 +205,6 @@ def _add_preview_legend(
     style: dict[str, Any],
 ) -> None:
     """绘制动态图例 — 仅显示当前可见的元素类型。"""
-    ax.set_xlim(0.0, 1.0)
-    ax.set_ylim(0.0, 1.0)
-    ax.set_axis_off()
-
     trace_line_color = _style_val(style, "trace_line_color", "#000000")
     trace_line_width = _style_val(style, "trace_line_width", 0.85)
     hull_line_color = _style_val(style, "hull_line_color", "#1565C0")
@@ -247,67 +220,26 @@ def _add_preview_legend(
         items.append(("node_Y", "三叉节点 (Y)"))
         items.append(("node_X", "交叉节点 (X)"))
 
-    # 自适应图例框高度
-    row_spacing = 0.16
-    top_margin = 0.08
-    bottom_margin = 0.08
-    n_items = len(items)
-    box_height = min(top_margin + n_items * row_spacing + bottom_margin, 0.96)
-    box_bottom = 0.02  # 贴底部上方，留 2% 余量
-
-    ax.add_patch(
-        Rectangle(
-            (0.02, box_bottom), 0.96, box_height,
-            facecolor="white", edgecolor="0.68", linewidth=0.6, alpha=0.94,
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER,
-        )
+    styles = {
+        "trace_color": trace_line_color,
+        "trace_width": trace_line_width,
+        "hull_fill": hull_line_color,
+        "hull_alpha": 0.08,
+        "hull_edge": hull_line_color,
+        "hull_lw": 0.8,
+        "hull_ls": "--",
+        "circle_fill": circle_window_line_color,
+        "circle_alpha": 0.08,
+        "circle_edge": circle_window_line_color,
+        "circle_lw": 0.8,
+        "circle_ls": "--",
+        "node_style": _resolve_node_style(style),
+    }
+    _render_legend(
+        ax, items, styles,
+        row_spacing=0.16, top_margin=0.08, bottom_margin=0.08,
+        box_height_cap=0.96, box_bottom=0.02, first_row_offset=0.02,
     )
-
-    first_row_y = box_bottom + box_height - top_margin - 0.02
-    y_positions = tuple(first_row_y - i * row_spacing for i in range(n_items))
-    icon_h = 0.12
-    icon_half = icon_h / 2.0
-
-    for (kind, label), y in zip(items, y_positions, strict=False):
-        if kind == "trace":
-            ax.plot(
-                [0.08, 0.24], [y, y], color=trace_line_color, linewidth=trace_line_width,
-                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-            )
-        elif kind == "hull":
-            ax.add_patch(
-                Rectangle(
-                    (0.08, y - icon_half), 0.16, icon_h,
-                    facecolor=hull_line_color, alpha=0.08,
-                    edgecolor=hull_line_color, linewidth=0.8, linestyle="--",
-                    transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-                )
-            )
-        elif kind == "circle":
-            ax.add_patch(
-                Rectangle(
-                    (0.08, y - icon_half), 0.16, icon_h,
-                    facecolor=circle_window_line_color, alpha=0.08,
-                    edgecolor=circle_window_line_color, linewidth=0.8, linestyle="--",
-                    transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-                )
-            )
-        elif kind.startswith("node_"):
-            node_type = kind.replace("node_", "")
-            node_ms = _resolve_node_style(style)
-            ms = node_ms.get(node_type, node_ms["I"])
-            ax.plot(
-                0.16, y, linestyle="none", markersize=3.5,
-                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1, **ms,
-            )
-        ax.text(
-            0.31, y, label, ha="left", va="center",
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=5.8, color="black"),
-        )
-
-
-# ── 主绘制函数 ───────────────────────────────────────────
 
 
 def render_preview_trace(
@@ -361,11 +293,13 @@ def render_preview_trace(
         circles = data.circles
         nodes = data.nodes
 
-    x_min, x_max, y_min, y_max = _data_bounds(
-        segments,
+    extra_xs, extra_ys = _extract_preview_extras(
         hull_vertices=hull_vertices if show_hull else None,
         circles=circles if show_circles else None,
         nodes=nodes if show_nodes else None,
+    )
+    x_min, x_max, y_min, y_max = compute_data_bounds(
+        segments, extra_xs=extra_xs, extra_ys=extra_ys
     )
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
@@ -474,35 +408,10 @@ def render_preview_rose(
     theta, radii, bar_widths = _compute_rose_histogram(strikes, bin_width=bin_width)
 
     fig, ax = new_figure((12, 12), dpi=dpi, subplot_kw={"projection": "polar"})
-    polar_ax = ax
-    polar_ax.set_facecolor("white")
-    polar_ax.set_theta_zero_location("N")
-    polar_ax.set_theta_direction(-1)
-    polar_ax.set_thetagrids(np.arange(0, 360, 30), fontsize=8.6)
-    polar_ax.grid(color=rose_grid_color, alpha=0.62, linewidth=0.45, linestyle="-")
-
-    if radii.size:
-        polar_ax.bar(
-            theta, radii, width=bar_widths, bottom=0.0,
-            color=rose_bar_color, edgecolor=rose_bar_edge,
-            linewidth=0.45, alpha=0.68, align="center",
-        )
-        rmax = max(1, math.ceil(radii.max()))
-        polar_ax.set_ylim(0, rmax)
-        rticks = np.arange(0, rmax + 1, max(1, rmax // 5))
-        polar_ax.set_rticks(rticks)
-        polar_ax.set_rlabel_position(45)
-        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
-    else:
-        polar_ax.set_ylim(0, 1)
-        polar_ax.set_rticks([0, 1])
-        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
-
-    polar_ax.spines["polar"].set_linewidth(0.7)
-    polar_ax.spines["polar"].set_color("black")
-
-    apply_axis_text_fonts(polar_ax)
-    polar_ax.set_title("")
+    _draw_rose_axes(
+        ax, theta, radii, bar_widths,
+        bar_color=rose_bar_color, bar_edge=rose_bar_edge, grid_color=rose_grid_color,
+    )
     fig.suptitle("产状玫瑰花瓣图（预览）", y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)
 

@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from backend.utils.cache import TTLCache
+from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.analysis.models import NodeRecognitionConfig
 from trace_pipeline.analysis.nodes import recognize_trace_nodes
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
@@ -53,6 +54,10 @@ class StatsService:
 
     def get_stats(self, outcrop: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """计算并返回指定露头的统计数据（带缓存）。"""
+        try:
+            validate_outcrop_name(outcrop)
+        except ValueError as exc:
+            return {"error": str(exc)}
         start = time.perf_counter()
         key = self._make_key(outcrop, config)
         cached = self._cache.get(key)
@@ -119,7 +124,7 @@ class StatsService:
         # 节点识别
         node_config = NodeRecognitionConfig(
             enabled=cfg.get("enable_node_recognition", True),
-            merge_tolerance=cfg.get("node_merge_tolerance", 1e-6),
+            merge_tolerance=cfg.get("node_merge_tolerance", 0.01),
             show_overlay=cfg.get("show_node_overlay", True),
             label_mode=cfg.get("node_label_mode", "type"),
         )

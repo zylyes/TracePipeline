@@ -4,12 +4,36 @@
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
 from trace_pipeline.utils.paths import get_project_root
 
 PROJECT_ROOT = get_project_root()
+
+# 露头名白名单：字母、数字、下划线、连字符、中文。禁止路径分隔符与 ".." 等。
+_OUTCROP_PATTERN = re.compile(r"^[\w\-一-龥]+$")
+
+
+def validate_outcrop_name(outcrop: str) -> str:
+    """校验露头名,防止路径遍历。
+
+    露头名会被拼入文件名(如 ``{outcrop}_traces.xlsx``),必须禁止
+    路径分隔符、``..`` 及其他可能逃逸目录的字符。
+
+    Args:
+        outcrop: 前端传入的露头标识符。
+
+    Returns:
+        校验通过的露头名(原样返回)。
+
+    Raises:
+        ValueError: 露头名为空或含非法字符。
+    """
+    if not outcrop or not _OUTCROP_PATTERN.match(outcrop):
+        raise ValueError(f"非法的露头名: {outcrop!r}")
+    return outcrop
 
 
 def resolve_path(p: str, base: Path | None = None) -> Path:

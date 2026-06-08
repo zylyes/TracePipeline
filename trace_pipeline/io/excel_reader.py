@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,15 @@ EXCEL_ENGINES: tuple[tuple[str, str], ...] = (
 _MIN_COLUMNS = 4
 _MAX_SKIP_ROWS = 2
 
-__all__ = ["read_trace_excel"]
+__all__ = ["read_trace_excel", "TraceValidationError"]
+
+
+class TraceValidationError(ValueError):
+    """迹线表格式校验失败。
+
+    继承 ValueError 以兼容现有调用方,但作为独立类型,使读取逻辑
+    能区分"数据格式错误"(应直接上抛)与"工作表不存在"(可回退首表)。
+    """
 
 
 def read_trace_excel(
@@ -65,6 +72,9 @@ def read_trace_excel(
             df = pd.read_excel(path, engine=engine, sheet_name=sheet_arg, header=None)
             _validate_trace_dataframe(df, path)
             return df
+        except TraceValidationError:
+            # 数据格式错误(列数不足/NaN/Inf):直接上抛,不回退首表,避免掩盖真实错误
+            raise
         except ValueError as exc:
             # 工作表名不存在 → 会被下一个 attempt (sheet_arg=0) 覆盖
             logger.debug("读取 %s 失败（将尝试回退）: %s", path, exc)
@@ -94,7 +104,7 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
         ValueError: 列数不足或前4列包含非数值数据。
     """
     if df.shape[1] < _MIN_COLUMNS:
-        raise ValueError(
+        raise TraceValidationError(
             f"迹线表 {path.name} 至少需要 {_MIN_COLUMNS} 列 (x1, y1, x2, y2)，"
             f"实际仅有 {df.shape[1]} 列"
         )
@@ -109,22 +119,6 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
             pass
 
     total_cells = min(len(first_rows), _MAX_SKIP_ROWS) * _MIN_COLUMNS
-    # ── NaN / Inf 检测 ──────────────────────────────────────────
-    numeric_cols = df.iloc[:, :_MIN_COLUMNS].apply(pd.to_numeric, errors="coerce")
-    nan_mask = numeric_cols.isna()
-    inf_mask = np.zeros(numeric_cols.shape, dtype=bool)
-    for col in numeric_cols.columns:
-        if np.issubdtype(numeric_cols[col].dtype, np.number):
-            inf_mask[:, numeric_cols.columns.get_loc(col)] = np.isinf(numeric_cols[col].values)
-    if nan_mask.any().any() or inf_mask.any():
-        nan_rows = nan_mask.any(axis=1).to_numpy().nonzero()[0].tolist()
-        inf_rows = inf_mask.any(axis=1).nonzero()[0].tolist()
-        bad_rows = sorted(set(nan_rows + inf_rows))[:5]  # 最多报告前 5 行
-        raise ValueError(
-            f"迹线表 {path.name} 前 {_MIN_COLUMNS} 列包含非法数值 "
-            f"(NaN 或 Inf)，问题行号（0-based）: {bad_rows}"
-        )
-
     if total_cells > 0 and numeric_count / total_cells < 0.5:
         logger.warning(
             "迹线表 %s 前%d行中数值占比过低 (%d/%d)，可能包含非数据行",

@@ -13,6 +13,7 @@ __all__ = [
     "coerce_bool",
     "coerce_positive_float",
     "coerce_positive_int",
+    "coerce_node_label_mode",
     "coerce_rose_bin_width",
     "coerce_scalar_config_fields",
     "coerce_window_strategy",
@@ -66,6 +67,14 @@ def coerce_window_strategy(value: Any) -> str:
     return strategy
 
 
+def coerce_node_label_mode(value: Any) -> str:
+    """Normalize node label display mode."""
+    mode = str(value).strip().lower()
+    if mode not in {"none", "type", "id"}:
+        raise ValueError("node_label_mode must be one of none/type/id")
+    return mode
+
+
 def coerce_rose_bin_width(value: Any) -> float:
     """规范化玫瑰图分箱宽度。"""
     try:
@@ -90,6 +99,7 @@ _SCALAR_COERCIONS: Mapping[str, _ScalarHandler] = {
     "enable_node_recognition": lambda v: coerce_bool(v, "enable_node_recognition"),
     "node_merge_tolerance": lambda v: coerce_positive_float(v, "node_merge_tolerance"),
     "show_node_overlay": lambda v: coerce_bool(v, "show_node_overlay"),
+    "node_label_mode": coerce_node_label_mode,
 }
 
 

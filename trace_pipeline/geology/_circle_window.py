@@ -7,9 +7,6 @@ import numpy as np
 
 from ._stat_types import _EPS, CircleWindowDiagnostic, TraceStatisticsConfig
 
-__all__: list[str] = []
-
-
 def _classify_trace_types(local_segments: np.ndarray, scanline_length: float) -> tuple[str, ...]:
     """将迹线分为 I/II/III 型（向量化实现）。"""
     if local_segments.shape[0] == 0:

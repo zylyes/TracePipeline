@@ -71,9 +71,20 @@ def segment_intersection(
 
     # 平行（含共线）
     if abs(denom) < tol:
-        # 检查是否共线
+        # 检查是否共线：共线且存在重叠时,取重叠区间中点作为代表交点,
+        # 标记 kind="parallel_overlap",由上层按普通交点逻辑计为节点。
         if abs(cross2d(dx3, dy3, dx1, dy1)) < tol:
-            return collinear_overlap(a1, a2, b1, b2, tol)
+            overlap = collinear_overlap(a1, a2, b1, b2, tol)
+            if not overlap:
+                return None
+            (p_min, t_min_a, t_min_b), (p_max, t_max_a, t_max_b) = overlap
+            mid_t = max(0.0, min(1.0, (t_min_a + t_max_a) / 2.0))
+            mid_u = max(0.0, min(1.0, (t_min_b + t_max_b) / 2.0))
+            mid_px = (p_min[0] + p_max[0]) / 2.0
+            mid_py = (p_min[1] + p_max[1]) / 2.0
+            return SegmentIntersection(
+                t=mid_t, u=mid_u, px=mid_px, py=mid_py, kind="parallel_overlap"
+            )
         return None
 
     t = cross2d(dx3, dy3, dx2, dy2) / denom
@@ -162,7 +173,7 @@ def point_segment_distance(
     """点到线段的最短距离。"""
     dx = x2 - x1
     dy = y2 - y1
-    if dx == 0.0 and dy == 0.0:
+    if abs(dx) < 1e-12 and abs(dy) < 1e-12:
         return np.hypot(px - x1, py - y1)
     t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
     proj_x = x1 + t * dx

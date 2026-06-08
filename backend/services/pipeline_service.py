@@ -135,15 +135,6 @@ class PipelineService:
                         "table_stem": table_stem,
                         "outcrop": outcrop,
                         "output_prefix": outcrop,
-                        "export_rose_plot": config.get("export_rose_plot", True),
-                        "rose_bin_width": config.get("rose_bin_width", 10.0),
-                        "rose_dpi": config.get("rose_dpi", 400),
-                        "trace_dpi": config.get("trace_dpi", 300),
-                        "rotated_trace_dpi": config.get("rotated_trace_dpi", 600),
-                        "window_strategy": config.get("window_strategy", "auto"),
-                        "auto_density_threshold": config.get("auto_density_threshold", 5.0),
-                        "tangent_window_count": config.get("tangent_window_count", 3),
-                        "min_intersections": config.get("min_intersections", 5),
                     })
 
                     with _EXECUTION_LOCK:

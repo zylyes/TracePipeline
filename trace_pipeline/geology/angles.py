@@ -173,4 +173,4 @@ def fold_strikes_to_semicircle(strike_deg: np.ndarray) -> np.ndarray:
     """
     folded = np.mod(np.asarray(strike_deg, dtype=float), 180.0)
     folded[np.isclose(folded, 180.0)] = 0.0
-    return folded  # type: ignore[no-any-return]
+    return np.asarray(folded, dtype=float)

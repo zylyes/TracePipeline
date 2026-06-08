@@ -54,6 +54,7 @@ desktop.ini
 # Project specific
 input/
 output/
+outputs/
 logs/
 .opencode/
 .claude/

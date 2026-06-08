@@ -22,6 +22,50 @@ _ROSE_BAR_COLOR = "#C94C4C"
 _ROSE_BAR_EDGE = "#7A1F1F"
 
 
+def _draw_rose_axes(
+    polar_ax: "PolarAxes",
+    theta: np.ndarray,
+    radii: np.ndarray,
+    bar_widths: np.ndarray,
+    *,
+    bar_color: str,
+    bar_edge: str,
+    grid_color: str,
+) -> None:
+    """在极坐标轴上绘制玫瑰花瓣(柱体+网格+边框+刻度)。
+
+    供 render_rose_plot 与 preview_plot.render_preview_rose 共享,
+    消除两处约 30 行重复的极坐标绘制逻辑。
+    """
+    polar_ax.set_facecolor("white")
+    polar_ax.set_theta_zero_location("N")
+    polar_ax.set_theta_direction(-1)
+    polar_ax.set_thetagrids(np.arange(0, 360, 30), fontsize=8.6)
+    polar_ax.grid(color=grid_color, alpha=0.62, linewidth=0.45, linestyle="-")
+
+    if radii.size:
+        polar_ax.bar(
+            theta, radii, width=bar_widths, bottom=0.0,
+            color=bar_color, edgecolor=bar_edge,
+            linewidth=0.45, alpha=0.68, align="center",
+        )
+        rmax = max(1, math.ceil(radii.max()))
+        polar_ax.set_ylim(0, rmax)
+        rticks = np.arange(0, rmax + 1, max(1, rmax // 5))
+        polar_ax.set_rticks(rticks)
+        polar_ax.set_rlabel_position(45)
+        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
+    else:
+        polar_ax.set_ylim(0, 1)
+        polar_ax.set_rticks([0, 1])
+        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
+
+    polar_ax.spines["polar"].set_linewidth(0.7)
+    polar_ax.spines["polar"].set_color("black")
+    apply_axis_text_fonts(polar_ax)
+    polar_ax.set_title("")
+
+
 def _compute_rose_histogram(
     strike_deg: np.ndarray,
     bin_width: float = 10.0,
@@ -74,43 +118,9 @@ def render_rose_plot(
         subplot_kw={"projection": "polar"},
     )
     polar_ax: PolarAxes = ax  # type: ignore[assignment]
-    polar_ax.set_facecolor("white")
-    polar_ax.set_theta_zero_location("N")
-    polar_ax.set_theta_direction(-1)
-
-    # 外圈角度标签：每 30° 一格，保持论文插图的克制字号
-    polar_ax.set_thetagrids(np.arange(0, 360, 30), fontsize=8.6)
-
-    # 径向网格线与标签
-    polar_ax.grid(
-        color=_ROSE_GRID_COLOR, alpha=0.62,
-        linewidth=0.45, linestyle="-",
+    _draw_rose_axes(
+        polar_ax, theta, radii, bar_widths,
+        bar_color=_ROSE_BAR_COLOR, bar_edge=_ROSE_BAR_EDGE, grid_color=_ROSE_GRID_COLOR,
     )
-
-    if radii.size:
-        polar_ax.bar(
-            theta, radii,
-            width=bar_widths, bottom=0.0,
-            color=_ROSE_BAR_COLOR, edgecolor=_ROSE_BAR_EDGE,
-            linewidth=0.45, alpha=0.68, align="center",
-        )
-        rmax = max(1, math.ceil(radii.max()))
-        polar_ax.set_ylim(0, rmax)
-        # 设置径向刻度标签
-        rticks = np.arange(0, rmax + 1, max(1, rmax // 5))
-        polar_ax.set_rticks(rticks)
-        polar_ax.set_rlabel_position(45)
-        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
-    else:
-        polar_ax.set_ylim(0, 1)
-        polar_ax.set_rticks([0, 1])
-        polar_ax.tick_params(axis="y", labelsize=8.0, pad=2)
-
-    # 极坐标外圈边框
-    polar_ax.spines["polar"].set_linewidth(0.7)
-    polar_ax.spines["polar"].set_color("black")
-
-    apply_axis_text_fonts(polar_ax)
-    polar_ax.set_title("")
     fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)

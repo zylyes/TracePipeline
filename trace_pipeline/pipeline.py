@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -24,7 +25,7 @@ from .geology.statistics import (
 from .geology.transforms import normalize_coordinates
 from .io.excel_reader import read_trace_excel
 from .io.excel_writer import build_result_workbook_sections, write_excel_multi_sheets
-from .logging import LogContext, get_request_id
+from .logging import LogContext
 from .models import RunConfig, RunResult, TraceData
 from .plotting.overlays import (
     build_node_overlays,
@@ -35,6 +36,10 @@ from .plotting.overlays import (
 )
 from .plotting.rose_plot import render_rose_plot
 from .plotting.trace_plot import render_trace_plot
+
+import threading
+
+_MPL_INIT_LOCK = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +71,35 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
     return trace
 
 
+def _handle_pipeline_error(
+    cfg: RunConfig,
+    exc: Exception,
+    pipeline_start: float,
+    *,
+    friendly: str = "",
+    include_traceback: bool = False,
+) -> RunResult:
+    """统一处理流水线异常，记录日志并返回失败结果。"""
+    duration = (time.perf_counter() - pipeline_start) * 1000
+    error_type = type(exc).__name__
+    logger.error(
+        "处理 [%s] 失败 (%s): %s (%.3f ms)",
+        cfg.outcrop, error_type, exc, duration,
+        extra={"stage": "pipeline_error", "duration_ms": round(duration, 3)},
+        exc_info=include_traceback,
+    )
+    tb = ""
+    if include_traceback:
+        import traceback
+        tb = traceback.format_exc()
+    message = friendly or f"{error_type}: {exc}"
+    return RunResult.failure(
+        cfg.table_stem, message,
+        error_type=error_type,
+        error_traceback=tb,
+    )
+
+
 def run_pipeline(cfg: RunConfig) -> RunResult:
     """处理单个迹线表：加载 → 变换 → 导出 Excel → 绘图。
 
@@ -79,9 +113,11 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
     from multiprocessing import current_process
 
     if current_process().name != "MainProcess":
-        # 强制子进程使用非交互式后端，防止继承父进程 Tkinter/Qt 状态导致崩溃
-        from trace_pipeline.utils.mpl_init import force_noninteractive_backend
-        force_noninteractive_backend()
+        with _MPL_INIT_LOCK:
+            from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+            force_noninteractive_backend()
+            from trace_pipeline.plotting.style import configure_style
+            configure_style()
         from .logging import setup_worker_logging
         setup_worker_logging()
 
@@ -288,58 +324,18 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             )
 
         except PermissionError as exc:
-            total_duration = (time.perf_counter() - pipeline_start) * 1000
-            exc_str = str(exc)
-            logger.error(
-                "处理 [%s] 失败 (%s): %s (%.3f ms)",
-                cfg.outcrop, type(exc).__name__, exc_str, total_duration,
-                extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
-            )
-            friendly = (
-                f"文件被占用或权限不足，无法写入。"
-                f"请关闭已打开的输出文件（如 Excel/WPS）后重试。"
-                f"原始错误: {exc_str}"
-            )
-            return RunResult.failure(
-                cfg.table_stem, friendly,
-                error_type=type(exc).__name__,
+            return _handle_pipeline_error(
+                cfg, exc, pipeline_start,
+                friendly=f"文件被占用或权限不足，无法写入。请关闭已打开的输出文件（如 Excel/WPS）后重试。原始错误: {exc}",
             )
         except FileNotFoundError as exc:
-            total_duration = (time.perf_counter() - pipeline_start) * 1000
-            logger.error(
-                "处理 [%s] 失败 (%s): %s (%.3f ms)",
-                cfg.outcrop, type(exc).__name__, exc, total_duration,
-                extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
-            )
-            friendly = f"输入文件不存在，请检查文件路径。原始错误: {exc}"
-            return RunResult.failure(
-                cfg.table_stem, friendly,
-                error_type=type(exc).__name__,
+            return _handle_pipeline_error(
+                cfg, exc, pipeline_start,
+                friendly=f"输入文件不存在，请检查文件路径。原始错误: {exc}",
             )
         except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:
-            total_duration = (time.perf_counter() - pipeline_start) * 1000
-            logger.error(
-                "处理 [%s] 失败 (%s): %s (%.3f ms)",
-                cfg.outcrop, type(exc).__name__, exc, total_duration,
-                extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
-            )
-            return RunResult.failure(cfg.table_stem, str(exc), error_type=type(exc).__name__)
+            return _handle_pipeline_error(cfg, exc, pipeline_start)
         except (MemoryError, KeyboardInterrupt):
-            # 系统级异常不应静默捕获，直接抛出以保留崩溃现场
             raise
         except Exception as exc:
-            total_duration = (time.perf_counter() - pipeline_start) * 1000
-            import traceback
-            tb = traceback.format_exc()
-            logger.error(
-                "处理 [%s] 时发生未预期错误: %s (%.3f ms)",
-                cfg.outcrop, exc, total_duration,
-                extra={"stage": "pipeline_error", "duration_ms": round(total_duration, 3)},
-                exc_info=True,
-            )
-            return RunResult.failure(
-                cfg.table_stem,
-                f"{type(exc).__name__}: {exc}",
-                error_type=type(exc).__name__,
-                error_traceback=tb,
-            )
+            return _handle_pipeline_error(cfg, exc, pipeline_start, include_traceback=True)

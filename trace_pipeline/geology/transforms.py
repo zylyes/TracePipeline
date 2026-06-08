@@ -6,6 +6,7 @@
 
 所有函数均接受 ndarray，返回新 ndarray，不修改入参。
 """
+
 from __future__ import annotations
 
 import math

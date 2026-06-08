@@ -43,3 +43,32 @@ export async function loadImageBase64(path: string): Promise<string> {
     return ''
   }
 }
+
+export async function loadImageThumbnail(path: string, maxPx = 480): Promise<string> {
+  if (!path) return ''
+  if (path.startsWith('data:')) return path
+
+  const cacheStore = useCacheStore()
+  const cleanPath = cleanImagePath(path)
+  let version: string | null = null
+
+  try {
+    const meta = await api.get_image_meta(cleanPath)
+    version = imageVersion(meta)
+  } catch {
+    version = null
+  }
+
+  const cached = cacheStore.getThumbnail(path, version, maxPx)
+  if (cached) return cached
+
+  try {
+    const thumbnail = await api.get_image_thumbnail(cleanPath, maxPx)
+    if (thumbnail) {
+      cacheStore.setThumbnail(path, thumbnail, version, maxPx)
+    }
+    return thumbnail || ''
+  } catch {
+    return ''
+  }
+}

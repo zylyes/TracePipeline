@@ -1,4 +1,5 @@
 """几何运算 — 线段校验、叉积、参数化相交、点到线段距离。"""
+
 from __future__ import annotations
 
 import logging
@@ -97,7 +98,16 @@ def segment_intersection(
         # clamp 到 [0,1]
         t_clamped = max(0.0, min(1.0, t))
         u_clamped = max(0.0, min(1.0, u))
-        kind = "endpoint" if (t_clamped <= tol or t_clamped >= 1.0 - tol or u_clamped <= tol or u_clamped >= 1.0 - tol) else "internal"
+        kind = (
+            "endpoint"
+            if (
+                t_clamped <= tol
+                or t_clamped >= 1.0 - tol
+                or u_clamped <= tol
+                or u_clamped >= 1.0 - tol
+            )
+            else "internal"
+        )
         return SegmentIntersection(t=t_clamped, u=u_clamped, px=px, py=py, kind=kind)
 
     return None
@@ -121,7 +131,9 @@ def collinear_overlap(
     x4, y4 = b2
 
     # 投影到一维参数
-    def _project(p: tuple[float, float], ref: tuple[float, float], dir_vec: tuple[float, float]) -> float:
+    def _project(
+        p: tuple[float, float], ref: tuple[float, float], dir_vec: tuple[float, float]
+    ) -> float:
         dx = dir_vec[0]
         dy = dir_vec[1]
         norm2 = dx * dx + dy * dy
@@ -166,9 +178,12 @@ def collinear_overlap(
 
 
 def point_segment_distance(
-    px: float, py: float,
-    x1: float, y1: float,
-    x2: float, y2: float,
+    px: float,
+    py: float,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
 ) -> float:
     """点到线段的最短距离。"""
     dx = x2 - x1

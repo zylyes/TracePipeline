@@ -1,4 +1,5 @@
 """迹线长度图绘制。"""
+
 from __future__ import annotations
 
 import logging
@@ -10,29 +11,35 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 import numpy as np
 from matplotlib.patches import Circle, Polygon
 
-from ._helpers import new_figure, save_figure, add_data_north_arrow, compute_data_bounds
-from .style import configure_style, text_font_kwargs
+from ._helpers import add_data_north_arrow, compute_data_bounds, new_figure, save_figure
 from ._layout import (
     _MIN_DATA_SPAN,
     _TRACE_AXES_BOUNDS,
+    _add_outer_frame,
+    _add_scale_bar_band,
+    _add_statistics_box,
+    _blank_panel_axes,
     _choose_scale_length,
     _draw_scale_bar,
     _render_legend,
-    _add_scale_bar_band,
-    _style_trace_data_axes,
     _resolve_layout,
-    _add_outer_frame,
-    _blank_panel_axes,
-    _add_statistics_box,
     _resolve_node_style,
+    _style_trace_data_axes,
 )
+from .style import configure_style, text_font_kwargs
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
-__all__ = ["CircleWindowOverlay", "ConvexHullOverlay", "NodeOverlay", "render_trace_plot", "segments_to_xy"]
+__all__ = [
+    "CircleWindowOverlay",
+    "ConvexHullOverlay",
+    "NodeOverlay",
+    "render_trace_plot",
+    "segments_to_xy",
+]
 
 _DEFAULT_TRACE_DPI = 300
 _TARGET_SCALE_CM_PER_METER: float = 0.35
@@ -153,8 +160,12 @@ def segments_to_xy(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if n_segments == 0:
         return np.array([]), np.array([])
 
-    x_values = np.column_stack([seg_arr[:, 0], seg_arr[:, 2], np.full((n_segments,), np.nan)]).ravel()
-    y_values = np.column_stack([seg_arr[:, 1], seg_arr[:, 3], np.full((n_segments,), np.nan)]).ravel()
+    x_values = np.column_stack(
+        [seg_arr[:, 0], seg_arr[:, 2], np.full((n_segments,), np.nan)]
+    ).ravel()
+    y_values = np.column_stack(
+        [seg_arr[:, 1], seg_arr[:, 3], np.full((n_segments,), np.nan)]
+    ).ravel()
     return x_values, y_values
 
 
@@ -163,7 +174,8 @@ def _valid_circles(
 ) -> list[CircleWindowOverlay]:
     """返回几何有效的圆窗列表（有限坐标且正半径）。"""
     return [
-        cw for cw in (circle_windows or ())
+        cw
+        for cw in (circle_windows or ())
         if all(math.isfinite(v) for v in (cw.center_x, cw.center_y, cw.radius)) and cw.radius > 0.0
     ]
 
@@ -217,7 +229,10 @@ def _build_decoration_layout(
     node_overlays: Sequence[NodeOverlay] | None = None,
 ) -> _DecorationLayout:
     x_min, x_max, y_min, y_max = _data_bounds(
-        segments, circle_windows=circle_windows, hull_overlay=hull_overlay, node_overlays=node_overlays
+        segments,
+        circle_windows=circle_windows,
+        hull_overlay=hull_overlay,
+        node_overlays=node_overlays,
     )
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
@@ -237,10 +252,16 @@ def _build_decoration_layout(
         x_span=x_span,
         y_span=y_span,
         base_span=base_span,
-        left_pad=max(x_span * _DEFAULT_LAYOUT.left_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio),
+        left_pad=max(
+            x_span * _DEFAULT_LAYOUT.left_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio
+        ),
         right_pad=right_pad,
-        bottom_pad=max(y_span * _DEFAULT_LAYOUT.bottom_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio),
-        top_pad=max(y_span * _DEFAULT_LAYOUT.top_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio),
+        bottom_pad=max(
+            y_span * _DEFAULT_LAYOUT.bottom_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio
+        ),
+        top_pad=max(
+            y_span * _DEFAULT_LAYOUT.top_pad_ratio, base_span * _DEFAULT_LAYOUT.pad_base_ratio
+        ),
         scale_length=scale_length,
     )
 
@@ -250,7 +271,9 @@ def _apply_decoration_limits(ax: plt.Axes, layout: _DecorationLayout) -> None:
     ax.set_ylim(layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad)
 
 
-def _decoration_limits(layout: _DecorationLayout) -> tuple[tuple[float, float], tuple[float, float]]:
+def _decoration_limits(
+    layout: _DecorationLayout,
+) -> tuple[tuple[float, float], tuple[float, float]]:
     return (
         (layout.data_x_min - layout.left_pad, layout.data_x_max + layout.right_pad),
         (layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad),
@@ -274,7 +297,10 @@ def _add_scale_bar(
         y = layout.data_y_min + layout.base_span * _DEFAULT_LAYOUT.scale_bar_y_offset_ratio
     else:
         y = data_y
-    tick = min(layout.bottom_pad * _DEFAULT_LAYOUT.tick_pad_ratio, layout.base_span * _DEFAULT_LAYOUT.tick_base_ratio)
+    tick = min(
+        layout.bottom_pad * _DEFAULT_LAYOUT.tick_pad_ratio,
+        layout.base_span * _DEFAULT_LAYOUT.tick_base_ratio,
+    )
 
     _draw_scale_bar(ax, x0, x1, y, tick, layout.scale_length, label_offset_ratio=1.45)
 
@@ -386,9 +412,15 @@ def _add_legend(
         "node_style": _resolve_node_style({}),
     }
     _render_legend(
-        ax, items, styles,
-        row_spacing=0.18, top_margin=0.06, bottom_margin=0.06,
-        box_height_cap=0.94, box_bottom=0.04, first_row_offset=0.08,
+        ax,
+        items,
+        styles,
+        row_spacing=0.18,
+        top_margin=0.06,
+        bottom_margin=0.06,
+        box_height_cap=0.94,
+        box_bottom=0.04,
+        first_row_offset=0.08,
     )
 
 
@@ -495,7 +527,9 @@ def render_trace_plot(
     # 2. 顶层：迹线
     if include_trace:
         ax.plot(
-            x_plot, y_plot, "-",
+            x_plot,
+            y_plot,
+            "-",
             color=_TRACE_LINE_COLOR,
             linewidth=_TRACE_LINE_WIDTH,
             zorder=_TRACE_ZORDER,

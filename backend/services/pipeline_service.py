@@ -1,4 +1,5 @@
 """流水线执行服务 — 线程安全队列 + 轮询架构。"""
+
 from __future__ import annotations
 
 import logging
@@ -99,51 +100,70 @@ class PipelineService:
 
                 total = len(targets)
                 logger.info(
-                    "流水线启动: %d 个目标", total,
+                    "流水线启动: %d 个目标",
+                    total,
                     extra={"stage": "batch_start", "target_count": total, "targets": targets},
                 )
-                self._emit({
-                    "type": "start",
-                    "total": total,
-                    "current": 0,
-                    "filename": "",
-                    "message": "开始处理",
-                })
+                self._emit(
+                    {
+                        "type": "start",
+                        "total": total,
+                        "current": 0,
+                        "filename": "",
+                        "message": "开始处理",
+                    }
+                )
 
                 for idx, outcrop in enumerate(targets, 1):
                     # 检查关闭信号，在两个目标之间提前退出
                     if self._shutdown_event.is_set():
-                        logger.info("收到关闭信号，停止处理剩余目标（已完成 %d/%d）", idx - 1, total)
-                        self._emit({
-                            "type": "complete",
-                            "current": idx - 1,
-                            "total": total,
-                            "message": "处理已被取消",
-                            "results": completed_results,
-                        })
+                        logger.info(
+                            "收到关闭信号，停止处理剩余目标（已完成 %d/%d）", idx - 1, total
+                        )
+                        self._emit(
+                            {
+                                "type": "complete",
+                                "current": idx - 1,
+                                "total": total,
+                                "message": "处理已被取消",
+                                "results": completed_results,
+                            }
+                        )
                         break
                     table_stem = f"{outcrop}_process"
                     item_start = time.perf_counter()
                     logger.info(
-                        "正在处理: %s (%d/%d)", outcrop, idx, total,
-                        extra={"stage": "item_start", "outcrop": outcrop, "idx": idx, "total": total},
+                        "正在处理: %s (%d/%d)",
+                        outcrop,
+                        idx,
+                        total,
+                        extra={
+                            "stage": "item_start",
+                            "outcrop": outcrop,
+                            "idx": idx,
+                            "total": total,
+                        },
                     )
-                    self._emit({
-                        "type": "progress",
-                        "current": idx,
-                        "total": total,
-                        "filename": table_stem,
-                        "message": f"正在处理 {outcrop}...",
-                    })
+                    self._emit(
+                        {
+                            "type": "progress",
+                            "current": idx,
+                            "total": total,
+                            "filename": table_stem,
+                            "message": f"正在处理 {outcrop}...",
+                        }
+                    )
 
-                    cfg = RunConfig.from_mapping({
-                        **config,
-                        "input_dir": in_path,
-                        "output_dir": out_path,
-                        "table_stem": table_stem,
-                        "outcrop": outcrop,
-                        "output_prefix": outcrop,
-                    })
+                    cfg = RunConfig.from_mapping(
+                        {
+                            **config,
+                            "input_dir": in_path,
+                            "output_dir": out_path,
+                            "table_stem": table_stem,
+                            "outcrop": outcrop,
+                            "output_prefix": outcrop,
+                        }
+                    )
 
                     with _EXECUTION_LOCK:
                         result = run_pipeline(cfg)
@@ -170,53 +190,83 @@ class PipelineService:
                     completed_results.append(result_dict)
                     if result.status is PipelineStatus.SUCCESS:
                         logger.info(
-                            "%s 处理完成 (%.3f ms)", outcrop, item_duration,
-                            extra={"stage": "item_end", "outcrop": outcrop, "duration_ms": round(item_duration, 3)},
+                            "%s 处理完成 (%.3f ms)",
+                            outcrop,
+                            item_duration,
+                            extra={
+                                "stage": "item_end",
+                                "outcrop": outcrop,
+                                "duration_ms": round(item_duration, 3),
+                            },
                         )
                     else:
                         logger.error(
-                            "%s 处理失败 [%s]: %s (%.3f ms)", outcrop, result.error_type, result.error, item_duration,
-                            extra={"stage": "item_end", "outcrop": outcrop, "error": result.error, "error_type": result.error_type, "duration_ms": round(item_duration, 3)},
+                            "%s 处理失败 [%s]: %s (%.3f ms)",
+                            outcrop,
+                            result.error_type,
+                            result.error,
+                            item_duration,
+                            extra={
+                                "stage": "item_end",
+                                "outcrop": outcrop,
+                                "error": result.error,
+                                "error_type": result.error_type,
+                                "duration_ms": round(item_duration, 3),
+                            },
                         )
                     fail_hint = ""
                     if result.error_type == "PermissionError":
                         fail_hint = "（文件被占用，请关闭 Excel/WPS 后重试）"
                     elif result.error_type == "FileNotFoundError":
                         fail_hint = "（输入文件不存在）"
-                    self._emit({
-                        "type": "file_complete",
-                        "current": idx,
-                        "total": total,
-                        "filename": table_stem,
-                        "message": f"{outcrop} 处理完成" if result.status is PipelineStatus.SUCCESS else f"{outcrop} 处理失败{fail_hint}",
-                        "result": result_dict,
-                    })
+                    self._emit(
+                        {
+                            "type": "file_complete",
+                            "current": idx,
+                            "total": total,
+                            "filename": table_stem,
+                            "message": f"{outcrop} 处理完成"
+                            if result.status is PipelineStatus.SUCCESS
+                            else f"{outcrop} 处理失败{fail_hint}",
+                            "result": result_dict,
+                        }
+                    )
 
                 batch_duration = (time.perf_counter() - batch_start) * 1000
                 logger.info(
-                    "流水线全部完成 (%.3f ms)", batch_duration,
-                    extra={"stage": "batch_end", "duration_ms": round(batch_duration, 3), "completed": len(completed_results)},
+                    "流水线全部完成 (%.3f ms)",
+                    batch_duration,
+                    extra={
+                        "stage": "batch_end",
+                        "duration_ms": round(batch_duration, 3),
+                        "completed": len(completed_results),
+                    },
                 )
-                self._emit({
-                    "type": "complete",
-                    "current": total,
-                    "total": total,
-                    "message": "全部处理完成",
-                    "results": completed_results,
-                })
+                self._emit(
+                    {
+                        "type": "complete",
+                        "current": total,
+                        "total": total,
+                        "message": "全部处理完成",
+                        "results": completed_results,
+                    }
+                )
             except Exception as exc:
                 batch_duration = (time.perf_counter() - batch_start) * 1000
                 logger.exception(
-                    "后台流水线异常 (%.3f ms)", batch_duration,
+                    "后台流水线异常 (%.3f ms)",
+                    batch_duration,
                     extra={"stage": "batch_error", "duration_ms": round(batch_duration, 3)},
                 )
-                self._emit({
-                    "type": "error",
-                    "message": f"{type(exc).__name__}: {exc}",
-                    "completed_count": len(completed_results),
-                    "total": len(targets),
-                    "results": completed_results,
-                })
+                self._emit(
+                    {
+                        "type": "error",
+                        "message": f"{type(exc).__name__}: {exc}",
+                        "completed_count": len(completed_results),
+                        "total": len(targets),
+                        "results": completed_results,
+                    }
+                )
             finally:
                 with self._lock:
                     self._running = False

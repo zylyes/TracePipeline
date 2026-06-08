@@ -1,4 +1,5 @@
 """单元测试 — models.py 数据模型校验。"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -120,14 +121,16 @@ class TestRunConfig:
             )
 
     def test_from_mapping(self) -> None:
-        cfg = RunConfig.from_mapping({
-            "input_dir": "./data",
-            "output_dir": "./results",
-            "output_prefix": "Test",
-            "table_stem": "O77_process",
-            "outcrop": "O77",
-            "export_rose_plot": True,
-        })
+        cfg = RunConfig.from_mapping(
+            {
+                "input_dir": "./data",
+                "output_dir": "./results",
+                "output_prefix": "Test",
+                "table_stem": "O77_process",
+                "outcrop": "O77",
+                "export_rose_plot": True,
+            }
+        )
         assert cfg.outcrop == "O77"
         assert cfg.export_rose_plot is True
         # 未知键应被忽略

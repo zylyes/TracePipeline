@@ -5,7 +5,7 @@
 [Setup]
 AppId={{7B3F1C9A-5D2E-40F8-A61B-C8E4D9F01236}}
 AppName=TracePipeline
-AppVersion=3.8.2
+AppVersion=3.8.4
 AppPublisher=ECUT
 AppPublisherURL=https://github.com/ECUT
 AppSupportURL=https://github.com/ECUT
@@ -15,11 +15,11 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 OutputDir=dist
-OutputBaseFilename=TracePipeline-Setup-v3.8.2
+OutputBaseFilename=TracePipeline-Setup-v3.8.4
 SetupIconFile=reference\favicon.ico
 UninstallDisplayIcon={app}\reference\favicon.ico
-UninstallDisplayName=TracePipeline v3.8.2
-VersionInfoVersion=3.8.2
+UninstallDisplayName=TracePipeline v3.8.4
+VersionInfoVersion=3.8.4
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"

@@ -1,4 +1,5 @@
 """单元测试 — geometry/segments.py 线段相交,重点覆盖退化几何。"""
+
 from __future__ import annotations
 
 from trace_pipeline.geometry.segments import (
@@ -52,6 +53,8 @@ class TestSegmentIntersection:
         """回归:共线结果的 .t/.u/.px/.py 可正常访问(模拟 nodes.py 解包)。"""
         result = segment_intersection((0, 0), (4, 0), (2, 0), (6, 0))
         assert result is not None
-        t, u, px, py = result.t, result.u, result.px, result.py
+        t, u = result.t, result.u
         assert 0.0 <= t <= 1.0
         assert 0.0 <= u <= 1.0
+        assert 2.0 <= result.px <= 4.0
+        assert result.py == 0.0

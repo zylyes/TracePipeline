@@ -136,8 +136,8 @@ async function runBootSequence() {
     const targetProgress = step.targetProgress
     const diff = targetProgress - startProgress
     if (diff > 0) {
-      const frames = 12
-      const frameDelay = 80
+      const frames = 8
+      const frameDelay = 40
       for (let i = 1; i <= frames; i++) {
         await delay(frameDelay)
         progress.value = Math.min(startProgress + (diff * i) / frames, targetProgress)

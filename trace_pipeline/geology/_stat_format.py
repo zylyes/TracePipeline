@@ -1,4 +1,5 @@
 """统计结果格式化输出。"""
+
 from __future__ import annotations
 
 import math

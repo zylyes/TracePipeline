@@ -9,6 +9,7 @@
 - ``_circle_window`` — 圆窗策略、计数与评分
 - ``_stat_format``   — 格式化输出
 """
+
 from __future__ import annotations
 
 import logging
@@ -125,7 +126,9 @@ def _select_effective_area(
         if not math.isfinite(window_equivalent_area) or window_equivalent_area <= _EPS:
             return hull_area, "hull", 0.0, ""
 
-        ratio_hull = abs(hull_area - window_equivalent_area) / max(hull_area, window_equivalent_area)
+        ratio_hull = abs(hull_area - window_equivalent_area) / max(
+            hull_area, window_equivalent_area
+        )
         threshold = (
             config.disagreement_threshold
             if config.disagreement_threshold is not None
@@ -217,9 +220,7 @@ def compute_trace_statistics(
     # 1. 基础几何与坐标转换
     scanline_length, scanline_length_source = _effective_scanline_length(trace)
     finite_scanline_length = (
-        scanline_length
-        if math.isfinite(float(scanline_length)) and scanline_length > _EPS
-        else 0.0
+        scanline_length if math.isfinite(float(scanline_length)) and scanline_length > _EPS else 0.0
     )
     local_segments = _to_local_segments(trace)
     trace_types = _classify_trace_types(local_segments, finite_scanline_length)
@@ -319,7 +320,12 @@ def compute_trace_statistics(
                 window_validation_warning = (
                     f"主 P20({p20:.4f})与圆窗 P20({estimated_p20:.4f})差异达{p20_disagreement:.0%}"
                 )
-        if not window_validation_warning and math.isfinite(estimated_p21) and math.isfinite(p21) and p21 > _EPS:
+        if (
+            not window_validation_warning
+            and math.isfinite(estimated_p21)
+            and math.isfinite(p21)
+            and p21 > _EPS
+        ):
             p21_disagreement = abs(p21 - estimated_p21) / max(p21, estimated_p21)
             if p21_disagreement > consistency_threshold:
                 window_validation_warning = (
@@ -370,9 +376,15 @@ def compute_trace_statistics(
         window_strategy=selected_strategy,
         trace_types=trace_types,
         diagnostics=diagnostics,
-        window_outcrop_area=float(window_equivalent_area) if math.isfinite(window_equivalent_area) else math.nan,
-        area_disagreement_ratio=float(disagreement_ratio) if math.isfinite(disagreement_ratio) else math.nan,
+        window_outcrop_area=float(window_equivalent_area)
+        if math.isfinite(window_equivalent_area)
+        else math.nan,
+        area_disagreement_ratio=float(disagreement_ratio)
+        if math.isfinite(disagreement_ratio)
+        else math.nan,
         window_validation_warning=window_validation_warning,
-        hull_buffered_area=float(hull_buffered_area) if math.isfinite(hull_buffered_area) else math.nan,
+        hull_buffered_area=float(hull_buffered_area)
+        if math.isfinite(hull_buffered_area)
+        else math.nan,
         hull_buffer_ratio=float(config.hull_buffer_ratio),
     )

@@ -3,6 +3,7 @@
 将原本散落在 pipeline.py 中的私有覆盖层函数迁移为公开内部服务，
 供 pipeline、后端 StatsService、PreviewService 统一调用。
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,7 +58,7 @@ def build_raw_circle_overlays(
     global_centers = pts[:, [0]] * along + pts[:, [1]] * left
     return tuple(
         CircleWindowOverlay(float(center[0]), float(center[1]), radius)
-        for center, radius in zip(global_centers, radii)
+        for center, radius in zip(global_centers, radii, strict=True)
     )
 
 
@@ -75,12 +76,10 @@ def build_rotated_circle_overlays(
         [(overlay.center_x, overlay.center_y) for overlay in raw_overlays],
         dtype=float,
     )
-    rotated_centers = normalize_points_like_lines(
-        centers, trace.endpoints, trace.scanline_azimuth
-    )
+    rotated_centers = normalize_points_like_lines(centers, trace.endpoints, trace.scanline_azimuth)
     return tuple(
         CircleWindowOverlay(float(center[0]), float(center[1]), overlay.radius)
-        for center, overlay in zip(rotated_centers, raw_overlays)
+        for center, overlay in zip(rotated_centers, raw_overlays, strict=True)
     )
 
 

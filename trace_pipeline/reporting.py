@@ -4,6 +4,7 @@
   - 批量结果汇总表
   - 统计摘要
 """
+
 from __future__ import annotations
 
 import unicodedata
@@ -77,7 +78,7 @@ def _format_row(values: list[str], widths: list[int]) -> str:
         raise ValueError(f"values 长度 {len(values)} 与 widths 长度 {len(widths)} 不一致")
     cells = [
         _pad_to_width(v, w, "left") if i == 0 else _pad_to_width(v, w)
-        for i, (v, w) in enumerate(zip(values, widths))
+        for i, (v, w) in enumerate(zip(values, widths, strict=True))
     ]
     return "| " + " | ".join(cells) + " |"
 
@@ -130,7 +131,11 @@ def format_results_table(results: list[RunResult]) -> str:
     lines.append(_format_separator(widths, _HEADER_SEP))
 
     success = sum(1 for r in results if r.status is PipelineStatus.SUCCESS)
-    lines.append(f"\n总计: {len(results)} 个露头 | 成功 {success} 个 | 迹线总数 {total_traces} | 玫瑰图 {has_rose} 张")
+    summary = (
+        f"\n总计: {len(results)} 个露头 | 成功 {success} 个 | "
+        f"迹线总数 {total_traces} | 玫瑰图 {has_rose} 张"
+    )
+    lines.append(summary)
 
     return "\n".join(lines)
 

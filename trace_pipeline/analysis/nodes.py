@@ -17,6 +17,7 @@
   - 批量处理候选点聚类
   - 预计算数据结构减少重复计算
 """
+
 from __future__ import annotations
 
 import logging
@@ -72,7 +73,6 @@ class _UnionFind:
         self.parent[ry] = rx
         if self.rank[rx] == self.rank[ry]:
             self.rank[rx] += 1
-
 
 
 def _merge_candidates(
@@ -134,9 +134,7 @@ def _compute_topological_value(trace_params: dict[int, list[float]], tol: float)
     return tv
 
 
-def _classify_and_compute_node(
-    cluster: list[_Candidate], tol: float
-) -> tuple[str, int]:
+def _classify_and_compute_node(cluster: list[_Candidate], tol: float) -> tuple[str, int]:
     """一次性计算节点类型和拓扑值。
 
     Returns:
@@ -173,21 +171,27 @@ def recognize_trace_nodes(
         NodeAnalysis — 包含节点列表、相交事件列表和警告。
     """
     if not config.enabled or endpoints.size == 0:
-        return NodeAnalysis(nodes=(), intersections=(), warnings=(), degenerate_skipped=0, merge_tolerance=config.merge_tolerance)
+        return NodeAnalysis(
+            nodes=(),
+            intersections=(),
+            warnings=(),
+            degenerate_skipped=0,
+            merge_tolerance=config.merge_tolerance,
+        )
 
     n = endpoints.shape[0]
     tol = config.merge_tolerance
 
     # 聚类容差
-    lengths = np.hypot(
-        endpoints[:, 2] - endpoints[:, 0], endpoints[:, 3] - endpoints[:, 1]
-    )
+    lengths = np.hypot(endpoints[:, 2] - endpoints[:, 0], endpoints[:, 3] - endpoints[:, 1])
     mean_len = float(np.mean(lengths)) if lengths.size > 0 else 0.0
     cluster_tol = max(tol, 0.01 * mean_len)
 
     logger.debug(
         "节点识别容差: 几何检测=%.6f, 聚类合并=%.6f (mean_len=%.2f)",
-        tol, cluster_tol, mean_len,
+        tol,
+        cluster_tol,
+        mean_len,
     )
 
     candidates: list[_Candidate] = []
@@ -212,7 +216,10 @@ def recognize_trace_nodes(
 
     if len(valid_indices) == 0:
         return NodeAnalysis(
-            nodes=(), intersections=(), warnings=(f"跳过 {degenerate_count} 条退化线段",), degenerate_skipped=degenerate_count,
+            nodes=(),
+            intersections=(),
+            warnings=(f"跳过 {degenerate_count} 条退化线段",),
+            degenerate_skipped=degenerate_count,
             merge_tolerance=config.merge_tolerance,
         )
 
@@ -222,19 +229,17 @@ def recognize_trace_nodes(
     valid_y1 = y1[valid_indices]
     valid_x2 = x2[valid_indices]
     valid_y2 = y2[valid_indices]
-    valid_centers = np.column_stack((
-        (valid_x1 + valid_x2) * 0.5,
-        (valid_y1 + valid_y2) * 0.5,
-    ))
     valid_half_lens = half_lens[valid_indices]
 
     # 预计算有效迹线的 AABB 包围盒
-    valid_bbox = np.column_stack((
-        np.minimum(valid_x1, valid_x2),
-        np.minimum(valid_y1, valid_y2),
-        np.maximum(valid_x1, valid_x2),
-        np.maximum(valid_y1, valid_y2),
-    ))
+    valid_bbox = np.column_stack(
+        (
+            np.minimum(valid_x1, valid_x2),
+            np.minimum(valid_y1, valid_y2),
+            np.maximum(valid_x1, valid_x2),
+            np.maximum(valid_y1, valid_y2),
+        )
+    )
 
     # 全局包围盒扩展（用于过滤）
     max_half_len = float(np.max(valid_half_lens))
@@ -297,9 +302,7 @@ def recognize_trace_nodes(
                 candidates.append(_Candidate(x=px, y=py, trace_idx=i, param=t))
                 candidates.append(_Candidate(x=px, y=py, trace_idx=j, param=u))
                 intersections.append(
-                    TraceIntersection(
-                        trace_a=i, trace_b=j, x=px, y=py, t=t, u=u, kind="internal"
-                    )
+                    TraceIntersection(trace_a=i, trace_b=j, x=px, y=py, t=t, u=u, kind="internal")
                 )
             elif not t_is_interior and u_is_interior:
                 # Y 型：迹线 i 的端点落在迹线 j 内部

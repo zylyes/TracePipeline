@@ -3,18 +3,19 @@
 本模块提取自 ``trace_plot.py`` 与 ``preview_plot.py`` 的公共代码，
 消除两处 150+ 行的重复函数与常量定义。
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import re
 from collections.abc import Sequence
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from matplotlib.patches import Rectangle
 
-from .style import text_font_kwargs
 from ._helpers import _north_arrow_geometry
+from .style import text_font_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -94,29 +95,90 @@ _UNIT_MATH_TEXT: dict[str, str] = {
 
 _NODE_STYLE_PRESETS: dict[str, dict[str, dict[str, object]]] = {
     "default": {
-        "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "I": {
+            "marker": "o",
+            "markerfacecolor": "#4CAF50",
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.8,
+        },
+        "Y": {
+            "marker": "^",
+            "markerfacecolor": "#F44336",
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.8,
+        },
+        "X": {
+            "marker": "X",
+            "markerfacecolor": "#2196F3",
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.8,
+        },
     },
     "solid": {
-        "I": {"marker": "o", "markerfacecolor": "#2E7D32", "markeredgecolor": "#1B5E20", "markeredgewidth": 1.0},
-        "Y": {"marker": "^", "markerfacecolor": "#C62828", "markeredgecolor": "#B71C1C", "markeredgewidth": 1.0},
-        "X": {"marker": "X", "markerfacecolor": "#1565C0", "markeredgecolor": "#0D47A1", "markeredgewidth": 1.0},
+        "I": {
+            "marker": "o",
+            "markerfacecolor": "#2E7D32",
+            "markeredgecolor": "#1B5E20",
+            "markeredgewidth": 1.0,
+        },
+        "Y": {
+            "marker": "^",
+            "markerfacecolor": "#C62828",
+            "markeredgecolor": "#B71C1C",
+            "markeredgewidth": 1.0,
+        },
+        "X": {
+            "marker": "X",
+            "markerfacecolor": "#1565C0",
+            "markeredgecolor": "#0D47A1",
+            "markeredgewidth": 1.0,
+        },
     },
     "hollow": {
-        "I": {"marker": "o", "markerfacecolor": "none", "markeredgecolor": "#4CAF50", "markeredgewidth": 1.2},
-        "Y": {"marker": "^", "markerfacecolor": "none", "markeredgecolor": "#F44336", "markeredgewidth": 1.2},
-        "X": {"marker": "X", "markerfacecolor": "none", "markeredgecolor": "#2196F3", "markeredgewidth": 1.2},
+        "I": {
+            "marker": "o",
+            "markerfacecolor": "none",
+            "markeredgecolor": "#4CAF50",
+            "markeredgewidth": 1.2,
+        },
+        "Y": {
+            "marker": "^",
+            "markerfacecolor": "none",
+            "markeredgecolor": "#F44336",
+            "markeredgewidth": 1.2,
+        },
+        "X": {
+            "marker": "X",
+            "markerfacecolor": "none",
+            "markeredgecolor": "#2196F3",
+            "markeredgewidth": 1.2,
+        },
     },
     "dark": {
-        "I": {"marker": "o", "markerfacecolor": "#1B5E20", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "Y": {"marker": "^", "markerfacecolor": "#B71C1C", "markeredgecolor": "black", "markeredgewidth": 0.8},
-        "X": {"marker": "X", "markerfacecolor": "#0D47A1", "markeredgecolor": "black", "markeredgewidth": 0.8},
+        "I": {
+            "marker": "o",
+            "markerfacecolor": "#1B5E20",
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.8,
+        },
+        "Y": {
+            "marker": "^",
+            "markerfacecolor": "#B71C1C",
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.8,
+        },
+        "X": {
+            "marker": "X",
+            "markerfacecolor": "#0D47A1",
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.8,
+        },
     },
 }
 
 
 # ── 比例尺 ───────────────────────────────────────────────
+
 
 def _choose_scale_length(base_span: float) -> float:
     """根据数据跨度自适应选择规整比例尺长度（1/2/5 × 10ⁿ 序列）。"""
@@ -124,7 +186,7 @@ def _choose_scale_length(base_span: float) -> float:
     if target <= 0.0:
         return 1.0
     exponent = math.floor(math.log10(target))
-    base = target / (10.0 ** exponent)
+    base = target / (10.0**exponent)
     if base <= 1.0:
         scale = 1.0
     elif base <= 2.0:
@@ -133,7 +195,7 @@ def _choose_scale_length(base_span: float) -> float:
         scale = 5.0
     else:
         scale = 10.0
-    return scale * (10.0 ** exponent)
+    return scale * (10.0**exponent)
 
 
 def _format_scale_label(length: float) -> str:
@@ -143,6 +205,7 @@ def _format_scale_label(length: float) -> str:
 
 
 # ── 统计框 ───────────────────────────────────────────────
+
 
 def _statistics_font_size(row_count: int) -> float:
     """按统计行数收缩字号，保证 PNG 面板内不发生纵向重叠。"""
@@ -299,6 +362,7 @@ def _add_statistics_box(
 
 # ── 布局解析 ─────────────────────────────────────────────
 
+
 def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
     """根据标题行数动态解析各轴在 figure 中的位置。
 
@@ -333,6 +397,7 @@ def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
 
 # ── 外框与面板 ───────────────────────────────────────────
 
+
 def _add_outer_frame(fig: plt.Figure, bounds: tuple[float, float, float, float]) -> plt.Axes:
     frame_ax = fig.add_axes(bounds, label="trace_outer_frame")
     frame_ax.set_xlim(0.0, 1.0)
@@ -347,7 +412,9 @@ def _add_outer_frame(fig: plt.Figure, bounds: tuple[float, float, float, float])
     return frame_ax
 
 
-def _blank_panel_axes(fig: plt.Figure, bounds: tuple[float, float, float, float], label: str) -> plt.Axes:
+def _blank_panel_axes(
+    fig: plt.Figure, bounds: tuple[float, float, float, float], label: str
+) -> plt.Axes:
     ax = fig.add_axes(bounds, label=label)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -357,6 +424,7 @@ def _blank_panel_axes(fig: plt.Figure, bounds: tuple[float, float, float, float]
 
 
 # ── 坐标轴样式 ───────────────────────────────────────────
+
 
 def _style_trace_axes(ax: plt.Axes) -> None:
     """设置迹线图坐标轴：等比例、无刻度、白色背景、完整边框。"""
@@ -378,6 +446,7 @@ def _style_trace_data_axes(ax: plt.Axes) -> None:
 
 
 # ── 指北针 ───────────────────────────────────────────────
+
 
 def _add_north_arrow(
     ax: plt.Axes,
@@ -432,6 +501,7 @@ def _add_north_arrow(
 
 # ── 比例尺带 ─────────────────────────────────────────────
 
+
 def _render_legend(
     ax: plt.Axes,
     items: list[tuple[str, str]],
@@ -459,9 +529,16 @@ def _render_legend(
 
     ax.add_patch(
         Rectangle(
-            (0.02, box_bottom), 0.96, box_height,
-            facecolor="white", edgecolor="0.68", linewidth=0.6, alpha=0.94,
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER,
+            (0.02, box_bottom),
+            0.96,
+            box_height,
+            facecolor="white",
+            edgecolor="0.68",
+            linewidth=0.6,
+            alpha=0.94,
+            transform=ax.transAxes,
+            clip_on=True,
+            zorder=_ANNOTATION_ZORDER,
         )
     )
 
@@ -472,28 +549,44 @@ def _render_legend(
     for (kind, label), y in zip(items, y_positions, strict=False):
         if kind == "trace":
             ax.plot(
-                [0.08, 0.24], [y, y],
-                color=styles["trace_color"], linewidth=styles["trace_width"],
-                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+                [0.08, 0.24],
+                [y, y],
+                color=styles["trace_color"],
+                linewidth=styles["trace_width"],
+                transform=ax.transAxes,
+                clip_on=True,
+                zorder=_ANNOTATION_ZORDER + 1,
             )
         elif kind == "hull":
             ax.add_patch(
                 Rectangle(
-                    (0.08, y - icon_half), 0.16, icon_h,
-                    facecolor=styles["hull_fill"], alpha=styles["hull_alpha"],
-                    edgecolor=styles["hull_edge"], linewidth=styles["hull_lw"],
+                    (0.08, y - icon_half),
+                    0.16,
+                    icon_h,
+                    facecolor=styles["hull_fill"],
+                    alpha=styles["hull_alpha"],
+                    edgecolor=styles["hull_edge"],
+                    linewidth=styles["hull_lw"],
                     linestyle=styles["hull_ls"],
-                    transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+                    transform=ax.transAxes,
+                    clip_on=True,
+                    zorder=_ANNOTATION_ZORDER + 1,
                 )
             )
         elif kind == "circle":
             ax.add_patch(
                 Rectangle(
-                    (0.08, y - icon_half), 0.16, icon_h,
-                    facecolor=styles["circle_fill"], alpha=styles["circle_alpha"],
-                    edgecolor=styles["circle_edge"], linewidth=styles["circle_lw"],
+                    (0.08, y - icon_half),
+                    0.16,
+                    icon_h,
+                    facecolor=styles["circle_fill"],
+                    alpha=styles["circle_alpha"],
+                    edgecolor=styles["circle_edge"],
+                    linewidth=styles["circle_lw"],
                     linestyle=styles["circle_ls"],
-                    transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+                    transform=ax.transAxes,
+                    clip_on=True,
+                    zorder=_ANNOTATION_ZORDER + 1,
                 )
             )
         elif kind.startswith("node_"):
@@ -501,17 +594,34 @@ def _render_legend(
             node_ms = styles["node_style"]
             ms = node_ms.get(node_type, node_ms["I"])
             ax.plot(
-                0.16, y, linestyle="none", markersize=3.5,
-                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1, **ms,
+                0.16,
+                y,
+                linestyle="none",
+                markersize=3.5,
+                transform=ax.transAxes,
+                clip_on=True,
+                zorder=_ANNOTATION_ZORDER + 1,
+                **ms,
             )
         else:
             ax.plot(
-                [0.08, 0.24], [y, y], color="0.55", linewidth=0.65,
-                transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+                [0.08, 0.24],
+                [y, y],
+                color="0.55",
+                linewidth=0.65,
+                transform=ax.transAxes,
+                clip_on=True,
+                zorder=_ANNOTATION_ZORDER + 1,
             )
         ax.text(
-            0.31, y, label, ha="left", va="center",
-            transform=ax.transAxes, clip_on=True, zorder=_ANNOTATION_ZORDER + 1,
+            0.31,
+            y,
+            label,
+            ha="left",
+            va="center",
+            transform=ax.transAxes,
+            clip_on=True,
+            zorder=_ANNOTATION_ZORDER + 1,
             **text_font_kwargs(fontsize=5.8, color="black"),
         )
 
@@ -590,6 +700,7 @@ def _add_scale_bar_band(
 
 
 # ── 节点样式 ─────────────────────────────────────────────
+
 
 def _resolve_node_style(style: dict[str, Any]) -> dict[str, dict[str, object]]:
     """根据 style 中的 node_style 预设名返回对应的节点标记样式字典。"""

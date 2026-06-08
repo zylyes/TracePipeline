@@ -1,4 +1,5 @@
 """输出目录结果文件查找工具。"""
+
 from __future__ import annotations
 
 from pathlib import Path

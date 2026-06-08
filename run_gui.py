@@ -3,11 +3,12 @@
 运行方式:
     python run_gui.py
 """
+
 from __future__ import annotations
 
 import ctypes
 import sys
-from pathlib import Path
+from contextlib import suppress
 
 from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 from trace_pipeline.utils.paths import get_project_root
@@ -18,10 +19,8 @@ DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
 try:
     ctypes.windll.user32.SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 except Exception:
-    try:
+    with suppress(Exception):
         ctypes.windll.user32.SetProcessDPIAware()
-    except Exception:
-        pass
 
 # 强制设置 matplotlib 后端为 Agg（非交互式），避免后台线程绘图时触发 Tkinter
 force_noninteractive_backend()
@@ -31,8 +30,8 @@ PROJECT_ROOT = get_project_root()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace_pipeline.config import ensure_workspace_dirs
-from backend.main_gui import main
+from backend.main_gui import main  # noqa: E402
+from trace_pipeline.config import ensure_workspace_dirs  # noqa: E402
 
 if __name__ == "__main__":
     ensure_workspace_dirs()

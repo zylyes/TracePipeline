@@ -1,4 +1,5 @@
 """圆形取样窗评分 — 6 因子加权评分与自动策略选择。"""
+
 from __future__ import annotations
 
 import logging
@@ -76,12 +77,8 @@ def _side_coverage_score(diagnostics: Sequence[CircleWindowDiagnostic]) -> float
     if any(diagnostic.side == "center" for diagnostic in valid):
         return 0.85
 
-    left_groups = {
-        diagnostic.group_key for diagnostic in valid if diagnostic.side == "left"
-    }
-    right_groups = {
-        diagnostic.group_key for diagnostic in valid if diagnostic.side == "right"
-    }
+    left_groups = {diagnostic.group_key for diagnostic in valid if diagnostic.side == "left"}
+    right_groups = {diagnostic.group_key for diagnostic in valid if diagnostic.side == "right"}
     covered_side_count = int(bool(left_groups)) + int(bool(right_groups))
     if covered_side_count == 0:
         return 0.0
@@ -121,8 +118,7 @@ def _spatial_coverage_score(
     scanline_length: float,
 ) -> float:
     return (
-        _side_coverage_score(diagnostics)
-        + _along_coverage_score(diagnostics, scanline_length)
+        _side_coverage_score(diagnostics) + _along_coverage_score(diagnostics, scanline_length)
     ) / 2.0
 
 
@@ -147,9 +143,7 @@ def _sample_sufficiency_score(
     diagnostics: Sequence[CircleWindowDiagnostic],
     min_intersections: int,
 ) -> float:
-    valid_counts = [
-        diagnostic.intersection_count for diagnostic in diagnostics if diagnostic.valid
-    ]
+    valid_counts = [diagnostic.intersection_count for diagnostic in diagnostics if diagnostic.valid]
     if not valid_counts:
         return 0.0
     target = max(1, 2 * int(min_intersections))
@@ -194,16 +188,8 @@ def _score_window_strategy(
     valid_group_count = len(valid_groups)
     valid_window_count = sum(1 for diagnostic in diagnostics if diagnostic.valid)
     all_groups = {diagnostic.group_key for diagnostic in diagnostics}
-    valid_group_score = (
-        valid_group_count / max_valid_groups
-        if max_valid_groups > 0
-        else 0.0
-    )
-    valid_group_ratio = (
-        valid_group_count / len(all_groups)
-        if all_groups
-        else 0.0
-    )
+    valid_group_score = valid_group_count / max_valid_groups if max_valid_groups > 0 else 0.0
+    valid_group_ratio = valid_group_count / len(all_groups) if all_groups else 0.0
     score = (
         _WEIGHT_VALID_GROUP * valid_group_score
         + _WEIGHT_GROUP_RATIO * valid_group_ratio
@@ -279,8 +265,7 @@ def _select_window_diagnostics(
         hull_area,
     )
     max_valid_groups = max(
-        len(_valid_group_keys(diagnostics))
-        for diagnostics in diagnostics_by_strategy.values()
+        len(_valid_group_keys(diagnostics)) for diagnostics in diagnostics_by_strategy.values()
     )
     finite_radii = [
         float(diagnostic.radius)

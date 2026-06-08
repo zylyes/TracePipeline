@@ -13,6 +13,7 @@ def test_node_label_mode_from_mapping() -> None:
     }
 
     assert RunConfig.from_mapping({**base, "node_label_mode": "id"}).node_label_mode == "id"
-    assert RunConfig.from_mapping(
-        {**base, "style": {"node_label_mode": "none"}}
-    ).node_label_mode == "none"
+    assert (
+        RunConfig.from_mapping({**base, "style": {"node_label_mode": "none"}}).node_label_mode
+        == "none"
+    )

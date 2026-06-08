@@ -1,4 +1,5 @@
 """日志上下文 — request_id 传播与计时工具。"""
+
 from __future__ import annotations
 
 import contextvars
@@ -51,6 +52,7 @@ class LogContext:
 def _generate_request_id() -> str:
     """生成一个独特的请求ID（时间戳+UUID短前缀）。"""
     import uuid
+
     return f"{time.time_ns():x}-{uuid.uuid4().hex[:8]}"
 
 

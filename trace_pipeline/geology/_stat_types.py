@@ -1,4 +1,5 @@
 """统计相关数据类型定义。"""
+
 from __future__ import annotations
 
 import math
@@ -76,8 +77,8 @@ class CircleWindowDiagnostic:
     n0: int  # 两端点均在圆外的相交迹线数
     n1: int  # 一端在圆内的相交迹线数
     n2: int  # 两端均在圆内的相交迹线数
-    m: int   # m = n1 + 2*n2
-    q: int   # q = 2*n0 + n1
+    m: int  # m = n1 + 2*n2
+    q: int  # q = 2*n0 + n1
     p20: float
     p21: float
     l_est: float

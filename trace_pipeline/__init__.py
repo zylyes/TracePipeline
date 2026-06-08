@@ -10,12 +10,13 @@
   plotting/     — 迹线图 + 玫瑰图
   cli/          — 命令行入口
 """
+
 from __future__ import annotations
 
 from importlib import import_module
 from typing import Any
 
-__version__ = "3.8.4"
+__version__ = "3.8.5"
 
 from .config import (
     DEFAULT_CONFIG,
@@ -37,7 +38,10 @@ _LAZY_EXPORTS = {
     "compute_trace_statistics": ("trace_pipeline.geology.statistics", "compute_trace_statistics"),
     "configure_style": ("trace_pipeline.plotting.style", "configure_style"),
     "find_trace_tables": ("trace_pipeline.io.discovery", "find_trace_tables"),
-    "format_statistics_box_lines": ("trace_pipeline.geology.statistics", "format_statistics_box_lines"),
+    "format_statistics_box_lines": (
+        "trace_pipeline.geology.statistics",
+        "format_statistics_box_lines",
+    ),
     "load_trace_data": ("trace_pipeline.pipeline", "load_trace_data"),
     "print_pipeline_results": ("trace_pipeline.reporting", "print_pipeline_results"),
     "run_pipeline": ("trace_pipeline.pipeline", "run_pipeline"),
@@ -52,6 +56,7 @@ def __getattr__(name: str) -> Any:
     value = getattr(import_module(module_name), attr_name)
     globals()[name] = value
     return value
+
 
 __all__ = [
     "DEFAULT_CONFIG",

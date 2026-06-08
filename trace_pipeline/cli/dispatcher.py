@@ -1,4 +1,5 @@
 """目标决策与执行（串/并统一）。"""
+
 from __future__ import annotations
 
 import logging
@@ -42,14 +43,16 @@ def _build_run_config(
     target: TraceFile,
 ) -> RunConfig:
     output_prefix = _resolve_output_prefix(cfg, target)
-    return RunConfig.from_mapping({
-        **cfg,
-        "input_dir": input_dir,
-        "output_dir": output_dir,
-        "output_prefix": output_prefix,
-        "table_stem": target.stem,
-        "outcrop": target.outcrop,
-    })
+    return RunConfig.from_mapping(
+        {
+            **cfg,
+            "input_dir": input_dir,
+            "output_dir": output_dir,
+            "output_prefix": output_prefix,
+            "table_stem": target.stem,
+            "outcrop": target.outcrop,
+        }
+    )
 
 
 def _resolve_output_prefix(cfg: dict[str, Any], target: TraceFile) -> str:
@@ -85,7 +88,9 @@ def execute_targets(
                 try:
                     run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
                 except Exception as exc:
-                    parallel_results[idx] = RunResult.failure(target.stem, str(exc), error_type=type(exc).__name__)
+                    parallel_results[idx] = RunResult.failure(
+                        target.stem, str(exc), error_type=type(exc).__name__
+                    )
                     pbar.update(1)
                     continue
                 future = executor.submit(run_pipeline, run_cfg)
@@ -94,9 +99,7 @@ def execute_targets(
             pending = set(future_map)
             while pending:
                 now = time.monotonic()
-                next_deadline = min(
-                    deadline for _, _, deadline in (future_map[f] for f in pending)
-                )
+                next_deadline = min(deadline for _, _, deadline in (future_map[f] for f in pending))
                 timeout = max(0.0, next_deadline - now)
                 done, _ = wait(pending, timeout=timeout, return_when=FIRST_COMPLETED)
                 if not done:
@@ -111,10 +114,14 @@ def execute_targets(
                         try:
                             result = future.result()
                         except Exception as exc:
-                            result = RunResult.failure(stem, str(exc), error_type=type(exc).__name__)
+                            result = RunResult.failure(
+                                stem, str(exc), error_type=type(exc).__name__
+                            )
                     elif time.monotonic() >= deadline:
                         future.cancel()
-                        result = RunResult.failure(stem, "处理超时(300s)", error_type="TimeoutError")
+                        result = RunResult.failure(
+                            stem, "处理超时(300s)", error_type="TimeoutError"
+                        )
                     else:
                         continue
                     parallel_results[idx] = result
@@ -155,7 +162,9 @@ def execute_targets(
             if result.status is PipelineStatus.SUCCESS:
                 logger.info(
                     "完成 %s → %s（迹线数=%d）",
-                    target.stem, result.excel_path, result.trace_count,
+                    target.stem,
+                    result.excel_path,
+                    result.trace_count,
                 )
             else:
                 logger.warning("失败 %s: %s", target.stem, result.error)

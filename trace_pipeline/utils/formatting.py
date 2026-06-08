@@ -1,4 +1,5 @@
 """通用格式化工具。"""
+
 from __future__ import annotations
 
 __all__ = ["format_file_size"]

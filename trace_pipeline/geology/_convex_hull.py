@@ -1,4 +1,5 @@
 """凸包面积计算。"""
+
 from __future__ import annotations
 
 import math
@@ -6,6 +7,7 @@ import math
 import numpy as np
 
 from ._stat_types import _EPS
+
 
 def _cross_2d(a: np.ndarray, b: np.ndarray) -> float:
     """二维向量叉积（标量值）。"""
@@ -108,7 +110,7 @@ def _buffered_hull_area(hull_vertices: np.ndarray, buffer_distance: float) -> fl
         return math.nan
 
     perimeter = _hull_perimeter(hull_vertices)
-    return area + perimeter * buffer_distance + math.pi * buffer_distance ** 2
+    return area + perimeter * buffer_distance + math.pi * buffer_distance**2
 
 
 def _buffered_hull_vertices(

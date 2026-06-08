@@ -1,4 +1,5 @@
 """集成 smoke test — pipeline.py 全流程编排。"""
+
 from __future__ import annotations
 
 import tempfile
@@ -22,20 +23,23 @@ def _create_test_excel(tmp_dir: Path, stem: str, sheet: str) -> Path:
     records = []
     for i in range(3):
         x_along = i * 2.0
-        records.append([
-            x_along,          # col 0: r1 (scanline position)
-            0.1,              # col 1: r2
-            30.0,             # col 2: r3 (dip)
-            x_along + 1.5,    # col 3: r4
-            0.8 + i * 0.1,    # col 4: r5 (left trace length)
-            0.0,              # col 5: r6 (right trace, 0 = no right)
-            1.0 + i * 0.1,    # col 6: r7 (must be >0 when r5 >0)
-            298.0 if i == 0 else None,  # col 7: 走向角
-            3 if i == 0 else None,       # col 8: 迹线条数
-            None, None,        # col 9, 10
-            5.0 if i == 0 else None,     # col 11: 实测测线长度
-            10.0 if i == 0 else None,    # col 12: 实测露头面积
-        ])
+        records.append(
+            [
+                x_along,  # col 0: r1 (scanline position)
+                0.1,  # col 1: r2
+                30.0,  # col 2: r3 (dip)
+                x_along + 1.5,  # col 3: r4
+                0.8 + i * 0.1,  # col 4: r5 (left trace length)
+                0.0,  # col 5: r6 (right trace, 0 = no right)
+                1.0 + i * 0.1,  # col 6: r7 (must be >0 when r5 >0)
+                298.0 if i == 0 else None,  # col 7: 走向角
+                3 if i == 0 else None,  # col 8: 迹线条数
+                None,
+                None,  # col 9, 10
+                5.0 if i == 0 else None,  # col 11: 实测测线长度
+                10.0 if i == 0 else None,  # col 12: 实测露头面积
+            ]
+        )
     df = pd.DataFrame(records)
     path = tmp_dir / f"{stem}.xlsx"
     df.to_excel(path, index=False, header=False, sheet_name=sheet)
@@ -60,7 +64,10 @@ class TestLoadTraceData:
 
 class TestRunPipeline:
     def test_successful_run(self) -> None:
-        with tempfile.TemporaryDirectory() as input_tmp, tempfile.TemporaryDirectory() as output_tmp:
+        with (
+            tempfile.TemporaryDirectory() as input_tmp,
+            tempfile.TemporaryDirectory() as output_tmp,
+        ):
             input_dir = Path(input_tmp)
             output_dir = Path(output_tmp)
             stem = "O76_process"
@@ -92,7 +99,10 @@ class TestRunPipeline:
             assert result.error is not None
 
     def test_run_result_structure(self) -> None:
-        with tempfile.TemporaryDirectory() as input_tmp, tempfile.TemporaryDirectory() as output_tmp:
+        with (
+            tempfile.TemporaryDirectory() as input_tmp,
+            tempfile.TemporaryDirectory() as output_tmp,
+        ):
             input_dir = Path(input_tmp)
             output_dir = Path(output_tmp)
             stem = "O76_process"

@@ -3,6 +3,7 @@
 保留对外接口 ``log()`` / ``get()``，内部通过统一 logger 输出，
 日志随主日志文件一起按天归档。
 """
+
 from __future__ import annotations
 
 import json
@@ -35,12 +36,14 @@ class AuditService:
                 "result": result,
             },
         )
-        self._buffer.appendleft({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "action": action,
-            "params": params or {},
-            "result": result,
-        })
+        self._buffer.appendleft(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action": action,
+                "params": params or {},
+                "result": result,
+            }
+        )
 
     def get(self, limit: int = 50) -> list[dict[str, Any]]:
         """从内存缓冲区读取最近 N 条审计记录，回退到文件扫描。"""

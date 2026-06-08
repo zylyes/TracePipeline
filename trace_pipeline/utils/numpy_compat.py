@@ -1,4 +1,5 @@
 """NumPy 类型兼容性工具。"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -35,6 +36,7 @@ def to_native(val: Any, max_depth: int = 20, _depth: int = 0) -> Any:
 
     try:
         import pandas as pd
+
         if isinstance(val, (pd.Timestamp,)):
             return val.isoformat()
         if isinstance(val, pd.Series):

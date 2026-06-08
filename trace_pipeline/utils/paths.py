@@ -1,4 +1,5 @@
 """项目路径解析工具。"""
+
 from __future__ import annotations
 
 import sys

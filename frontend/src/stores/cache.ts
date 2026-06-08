@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 
 const SCAN_TTL = 30_000      // 文件扫描缓存 30s
 const STATS_TTL = 300_000    // 统计数据缓存 5min
@@ -9,6 +9,8 @@ const RESULTS_TTL = 5_000    // 结果列表缓存 5s（output 目录可被外�
 const IMAGE_TTL = 600_000    // 图片缓存 10min
 const IMAGE_MAX_COUNT = 50   // 图片缓存最大条目数
 const IMAGE_MAX_CHARS = 80_000_000
+const THUMBNAIL_MAX_COUNT = 120
+const THUMBNAIL_MAX_CHARS = 30_000_000
 
 interface CachedItem<T> {
   data: T
@@ -26,8 +28,11 @@ export const useCacheStore = defineStore('cache', () => {
   const resultsCache = ref<CachedItem<any[]> | null>(null)
   // 图片缓存: path -> base64
   const imageCache = ref<Map<string, CachedItem<string>>>(new Map())
+  const thumbnailCache = ref<Map<string, CachedItem<string>>>(new Map())
   const imageCacheHits = ref(0)
   const imageCacheMisses = ref(0)
+  const thumbnailCacheHits = ref(0)
+  const thumbnailCacheMisses = ref(0)
 
   const isScanValid = computed(() => {
     if (!scanResult.value) return false
@@ -91,38 +96,77 @@ export const useCacheStore = defineStore('cache', () => {
   }
 
   // --- 图片 ---
-  function imageKey(path: string, version?: string | number | null): string {
-    return version ? `${path}?v=${version}` : path
+  function imageKey(
+    path: string,
+    version?: string | number | null,
+    variant = 'full',
+    maxPx?: number
+  ): string {
+    const params: string[] = []
+    if (variant !== 'full') params.push(`kind=${variant}`)
+    if (maxPx) params.push(`max=${maxPx}`)
+    if (version) params.push(`v=${version}`)
+    return params.length ? `${path}?${params.join('&')}` : path
   }
 
-  function getImage(path: string, version?: string | number | null): string | null {
-    const key = imageKey(path, version)
-    const item = imageCache.value.get(key)
+  function getCachedString(
+    cache: Map<string, CachedItem<string>>,
+    key: string,
+    hits: Ref<number>,
+    misses: Ref<number>
+  ): string | null {
+    const item = cache.get(key)
     if (!item) {
-      imageCacheMisses.value += 1
+      misses.value += 1
       return null
     }
     if (Date.now() - item.timestamp > IMAGE_TTL) {
-      imageCache.value.delete(key)
-      imageCacheMisses.value += 1
+      cache.delete(key)
+      misses.value += 1
       return null
     }
     item.timestamp = Date.now()
-    imageCacheHits.value += 1
+    hits.value += 1
     return item.data
   }
 
-  function getImageCacheChars(): number {
+  function getImage(path: string, version?: string | number | null): string | null {
+    return getCachedString(
+      imageCache.value,
+      imageKey(path, version),
+      imageCacheHits,
+      imageCacheMisses
+    )
+  }
+
+  function getThumbnail(
+    path: string,
+    version?: string | number | null,
+    maxPx = 480
+  ): string | null {
+    return getCachedString(
+      thumbnailCache.value,
+      imageKey(path, version, 'thumbnail', maxPx),
+      thumbnailCacheHits,
+      thumbnailCacheMisses
+    )
+  }
+
+  function getStringCacheChars(cache: Map<string, CachedItem<string>>): number {
     let total = 0
-    for (const item of imageCache.value.values()) total += item.data.length
+    for (const item of cache.values()) total += item.data.length
     return total
   }
 
-  function pruneImageCache(protectedKey?: string) {
-    while (imageCache.value.size > 1 && getImageCacheChars() > IMAGE_MAX_CHARS) {
+  function pruneStringCache(
+    cache: Map<string, CachedItem<string>>,
+    maxChars: number,
+    protectedKey?: string
+  ) {
+    while (cache.size > 1 && getStringCacheChars(cache) > maxChars) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
-      for (const [k, v] of imageCache.value.entries()) {
+      for (const [k, v] of cache.entries()) {
         if (k === protectedKey) continue
         if (v.timestamp < oldestTime) {
           oldestTime = v.timestamp
@@ -130,42 +174,82 @@ export const useCacheStore = defineStore('cache', () => {
         }
       }
       if (oldestKey === null) break
-      imageCache.value.delete(oldestKey)
+      cache.delete(oldestKey)
     }
   }
 
-  function setImage(path: string, data: string, version?: string | number | null) {
-    const key = imageKey(path, version)
+  function setCachedString(
+    cache: Map<string, CachedItem<string>>,
+    key: string,
+    data: string,
+    maxCount: number,
+    maxChars: number
+  ) {
     // LRU 淘汰：超过最大条目时删除最旧的记录
-    if (imageCache.value.size >= IMAGE_MAX_COUNT && !imageCache.value.has(key)) {
+    if (cache.size >= maxCount && !cache.has(key)) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
-      for (const [k, v] of imageCache.value.entries()) {
+      for (const [k, v] of cache.entries()) {
         if (v.timestamp < oldestTime) {
           oldestTime = v.timestamp
           oldestKey = k
         }
       }
       if (oldestKey !== null) {
-        imageCache.value.delete(oldestKey)
+        cache.delete(oldestKey)
       }
     }
-    imageCache.value.set(key, { data, timestamp: Date.now() })
-    pruneImageCache(key)
+    cache.set(key, { data, timestamp: Date.now() })
+    pruneStringCache(cache, maxChars, key)
+  }
+
+  function setImage(path: string, data: string, version?: string | number | null) {
+    setCachedString(
+      imageCache.value,
+      imageKey(path, version),
+      data,
+      IMAGE_MAX_COUNT,
+      IMAGE_MAX_CHARS
+    )
+  }
+
+  function setThumbnail(
+    path: string,
+    data: string,
+    version?: string | number | null,
+    maxPx = 480
+  ) {
+    setCachedString(
+      thumbnailCache.value,
+      imageKey(path, version, 'thumbnail', maxPx),
+      data,
+      THUMBNAIL_MAX_COUNT,
+      THUMBNAIL_MAX_CHARS
+    )
   }
 
   function getImageCacheStats() {
     return {
       count: imageCache.value.size,
-      chars: getImageCacheChars(),
+      chars: getStringCacheChars(imageCache.value),
       maxChars: IMAGE_MAX_CHARS,
       hits: imageCacheHits.value,
       misses: imageCacheMisses.value,
+      thumbnailCount: thumbnailCache.value.size,
+      thumbnailChars: getStringCacheChars(thumbnailCache.value),
+      thumbnailMaxChars: THUMBNAIL_MAX_CHARS,
+      thumbnailHits: thumbnailCacheHits.value,
+      thumbnailMisses: thumbnailCacheMisses.value,
     }
   }
 
   function invalidateImages() {
     imageCache.value.clear()
+    thumbnailCache.value.clear()
+  }
+
+  function invalidateThumbnails() {
+    thumbnailCache.value.clear()
   }
 
   // --- 失效 ---
@@ -203,15 +287,16 @@ export const useCacheStore = defineStore('cache', () => {
   }
 
   return {
-    scanResult, statsCache, comparisonCache, resultsCache, imageCache,
-    imageCacheHits, imageCacheMisses,
+    scanResult, statsCache, comparisonCache, resultsCache, imageCache, thumbnailCache,
+    imageCacheHits, imageCacheMisses, thumbnailCacheHits, thumbnailCacheMisses,
     isScanValid, isComparisonValid, isResultsValid,
     getScan, setScan,
     getStats, setStats,
     getComparison, setComparison,
     getResults, setResults,
-    getImage, setImage, getImageCacheStats,
-    invalidateScan, invalidateStats, invalidateComparison, invalidateResults, invalidateImages, invalidateAll,
+    getImage, setImage, getThumbnail, setThumbnail, getImageCacheStats,
+    invalidateScan, invalidateStats, invalidateComparison, invalidateResults,
+    invalidateImages, invalidateThumbnails, invalidateAll,
     onPipelineComplete,
   }
 })

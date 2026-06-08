@@ -82,6 +82,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
+  (e: 'index-change', val: number): void
 }>()
 
 const viewerRef = ref<HTMLDivElement>()
@@ -119,6 +120,7 @@ watch(() => props.visible, (val) => {
   if (val) {
     currentIndex.value = props.initialIndex ?? 0
     resetZoom()
+    emit('index-change', currentIndex.value)
     nextTick(() => viewerRef.value?.focus())
     window.addEventListener('keydown', onKeydown)
   } else {
@@ -137,7 +139,10 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 watch(() => props.initialIndex, (val) => {
-  if (val !== undefined) currentIndex.value = val
+  if (val !== undefined) {
+    currentIndex.value = val
+    if (props.visible) emit('index-change', currentIndex.value)
+  }
 })
 
 function close() {
@@ -184,6 +189,7 @@ function prevImage() {
     currentIndex.value = props.images.length - 1
     resetZoom()
   }
+  emit('index-change', currentIndex.value)
 }
 
 function nextImage() {
@@ -194,6 +200,7 @@ function nextImage() {
     currentIndex.value = 0
     resetZoom()
   }
+  emit('index-change', currentIndex.value)
 }
 
 function onMouseDown(e: MouseEvent) {

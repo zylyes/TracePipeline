@@ -1,11 +1,13 @@
 """GUI 入口程序 — PyWebView 启动器。"""
+
 from __future__ import annotations
 
 import ctypes
 import logging
-import sys
 import time
-from pathlib import Path
+
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+from trace_pipeline.utils.paths import get_project_root, get_resource_root
 
 
 def get_screen_size() -> tuple[int, int]:
@@ -26,6 +28,7 @@ def get_screen_size() -> tuple[int, int]:
     # 回退方案：tkinter（几乎所有 Python 环境都有）
     try:
         import tkinter as tk
+
         root = tk.Tk()
         root.withdraw()
         width = root.winfo_screenwidth()
@@ -55,18 +58,15 @@ def get_window_position(window_width: int, window_height: int) -> tuple[int, int
     # 确保不会超出屏幕边界（坐标为负值）
     return max(0, x), max(0, y)
 
-from trace_pipeline.utils.mpl_init import force_noninteractive_backend
-from trace_pipeline.utils.paths import get_project_root, get_resource_root
 
 force_noninteractive_backend()
 
-import webview
+import webview  # noqa: E402
 
-from trace_pipeline import __version__
-from trace_pipeline.cli.logging_setup import setup_logging
-
-from backend.gui_api import GuiApi
-from backend.webview2_checker import WebView2Checker
+from backend.gui_api import GuiApi  # noqa: E402
+from backend.webview2_checker import WebView2Checker  # noqa: E402
+from trace_pipeline import __version__  # noqa: E402
+from trace_pipeline.cli.logging_setup import setup_logging  # noqa: E402
 
 PROJECT_ROOT = get_project_root()
 RESOURCE_ROOT = get_resource_root()
@@ -94,19 +94,27 @@ def main() -> None:
 
     start = time.perf_counter()
     api = GuiApi()
-    logger.info("GuiApi 初始化完成 (%.3f ms)", (time.perf_counter() - start) * 1000, extra={"stage": "gui_api_init"})
+    logger.info(
+        "GuiApi 初始化完成 (%.3f ms)",
+        (time.perf_counter() - start) * 1000,
+        extra={"stage": "gui_api_init"},
+    )
 
     checker = WebView2Checker()
 
     if not checker.is_installed():
         logger.warning("WebView2 Runtime 未安装，提示用户下载", extra={"stage": "webview2_missing"})
+        download_url = checker.get_download_url()
         html = f"""
         <html>
         <head><meta charset="utf-8"><title>WebView2 未安装</title></head>
         <body style="font-family:SimSun,sans-serif;text-align:center;padding:40px;">
             <h2>需要安装 WebView2 Runtime</h2>
             <p>请点击下方链接下载并安装后重新启动程序。</p>
-            <a href="{checker.get_download_url()}" onclick="pywebview.api.open_external(this.href);return false;">
+            <a
+                href="{download_url}"
+                onclick="pywebview.api.open_external(this.href);return false;"
+            >
                 前往下载页面
             </a>
         </body>
@@ -135,21 +143,25 @@ def main() -> None:
     logger.info("前端入口: %s", url, extra={"stage": "window_create", "url": url})
 
     # 窗口尺寸常量
-    WIN_WIDTH = 1400
-    WIN_HEIGHT = 900
+    win_width = 1400
+    win_height = 900
     # 计算居中位置
-    x, y = get_window_position(WIN_WIDTH, WIN_HEIGHT)
+    x, y = get_window_position(win_width, win_height)
     logger.info(
         "窗口居中计算: 屏幕=%dx%d, 窗口=%dx%d, 位置=(%d, %d)",
-        *get_screen_size(), WIN_WIDTH, WIN_HEIGHT, x, y,
+        *get_screen_size(),
+        win_width,
+        win_height,
+        x,
+        y,
         extra={"stage": "window_position", "x": x, "y": y},
     )
 
     window = webview.create_window(
         f"TracePipeline v{__version__}",
         url=url,
-        width=WIN_WIDTH,
-        height=WIN_HEIGHT,
+        width=win_width,
+        height=win_height,
         x=x,
         y=y,
         min_size=(1000, 600),
@@ -162,7 +174,9 @@ def main() -> None:
     # 窗口显示后再次强制居中，并子类化启用原生拖拽 / resize
     def on_shown():
         window.move(x, y)
-        logger.info("窗口显示后强制居中到 (%d, %d)", x, y, extra={"stage": "window_shown", "x": x, "y": y})
+        logger.info(
+            "窗口显示后强制居中到 (%d, %d)", x, y, extra={"stage": "window_shown", "x": x, "y": y}
+        )
 
     window.events.shown += on_shown
 
@@ -178,8 +192,8 @@ def main() -> None:
         extra={
             "stage": "window_open",
             "title": f"TracePipeline v{__version__}",
-            "width": WIN_WIDTH,
-            "height": WIN_HEIGHT,
+            "width": win_width,
+            "height": win_height,
             "x": x,
             "y": y,
             "icon": icon,

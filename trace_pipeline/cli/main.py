@@ -1,18 +1,21 @@
 """CLI 顶层编排：串联参数解析、配置加载、文件发现与执行。"""
+
 from __future__ import annotations
 
 import multiprocessing
 import sys
+from contextlib import suppress
+
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 
 from ..config import apply_cli_overrides, load_config, resolve_config_base_dir, resolve_io_paths
 from ..io.discovery import find_trace_tables
+from ..models import PipelineStatus
 from ..reporting import print_pipeline_results
 from .args import build_overrides, parse_args
 from .dispatcher import decide_targets, execute_targets
 from .interactive import select_targets_interactive
 from .logging_setup import setup_logging
-from ..models import PipelineStatus
-from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 
 __all__ = ["main"]
 
@@ -24,10 +27,8 @@ def _init_plotting() -> None:
 
 def main() -> None:
     """CLI 入口：配置加载 → 文件发现 → 目标决策 → 执行 → 汇总。"""
-    try:
+    with suppress(RuntimeError):
         multiprocessing.set_start_method("spawn")
-    except RuntimeError:
-        pass
     args = parse_args()
     logger = setup_logging()
 
@@ -93,8 +94,12 @@ def main() -> None:
     # ---- 6. 执行 ----
     _init_plotting()
     results = execute_targets(
-        targets, cfg, input_dir, output_dir,
-        workers=args.parallel, logger=logger,
+        targets,
+        cfg,
+        input_dir,
+        output_dir,
+        workers=args.parallel,
+        logger=logger,
     )
 
     # ---- 7. 汇总 ----

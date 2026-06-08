@@ -1,9 +1,9 @@
 """节点分析结果类型。"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Literal
-
 
 __all__ = [
     "NodeAnalysis",

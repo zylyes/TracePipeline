@@ -1,10 +1,11 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import IntroView from '@/views/IntroView.vue'
-import ProcessingView from '@/views/ProcessingView.vue'
-import StatisticsView from '@/views/StatisticsView.vue'
-import ComparisonView from '@/views/ComparisonView.vue'
-import DataView from '@/views/DataView.vue'
-import ConfigView from '@/views/ConfigView.vue'
+
+const IntroView = () => import('@/views/IntroView.vue')
+const ProcessingView = () => import('@/views/ProcessingView.vue')
+const StatisticsView = () => import('@/views/StatisticsView.vue')
+const ComparisonView = () => import('@/views/ComparisonView.vue')
+const DataView = () => import('@/views/DataView.vue')
+const ConfigView = () => import('@/views/ConfigView.vue')
 
 const routes = [
   { path: '/', name: 'Intro', component: IntroView, meta: { keepAlive: true } },

@@ -130,7 +130,10 @@ defineOptions({ name: 'Comparison' })
 
 const pipelineStore = usePipelineStore()
 const cacheStore = useCacheStore()
-const INITIAL_IMAGE_PREFETCH_COUNT = 6
+const INITIAL_IMAGE_PREFETCH_COUNT = 4
+const IMAGE_PREFETCH_CONCURRENCY = 2
+let activeImageLoads = 0
+const imageLoadQueue: Array<() => void> = []
 
 const tableData = ref<ComparisonRow[]>([])
 const loading = ref(false)
@@ -166,6 +169,7 @@ interface GridImage {
   path: string
   src: string
   loading?: boolean
+  loadPromise?: Promise<void>
 }
 const allImages = ref<GridImage[]>([])
 
@@ -180,15 +184,43 @@ function syncViewerImages() {
   }))
 }
 
-async function ensureImageLoaded(img: GridImage) {
-  if (img.src || img.loading || !img.path) return
-  img.loading = true
-  try {
-    img.src = await loadImageBase64(img.path)
-    if (viewerVisible.value) syncViewerImages()
-  } finally {
-    img.loading = false
+function acquireImageLoadSlot(): Promise<() => void> {
+  if (activeImageLoads < IMAGE_PREFETCH_CONCURRENCY) {
+    activeImageLoads += 1
+    return Promise.resolve(releaseImageLoadSlot)
   }
+  return new Promise(resolve => {
+    imageLoadQueue.push(() => {
+      activeImageLoads += 1
+      resolve(releaseImageLoadSlot)
+    })
+  })
+}
+
+function releaseImageLoadSlot() {
+  activeImageLoads = Math.max(0, activeImageLoads - 1)
+  const next = imageLoadQueue.shift()
+  if (next) next()
+}
+
+async function ensureImageLoaded(img: GridImage) {
+  if (img.src || !img.path) return
+  if (img.loadPromise) return img.loadPromise
+  img.loading = true
+  img.loadPromise = (async () => {
+    const release = await acquireImageLoadSlot()
+    try {
+      if (!img.src) {
+        img.src = await loadImageBase64(img.path)
+        if (viewerVisible.value) syncViewerImages()
+      }
+    } finally {
+      release()
+      img.loading = false
+      img.loadPromise = undefined
+    }
+  })()
+  return img.loadPromise
 }
 
 function prefetchGridImages() {

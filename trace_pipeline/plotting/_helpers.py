@@ -1,8 +1,10 @@
 """绘图通用辅助 — Figure 创建、保存与共享装饰元素。"""
 from __future__ import annotations
 
+import logging
 import math
 import os
+import time
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +18,8 @@ import matplotlib.pyplot as plt
 from .style import text_font_kwargs
 
 __all__ = ["new_figure", "save_figure", "add_data_north_arrow", "compute_data_bounds"]
+
+logger = logging.getLogger(__name__)
 
 
 def new_figure(
@@ -63,7 +67,21 @@ def save_figure(
             kwargs["transparent"] = True
         else:
             kwargs["facecolor"] = "white"
+        save_start = time.perf_counter()
         fig.savefig(str(tmp_path), **kwargs)
+        save_duration = (time.perf_counter() - save_start) * 1000
+        logger.debug(
+            "savefig 完成: %s (%.3f ms)",
+            filename,
+            save_duration,
+            extra={
+                "stage": "savefig",
+                "filename": filename,
+                "dpi": dpi,
+                "bbox_inches": bbox_inches,
+                "duration_ms": round(save_duration, 3),
+            },
+        )
         # 原子重命名，确保文件完整性
         tmp_path.replace(dest_path)
     finally:

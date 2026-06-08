@@ -40,6 +40,24 @@ export default defineConfig({
   build: {
     outDir: '../backend/static',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, '/')
+          if (!normalizedId.includes('node_modules')) return undefined
+          if (normalizedId.includes('echarts') || normalizedId.includes('zrender') || normalizedId.includes('vue-echarts')) {
+            return 'charts'
+          }
+          if (normalizedId.includes('element-plus') || normalizedId.includes('@element-plus')) {
+            return 'element-plus'
+          }
+          if (normalizedId.includes('/vue') || normalizedId.includes('pinia') || normalizedId.includes('vue-router')) {
+            return 'vue-vendor'
+          }
+          return 'vendor'
+        },
+      },
+    },
   },
   css: {
     preprocessorOptions: {

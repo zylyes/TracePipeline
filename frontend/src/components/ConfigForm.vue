@@ -123,9 +123,10 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, reactive, ref, watch } from 'vue'
+import { nextTick, onUnmounted, reactive, ref, watch } from 'vue'
 import { Brush as BrushIcon, RefreshLeft as RefreshLeftIcon, Folder, Brush } from '@element-plus/icons-vue'
 import { api } from '@/api/pywebview'
+import { useConfigStore } from '@/stores/config'
 import type { ConfigData } from '@/types'
 
 const props = defineProps<{
@@ -149,6 +150,7 @@ const defaultForm: ConfigData = {
 
 const form = reactive<ConfigData>({ ...defaultForm, ...props.modelValue })
 const style = ref<ConfigData>({ ...props.styleConfig })
+const configStore = useConfigStore()
 let syncingFromProps = false
 
 watch(() => props.modelValue, (val) => {
@@ -168,10 +170,58 @@ watch(form, (val) => {
 }, { deep: true })
 
 // 路径自动保存（带竞态保护）
+const PATH_SAVE_DEBOUNCE_MS = 400
+let pathSaveTimer: number | null = null
 let pathSaving = false
+let pathSaveDirty = false
+let pathSaveFailed = false
+let pendingPathPayload: Record<string, any> = {}
+
+function hasPendingPathPayload() {
+  return Object.keys(pendingPathPayload).length > 0
+}
+
+function schedulePathSave(payload: Record<string, any>) {
+  pendingPathPayload = { ...pendingPathPayload, ...payload }
+  if (pathSaveTimer !== null) {
+    window.clearTimeout(pathSaveTimer)
+  }
+  pathSaveTimer = window.setTimeout(() => {
+    pathSaveTimer = null
+    void flushPathSave()
+  }, PATH_SAVE_DEBOUNCE_MS)
+}
+
+async function flushPathSave() {
+  if (!hasPendingPathPayload()) return
+  if (pathSaving) {
+    pathSaveDirty = true
+    return
+  }
+
+  pathSaving = true
+  pathSaveFailed = false
+  const payload = { ...pendingPathPayload }
+  pendingPathPayload = {}
+  try {
+    const saved = await configStore.saveConfig(payload)
+    emit('update:modelValue', { ...saved })
+  } catch (e) {
+    pendingPathPayload = { ...payload, ...pendingPathPayload }
+    pathSaveFailed = true
+    console.warn('路径自动保存失败', e)
+  } finally {
+    pathSaving = false
+    if (pathSaveDirty || (hasPendingPathPayload() && !pathSaveFailed)) {
+      pathSaveDirty = false
+      void flushPathSave()
+    }
+  }
+}
 watch(
   () => [form.input_dir, form.output_dir],
-  async ([newInput, newOutput], [oldInput, oldOutput]) => {
+  ([newInput, newOutput], [oldInput, oldOutput]) => {
+    if (syncingFromProps) return
     const payload: Record<string, any> = {}
     if (newInput !== oldInput && newInput) {
       payload.input_dir = newInput
@@ -180,20 +230,21 @@ watch(
       payload.output_dir = newOutput
     }
     if (Object.keys(payload).length > 0) {
-      if (syncingFromProps) return
-      if (pathSaving) return
-      pathSaving = true
-      try {
-        await api.set_config(payload)
-      } catch (e) {
-        console.warn('路径自动保存失败', e)
-      } finally {
-        pathSaving = false
-      }
+      schedulePathSave(payload)
     }
   },
   { immediate: false }
 )
+
+onUnmounted(() => {
+  if (pathSaveTimer !== null) {
+    window.clearTimeout(pathSaveTimer)
+    pathSaveTimer = null
+  }
+  if (hasPendingPathPayload()) {
+    void flushPathSave()
+  }
+})
 
 function emitStyle() {
   emit('styleChange', { ...style.value })

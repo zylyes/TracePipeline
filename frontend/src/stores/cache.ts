@@ -6,8 +6,9 @@ const STATS_TTL = 300_000    // 统计数据缓存 5min
 const STATS_MAX_COUNT = 100  // 统计数据最大条目数
 const COMPARISON_TTL = 300_000 // 对比数据缓存 5min
 const RESULTS_TTL = 5_000    // 结果列表缓存 5s（output 目录可被外部删除，需快速感知变更）
-  const IMAGE_TTL = 600_000    // 图片缓存 10min
-  const IMAGE_MAX_COUNT = 50   // 图片缓存最大条目数
+const IMAGE_TTL = 600_000    // 图片缓存 10min
+const IMAGE_MAX_COUNT = 50   // 图片缓存最大条目数
+const IMAGE_MAX_CHARS = 80_000_000
 
 interface CachedItem<T> {
   data: T
@@ -25,7 +26,8 @@ export const useCacheStore = defineStore('cache', () => {
   const resultsCache = ref<CachedItem<any[]> | null>(null)
   // 图片缓存: path -> base64
   const imageCache = ref<Map<string, CachedItem<string>>>(new Map())
-  const imageMaxChars = 80_000_000
+  const imageCacheHits = ref(0)
+  const imageCacheMisses = ref(0)
 
   const isScanValid = computed(() => {
     if (!scanResult.value) return false
@@ -89,13 +91,24 @@ export const useCacheStore = defineStore('cache', () => {
   }
 
   // --- 图片 ---
-  function getImage(path: string): string | null {
-    const item = imageCache.value.get(path)
-    if (!item) return null
-    if (Date.now() - item.timestamp > IMAGE_TTL) {
-      imageCache.value.delete(path)
+  function imageKey(path: string, version?: string | number | null): string {
+    return version ? `${path}?v=${version}` : path
+  }
+
+  function getImage(path: string, version?: string | number | null): string | null {
+    const key = imageKey(path, version)
+    const item = imageCache.value.get(key)
+    if (!item) {
+      imageCacheMisses.value += 1
       return null
     }
+    if (Date.now() - item.timestamp > IMAGE_TTL) {
+      imageCache.value.delete(key)
+      imageCacheMisses.value += 1
+      return null
+    }
+    item.timestamp = Date.now()
+    imageCacheHits.value += 1
     return item.data
   }
 
@@ -105,12 +118,12 @@ export const useCacheStore = defineStore('cache', () => {
     return total
   }
 
-  function pruneImageCache(protectedPath?: string) {
-    while (imageCache.value.size > 1 && getImageCacheChars() > imageMaxChars) {
+  function pruneImageCache(protectedKey?: string) {
+    while (imageCache.value.size > 1 && getImageCacheChars() > IMAGE_MAX_CHARS) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
       for (const [k, v] of imageCache.value.entries()) {
-        if (k === protectedPath) continue
+        if (k === protectedKey) continue
         if (v.timestamp < oldestTime) {
           oldestTime = v.timestamp
           oldestKey = k
@@ -121,9 +134,10 @@ export const useCacheStore = defineStore('cache', () => {
     }
   }
 
-  function setImage(path: string, data: string) {
+  function setImage(path: string, data: string, version?: string | number | null) {
+    const key = imageKey(path, version)
     // LRU 淘汰：超过最大条目时删除最旧的记录
-    if (imageCache.value.size >= IMAGE_MAX_COUNT && !imageCache.value.has(path)) {
+    if (imageCache.value.size >= IMAGE_MAX_COUNT && !imageCache.value.has(key)) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
       for (const [k, v] of imageCache.value.entries()) {
@@ -136,8 +150,22 @@ export const useCacheStore = defineStore('cache', () => {
         imageCache.value.delete(oldestKey)
       }
     }
-    imageCache.value.set(path, { data, timestamp: Date.now() })
-    pruneImageCache(path)
+    imageCache.value.set(key, { data, timestamp: Date.now() })
+    pruneImageCache(key)
+  }
+
+  function getImageCacheStats() {
+    return {
+      count: imageCache.value.size,
+      chars: getImageCacheChars(),
+      maxChars: IMAGE_MAX_CHARS,
+      hits: imageCacheHits.value,
+      misses: imageCacheMisses.value,
+    }
+  }
+
+  function invalidateImages() {
+    imageCache.value.clear()
   }
 
   // --- 失效 ---
@@ -166,7 +194,7 @@ export const useCacheStore = defineStore('cache', () => {
     statsCache.value.clear()
     comparisonCache.value = null
     resultsCache.value = null
-    imageCache.value.clear()
+    invalidateImages()
   }
 
   // --- 处理完成后全量失效 ---
@@ -176,13 +204,14 @@ export const useCacheStore = defineStore('cache', () => {
 
   return {
     scanResult, statsCache, comparisonCache, resultsCache, imageCache,
+    imageCacheHits, imageCacheMisses,
     isScanValid, isComparisonValid, isResultsValid,
     getScan, setScan,
     getStats, setStats,
     getComparison, setComparison,
     getResults, setResults,
-    getImage, setImage,
-    invalidateScan, invalidateStats, invalidateComparison, invalidateResults, invalidateAll,
+    getImage, setImage, getImageCacheStats,
+    invalidateScan, invalidateStats, invalidateComparison, invalidateResults, invalidateImages, invalidateAll,
     onPipelineComplete,
   }
 })

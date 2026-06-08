@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onActivated } from 'vue'
+import { ref, computed, onActivated, watch } from 'vue'
 import { Document, Picture } from '@element-plus/icons-vue'
 import { msg } from '@/utils/message'
 import StatCards from '@/components/StatCards.vue'
@@ -125,6 +125,9 @@ const alertMessage = computed<string>(() => {
 const rawImageUrl = ref('')
 const rotatedImageUrl = ref('')
 const roseImageUrl = ref('')
+const rawImagePath = ref('')
+const rotatedImagePath = ref('')
+const roseImagePath = ref('')
 
 // 当前激活的 tab
 const activeImageTab = ref('raw')
@@ -175,6 +178,9 @@ async function loadStats(force = false) {
   rawImageUrl.value = ''
   rotatedImageUrl.value = ''
   roseImageUrl.value = ''
+  rawImagePath.value = ''
+  rotatedImagePath.value = ''
+  roseImagePath.value = ''
 
   try {
     let res = force ? null : cacheStore.getStats(selectedOutcrop.value)
@@ -198,15 +204,10 @@ async function loadStats(force = false) {
     }
     const match = results!.find((r: any) => r.outcrop === selectedOutcrop.value)
     if (match) {
-      if (match.raw_plot) {
-        rawImageUrl.value = await loadImageBase64(match.raw_plot)
-      }
-      if (match.rotated_plot) {
-        rotatedImageUrl.value = await loadImageBase64(match.rotated_plot)
-      }
-      if (pipelineStore.lastExportRosePlot && match.rose_plot) {
-        roseImageUrl.value = await loadImageBase64(match.rose_plot)
-      }
+      rawImagePath.value = match.raw_plot || ''
+      rotatedImagePath.value = match.rotated_plot || ''
+      roseImagePath.value = pipelineStore.lastExportRosePlot ? (match.rose_plot || '') : ''
+      await loadActiveImage()
     }
   } catch (e) {
     msg.error('加载统计失败')
@@ -215,13 +216,37 @@ async function loadStats(force = false) {
   }
 }
 
-function openViewer(index: number) {
+type ImageTab = 'raw' | 'rotated' | 'rose'
+
+async function loadImageByTab(tab: ImageTab) {
+  if (tab === 'raw' && rawImagePath.value && !rawImageUrl.value) {
+    rawImageUrl.value = await loadImageBase64(rawImagePath.value)
+  } else if (tab === 'rotated' && rotatedImagePath.value && !rotatedImageUrl.value) {
+    rotatedImageUrl.value = await loadImageBase64(rotatedImagePath.value)
+  } else if (tab === 'rose' && roseImagePath.value && !roseImageUrl.value) {
+    roseImageUrl.value = await loadImageBase64(roseImagePath.value)
+  }
+}
+
+async function loadActiveImage() {
+  await loadImageByTab(activeImageTab.value as ImageTab)
+}
+
+watch(activeImageTab, () => {
+  void loadActiveImage()
+})
+
+async function openViewer(index: number) {
+  const tabs: ImageTab[] = pipelineStore.lastExportRosePlot ? ['raw', 'rotated', 'rose'] : ['raw', 'rotated']
+  for (const tab of tabs) {
+    await loadImageByTab(tab)
+  }
   const images = []
   if (rawImageUrl.value) images.push({ title: '原始迹线图', src: rawImageUrl.value })
   if (rotatedImageUrl.value) images.push({ title: '旋转迹线图', src: rotatedImageUrl.value })
   if (pipelineStore.lastExportRosePlot && roseImageUrl.value) images.push({ title: '走向玫瑰图', src: roseImageUrl.value })
   viewerImages.value = images
-  viewerInitialIndex.value = index
+  viewerInitialIndex.value = Math.min(index, Math.max(images.length - 1, 0))
   viewerVisible.value = true
 }
 

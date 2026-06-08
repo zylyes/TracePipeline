@@ -9,10 +9,9 @@ import subprocess
 import sys
 import threading
 import time
-
-from backend.utils.cache import DirectoryChangeDetector
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import webview
 
@@ -25,13 +24,19 @@ from backend.services.pipeline_service import PipelineService
 from backend.services.preview_service import PreviewService
 from backend.services.report_service import REPORT_DIR, ReportService
 from backend.services.stats_service import StatsService
+from backend.utils.cache import DirectoryChangeDetector
+from backend.utils.security import PathSecurityChecker
 from trace_pipeline.logging import LogContext
 from trace_pipeline.utils.paths import get_project_root
 
-from backend.utils.security import PathSecurityChecker
-
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = get_project_root()
+_ALLOWED_EXTERNAL_HOSTS = frozenset({
+    "developer.microsoft.com",
+    "learn.microsoft.com",
+    "go.microsoft.com",
+    "aka.ms",
+})
 
 
 class GuiApi:
@@ -533,8 +538,17 @@ class GuiApi:
     # ------------------------------------------------------------------
     def open_external(self, url: str) -> bool:
         """Open a trusted external URL in the system browser."""
-        if not url.startswith(("https://", "http://")):
+        parsed = urlparse(url)
+        if parsed.scheme not in {"https", "http"}:
             logger.warning("open_external 拒绝非 HTTP(S) URL: %s", url)
+            return False
+        hostname = (parsed.hostname or "").lower()
+        if hostname not in _ALLOWED_EXTERNAL_HOSTS:
+            logger.warning(
+                "open_external 拒绝未授权域名: %s",
+                hostname,
+                extra={"stage": "api_open_external", "url": url, "hostname": hostname},
+            )
             return False
         try:
             import webbrowser
@@ -569,6 +583,54 @@ class GuiApi:
     _MAX_IMAGE_SIZE = 5 * 1024 * 1024
     # 安全的图片扩展名白名单（禁止 SVG 防止 XSS；禁止 html/htm 等）
     _SAFE_IMAGE_EXTENSIONS: frozenset[str] = frozenset({".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"})
+
+    def get_image_meta(self, path: str) -> dict[str, Any]:
+        """返回图片版本元数据，用于前端缓存失效；不读取图片内容。"""
+        try:
+            p = self._safe_known_path(path)
+            if p is None or not p.exists():
+                logger.warning(
+                    "get_image_meta 失败: 路径无效或不存在 -> %s",
+                    path,
+                    extra={"stage": "api_get_image_meta", "path": path},
+                )
+                return {}
+            stat = p.stat()
+            if stat.st_size > self._MAX_IMAGE_SIZE:
+                logger.warning(
+                    "get_image_meta 拒绝: 文件过大 %s (%d bytes > %d limit)",
+                    path,
+                    stat.st_size,
+                    self._MAX_IMAGE_SIZE,
+                    extra={
+                        "stage": "api_get_image_meta",
+                        "path": path,
+                        "size_bytes": stat.st_size,
+                    },
+                )
+                return {}
+            ext = p.suffix.lower()
+            if ext not in self._SAFE_IMAGE_EXTENSIONS:
+                logger.warning(
+                    "get_image_meta 拒绝: 不安全的文件扩展名 %s",
+                    ext,
+                    extra={"stage": "api_get_image_meta", "path": path, "ext": ext},
+                )
+                return {}
+            return {
+                "path": str(p.resolve()),
+                "size": stat.st_size,
+                "mtime_ns": stat.st_mtime_ns,
+                "ext": ext,
+            }
+        except Exception as exc:
+            logger.warning(
+                "读取图片元数据失败: %s -> %s",
+                path,
+                exc,
+                extra={"stage": "api_get_image_meta", "path": path, "error": str(exc)},
+            )
+            return {}
 
     def get_image(self, path: str) -> str:
         """读取图片文件并返回 base64 data URL。限制在项目根目录内，单文件上限 5MB。"""

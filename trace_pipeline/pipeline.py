@@ -9,7 +9,6 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -36,8 +35,6 @@ from .plotting.overlays import (
 )
 from .plotting.rose_plot import render_rose_plot
 from .plotting.trace_plot import render_trace_plot
-
-import threading
 
 _MPL_INIT_LOCK = threading.Lock()
 
@@ -230,6 +227,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
             with apply_style_overrides(cfg.style):
                 logger.debug("  5.1 绘制原始迹线图: %s (dpi=%d)", cfg.outcrop, cfg.trace_dpi, extra={"stage": "plot_substep", "substep": "raw"})
+                raw_plot_start = time.perf_counter()
                 raw_plot = render_trace_plot(
                     trace.endpoints,
                     "原始迹线图",
@@ -243,8 +241,22 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     node_overlays=raw_node_overlays if cfg.show_node_overlay else None,
                     style=cfg.style,
                 )
+                raw_plot_duration = (time.perf_counter() - raw_plot_start) * 1000
+                logger.info(
+                    "原始迹线图绘制完成: %s (%.3f ms)",
+                    cfg.outcrop,
+                    raw_plot_duration,
+                    extra={
+                        "stage": "plot_raw",
+                        "outcrop": cfg.outcrop,
+                        "path": raw_plot,
+                        "dpi": cfg.trace_dpi,
+                        "duration_ms": round(raw_plot_duration, 3),
+                    },
+                )
                 logger.debug("  5.2 绘制旋转迹线图: %s (dpi=%d)", cfg.outcrop, cfg.rotated_trace_dpi, extra={"stage": "plot_substep", "substep": "rotated"})
 
+                rotated_plot_start = time.perf_counter()
                 rot_plot = render_trace_plot(
                     rotated,
                     f"旋转迹线图（测线走向={trace.scanline_azimuth:.1f}°）",
@@ -259,10 +271,24 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     node_overlays=rotated_node_overlays if cfg.show_node_overlay else None,
                     style=cfg.style,
                 )
+                rotated_plot_duration = (time.perf_counter() - rotated_plot_start) * 1000
+                logger.info(
+                    "旋转迹线图绘制完成: %s (%.3f ms)",
+                    cfg.outcrop,
+                    rotated_plot_duration,
+                    extra={
+                        "stage": "plot_rotated",
+                        "outcrop": cfg.outcrop,
+                        "path": rot_plot,
+                        "dpi": cfg.rotated_trace_dpi,
+                        "duration_ms": round(rotated_plot_duration, 3),
+                    },
+                )
 
                 rose_plot = ""
                 if cfg.export_rose_plot:
                     logger.debug("  5.3 绘制玫瑰图: %s (bin=%.1f°, dpi=%d)", cfg.outcrop, cfg.rose_bin_width, cfg.rose_dpi, extra={"stage": "plot_substep", "substep": "rose"})
+                    rose_plot_start = time.perf_counter()
                     rose_plot = render_rose_plot(
                         trace.joint_strikes,
                         f"产状玫瑰花瓣图（数量={trace.count}，分箱={cfg.rose_bin_width}°）",
@@ -271,9 +297,16 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                         bin_width=cfg.rose_bin_width,
                         dpi=cfg.rose_dpi,
                     )
+                    rose_plot_duration = (time.perf_counter() - rose_plot_start) * 1000
                     logger.info(
-                        "玫瑰图导出至: %s", rose_plot,
-                        extra={"stage": "plot_rose", "outcrop": cfg.outcrop, "rose_path": rose_plot, "dpi": cfg.rose_dpi},
+                        "玫瑰图导出至: %s (%.3f ms)", rose_plot, rose_plot_duration,
+                        extra={
+                            "stage": "plot_rose",
+                            "outcrop": cfg.outcrop,
+                            "rose_path": rose_plot,
+                            "dpi": cfg.rose_dpi,
+                            "duration_ms": round(rose_plot_duration, 3),
+                        },
                     )
 
             plot_duration = (time.perf_counter() - t0) * 1000

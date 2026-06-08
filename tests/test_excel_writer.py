@@ -1,4 +1,5 @@
 """单元测试 — io/excel_writer.py 混合中英文字体分段。"""
+
 from __future__ import annotations
 
 from openpyxl.cell.rich_text import CellRichText

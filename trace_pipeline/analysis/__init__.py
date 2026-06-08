@@ -1,4 +1,5 @@
 """分析子包 — 节点识别与拓扑分析。"""
+
 from __future__ import annotations
 
 from .models import NodeAnalysis, NodeRecognitionConfig, TraceIntersection, TraceNode

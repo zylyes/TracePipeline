@@ -1,4 +1,5 @@
 """绘图通用辅助 — Figure 创建、保存与共享装饰元素。"""
+
 from __future__ import annotations
 
 import logging
@@ -13,9 +14,9 @@ from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 
 force_noninteractive_backend()
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
-from .style import text_font_kwargs
+from .style import text_font_kwargs  # noqa: E402
 
 __all__ = ["new_figure", "save_figure", "add_data_north_arrow", "compute_data_bounds"]
 
@@ -76,7 +77,7 @@ def save_figure(
             save_duration,
             extra={
                 "stage": "savefig",
-                "filename": filename,
+                "output_filename": filename,
                 "dpi": dpi,
                 "bbox_inches": bbox_inches,
                 "duration_ms": round(save_duration, 3),

@@ -1,4 +1,5 @@
 """Excel 数据读取服务（支持多工作表格式）。"""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from backend.utils.cache import TTLCache
-from backend.utils.path_utils import resolve_path, error_response, validate_outcrop_name
+from backend.utils.path_utils import error_response, resolve_path, validate_outcrop_name
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class DataService:
         """按页切片,返回 (当前页数据, 总条数)。"""
         total = len(data)
         start = (page - 1) * page_size
-        return data[start:start + page_size], total
+        return data[start : start + page_size], total
 
     @staticmethod
     def _file_signature(path: Path) -> tuple[int, int]:
@@ -80,8 +81,16 @@ class DataService:
         path = self._output_dir / f"{outcrop}_traces.xlsx"
         if not path.exists():
             logger.warning(
-                "get_data [%s/%s] 失败: 文件不存在", outcrop, section,
-                extra={"stage": "data_get", "outcrop": outcrop, "section": section, "source": source, "path": str(path)},
+                "get_data [%s/%s] 失败: 文件不存在",
+                outcrop,
+                section,
+                extra={
+                    "stage": "data_get",
+                    "outcrop": outcrop,
+                    "section": section,
+                    "source": source,
+                    "path": str(path),
+                },
             )
             return error_response(f"文件不存在: {path}")
 
@@ -102,14 +111,29 @@ class DataService:
         except ValueError:
             # Sheet 不存在（旧格式单工作表文件）
             logger.warning(
-                "get_data [%s/%s] 失败: 工作表不存在", outcrop, section,
-                extra={"stage": "data_get", "outcrop": outcrop, "section": section, "sheet": sheet_name},
+                "get_data [%s/%s] 失败: 工作表不存在",
+                outcrop,
+                section,
+                extra={
+                    "stage": "data_get",
+                    "outcrop": outcrop,
+                    "section": section,
+                    "sheet": sheet_name,
+                },
             )
             return error_response(f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件")
         except Exception as exc:
             logger.warning(
-                "get_data [%s/%s] 失败: %s", outcrop, section, exc,
-                extra={"stage": "data_get", "outcrop": outcrop, "section": section, "error": str(exc)},
+                "get_data [%s/%s] 失败: %s",
+                outcrop,
+                section,
+                exc,
+                extra={
+                    "stage": "data_get",
+                    "outcrop": outcrop,
+                    "section": section,
+                    "error": str(exc),
+                },
             )
             return error_response(str(exc))
 
@@ -117,7 +141,11 @@ class DataService:
 
         logger.debug(
             "get_data [%s/%s] page=%d: %d/%d 条",
-            outcrop, section, page, len(page_data), total,
+            outcrop,
+            section,
+            page,
+            len(page_data),
+            total,
             extra={
                 "stage": "data_get",
                 "outcrop": outcrop,
@@ -190,7 +218,11 @@ class DataService:
                 if j >= len(row):
                     break
                 val = row.iloc[j]
-                record[h] = float(val) if pd.notna(val) and isinstance(val, (int, float, np.integer)) else (str(val) if pd.notna(val) else "")
+                record[h] = (
+                    float(val)
+                    if pd.notna(val) and isinstance(val, (int, float, np.integer))
+                    else (str(val) if pd.notna(val) else "")
+                )
             if record:
                 data.append(record)
 

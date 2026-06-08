@@ -1,4 +1,5 @@
 """日志核心 — JsonFormatter、DailyRotatingJsonHandler 与初始化入口。"""
+
 from __future__ import annotations
 
 import json
@@ -9,9 +10,12 @@ import shutil
 import sys
 import threading
 import zipfile
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from trace_pipeline.utils.numpy_compat import to_native as _to_native
 
 from .context import get_request_id
 
@@ -77,11 +81,29 @@ class JsonFormatter(logging.Formatter):
 
         # 扩展字段（排除 logging 内置属性）
         built_in = {
-            "name", "msg", "args", "levelname", "levelno", "pathname",
-            "filename", "module", "exc_info", "exc_text", "stack_info",
-            "lineno", "funcName", "created", "msecs", "relativeCreated",
-            "thread", "threadName", "processName", "process", "message",
-            "asctime", "request_id",
+            "name",
+            "msg",
+            "args",
+            "levelname",
+            "levelno",
+            "pathname",
+            "filename",
+            "module",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "lineno",
+            "funcName",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "message",
+            "asctime",
+            "request_id",
         }
         extras: dict[str, Any] = {}
         for key, val in record.__dict__.items():
@@ -97,9 +119,6 @@ class JsonFormatter(logging.Formatter):
             default=_json_default,
             allow_nan=False,
         )
-
-
-from trace_pipeline.utils.numpy_compat import to_native as _to_native
 
 
 def _json_default(obj: Any) -> Any:
@@ -192,6 +211,7 @@ class DailyRotatingJsonHandler(logging.FileHandler):
         def on_rm_error(func, path, exc_info):
             """处理无法删除的文件（如被锁定或只读）。"""
             import stat
+
             # 尝试移除只读属性后重试
             os.chmod(path, stat.S_IWRITE)
             func(path)
@@ -208,10 +228,8 @@ class DailyRotatingJsonHandler(logging.FileHandler):
             zip_path = self._log_dir / f"{entry.name}.zip"
             # 竞态防护：若 zip 已存在，说明其他进程已归档，直接尝试删除原目录
             if zip_path.exists():
-                try:
+                with suppress(OSError):
                     shutil.rmtree(entry, onerror=on_rm_error)
-                except OSError:
-                    pass
                 continue
 
             try:
@@ -224,10 +242,8 @@ class DailyRotatingJsonHandler(logging.FileHandler):
                 shutil.rmtree(entry, onerror=on_rm_error)
             except FileExistsError:
                 # 其他进程刚好在同一时刻创建了 zip，尝试清理原目录即可
-                try:
+                with suppress(OSError):
                     shutil.rmtree(entry, onerror=on_rm_error)
-                except OSError:
-                    pass
             except OSError as exc:
                 # 打包失败不打断启动，只发警告
                 logging.getLogger(__name__).warning("日志归档失败 %s: %s", entry, exc)
@@ -290,6 +306,7 @@ def _project_root() -> Path:
     """推断项目根目录。"""
     # 复用 trace_pipeline.config 中的 PROJECT_ROOT 定义，保持一致性
     from trace_pipeline.config import PROJECT_ROOT
+
     return PROJECT_ROOT
 
 
@@ -304,10 +321,7 @@ def setup_logging(
       - ConsoleHandler: 人类可读格式，级别 console_level
       - DailyRotatingJsonHandler: JSON Lines，级别 file_level
     """
-    if log_dir is None:
-        log_dir = _project_root() / "logs"
-    else:
-        log_dir = Path(log_dir).resolve()
+    log_dir = _project_root() / "logs" if log_dir is None else Path(log_dir).resolve()
 
     pkg_logger = logging.getLogger("trace_pipeline")
     pkg_logger.setLevel(min(console_level, file_level))
@@ -317,7 +331,8 @@ def setup_logging(
         # 幂等：复用已存在的托管 handler，避免二次调用时引用未初始化局部变量。
         console = next(
             (
-                h for h in pkg_logger.handlers
+                h
+                for h in pkg_logger.handlers
                 if isinstance(h, logging.StreamHandler)
                 and not isinstance(h, logging.FileHandler)
                 and getattr(h, _MANAGED_ATTR, False)
@@ -326,7 +341,8 @@ def setup_logging(
         )
         file_handler = next(
             (
-                h for h in pkg_logger.handlers
+                h
+                for h in pkg_logger.handlers
                 if isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False)
             ),
             None,
@@ -350,12 +366,20 @@ def setup_logging(
         backend_logger = logging.getLogger("backend")
         backend_logger.setLevel(min(console_level, file_level))
         backend_logger.propagate = False  # 关闭 propagate，直接添加 handler
-        backend_logger.handlers.clear()   # 清除旧 handler，避免重复
+        backend_logger.handlers.clear()  # 清除旧 handler，避免重复
 
         # 给 backend logger 添加与 trace_pipeline 相同的 handler
-        if not any(isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
+        if not any(
+            isinstance(h, DailyRotatingJsonHandler) and getattr(h, _MANAGED_ATTR, False)
+            for h in backend_logger.handlers
+        ):
             backend_logger.addHandler(file_handler)
-        if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) and getattr(h, _MANAGED_ATTR, False) for h in backend_logger.handlers):
+        if not any(
+            isinstance(h, logging.StreamHandler)
+            and not isinstance(h, logging.FileHandler)
+            and getattr(h, _MANAGED_ATTR, False)
+            for h in backend_logger.handlers
+        ):
             backend_logger.addHandler(console)
 
     return pkg_logger
@@ -367,10 +391,7 @@ def setup_worker_logging(log_dir: str | Path | None = None) -> logging.Logger:
     子进程不继承父进程的文件描述符，因此需要独立创建 Handler。
     写入同一天目录，文件名带 worker PID。
     """
-    if log_dir is None:
-        log_dir = _project_root() / "logs"
-    else:
-        log_dir = Path(log_dir).resolve()
+    log_dir = _project_root() / "logs" if log_dir is None else Path(log_dir).resolve()
 
     pkg_logger = logging.getLogger("trace_pipeline")
     pkg_logger.setLevel(logging.DEBUG)
@@ -404,7 +425,7 @@ def setup_worker_logging(log_dir: str | Path | None = None) -> logging.Logger:
     console = logging.StreamHandler(sys.stderr)
     console.setLevel(logging.INFO)
     console.setFormatter(
-        logging.Formatter("[worker-{pid}] %(asctime)s [%(levelname)s] %(name)s: %(message)s".format(pid=pid))
+        logging.Formatter(f"[worker-{pid}] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
     )
     setattr(console, _MANAGED_ATTR, True)
     pkg_logger.addHandler(console)

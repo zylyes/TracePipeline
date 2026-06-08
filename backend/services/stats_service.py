@@ -1,4 +1,5 @@
 """统计数据服务。"""
+
 from __future__ import annotations
 
 import hashlib
@@ -31,21 +32,27 @@ logger = logging.getLogger(__name__)
 _INPUT_EXTENSIONS = (".xlsx", ".xls")
 
 
-from trace_pipeline.utils.numpy_compat import to_native as _to_native
-
-
 class StatsService:
     """读取已处理结果，返回统计指标和覆盖层几何。"""
 
     def __init__(self) -> None:
         self._cache = TTLCache(ttl=300.0, maxsize=128)
-        logger.info("StatsService 已初始化（带统计缓存）", extra={"stage": "stats_service_init", "cache_ttl": self._cache._ttl})
+        logger.info(
+            "StatsService 已初始化（带统计缓存）",
+            extra={"stage": "stats_service_init", "cache_ttl": self._cache._ttl},
+        )
 
     # 影响统计结果的关键配置字段子集
     _STAT_KEYS = {
-        "window_strategy", "auto_density_threshold", "tangent_window_count",
-        "min_intersections", "enable_node_recognition", "node_merge_tolerance",
-        "show_node_overlay", "node_label_mode", "input_dir",
+        "window_strategy",
+        "auto_density_threshold",
+        "tangent_window_count",
+        "min_intersections",
+        "enable_node_recognition",
+        "node_merge_tolerance",
+        "show_node_overlay",
+        "node_label_mode",
+        "input_dir",
     }
 
     @staticmethod
@@ -83,7 +90,9 @@ class StatsService:
         cfg = config or {}
         table_stem = f"{outcrop}_process"
         effective_cfg = {k: v for k, v in cfg.items() if k in self._STAT_KEYS}
-        effective_cfg["input_fingerprint"] = self._input_fingerprint(cfg.get("input_dir", "input"), table_stem)
+        effective_cfg["input_fingerprint"] = self._input_fingerprint(
+            cfg.get("input_dir", "input"), table_stem
+        )
         cfg_str = json.dumps(effective_cfg, sort_keys=True, ensure_ascii=False)
         # 使用稳定哈希替代内置 hash()，避免进程重启后哈希随机化导致缓存失效
         cfg_hash = hashlib.sha256(cfg_str.encode("utf-8")).hexdigest()[:16]
@@ -101,8 +110,13 @@ class StatsService:
         if cached is not None:
             logger.debug(
                 "get_stats 命中缓存 [%s]: trace_count=%s",
-                outcrop, cached.get("trace_count"),
-                extra={"stage": "stats_cache_hit", "outcrop": outcrop, "trace_count": cached.get("trace_count")},
+                outcrop,
+                cached.get("trace_count"),
+                extra={
+                    "stage": "stats_cache_hit",
+                    "outcrop": outcrop,
+                    "trace_count": cached.get("trace_count"),
+                },
             )
             return cached
 
@@ -113,11 +127,18 @@ class StatsService:
         try:
             trace = load_trace_data(input_dir, table_stem, outcrop)
         except Exception as exc:
-            logger.warning("加载 %s 失败: %s", outcrop, exc, extra={"stage": "stats_load", "outcrop": outcrop, "error": str(exc)})
+            logger.warning(
+                "加载 %s 失败: %s",
+                outcrop,
+                exc,
+                extra={"stage": "stats_load", "outcrop": outcrop, "error": str(exc)},
+            )
             return {"error": str(exc)}
 
         if trace.count == 0 or trace.endpoints.size == 0:
-            logger.warning("%s 不包含任何迹线", outcrop, extra={"stage": "stats_load", "outcrop": outcrop})
+            logger.warning(
+                "%s 不包含任何迹线", outcrop, extra={"stage": "stats_load", "outcrop": outcrop}
+            )
             return {"error": f"{outcrop} 不包含任何迹线"}
 
         stats_config = TraceStatisticsConfig(
@@ -130,17 +151,21 @@ class StatsService:
 
         # 构建直方图数据
         lengths = trace.lengths
-        hist, edges = np.histogram(lengths, bins=10) if lengths.size else (np.array([]), np.array([]))
+        hist, edges = (
+            np.histogram(lengths, bins=10) if lengths.size else (np.array([]), np.array([]))
+        )
 
         # 圆窗几何
         circles = []
         for diag in statistics.diagnostics:
             if diag.valid and diag.radius > 0:
-                circles.append({
-                    "center_x": diag.center_x,
-                    "center_y": diag.center_y,
-                    "radius": diag.radius,
-                })
+                circles.append(
+                    {
+                        "center_x": diag.center_x,
+                        "center_y": diag.center_y,
+                        "radius": diag.radius,
+                    }
+                )
 
         # 覆盖层几何（用于前端 Canvas 叠加）
         raw_circles = build_raw_circle_overlays(trace, statistics)
@@ -154,7 +179,11 @@ class StatsService:
 
         def _circle_data(circle_list):
             return [
-                {"center_x": float(c.center_x), "center_y": float(c.center_y), "radius": float(c.radius)}
+                {
+                    "center_x": float(c.center_x),
+                    "center_y": float(c.center_y),
+                    "radius": float(c.radius),
+                }
                 for c in circle_list
             ]
 
@@ -167,7 +196,9 @@ class StatsService:
         )
         node_analysis = recognize_trace_nodes(trace.endpoints, node_config)
         raw_nodes = build_node_overlays(node_analysis)
-        rot_nodes = build_rotated_node_overlays(node_analysis, trace.endpoints, trace.scanline_azimuth)
+        rot_nodes = build_rotated_node_overlays(
+            node_analysis, trace.endpoints, trace.scanline_azimuth
+        )
         tc = node_analysis.type_counts
 
         # 计算数据边界（用于前端坐标映射）
@@ -185,7 +216,13 @@ class StatsService:
 
         def _node_data(node_list):
             return [
-                {"x": float(n.x), "y": float(n.y), "node_type": n.node_type, "node_id": int(n.node_id), "degree": int(n.degree)}
+                {
+                    "x": float(n.x),
+                    "y": float(n.y),
+                    "node_type": n.node_type,
+                    "node_id": int(n.node_id),
+                    "degree": int(n.degree),
+                }
                 for n in node_list
             ]
 
@@ -193,15 +230,21 @@ class StatsService:
             "outcrop": outcrop,
             "scanline_azimuth": round(float(trace.scanline_azimuth), 2),
             "trace_count": int(trace.count),
-            "mean_trace_length": round(statistics.mean_trace_length, 4) if math.isfinite(statistics.mean_trace_length) else None,
+            "mean_trace_length": round(statistics.mean_trace_length, 4)
+            if math.isfinite(statistics.mean_trace_length)
+            else None,
             "p10": round(statistics.p10, 4) if math.isfinite(statistics.p10) else None,
             "p20": round(statistics.p20, 4) if math.isfinite(statistics.p20) else None,
             "p21": round(statistics.p21, 4) if math.isfinite(statistics.p21) else None,
             "type_i": int(statistics.type_i_count),
             "type_ii": int(statistics.type_ii_count),
             "type_iii": int(statistics.type_iii_count),
-            "scanline_length": round(statistics.scanline_length, 4) if math.isfinite(statistics.scanline_length) else None,
-            "outcrop_area": round(statistics.outcrop_area, 4) if math.isfinite(statistics.outcrop_area) else None,
+            "scanline_length": round(statistics.scanline_length, 4)
+            if math.isfinite(statistics.scanline_length)
+            else None,
+            "outcrop_area": round(statistics.outcrop_area, 4)
+            if math.isfinite(statistics.outcrop_area)
+            else None,
             "area_source": statistics.outcrop_area_source,
             "window_strategy": statistics.window_strategy,
             "histogram": {
@@ -220,13 +263,27 @@ class StatsService:
                 "degenerate_skipped": int(node_analysis.degenerate_skipped),
             },
             "nodes": [
-                {"node_id": int(n.node_id), "x": round(float(n.x), 4), "y": round(float(n.y), 4), "type": n.type_label,
-                 "degree": int(n.degree), "trace_indices": [int(x) for x in n.trace_indices], "event_count": int(n.event_count)}
+                {
+                    "node_id": int(n.node_id),
+                    "x": round(float(n.x), 4),
+                    "y": round(float(n.y), 4),
+                    "type": n.type_label,
+                    "degree": int(n.degree),
+                    "trace_indices": [int(x) for x in n.trace_indices],
+                    "event_count": int(n.event_count),
+                }
                 for n in node_analysis.nodes
             ],
             "intersections": [
-                {"trace_a": int(ev.trace_a), "trace_b": int(ev.trace_b), "x": round(float(ev.x), 4), "y": round(float(ev.y), 4),
-                 "t": round(float(ev.t), 4), "u": round(float(ev.u), 4), "kind": ev.kind}
+                {
+                    "trace_a": int(ev.trace_a),
+                    "trace_b": int(ev.trace_b),
+                    "x": round(float(ev.x), 4),
+                    "y": round(float(ev.y), 4),
+                    "t": round(float(ev.t), 4),
+                    "u": round(float(ev.u), 4),
+                    "kind": ev.kind,
+                }
                 for ev in node_analysis.intersections
             ],
             "raw_plot_overlay": {
@@ -257,8 +314,13 @@ class StatsService:
         duration = (time.perf_counter() - start) * 1000
         logger.info(
             "stats 计算完成 [%s]: trace_count=%d, P10=%.4f, P20=%.4f, P21=%.4f, nodes=%d (%.3f ms)",
-            outcrop, trace.count, result["p10"] or 0, result["p20"] or 0, result["p21"] or 0,
-            node_analysis.node_count, duration,
+            outcrop,
+            trace.count,
+            result["p10"] or 0,
+            result["p20"] or 0,
+            result["p21"] or 0,
+            node_analysis.node_count,
+            duration,
             extra={
                 "stage": "stats_complete",
                 "outcrop": outcrop,
@@ -279,7 +341,9 @@ class StatsService:
         self._cache.set(key, result)
         return result
 
-    def get_comparison(self, outcrops: list[str], config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    def get_comparison(
+        self, outcrops: list[str], config: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """返回多露头对比数据（保持输入顺序）。"""
         result_map: dict[str, dict[str, Any]] = {}
         for oc in outcrops:
@@ -301,7 +365,15 @@ class StatsService:
         if outcrop is None:
             count = len(self._cache._store)
             self._cache.invalidate()
-            logger.debug("stats 缓存已全部清空: %d 条", count, extra={"stage": "stats_cache_invalidate_all", "count": count})
+            logger.debug(
+                "stats 缓存已全部清空: %d 条",
+                count,
+                extra={"stage": "stats_cache_invalidate_all", "count": count},
+            )
         else:
             self._cache.invalidate_prefix(f"{outcrop}:")
-            logger.debug("stats 缓存已失效 [%s]", outcrop, extra={"stage": "stats_cache_invalidate", "outcrop": outcrop})
+            logger.debug(
+                "stats 缓存已失效 [%s]",
+                outcrop,
+                extra={"stage": "stats_cache_invalidate", "outcrop": outcrop},
+            )

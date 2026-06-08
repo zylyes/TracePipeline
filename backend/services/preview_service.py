@@ -5,6 +5,7 @@
 - 所有几何数据来自 preview_plot.PreviewDemoData 硬编码常量
 - 预览仅用于观察样式参数在固定数据上的真实表现
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -48,7 +49,8 @@ class PreviewService:
             cached = self._cache.get(style_hash)
             if cached is not None:
                 logger.info(
-                    "预览缓存命中 [%s]", style_hash[:8],
+                    "预览缓存命中 [%s]",
+                    style_hash[:8],
                     extra={"stage": "preview_cache_hit", "hash": style_hash},
                 )
                 return {"status": "ready", "paths": cached, "images": self._to_images(cached)}
@@ -61,7 +63,9 @@ class PreviewService:
             duration = (time.perf_counter() - start) * 1000
             logger.info(
                 "预览生成完成 [%s]: %d 张图 (%.3f ms)",
-                style_hash[:8], len(paths), duration,
+                style_hash[:8],
+                len(paths),
+                duration,
                 extra={
                     "stage": "preview_generate",
                     "hash": style_hash,
@@ -73,7 +77,15 @@ class PreviewService:
             return {"status": "ready", "paths": paths, "images": self._to_images(paths)}
         except Exception as exc:
             duration = (time.perf_counter() - start) * 1000
-            logger.exception("预览生成失败 (%.3f ms)", duration, extra={"stage": "preview_error", "hash": style_hash, "duration_ms": round(duration, 3)})
+            logger.exception(
+                "预览生成失败 (%.3f ms)",
+                duration,
+                extra={
+                    "stage": "preview_error",
+                    "hash": style_hash,
+                    "duration_ms": round(duration, 3),
+                },
+            )
             return {"status": "error", "message": str(exc)}
 
     def _to_images(self, paths: dict[str, str]) -> list[dict[str, str]]:

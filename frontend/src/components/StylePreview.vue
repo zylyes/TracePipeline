@@ -26,6 +26,7 @@
       v-model:visible="viewerVisible"
       :images="viewerImages"
       :initial-index="viewerInitialIndex"
+      @index-change="handleViewerIndexChange"
     />
   </div>
 </template>
@@ -33,7 +34,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue'
 import { api } from '@/api/pywebview'
-import { loadImageBase64 } from '@/utils/image'
+import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
 import ImageViewer from '@/components/ImageViewer.vue'
 
 const emit = defineEmits<{
@@ -46,6 +47,8 @@ interface PreviewImage {
   label: string
   path: string
   url: string
+  fullUrl?: string
+  fullLoadPromise?: Promise<void>
 }
 
 const props = defineProps<{
@@ -70,12 +73,44 @@ const viewerVisible = ref(false)
 const viewerImages = ref<Array<{ title: string; src: string }>>([])
 const viewerInitialIndex = ref(0)
 
-function openViewer(index: number) {
-  viewerImages.value = previewImages.value
-    .filter((img) => img.url)
-    .map((img) => ({ title: img.label, src: img.url }))
-  viewerInitialIndex.value = index
+const PREVIEW_THUMBNAIL_MAX_PX = 640
+
+function viewerSourceImages() {
+  return previewImages.value.filter((img) => img.url || img.fullUrl)
+}
+
+function syncViewerImages() {
+  viewerImages.value = viewerSourceImages()
+    .map((img) => ({ title: img.label, src: img.fullUrl || img.url }))
+}
+
+async function ensureFullPreviewImage(img: PreviewImage) {
+  if (img.fullUrl || !img.path) return
+  if (img.fullLoadPromise) return img.fullLoadPromise
+  img.fullLoadPromise = (async () => {
+    try {
+      img.fullUrl = await loadImageBase64(img.path)
+      if (viewerVisible.value) syncViewerImages()
+    } finally {
+      img.fullLoadPromise = undefined
+    }
+  })()
+  return img.fullLoadPromise
+}
+
+async function openViewer(index: number) {
+  const target = previewImages.value[index]
+  if (!target || (!target.url && !target.path)) return
+  await ensureFullPreviewImage(target)
+  const sources = viewerSourceImages()
+  viewerInitialIndex.value = Math.max(0, sources.findIndex((img) => img.key === target.key))
+  syncViewerImages()
   viewerVisible.value = true
+}
+
+async function handleViewerIndexChange(index: number) {
+  const target = viewerSourceImages()[index]
+  if (target) await ensureFullPreviewImage(target)
 }
 
 let debounceTimer: number | null = null
@@ -100,10 +135,12 @@ async function doGenerate() {
         const match = images.find((item: any) => item.key === img.key)
         if (match && match.path) {
           img.path = match.path
-          img.url = await loadImageBase64(match.path)
+          img.url = await loadImageThumbnail(match.path, PREVIEW_THUMBNAIL_MAX_PX)
+          img.fullUrl = ''
         } else {
           img.path = ''
           img.url = ''
+          img.fullUrl = ''
         }
       }
     } else if (res.status === 'error') {
@@ -111,6 +148,7 @@ async function doGenerate() {
       for (const img of previewImages.value) {
         img.path = ''
         img.url = ''
+        img.fullUrl = ''
       }
     }
   } catch (e: any) {
@@ -118,6 +156,7 @@ async function doGenerate() {
     for (const img of previewImages.value) {
       img.path = ''
       img.url = ''
+      img.fullUrl = ''
     }
   } finally {
     loading.value = false

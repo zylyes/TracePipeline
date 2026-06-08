@@ -1,4 +1,5 @@
 """单元测试 — statistics.py 统计指标计算流水线。"""
+
 from __future__ import annotations
 
 import math
@@ -15,19 +16,17 @@ from trace_pipeline.geology._convex_hull import (
     _convex_hull_area,
 )
 from trace_pipeline.geology._stat_types import (
-    CircleWindowDiagnostic,
     TraceStatisticsConfig,
 )
 from trace_pipeline.geology._window_scoring import _select_window_diagnostics
 from trace_pipeline.geology.statistics import (
-    _adaptive_disagreement_threshold,
     _adaptive_consistency_threshold,
+    _adaptive_disagreement_threshold,
     _effective_scanline_length,
     _estimate_scanline_length,
     compute_trace_statistics,
 )
 from trace_pipeline.models import TraceData
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────
 
@@ -147,9 +146,14 @@ class TestCircleWindowBatch:
         centers = np.array([[2.0, 0.5]], dtype=float)
         radii = np.array([1.0], dtype=float)
         results = _count_circle_windows_batch(
-            segs, centers, radii, min_intersections=1,
+            segs,
+            centers,
+            radii,
+            min_intersections=1,
             cut_positions=np.array([2.0]),
-            sides=["center"], strategies=["tangent"], group_keys=["g1"],
+            sides=["center"],
+            strategies=["tangent"],
+            group_keys=["g1"],
         )
         assert len(results) == 1
         r = results[0]
@@ -161,17 +165,27 @@ class TestCircleWindowBatch:
         centers = np.array([[100.0, 100.0]], dtype=float)  # far away
         radii = np.array([1.0], dtype=float)
         results = _count_circle_windows_batch(
-            segs, centers, radii, min_intersections=1,
+            segs,
+            centers,
+            radii,
+            min_intersections=1,
             cut_positions=np.array([2.0]),
-            sides=["center"], strategies=["tangent"], group_keys=["g1"],
+            sides=["center"],
+            strategies=["tangent"],
+            group_keys=["g1"],
         )
         assert results[0].intersection_count == 0
 
     def test_empty_segments_returns_invalid_windows(self) -> None:
         results = _count_circle_windows_batch(
-            np.empty((0, 4)), np.array([[0.0, 0.0]]), np.array([1.0]),
-            min_intersections=1, cut_positions=np.array([0.0]),
-            sides=["center"], strategies=["tangent"], group_keys=["g1"],
+            np.empty((0, 4)),
+            np.array([[0.0, 0.0]]),
+            np.array([1.0]),
+            min_intersections=1,
+            cut_positions=np.array([0.0]),
+            sides=["center"],
+            strategies=["tangent"],
+            group_keys=["g1"],
         )
         assert len(results) == 1
         assert not results[0].valid
@@ -201,7 +215,11 @@ class TestWindowStrategySelection:
         segs = np.array([[0, 0, 3, 0], [0, 1, 3, 1], [0, 2, 3, 2]], dtype=float)
         config = TraceStatisticsConfig(window_strategy="tangent")
         strategy, diagnostics = _select_window_diagnostics(
-            segs, scanline_length=5.0, trace_count=3, config=config, hull_area=6.0,
+            segs,
+            scanline_length=5.0,
+            trace_count=3,
+            config=config,
+            hull_area=6.0,
         )
         assert strategy == "tangent"
         assert len(diagnostics) > 0
@@ -210,7 +228,11 @@ class TestWindowStrategySelection:
         segs = np.array([[0, 0, 3, 0], [0, 1, 3, 1], [0, 2, 3, 2]], dtype=float)
         config = TraceStatisticsConfig(window_strategy="concentric")
         strategy, diagnostics = _select_window_diagnostics(
-            segs, scanline_length=5.0, trace_count=3, config=config, hull_area=6.0,
+            segs,
+            scanline_length=5.0,
+            trace_count=3,
+            config=config,
+            hull_area=6.0,
         )
         assert strategy == "concentric"
 
@@ -218,7 +240,11 @@ class TestWindowStrategySelection:
         segs = np.array([[0, 0, 3, 0], [0, 1, 3, 1], [0, 2, 3, 2]], dtype=float)
         config = TraceStatisticsConfig(window_strategy="auto")
         strategy, diagnostics = _select_window_diagnostics(
-            segs, scanline_length=5.0, trace_count=3, config=config, hull_area=6.0,
+            segs,
+            scanline_length=5.0,
+            trace_count=3,
+            config=config,
+            hull_area=6.0,
         )
         assert strategy in ("tangent", "hybrid", "concentric")
         assert len(diagnostics) > 0

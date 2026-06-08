@@ -1,4 +1,5 @@
 """Excel 写入 — 多工作表输出（每区一个 sheet）。"""
+
 from __future__ import annotations
 
 import logging
@@ -241,22 +242,24 @@ def _build_summary_sections(
         calculation_items.append(
             ("校验告警", statistics.window_validation_warning),
         )
-    sections.extend([
-        ExcelSection(
-            df=_one_row_df(fracture_items),
-            startrow=layout.base_info_row,
-            startcol=layout.rot_col_start,
-            header=True,
-            title="裂隙情况",
-        ),
-        ExcelSection(
-            df=_one_row_df(calculation_items),
-            startrow=layout.base_info_row,
-            startcol=layout.orient_col_start,
-            header=True,
-            title="计算数据",
-        ),
-    ])
+    sections.extend(
+        [
+            ExcelSection(
+                df=_one_row_df(fracture_items),
+                startrow=layout.base_info_row,
+                startcol=layout.rot_col_start,
+                header=True,
+                title="裂隙情况",
+            ),
+            ExcelSection(
+                df=_one_row_df(calculation_items),
+                startrow=layout.base_info_row,
+                startcol=layout.orient_col_start,
+                header=True,
+                title="计算数据",
+            ),
+        ]
+    )
     return sections
 
 
@@ -291,11 +294,13 @@ def build_result_workbook_sections(
         columns=["旋转后起点X", "旋转后起点Y", "旋转后终点X", "旋转后终点Y"],
     )
 
-    orient_df = pd.DataFrame({
-        "节理走向(°)": np.round(trace.joint_strikes, 2),
-        "端点距离": np.round(trace.lengths, 4),
-        "测段长度(r5+r7)": np.round(trace.segment_lengths, 4),
-    })
+    orient_df = pd.DataFrame(
+        {
+            "节理走向(°)": np.round(trace.joint_strikes, 2),
+            "端点距离": np.round(trace.lengths, 4),
+            "测段长度(r5+r7)": np.round(trace.segment_lengths, 4),
+        }
+    )
     if statistics is not None:
         if len(statistics.trace_types) != trace.count:
             raise ValueError(
@@ -328,7 +333,12 @@ def _build_node_sections(
         ("三叉节点(Y)", str(tc.get("Y", 0))),
         ("交叉节点(X)", str(tc.get("X", 0))),
         ("交点事件数", str(node_analysis.intersection_count)),
-        ("节点密度", _format_excel_cell_value(node_analysis.node_density(trace.measured_outcrop_area), "个/m²")),
+        (
+            "节点密度",
+            _format_excel_cell_value(
+                node_analysis.node_density(trace.measured_outcrop_area), "个/m²"
+            ),
+        ),
         ("合并容差", _format_excel_cell_value(node_analysis.merge_tolerance, "m")),
         ("跳过退化线段数", str(node_analysis.degenerate_skipped)),
     ]
@@ -336,28 +346,34 @@ def _build_node_sections(
 
     detail_records = []
     for node in node_analysis.nodes:
-        detail_records.append({
-            "节点ID": node.node_id,
-            "X": round(node.x, 4),
-            "Y": round(node.y, 4),
-            "类型": node.type_label,
-            "拓扑值": node.degree,
-            "连接迹线": ",".join(str(i) for i in node.trace_indices),
-            "事件数": node.event_count,
-        })
+        detail_records.append(
+            {
+                "节点ID": node.node_id,
+                "X": round(node.x, 4),
+                "Y": round(node.y, 4),
+                "类型": node.type_label,
+                "拓扑值": node.degree,
+                "连接迹线": ",".join(str(i) for i in node.trace_indices),
+                "事件数": node.event_count,
+            }
+        )
     detail_df = pd.DataFrame(detail_records)
 
     inter_records = []
     for ev in node_analysis.intersections:
-        inter_records.append({
-            "迹线A": ev.trace_a,
-            "迹线B": ev.trace_b,
-            "交点X": round(ev.x, 4),
-            "交点Y": round(ev.y, 4),
-            "参数t": round(ev.t, 4),
-            "参数u": round(ev.u, 4),
-            "事件类型": "相交" if ev.kind == "internal" else ("端点接触" if ev.kind == "endpoint" else "重叠"),
-        })
+        inter_records.append(
+            {
+                "迹线A": ev.trace_a,
+                "迹线B": ev.trace_b,
+                "交点X": round(ev.x, 4),
+                "交点Y": round(ev.y, 4),
+                "参数t": round(ev.t, 4),
+                "参数u": round(ev.u, 4),
+                "事件类型": "相交"
+                if ev.kind == "internal"
+                else ("端点接触" if ev.kind == "endpoint" else "重叠"),
+            }
+        )
     sections: list[ExcelSection] = [
         ExcelSection(stats_df, 0, 0, True, "节点统计"),
         ExcelSection(detail_df, 0, 0, True, "节点明细"),
@@ -369,6 +385,7 @@ def _build_node_sections(
 
 
 # ── 多工作表写入（新格式：每个分区一个 sheet）─────────────────────────
+
 
 def _write_sheet_title(ws, title: str, column_count: int) -> None:
     """在 sheet 首行写入合并标题。"""
@@ -394,7 +411,9 @@ def _style_sheet(ws, df: pd.DataFrame, has_title: bool = True) -> None:
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     # 表头样式
-    for row in ws.iter_rows(min_row=header_row, max_row=header_row, min_col=first_col, max_col=last_col):
+    for row in ws.iter_rows(
+        min_row=header_row, max_row=header_row, min_col=first_col, max_col=last_col
+    ):
         for cell in row:
             _apply_cell_font(cell, bold=True)
             cell.fill = PatternFill("solid", fgColor="D9EAF7")
@@ -403,7 +422,9 @@ def _style_sheet(ws, df: pd.DataFrame, has_title: bool = True) -> None:
     ws.row_dimensions[header_row].height = 28
 
     # 数据行样式
-    for row in ws.iter_rows(min_row=first_data_row, max_row=last_row, min_col=first_col, max_col=last_col):
+    for row in ws.iter_rows(
+        min_row=first_data_row, max_row=last_row, min_col=first_col, max_col=last_col
+    ):
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center")
@@ -454,5 +475,3 @@ def write_excel_multi_sheets(
             _style_sheet(ws, section.df, has_title=bool(section.title))
 
     logger.debug("Excel 多工作表写入完成: %s", excel_path)
-
-

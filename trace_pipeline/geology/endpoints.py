@@ -34,6 +34,7 @@ MATLAB ↔ Python 变量对照（见 reference/matlab/Coordinate.m）:
   r4≠0,r6≠0       ┃ mask_both        → _compute_bilateral
 
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,8 +44,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .angles import azimuth_to_cartesian_deg, dip_to_strike, fold_to_halfplane
 from ._stat_types import _EPS
+from .angles import azimuth_to_cartesian_deg, dip_to_strike, fold_to_halfplane
 
 logger = logging.getLogger(__name__)
 
@@ -52,18 +53,18 @@ logger = logging.getLogger(__name__)
 # Excel 列索引常量
 # ===========================================================================
 
-COL_SHIFT_ALONG = 0   # r1 — 沿测线位移
+COL_SHIFT_ALONG = 0  # r1 — 沿测线位移
 COL_SHIFT_ACROSS = 1  # r2 — 垂直测线位移
-COL_DIP = 2           # 倾向（输入值，运行时转为走向）
-COL_LEFT_LEN1 = 3     # r4 — 左侧迹长 1
-COL_LEFT_LEN2 = 4     # r5 — 左侧迹长 2
-COL_RIGHT_LEN1 = 5    # r6 — 右侧迹长 1
-COL_RIGHT_LEN2 = 6    # r7 — 右侧迹长 2
+COL_DIP = 2  # 倾向（输入值，运行时转为走向）
+COL_LEFT_LEN1 = 3  # r4 — 左侧迹长 1
+COL_LEFT_LEN2 = 4  # r5 — 左侧迹长 2
+COL_RIGHT_LEN1 = 5  # r6 — 右侧迹长 1
+COL_RIGHT_LEN2 = 6  # r7 — 右侧迹长 2
 
 COL_HEADER_AZIMUTH = 7  # 测线走向角（度），仅首行
-COL_HEADER_COUNT = 8    # 迹线条数，仅首行
+COL_HEADER_COUNT = 8  # 迹线条数，仅首行
 COL_HEADER_SCANLINE_LENGTH = 11  # 实测测线长度（m），仅首行，可选
-COL_HEADER_OUTCROP_AREA = 12     # 实测露头面积（m²），仅首行，可选
+COL_HEADER_OUTCROP_AREA = 12  # 实测露头面积（m²），仅首行，可选
 
 _MIN_COLUMNS = COL_HEADER_COUNT + 1
 
@@ -213,10 +214,17 @@ def _validate_numeric_block(data_block: np.ndarray) -> None:
 
 
 def _compute_left_only(
-    x1: np.ndarray, y1: np.ndarray, x2: np.ndarray, y2: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    x2: np.ndarray,
+    y2: np.ndarray,
     mask: np.ndarray,
-    z1: np.ndarray, r2: np.ndarray, r4: np.ndarray, r5: np.ndarray,
-    vec_perp_left: complex, vec_skew: np.ndarray,
+    z1: np.ndarray,
+    r2: np.ndarray,
+    r4: np.ndarray,
+    r5: np.ndarray,
+    vec_perp_left: complex,
+    vec_skew: np.ndarray,
 ) -> None:
     """Case 1 — 仅左侧有迹线 (r5 ≠ 0, r7 = 0)。
 
@@ -232,10 +240,17 @@ def _compute_left_only(
 
 
 def _compute_right_only(
-    x1: np.ndarray, y1: np.ndarray, x2: np.ndarray, y2: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    x2: np.ndarray,
+    y2: np.ndarray,
     mask: np.ndarray,
-    z1: np.ndarray, r2: np.ndarray, r6: np.ndarray, r7: np.ndarray,
-    vec_perp_right: complex, vec_skew: np.ndarray,
+    z1: np.ndarray,
+    r2: np.ndarray,
+    r6: np.ndarray,
+    r7: np.ndarray,
+    vec_perp_right: complex,
+    vec_skew: np.ndarray,
 ) -> None:
     """Case 2 — 仅右侧有迹线 (r5 = 0, r7 ≠ 0)。
 
@@ -251,12 +266,21 @@ def _compute_right_only(
 
 
 def _compute_bilateral(
-    x1: np.ndarray, y1: np.ndarray, x2: np.ndarray, y2: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    x2: np.ndarray,
+    y2: np.ndarray,
     mask: np.ndarray,
-    z1: np.ndarray, r2: np.ndarray, r4: np.ndarray, r5: np.ndarray,
-    r6: np.ndarray, r7: np.ndarray,
-    vec_perp_left: complex, vec_perp_right: complex,
-    vec_skew_left: np.ndarray, vec_skew_right: np.ndarray,
+    z1: np.ndarray,
+    r2: np.ndarray,
+    r4: np.ndarray,
+    r5: np.ndarray,
+    r6: np.ndarray,
+    r7: np.ndarray,
+    vec_perp_left: complex,
+    vec_perp_right: complex,
+    vec_skew_left: np.ndarray,
+    vec_skew_right: np.ndarray,
 ) -> None:
     """Case 3 — 双侧均有迹线 (r5 ≠ 0, r7 ≠ 0)。
 
@@ -333,23 +357,53 @@ def compute_endpoints(
     mask_only_left = has_left & (~has_right)
     if np.any(mask_only_left):
         _compute_left_only(
-            x1, y1, x2, y2, mask_only_left,
-            z1_base, r2, r4, r5, vec_perp_left, vec_skew_left,
+            x1,
+            y1,
+            x2,
+            y2,
+            mask_only_left,
+            z1_base,
+            r2,
+            r4,
+            r5,
+            vec_perp_left,
+            vec_skew_left,
         )
 
     mask_only_right = (~has_left) & has_right
     if np.any(mask_only_right):
         _compute_right_only(
-            x1, y1, x2, y2, mask_only_right,
-            z1_base, r2, r6, r7, vec_perp_right, vec_skew_right,
+            x1,
+            y1,
+            x2,
+            y2,
+            mask_only_right,
+            z1_base,
+            r2,
+            r6,
+            r7,
+            vec_perp_right,
+            vec_skew_right,
         )
 
     mask_both = has_left & has_right
     if np.any(mask_both):
         _compute_bilateral(
-            x1, y1, x2, y2, mask_both,
-            z1_base, r2, r4, r5, r6, r7,
-            vec_perp_left, vec_perp_right, vec_skew_left, vec_skew_right,
+            x1,
+            y1,
+            x2,
+            y2,
+            mask_both,
+            z1_base,
+            r2,
+            r4,
+            r5,
+            r6,
+            r7,
+            vec_perp_left,
+            vec_perp_right,
+            vec_skew_left,
+            vec_skew_right,
         )
 
     endpoints = np.column_stack((x1, y1, x2, y2))

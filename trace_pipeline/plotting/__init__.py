@@ -1,4 +1,5 @@
 """绘图子包：样式配置、迹线图、玫瑰花瓣图。"""
+
 from __future__ import annotations
 
 from importlib import import_module
@@ -22,6 +23,7 @@ def __getattr__(name: str) -> Any:
     value = getattr(import_module(module_name), attr_name)
     globals()[name] = value
     return value
+
 
 __all__ = [
     "CircleWindowOverlay",

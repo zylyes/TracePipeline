@@ -1,4 +1,5 @@
 """matplotlib 全局样式与 CJK 字体配置。"""
+
 from __future__ import annotations
 
 import functools
@@ -12,6 +13,7 @@ import matplotlib.font_manager as fm
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
     from matplotlib.axes import Axes
     from matplotlib.text import Text
 
@@ -100,14 +102,16 @@ def _preferred_font_stack(
     cjk_serif_fonts: list[str],
     cjk_sans_fonts: list[str],
 ) -> list[str]:
-    return _dedupe_fonts([
-        WESTERN_PRIMARY_FONT,
-        CJK_PRIMARY_FONT,
-        *western_fonts,
-        *cjk_serif_fonts,
-        *cjk_sans_fonts,
-        "serif",
-    ])
+    return _dedupe_fonts(
+        [
+            WESTERN_PRIMARY_FONT,
+            CJK_PRIMARY_FONT,
+            *western_fonts,
+            *cjk_serif_fonts,
+            *cjk_sans_fonts,
+            "serif",
+        ]
+    )
 
 
 def _current_font_family() -> list[str]:
@@ -127,14 +131,16 @@ def text_font_kwargs(**kwargs: object) -> dict[str, Any]:
 def heading_font_kwargs(**kwargs: object) -> dict[str, Any]:
     """返回绘图标题使用的字体参数（Times New Roman 优先，中文回退黑体）。"""
     cache = _get_font_cache()
-    heading_stack = _dedupe_fonts([
-        WESTERN_PRIMARY_FONT,
-        CJK_HEADING_FONT,
-        *cache["western"],
-        *cache["cjk_sans"],
-        *cache["cjk_serif"],
-        "sans-serif",
-    ])
+    heading_stack = _dedupe_fonts(
+        [
+            WESTERN_PRIMARY_FONT,
+            CJK_HEADING_FONT,
+            *cache["western"],
+            *cache["cjk_sans"],
+            *cache["cjk_serif"],
+            "sans-serif",
+        ]
+    )
     merged: dict[str, Any] = {"fontfamily": heading_stack}
     merged.update(kwargs)
     return merged
@@ -143,14 +149,16 @@ def heading_font_kwargs(**kwargs: object) -> dict[str, Any]:
 def body_font_kwargs(**kwargs: object) -> dict[str, Any]:
     """返回绘图正文使用的字体参数（Times New Roman 优先，中文回退宋体）。"""
     cache = _get_font_cache()
-    body_stack = _dedupe_fonts([
-        WESTERN_PRIMARY_FONT,
-        CJK_PRIMARY_FONT,
-        *cache["western"],
-        *cache["cjk_serif"],
-        *cache["cjk_sans"],
-        "serif",
-    ])
+    body_stack = _dedupe_fonts(
+        [
+            WESTERN_PRIMARY_FONT,
+            CJK_PRIMARY_FONT,
+            *cache["western"],
+            *cache["cjk_serif"],
+            *cache["cjk_sans"],
+            "serif",
+        ]
+    )
     merged: dict[str, Any] = {"fontfamily": body_stack}
     merged.update(kwargs)
     return merged
@@ -182,12 +190,14 @@ def configure_style() -> None:
     )
     matplotlib.rcParams["font.family"] = font_family_list
     matplotlib.rcParams["font.serif"] = font_family_list
-    matplotlib.rcParams["font.sans-serif"] = _dedupe_fonts([
-        CJK_PRIMARY_FONT,
-        *available_cjk_sans,
-        *available_cjk_serif,
-        "sans-serif",
-    ])
+    matplotlib.rcParams["font.sans-serif"] = _dedupe_fonts(
+        [
+            CJK_PRIMARY_FONT,
+            *available_cjk_sans,
+            *available_cjk_serif,
+            "sans-serif",
+        ]
+    )
 
     if WESTERN_PRIMARY_FONT not in available_western:
         logger.warning("未检测到 %s，英文和数字将使用可用衬线字体回退。", WESTERN_PRIMARY_FONT)

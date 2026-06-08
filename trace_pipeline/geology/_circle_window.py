@@ -1,4 +1,5 @@
 """圆形取样窗核心 — 几何工具、迹线分型与窗口计数。"""
+
 from __future__ import annotations
 
 import math
@@ -6,6 +7,7 @@ import math
 import numpy as np
 
 from ._stat_types import _EPS, CircleWindowDiagnostic, TraceStatisticsConfig
+
 
 def _classify_trace_types(local_segments: np.ndarray, scanline_length: float) -> tuple[str, ...]:
     """将迹线分为 I/II/III 型（向量化实现）。"""
@@ -34,8 +36,10 @@ def _classify_trace_types(local_segments: np.ndarray, scanline_length: float) ->
     u = cross_qp_r / safe_denom  # 测线参数：交点在测线上的位置 u ∈ [0,1]
     non_parallel_intersect = (
         (np.abs(cross_r_s) > _EPS)
-        & (t >= -_EPS) & (t <= 1.0 + _EPS)
-        & (u >= -_EPS) & (u <= 1.0 + _EPS)
+        & (t >= -_EPS)
+        & (t <= 1.0 + _EPS)
+        & (u >= -_EPS)
+        & (u <= 1.0 + _EPS)
     )
 
     collinear = (np.abs(cross_r_s) <= _EPS) & (np.abs(cross_qp_r) <= _EPS)
@@ -46,9 +50,8 @@ def _classify_trace_types(local_segments: np.ndarray, scanline_length: float) ->
     seg_y_min = np.minimum(p1[:, 1], p2[:, 1])
     seg_y_max = np.maximum(p1[:, 1], p2[:, 1])
     bbox_overlap = (
-        (np.maximum(seg_x_min, scanline_x_min) <= np.minimum(seg_x_max, scanline_x_max) + _EPS)
-        & (np.maximum(seg_y_min, 0.0) <= np.minimum(seg_y_max, 0.0) + _EPS)
-    )
+        np.maximum(seg_x_min, scanline_x_min) <= np.minimum(seg_x_max, scanline_x_max) + _EPS
+    ) & (np.maximum(seg_y_min, 0.0) <= np.minimum(seg_y_max, 0.0) + _EPS)
     collinear_intersect = collinear & bbox_overlap
 
     is_type_i = (~degenerate) & (non_parallel_intersect | collinear_intersect)
@@ -99,9 +102,13 @@ def _count_circle_windows_batch(
     if n_segs == 0:
         return [
             _invalid_window(
-                float(cut_positions[i]), sides[i], "无迹线数据",
-                strategy=strategies[i], group_key=group_keys[i],
-                center_x=float(centers[i, 0]), center_y=float(centers[i, 1]),
+                float(cut_positions[i]),
+                sides[i],
+                "无迹线数据",
+                strategy=strategies[i],
+                group_key=group_keys[i],
+                center_x=float(centers[i, 0]),
+                center_y=float(centers[i, 1]),
                 radius=float(radii[i]),
             )
             for i in range(m_windows)
@@ -130,9 +137,7 @@ def _count_circle_windows_batch(
 
     # closest[n, m] = p1[n] + t[n, m] * seg_vec[n]
     closest = p1[:, np.newaxis, :] + t[:, :, np.newaxis] * seg_vec[:, np.newaxis, :]  # (N, M, 2)
-    dist_to_seg = np.linalg.norm(
-        centers[np.newaxis, :, :] - closest, axis=2
-    )  # (N, M)
+    dist_to_seg = np.linalg.norm(centers[np.newaxis, :, :] - closest, axis=2)  # (N, M)
 
     # threshold[m] = radii[m] + _EPS
     thresholds = radii[np.newaxis, :] + _EPS  # (1, M) 广播到 (N, M)
@@ -180,30 +185,34 @@ def _count_circle_windows_batch(
             valid = False
             reason = "q <= 0"
         else:
-            p20 = q_val / (2.0 * math.pi * window_radius * window_radius)  # 迹线面密度 = 端点对数 / 圆面积
+            p20 = q_val / (
+                2.0 * math.pi * window_radius * window_radius
+            )  # 迹线面密度 = 端点对数 / 圆面积
             p21 = m_val / (4.0 * window_radius)  # 累计长度密度
             l_est = (math.pi * window_radius / 2.0) * (m_val / q_val)  # 估计平均迹长 (Zhang, 1998)
 
-        results.append(CircleWindowDiagnostic(
-            cut_position=float(cut_positions[i]),
-            side=sides[i],
-            center_x=float(centers[i, 0]),
-            center_y=float(centers[i, 1]),
-            radius=window_radius,
-            intersection_count=ic,
-            n0=n0,
-            n1=n1,
-            n2=n2,
-            m=m_val,
-            q=q_val,
-            p20=float(p20),
-            p21=float(p21),
-            l_est=float(l_est),
-            strategy=strategies[i],
-            group_key=group_keys[i],
-            valid=valid,
-            invalid_reason=reason,
-        ))
+        results.append(
+            CircleWindowDiagnostic(
+                cut_position=float(cut_positions[i]),
+                side=sides[i],
+                center_x=float(centers[i, 0]),
+                center_y=float(centers[i, 1]),
+                radius=window_radius,
+                intersection_count=ic,
+                n0=n0,
+                n1=n1,
+                n2=n2,
+                m=m_val,
+                q=q_val,
+                p20=float(p20),
+                p21=float(p21),
+                l_est=float(l_est),
+                strategy=strategies[i],
+                group_key=group_keys[i],
+                valid=valid,
+                invalid_reason=reason,
+            )
+        )
 
     return results
 

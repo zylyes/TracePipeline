@@ -1,4 +1,5 @@
 """Excel 迹线表读取 — 候选扩展名 + 工作表回退 + 格式校验。"""
+
 from __future__ import annotations
 
 import logging
@@ -60,9 +61,7 @@ def read_trace_excel(
             attempts.append((path, engine, 0))
 
     if not found_paths:
-        raise FileNotFoundError(
-            f"在 {base_path} 下未找到 {table_stem}.xlsx 或 {table_stem}.xls"
-        )
+        raise FileNotFoundError(f"在 {base_path} 下未找到 {table_stem}.xlsx 或 {table_stem}.xls")
 
     last_error: Exception | None = None
     errors: list[str] = []
@@ -88,8 +87,7 @@ def read_trace_excel(
     found = ", ".join(p.name for p in found_paths)
     detail = "; ".join(errors[-3:])
     raise ValueError(
-        f"找到 {found}，但读取失败"
-        + (f": {detail}" if detail else "")
+        f"找到 {found}，但读取失败" + (f": {detail}" if detail else "")
     ) from last_error
 
 
@@ -122,6 +120,13 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
     if total_cells > 0 and numeric_count / total_cells < 0.5:
         logger.warning(
             "迹线表 %s 前%d行中数值占比过低 (%d/%d)，可能包含非数据行",
-            path.name, _MAX_SKIP_ROWS, numeric_count, total_cells,
-            extra={"stage": "validate_trace", "path": str(path), "numeric_ratio": numeric_count / total_cells},
+            path.name,
+            _MAX_SKIP_ROWS,
+            numeric_count,
+            total_cells,
+            extra={
+                "stage": "validate_trace",
+                "path": str(path),
+                "numeric_ratio": numeric_count / total_cells,
+            },
         )

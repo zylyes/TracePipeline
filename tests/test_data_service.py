@@ -44,10 +44,12 @@ def test_input_data_reuses_cached_workbook_between_pages(tmp_path, monkeypatch) 
         nonlocal calls
         calls += 1
         assert path == excel_path
-        return pd.DataFrame([
-            [1, 2, 30, 4, 5, 6, 7, 8, 9],
-            [10, 11, 12, 13, 14, 15, 16, 17, 18],
-        ])
+        return pd.DataFrame(
+            [
+                [1, 2, 30, 4, 5, 6, 7, 8, 9],
+                [10, 11, 12, 13, 14, 15, 16, 17, 18],
+            ]
+        )
 
     monkeypatch.setattr(data_module.pd, "read_excel", fake_read_excel)
     service = DataService(output_dir=str(tmp_path), input_dir=str(input_dir))

@@ -1,4 +1,5 @@
 """交互式目标选择。"""
+
 from __future__ import annotations
 
 import re

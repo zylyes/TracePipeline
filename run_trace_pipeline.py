@@ -3,8 +3,9 @@
 命令行参数与使用方式详见:
     python run_trace_pipeline.py --help
 """
-from trace_pipeline.config import ensure_workspace_dirs
+
 from trace_pipeline.cli import main
+from trace_pipeline.config import ensure_workspace_dirs
 
 if __name__ == "__main__":
     ensure_workspace_dirs()

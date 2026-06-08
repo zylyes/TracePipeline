@@ -2,6 +2,7 @@
 
 串联「加载 → 计算 → 变换 → 导出 Excel → 绘制图片」五个阶段。
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["load_trace_data", "run_pipeline"]
 
+
 def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
     """读取迹线 Excel 表并解析为 TraceData。"""
     start = time.perf_counter()
@@ -62,7 +64,10 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
     duration_ms = (time.perf_counter() - start) * 1000
     logger.info(
         "解析完成: %d 条迹线, 走向 %.1f°, 平均端点距离 %.2f (%.3f ms)",
-        result.count, result.azimuth, trace.mean_length, duration_ms,
+        result.count,
+        result.azimuth,
+        trace.mean_length,
+        duration_ms,
         extra={"stage": "load", "trace_count": result.count, "duration_ms": round(duration_ms, 3)},
     )
     return trace
@@ -81,17 +86,22 @@ def _handle_pipeline_error(
     error_type = type(exc).__name__
     logger.error(
         "处理 [%s] 失败 (%s): %s (%.3f ms)",
-        cfg.outcrop, error_type, exc, duration,
+        cfg.outcrop,
+        error_type,
+        exc,
+        duration,
         extra={"stage": "pipeline_error", "duration_ms": round(duration, 3)},
         exc_info=include_traceback,
     )
     tb = ""
     if include_traceback:
         import traceback
+
         tb = traceback.format_exc()
     message = friendly or f"{error_type}: {exc}"
     return RunResult.failure(
-        cfg.table_stem, message,
+        cfg.table_stem,
+        message,
         error_type=error_type,
         error_traceback=tb,
     )
@@ -112,16 +122,22 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
     if current_process().name != "MainProcess":
         with _MPL_INIT_LOCK:
             from trace_pipeline.utils.mpl_init import force_noninteractive_backend
+
             force_noninteractive_backend()
             from trace_pipeline.plotting.style import configure_style
+
             configure_style()
         from .logging import setup_worker_logging
+
         setup_worker_logging()
 
     pipeline_start = time.perf_counter()
-    with LogContext(request_id=f"pipeline-{cfg.outcrop}-{int(pipeline_start * 1000)}-{uuid.uuid4().hex[:6]}"):
+    with LogContext(
+        request_id=f"pipeline-{cfg.outcrop}-{int(pipeline_start * 1000)}-{uuid.uuid4().hex[:6]}"
+    ):
         logger.info(
-            "开始处理: %s", cfg.outcrop,
+            "开始处理: %s",
+            cfg.outcrop,
             extra={"stage": "pipeline_start", "config": cfg.__dict__},
         )
         try:
@@ -130,42 +146,68 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             trace = load_trace_data(cfg.input_dir, cfg.table_stem, cfg.outcrop)
             logger.info(
                 "数据加载完成: %s — %d 条迹线, 走向 %.1f° (%.3f ms)",
-                cfg.outcrop, trace.count, trace.scanline_azimuth,
+                cfg.outcrop,
+                trace.count,
+                trace.scanline_azimuth,
                 (time.perf_counter() - t0) * 1000,
                 extra={"stage": "load", "trace_count": trace.count},
             )
 
             # ---- 2. 坐标变换 ----
             t0 = time.perf_counter()
-            logger.debug("  2.1 归一化坐标: %s", cfg.outcrop, extra={"stage": "transform_substep", "substep": "normalize"})
+            logger.debug(
+                "  2.1 归一化坐标: %s",
+                cfg.outcrop,
+                extra={"stage": "transform_substep", "substep": "normalize"},
+            )
             rotated = normalize_coordinates(trace.endpoints, trace.scanline_azimuth)
-            rotated_north_angle = 90.0 + float(np.degrees(fold_strike_angle(trace.scanline_azimuth)))
+            rotated_north_angle = 90.0 + float(
+                np.degrees(fold_strike_angle(trace.scanline_azimuth))
+            )
             statistics_config = TraceStatisticsConfig(
                 window_strategy=cfg.window_strategy,
                 auto_density_threshold=cfg.auto_density_threshold,
                 tangent_window_count=cfg.tangent_window_count,
                 min_intersections=cfg.min_intersections,
             )
-            logger.debug("  2.2 计算统计量: %s", cfg.outcrop, extra={"stage": "transform_substep", "substep": "statistics"})
+            logger.debug(
+                "  2.2 计算统计量: %s",
+                cfg.outcrop,
+                extra={"stage": "transform_substep", "substep": "statistics"},
+            )
             statistics = compute_trace_statistics(trace, statistics_config)
             statistics_lines = format_statistics_box_lines(statistics)
-            logger.debug("  2.3 构建圆窗覆盖层: %s", cfg.outcrop, extra={"stage": "transform_substep", "substep": "circles"})
+            logger.debug(
+                "  2.3 构建圆窗覆盖层: %s",
+                cfg.outcrop,
+                extra={"stage": "transform_substep", "substep": "circles"},
+            )
             raw_circle_windows = build_raw_circle_overlays(trace, statistics)
             rotated_circle_windows = build_rotated_circle_overlays(trace, raw_circle_windows)
 
             if statistics.window_validation_warning:
                 logger.warning(
-                    "[%s] 窗口验证警告: %s", cfg.outcrop, statistics.window_validation_warning,
+                    "[%s] 窗口验证警告: %s",
+                    cfg.outcrop,
+                    statistics.window_validation_warning,
                     extra={"stage": "statistics", "outcrop": cfg.outcrop},
                 )
 
-            logger.debug("  2.4 构建凸包覆盖层: %s", cfg.outcrop, extra={"stage": "transform_substep", "substep": "hull"})
+            logger.debug(
+                "  2.4 构建凸包覆盖层: %s",
+                cfg.outcrop,
+                extra={"stage": "transform_substep", "substep": "hull"},
+            )
             raw_hull_overlay, rotated_hull_overlay = build_selected_hull_overlays(trace, statistics)
             transform_duration = (time.perf_counter() - t0) * 1000
             logger.info(
                 "坐标变换与统计完成: %s (%.3f ms) — P10=%.4f, P20=%.4f, P21=%.4f, 窗口=%s",
-                cfg.outcrop, transform_duration,
-                statistics.p10, statistics.p20, statistics.p21, statistics.window_strategy,
+                cfg.outcrop,
+                transform_duration,
+                statistics.p10,
+                statistics.p20,
+                statistics.p21,
+                statistics.window_strategy,
                 extra={
                     "stage": "transform",
                     "outcrop": cfg.outcrop,
@@ -199,7 +241,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 )
                 logger.info(
                     "节点识别完成: %s — %d 个节点, %d 个交点事件 (%.3f ms)",
-                    cfg.outcrop, node_analysis.node_count, node_analysis.intersection_count,
+                    cfg.outcrop,
+                    node_analysis.node_count,
+                    node_analysis.intersection_count,
                     (time.perf_counter() - t0) * 1000,
                     extra={
                         "stage": "node_recognition",
@@ -217,7 +261,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             )
             write_excel_multi_sheets(str(excel_path), sections)
             logger.info(
-                "Excel 导出至: %s (%.3f ms)", excel_path, (time.perf_counter() - t0) * 1000,
+                "Excel 导出至: %s (%.3f ms)",
+                excel_path,
+                (time.perf_counter() - t0) * 1000,
                 extra={"stage": "export_excel", "excel_path": str(excel_path)},
             )
 
@@ -226,7 +272,12 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             from trace_pipeline.plotting.style import apply_style_overrides
 
             with apply_style_overrides(cfg.style):
-                logger.debug("  5.1 绘制原始迹线图: %s (dpi=%d)", cfg.outcrop, cfg.trace_dpi, extra={"stage": "plot_substep", "substep": "raw"})
+                logger.debug(
+                    "  5.1 绘制原始迹线图: %s (dpi=%d)",
+                    cfg.outcrop,
+                    cfg.trace_dpi,
+                    extra={"stage": "plot_substep", "substep": "raw"},
+                )
                 raw_plot_start = time.perf_counter()
                 raw_plot = render_trace_plot(
                     trace.endpoints,
@@ -254,7 +305,12 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                         "duration_ms": round(raw_plot_duration, 3),
                     },
                 )
-                logger.debug("  5.2 绘制旋转迹线图: %s (dpi=%d)", cfg.outcrop, cfg.rotated_trace_dpi, extra={"stage": "plot_substep", "substep": "rotated"})
+                logger.debug(
+                    "  5.2 绘制旋转迹线图: %s (dpi=%d)",
+                    cfg.outcrop,
+                    cfg.rotated_trace_dpi,
+                    extra={"stage": "plot_substep", "substep": "rotated"},
+                )
 
                 rotated_plot_start = time.perf_counter()
                 rot_plot = render_trace_plot(
@@ -287,7 +343,13 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
                 rose_plot = ""
                 if cfg.export_rose_plot:
-                    logger.debug("  5.3 绘制玫瑰图: %s (bin=%.1f°, dpi=%d)", cfg.outcrop, cfg.rose_bin_width, cfg.rose_dpi, extra={"stage": "plot_substep", "substep": "rose"})
+                    logger.debug(
+                        "  5.3 绘制玫瑰图: %s (bin=%.1f°, dpi=%d)",
+                        cfg.outcrop,
+                        cfg.rose_bin_width,
+                        cfg.rose_dpi,
+                        extra={"stage": "plot_substep", "substep": "rose"},
+                    )
                     rose_plot_start = time.perf_counter()
                     rose_plot = render_rose_plot(
                         trace.joint_strikes,
@@ -299,7 +361,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     )
                     rose_plot_duration = (time.perf_counter() - rose_plot_start) * 1000
                     logger.info(
-                        "玫瑰图导出至: %s (%.3f ms)", rose_plot, rose_plot_duration,
+                        "玫瑰图导出至: %s (%.3f ms)",
+                        rose_plot,
+                        rose_plot_duration,
                         extra={
                             "stage": "plot_rose",
                             "outcrop": cfg.outcrop,
@@ -311,7 +375,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
             plot_duration = (time.perf_counter() - t0) * 1000
             logger.info(
-                "绘图完成: %s (%.3f ms)", cfg.outcrop, plot_duration,
+                "绘图完成: %s (%.3f ms)",
+                cfg.outcrop,
+                plot_duration,
                 extra={
                     "stage": "plot",
                     "raw_plot": raw_plot,
@@ -322,7 +388,9 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
             total_duration = (time.perf_counter() - pipeline_start) * 1000
             logger.info(
-                "处理完成: %s (总耗时 %.3f ms)", cfg.outcrop, total_duration,
+                "处理完成: %s (总耗时 %.3f ms)",
+                cfg.outcrop,
+                total_duration,
                 extra={"stage": "pipeline_end", "duration_ms": round(total_duration, 3)},
             )
 
@@ -357,13 +425,21 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             )
 
         except PermissionError as exc:
+            friendly = (
+                "文件被占用或权限不足，无法写入。请关闭已打开的输出文件"
+                f"（如 Excel/WPS）后重试。原始错误: {exc}"
+            )
             return _handle_pipeline_error(
-                cfg, exc, pipeline_start,
-                friendly=f"文件被占用或权限不足，无法写入。请关闭已打开的输出文件（如 Excel/WPS）后重试。原始错误: {exc}",
+                cfg,
+                exc,
+                pipeline_start,
+                friendly=friendly,
             )
         except FileNotFoundError as exc:
             return _handle_pipeline_error(
-                cfg, exc, pipeline_start,
+                cfg,
+                exc,
+                pipeline_start,
                 friendly=f"输入文件不存在，请检查文件路径。原始错误: {exc}",
             )
         except (ValueError, KeyError, TypeError, IndexError, OSError) as exc:

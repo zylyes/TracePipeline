@@ -11,6 +11,7 @@
     python scripts/package.py --skip-installer    # 仅便捷版
     python scripts/package.py --skip-frontend     # 跳过前端构建
 """
+
 from __future__ import annotations
 
 import argparse
@@ -20,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -104,7 +106,7 @@ def read_version() -> str:
     return version
 
 
-from trace_pipeline.utils.formatting import format_file_size
+from trace_pipeline.utils.formatting import format_file_size  # noqa: E402
 
 
 def format_size(num_bytes: int) -> str:
@@ -132,8 +134,9 @@ def generate_requirements() -> Path:
     content = toml_path.read_text(encoding="utf-8")
 
     match = re.search(
-        r'\[project\]\s*\n.*?dependencies\s*=\s*\[(.*?)\]',
-        content, re.DOTALL,
+        r"\[project\]\s*\n.*?dependencies\s*=\s*\[(.*?)\]",
+        content,
+        re.DOTALL,
     )
     if not match:
         warn(f"{toml_path} 中未找到 [project.dependencies]")
@@ -144,14 +147,19 @@ def generate_requirements() -> Path:
         warn("dependencies 列表为空")
         return req_path
 
-    new_content = "\n".join([
-        "# Core dependencies for trace-pipeline",
-        "# Auto-generated from pyproject.toml — DO NOT EDIT MANUALLY",
-        f"# Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        "# Install with: pip install -r requirements.txt",
-        "",
-        *deps,
-    ]) + "\n"
+    new_content = (
+        "\n".join(
+            [
+                "# Core dependencies for trace-pipeline",
+                "# Auto-generated from pyproject.toml — DO NOT EDIT MANUALLY",
+                f"# Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}",
+                "# Install with: pip install -r requirements.txt",
+                "",
+                *deps,
+            ]
+        )
+        + "\n"
+    )
 
     old = req_path.read_text(encoding="utf-8") if req_path.exists() else ""
     if new_content == old:
@@ -320,6 +328,24 @@ def generate_iss(version: str) -> Path:
     if not Path(lang_bs, "ChineseSimplified.isl").exists():
         lang_cn = "compiler:Languages\\ChineseSimplified.isl"
 
+    files_line = (
+        f'Source: "{dist_dir_bs}\\{APP_NAME}\\*"; DestDir: "{{app}}"; '
+        "Flags: ignoreversion recursesubdirs createallsubdirs"
+    )
+    app_icon_line = (
+        f'Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; '
+        f'IconFilename: "{{app}}\\{bundled_icon}"'
+    )
+    desktop_icon_line = (
+        f'Name: "{{commondesktop}}\\{APP_NAME}"; '
+        f'Filename: "{{app}}\\{APP_NAME}.exe"; '
+        f'IconFilename: "{{app}}\\{bundled_icon}"; Tasks: desktopicon'
+    )
+    run_line = (
+        f'Filename: "{{app}}\\{APP_NAME}.exe"; Description: "启动 TracePipeline"; '
+        "Flags: nowait postinstall skipifsilent"
+    )
+
     iss_content = f'''; Inno Setup 6 安装脚本 — TracePipeline
 ; 由 scripts/package.py 自动生成
 
@@ -347,18 +373,18 @@ Name: "chinesesimplified"; MessagesFile: "{lang_cn}"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "{dist_dir_bs}\\{APP_NAME}\\*"; DestDir: "{{app}}"; Flags: ignoreversion recursesubdirs createallsubdirs
+{files_line}
 
 [Icons]
-Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; IconFilename: "{{app}}\\{bundled_icon}"
+{app_icon_line}
 Name: "{{group}}\\卸载 TracePipeline"; Filename: "{{uninstallexe}}"
-Name: "{{commondesktop}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; IconFilename: "{{app}}\\{bundled_icon}"; Tasks: desktopicon
+{desktop_icon_line}
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "其他快捷方式"
 
 [Run]
-Filename: "{{app}}\\{APP_NAME}.exe"; Description: "启动 TracePipeline"; Flags: nowait postinstall skipifsilent
+{run_line}
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{{app}}\\logs"
@@ -437,8 +463,12 @@ def build_portable_sfx(version: str) -> bool:
     info("正在创建 7z 归档（最高压缩）...")
     rc = run(
         [
-            str(SEVEN_ZIP), "a", "-t7z",
-            "-mx=9", "-md=256m", "-ms=on",
+            str(SEVEN_ZIP),
+            "a",
+            "-t7z",
+            "-mx=9",
+            "-md=256m",
+            "-ms=on",
             str(archive_7z),
             str(app_dir / "*"),
         ],
@@ -478,10 +508,8 @@ def build_portable_sfx(version: str) -> bool:
 # ---------------------------------------------------------------------------
 def _setup_console() -> None:
     """确保控制台支持 Unicode 输出。"""
-    try:
+    with suppress(AttributeError, OSError):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except (AttributeError, OSError):
-        pass
 
 
 def main() -> int:

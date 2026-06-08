@@ -1,4 +1,5 @@
 """节理走向玫瑰花瓣图绘制。"""
+
 from __future__ import annotations
 
 import math
@@ -23,7 +24,7 @@ _ROSE_BAR_EDGE = "#7A1F1F"
 
 
 def _draw_rose_axes(
-    polar_ax: "PolarAxes",
+    polar_ax: PolarAxes,
     theta: np.ndarray,
     radii: np.ndarray,
     bar_widths: np.ndarray,
@@ -45,9 +46,15 @@ def _draw_rose_axes(
 
     if radii.size:
         polar_ax.bar(
-            theta, radii, width=bar_widths, bottom=0.0,
-            color=bar_color, edgecolor=bar_edge,
-            linewidth=0.45, alpha=0.68, align="center",
+            theta,
+            radii,
+            width=bar_widths,
+            bottom=0.0,
+            color=bar_color,
+            edgecolor=bar_edge,
+            linewidth=0.45,
+            alpha=0.68,
+            align="center",
         )
         rmax = max(1, math.ceil(radii.max()))
         polar_ax.set_ylim(0, rmax)
@@ -114,13 +121,19 @@ def render_rose_plot(
     theta, radii, bar_widths = _compute_rose_histogram(strike_deg, bin_width=bin_width)
 
     fig, ax = new_figure(
-        figsize_cm, dpi=dpi,
+        figsize_cm,
+        dpi=dpi,
         subplot_kw={"projection": "polar"},
     )
     polar_ax: PolarAxes = ax  # type: ignore[assignment]
     _draw_rose_axes(
-        polar_ax, theta, radii, bar_widths,
-        bar_color=_ROSE_BAR_COLOR, bar_edge=_ROSE_BAR_EDGE, grid_color=_ROSE_GRID_COLOR,
+        polar_ax,
+        theta,
+        radii,
+        bar_widths,
+        bar_color=_ROSE_BAR_COLOR,
+        bar_edge=_ROSE_BAR_EDGE,
+        grid_color=_ROSE_GRID_COLOR,
     )
     fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)

@@ -7,6 +7,7 @@
 
 （历史文件名：types.py）
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -78,23 +79,18 @@ class TraceData:
         if self.count < 0:
             raise ValueError(f"count 不能为负数: {self.count}")
         if endpoints.shape != (self.count, 4):
-            raise ValueError(
-                f"endpoints 形状 {endpoints.shape} 与 count={self.count} 不一致"
-            )
+            raise ValueError(f"endpoints 形状 {endpoints.shape} 与 count={self.count} 不一致")
         if joint_strikes.shape != (self.count,):
             raise ValueError(
-                f"joint_strikes 形状 {joint_strikes.shape} "
-                f"与 count={self.count} 不一致"
+                f"joint_strikes 形状 {joint_strikes.shape} 与 count={self.count} 不一致"
             )
         if segment_lengths.shape != (self.count,):
             raise ValueError(
-                f"segment_lengths 形状 {segment_lengths.shape} "
-                f"与 count={self.count} 不一致"
+                f"segment_lengths 形状 {segment_lengths.shape} 与 count={self.count} 不一致"
             )
         if scanline_positions.shape != (self.count,):
             raise ValueError(
-                f"scanline_positions 形状 {scanline_positions.shape} "
-                f"与 count={self.count} 不一致"
+                f"scanline_positions 形状 {scanline_positions.shape} 与 count={self.count} 不一致"
             )
         if not np.isfinite(endpoints).all():
             raise ValueError("endpoints 包含 NaN 或 inf")
@@ -214,12 +210,21 @@ class RunConfig:
 
         field_values = {
             k: getattr(self, k)
-            for k in ("export_rose_plot", "rose_bin_width", "rose_dpi",
-                      "trace_dpi", "rotated_trace_dpi", "window_strategy",
-                      "auto_density_threshold", "tangent_window_count",
-                      "min_intersections", "enable_node_recognition",
-                      "node_merge_tolerance", "show_node_overlay",
-                      "node_label_mode")
+            for k in (
+                "export_rose_plot",
+                "rose_bin_width",
+                "rose_dpi",
+                "trace_dpi",
+                "rotated_trace_dpi",
+                "window_strategy",
+                "auto_density_threshold",
+                "tangent_window_count",
+                "min_intersections",
+                "enable_node_recognition",
+                "node_merge_tolerance",
+                "show_node_overlay",
+                "node_label_mode",
+            )
         }
         coerce_scalar_config_fields(field_values)
         for k, v in field_values.items():
@@ -237,12 +242,25 @@ class RunConfig:
         只提取 RunConfig 已知字段，多余键被忽略；缺失的可选字段回退到 dataclass 默认值。
         """
         known = {
-            "input_dir", "output_dir", "output_prefix", "table_stem", "outcrop",
-            "export_rose_plot", "rose_bin_width", "rose_dpi", "trace_dpi",
-            "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
-            "tangent_window_count", "min_intersections", "style",
-            "enable_node_recognition", "node_merge_tolerance",
-            "show_node_overlay", "node_label_mode",
+            "input_dir",
+            "output_dir",
+            "output_prefix",
+            "table_stem",
+            "outcrop",
+            "export_rose_plot",
+            "rose_bin_width",
+            "rose_dpi",
+            "trace_dpi",
+            "rotated_trace_dpi",
+            "window_strategy",
+            "auto_density_threshold",
+            "tangent_window_count",
+            "min_intersections",
+            "style",
+            "enable_node_recognition",
+            "node_merge_tolerance",
+            "show_node_overlay",
+            "node_label_mode",
         }
         values = {k: cfg[k] for k in known if k in cfg}
         style = values.get("style")
@@ -325,5 +343,13 @@ class RunResult:
         )
 
     @classmethod
-    def failure(cls, table_stem: str, error: str, error_type: str = "", error_traceback: str = "") -> RunResult:
-        return cls(table_stem=table_stem, status=PipelineStatus.ERROR, error=error, error_type=error_type, error_traceback=error_traceback)
+    def failure(
+        cls, table_stem: str, error: str, error_type: str = "", error_traceback: str = ""
+    ) -> RunResult:
+        return cls(
+            table_stem=table_stem,
+            status=PipelineStatus.ERROR,
+            error=error,
+            error_type=error_type,
+            error_traceback=error_traceback,
+        )

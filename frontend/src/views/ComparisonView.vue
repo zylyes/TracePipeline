@@ -85,7 +85,7 @@
           class="image-card"
           v-for="img in filteredImages"
           :key="img.outcrop + img.type"
-          @mouseenter="ensureImageLoaded(img)"
+          @mouseenter="ensureThumbnailLoaded(img)"
           @click="openViewer(img)"
         >
           <div class="image-label">{{ img.outcrop }} · {{ img.type }}</div>
@@ -103,6 +103,7 @@
       v-model:visible="viewerVisible"
       :images="viewerImages"
       :initial-index="viewerInitialIndex"
+      @index-change="handleViewerIndexChange"
     />
   </div>
 </template>
@@ -120,7 +121,7 @@ import ImageViewer from '@/components/ImageViewer.vue'
 import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
-import { loadImageBase64 } from '@/utils/image'
+import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
 import { getChartColors, getEchartsFontFamily, cssVar } from '@/utils/echarts-theme'
 import type { ComparisonRow, PipelineResult } from '@/types'
 
@@ -132,6 +133,7 @@ const pipelineStore = usePipelineStore()
 const cacheStore = useCacheStore()
 const INITIAL_IMAGE_PREFETCH_COUNT = 4
 const IMAGE_PREFETCH_CONCURRENCY = 2
+const GRID_THUMBNAIL_MAX_PX = 480
 let activeImageLoads = 0
 const imageLoadQueue: Array<() => void> = []
 
@@ -168,8 +170,10 @@ interface GridImage {
   type: string
   path: string
   src: string
+  fullSrc?: string
   loading?: boolean
-  loadPromise?: Promise<void>
+  thumbnailLoadPromise?: Promise<void>
+  fullLoadPromise?: Promise<void>
 }
 const allImages = ref<GridImage[]>([])
 
@@ -180,7 +184,7 @@ const viewerInitialIndex = ref(0)
 function syncViewerImages() {
   viewerImages.value = allImages.value.map(item => ({
     title: `${item.outcrop} · ${item.type}`,
-    src: item.src,
+    src: item.fullSrc || item.src,
   }))
 }
 
@@ -203,49 +207,74 @@ function releaseImageLoadSlot() {
   if (next) next()
 }
 
-async function ensureImageLoaded(img: GridImage) {
+async function ensureThumbnailLoaded(img: GridImage) {
   if (img.src || !img.path) return
-  if (img.loadPromise) return img.loadPromise
+  if (img.thumbnailLoadPromise) return img.thumbnailLoadPromise
   img.loading = true
-  img.loadPromise = (async () => {
+  img.thumbnailLoadPromise = (async () => {
     const release = await acquireImageLoadSlot()
     try {
       if (!img.src) {
-        img.src = await loadImageBase64(img.path)
+        img.src = await loadImageThumbnail(img.path, GRID_THUMBNAIL_MAX_PX)
         if (viewerVisible.value) syncViewerImages()
       }
     } finally {
       release()
       img.loading = false
-      img.loadPromise = undefined
+      img.thumbnailLoadPromise = undefined
     }
   })()
-  return img.loadPromise
+  return img.thumbnailLoadPromise
+}
+
+async function ensureFullImageLoaded(img: GridImage) {
+  if (img.fullSrc || !img.path) return
+  if (img.fullLoadPromise) return img.fullLoadPromise
+  img.fullLoadPromise = (async () => {
+    const release = await acquireImageLoadSlot()
+    try {
+      if (!img.fullSrc) {
+        img.fullSrc = await loadImageBase64(img.path)
+        if (!img.src) img.src = img.fullSrc
+        if (viewerVisible.value) syncViewerImages()
+      }
+    } finally {
+      release()
+      img.fullLoadPromise = undefined
+    }
+  })()
+  return img.fullLoadPromise
 }
 
 function prefetchGridImages() {
   for (const img of filteredImages.value.slice(0, INITIAL_IMAGE_PREFETCH_COUNT)) {
-    void ensureImageLoaded(img)
+    void ensureThumbnailLoaded(img)
   }
 }
 
 function prefetchNearbyImages(index: number) {
   for (const i of [index - 1, index, index + 1]) {
     const img = allImages.value[i]
-    if (img) void ensureImageLoaded(img)
+    if (img) void ensureThumbnailLoaded(img)
   }
 }
 
 async function openViewer(img: GridImage) {
-  await ensureImageLoaded(img)
-  syncViewerImages()
+  await ensureThumbnailLoaded(img)
+  await ensureFullImageLoaded(img)
   // 在全部图片中找到当前图片的索引
   const allIndex = allImages.value.findIndex(
     item => item.outcrop === img.outcrop && item.type === img.type
   )
   viewerInitialIndex.value = Math.max(0, allIndex)
+  syncViewerImages()
   viewerVisible.value = true
   prefetchNearbyImages(viewerInitialIndex.value)
+}
+
+async function handleViewerIndexChange(index: number) {
+  const img = allImages.value[index]
+  if (img) await ensureFullImageLoaded(img)
 }
 
 watch(filteredImages, () => {

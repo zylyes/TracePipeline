@@ -1,4 +1,5 @@
 """报告导出服务（毕设功能）。"""
+
 from __future__ import annotations
 
 import logging
@@ -6,10 +7,10 @@ import os
 from pathlib import Path
 from typing import Any
 
+from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.config import PROJECT_ROOT
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.pipeline import load_trace_data
-from backend.utils.path_utils import validate_outcrop_name
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ REPORT_DIR = PROJECT_ROOT / "reports"
 def _find_system_font() -> tuple[str, str]:
     """跨平台字体探测：返回 (font_path, font_name)。"""
     import platform
+
     system = platform.system()
 
     if system == "Windows":
@@ -42,7 +44,10 @@ def _find_system_font() -> tuple[str, str]:
             ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", "LiberationSans"),
         ]
         user_fonts = os.path.expanduser("~/.fonts")
-        for name, label in [("wqy-zenhei.ttc", "WenQuanYiZenHei"), ("NotoSansCJK-Regular.ttc", "NotoSansCJK")]:
+        for name, label in [
+            ("wqy-zenhei.ttc", "WenQuanYiZenHei"),
+            ("NotoSansCJK-Regular.ttc", "NotoSansCJK"),
+        ]:
             unix_candidates.append((os.path.join(user_fonts, name), label))
         candidates = unix_candidates
 
@@ -53,9 +58,23 @@ def _find_system_font() -> tuple[str, str]:
     # 回退：尝试从 matplotlib 字体管理器查找 CJK 字体
     try:
         import matplotlib.font_manager as fm
-        cjk_keywords = ["noto", "cjk", "wqy", "sourcehansans", "sourcehanserifs",
-                      "microsoftyahei", "simsun", "simhei", "pingfang", "heiti",
-                      "meiryo", "malgun", "yugothic", "nanum"]
+
+        cjk_keywords = [
+            "noto",
+            "cjk",
+            "wqy",
+            "sourcehansans",
+            "sourcehanserifs",
+            "microsoftyahei",
+            "simsun",
+            "simhei",
+            "pingfang",
+            "heiti",
+            "meiryo",
+            "malgun",
+            "yugothic",
+            "nanum",
+        ]
         for font in fm.fontManager.ttflist:
             name_lower = font.name.lower()
             if any(k in name_lower for k in cjk_keywords):
@@ -73,13 +92,16 @@ def _find_system_font() -> tuple[str, str]:
 class ReportService:
     """生成 Word / PDF 报告。"""
 
-    def generate(self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]) -> dict[str, Any]:
+    def generate(
+        self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]
+    ) -> dict[str, Any]:
         """生成报告并返回文件路径。"""
         try:
             validate_outcrop_name(outcrop)
         except ValueError as exc:
             return {"error": str(exc)}
         import time
+
         start = time.perf_counter()
 
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -88,8 +110,16 @@ class ReportService:
         input_dir = config.get("input_dir", "input")
         table_stem = f"{outcrop}_process"
         logger.info(
-            "报告生成开始 [%s]: type=%s, fmt=%s", outcrop, report_type, fmt,
-            extra={"stage": "report_start", "outcrop": outcrop, "report_type": report_type, "fmt": fmt},
+            "报告生成开始 [%s]: type=%s, fmt=%s",
+            outcrop,
+            report_type,
+            fmt,
+            extra={
+                "stage": "report_start",
+                "outcrop": outcrop,
+                "report_type": report_type,
+                "fmt": fmt,
+            },
         )
         try:
             trace = load_trace_data(input_dir, table_stem, outcrop)
@@ -99,24 +129,40 @@ class ReportService:
             )
             statistics = compute_trace_statistics(trace, stats_config)
         except Exception as exc:
-            logger.warning("报告 [%s] 数据加载失败: %s", outcrop, exc, extra={"stage": "report_error", "outcrop": outcrop, "error": str(exc)})
+            logger.warning(
+                "报告 [%s] 数据加载失败: %s",
+                outcrop,
+                exc,
+                extra={"stage": "report_error", "outcrop": outcrop, "error": str(exc)},
+            )
             return {"error": str(exc)}
 
         if fmt in ("docx", "both"):
             docx_path = self._gen_docx(outcrop, trace, statistics, report_type, config)
             results["docx"] = docx_path
             if docx_path:
-                logger.info("DOCX 报告生成: %s", docx_path, extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_path})
+                logger.info(
+                    "DOCX 报告生成: %s",
+                    docx_path,
+                    extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_path},
+                )
         if fmt in ("pdf", "both"):
             pdf_path = self._gen_pdf(outcrop, trace, statistics, report_type, config)
             results["pdf"] = pdf_path
             if pdf_path:
-                logger.info("PDF 报告生成: %s", pdf_path, extra={"stage": "report_pdf", "outcrop": outcrop, "path": pdf_path})
+                logger.info(
+                    "PDF 报告生成: %s",
+                    pdf_path,
+                    extra={"stage": "report_pdf", "outcrop": outcrop, "path": pdf_path},
+                )
 
         duration = (time.perf_counter() - start) * 1000
         logger.info(
             "报告生成完成 [%s]: docx=%s, pdf=%s (%.3f ms)",
-            outcrop, bool(results.get("docx")), bool(results.get("pdf")), duration,
+            outcrop,
+            bool(results.get("docx")),
+            bool(results.get("pdf")),
+            duration,
             extra={
                 "stage": "report_complete",
                 "outcrop": outcrop,
@@ -147,7 +193,10 @@ class ReportService:
                 f"面密度 P20: {statistics.p20:.4f} m⁻²",
                 f"长度密度 P21: {statistics.p21:.4f} m⁻¹",
                 f"测线长度: {statistics.scanline_length:.4f} m",
-                f"露头面积: {statistics.outcrop_area:.4f} m² (来源: {statistics.outcrop_area_source or 'unknown'})",
+                (
+                    f"露头面积: {statistics.outcrop_area:.4f} m² "
+                    f"(来源: {statistics.outcrop_area_source or 'unknown'})"
+                ),
                 f"圆窗策略: {statistics.window_strategy or 'auto'}",
                 f"I 型迹线数: {statistics.type_i_count}",
                 f"II 型迹线数: {statistics.type_ii_count}",
@@ -171,12 +220,18 @@ class ReportService:
                 if img_path.exists():
                     img_names.append(str(img_path))
 
-        return {"title": f"{outcrop} 迹线分析报告", "stat_lines": stat_lines, "img_paths": img_names}
+        return {
+            "title": f"{outcrop} 迹线分析报告",
+            "stat_lines": stat_lines,
+            "img_paths": img_names,
+        }
 
     # ------------------------------------------------------------------
     # Word
     # ------------------------------------------------------------------
-    def _gen_docx(self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]) -> str:
+    def _gen_docx(
+        self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]
+    ) -> str:
         try:
             from docx import Document
             from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -190,37 +245,44 @@ class ReportService:
         try:
             doc = Document()
 
-            def _set_style_font(style, western="Times New Roman", east_asia="SimSun", size=None, bold=False):
+            def _set_style_font(
+                style, western="Times New Roman", east_asia="SimSun", size=None, bold=False
+            ):
                 style.font.name = western
                 if size is None:
                     size = Pt(12)
                 style.font.size = size
                 style.font.bold = bold
                 if style.element.rPr is not None:
-                    style.element.rPr.rFonts.set(qn('w:eastAsia'), east_asia)
+                    style.element.rPr.rFonts.set(qn("w:eastAsia"), east_asia)
 
-            _set_style_font(doc.styles['Normal'])
+            _set_style_font(doc.styles["Normal"])
             for lvl in [0, 1, 2, 3]:
                 try:
-                    name = 'Title' if lvl == 0 else f'Heading {lvl}'
-                    _set_style_font(doc.styles[name], size=Pt([20, 16, 14, 12][lvl]), bold=True, east_asia="SimHei")
+                    name = "Title" if lvl == 0 else f"Heading {lvl}"
+                    _set_style_font(
+                        doc.styles[name],
+                        size=Pt([20, 16, 14, 12][lvl]),
+                        bold=True,
+                        east_asia="SimHei",
+                    )
                 except KeyError:
                     pass
 
             def _add_para(text, style=None):
                 p = doc.add_paragraph(text, style=style)
                 for run in p.runs:
-                    run.font.name = 'Times New Roman'
+                    run.font.name = "Times New Roman"
                     if run.element.rPr is not None:
-                        run.element.rPr.rFonts.set(qn('w:eastAsia'), 'SimSun')
+                        run.element.rPr.rFonts.set(qn("w:eastAsia"), "SimSun")
                 return p
 
             title = doc.add_heading(ctx["title"], level=0)
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in title.runs:
-                run.font.name = 'Times New Roman'
+                run.font.name = "Times New Roman"
                 if run.element.rPr is not None:
-                    run.element.rPr.rFonts.set(qn('w:eastAsia'), 'SimHei')
+                    run.element.rPr.rFonts.set(qn("w:eastAsia"), "SimHei")
 
             for line in ctx["stat_lines"]:
                 _add_para(line)
@@ -237,7 +299,9 @@ class ReportService:
     # ------------------------------------------------------------------
     # PDF
     # ------------------------------------------------------------------
-    def _gen_pdf(self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]) -> str:
+    def _gen_pdf(
+        self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]
+    ) -> str:
         try:
             from reportlab.lib.enums import TA_CENTER
             from reportlab.lib.pagesizes import A4
@@ -264,8 +328,21 @@ class ReportService:
 
             doc = SimpleDocTemplate(str(REPORT_DIR / f"{outcrop}_report.pdf"), pagesize=A4)
             styles = getSampleStyleSheet()
-            title_style = ParagraphStyle("CustomTitle", parent=styles["Heading1"], fontName=font_name, fontSize=18, alignment=TA_CENTER, spaceAfter=20)
-            body_style = ParagraphStyle("CustomBody", parent=styles["BodyText"], fontName=font_name, fontSize=11, spaceAfter=8)
+            title_style = ParagraphStyle(
+                "CustomTitle",
+                parent=styles["Heading1"],
+                fontName=font_name,
+                fontSize=18,
+                alignment=TA_CENTER,
+                spaceAfter=20,
+            )
+            body_style = ParagraphStyle(
+                "CustomBody",
+                parent=styles["BodyText"],
+                fontName=font_name,
+                fontSize=11,
+                spaceAfter=8,
+            )
 
             story = [Paragraph(ctx["title"], title_style), Spacer(1, 12)]
             for line in ctx["stat_lines"]:

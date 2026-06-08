@@ -1,4 +1,5 @@
 """输入目录扫描 — 发现迹线表文件。"""
+
 from __future__ import annotations
 
 import logging
@@ -15,6 +16,7 @@ __all__ = ["TRACE_SUFFIX", "TraceFile", "find_trace_tables"]
 
 class TraceFile(NamedTuple):
     """发现的迹线表文件描述。"""
+
     stem: str
     outcrop: str
 
@@ -52,7 +54,8 @@ def find_trace_tables(
     if result:
         logger.info(
             "发现 %d 个迹线表: %s",
-            len(result), ", ".join(tf.stem for tf in result),
+            len(result),
+            ", ".join(tf.stem for tf in result),
         )
     else:
         logger.warning("在 %s 中未发现匹配的迹线表（后缀=%s）", input_dir, suffix)

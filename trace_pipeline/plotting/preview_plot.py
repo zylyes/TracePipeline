@@ -3,6 +3,7 @@
 本模块仅用于生成样式预览图，所有几何数据均为硬编码的演示数据。
 不依赖 trace_pipeline 的任何业务逻辑（统计计算、节点识别、覆盖层构建等）。
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,28 +13,29 @@ from typing import Any
 import numpy as np
 from matplotlib.patches import Circle, Polygon
 
-from ._helpers import new_figure, save_figure, add_data_north_arrow, compute_data_bounds
-from .style import configure_style, text_font_kwargs
-from .trace_plot import segments_to_xy
-from .rose_plot import _compute_rose_histogram, _draw_rose_axes
 from ..geology.transforms import normalize_coordinates, normalize_points_like_lines
+from ._helpers import add_data_north_arrow, compute_data_bounds, new_figure, save_figure
 from ._layout import (
     _MIN_DATA_SPAN,
     _TRACE_AXES_BOUNDS,
+    _add_outer_frame,
+    _add_scale_bar_band,
+    _add_statistics_box,
+    _blank_panel_axes,
     _choose_scale_length,
     _render_legend,
-    _add_scale_bar_band,
-    _style_trace_data_axes,
     _resolve_layout,
-    _add_outer_frame,
-    _blank_panel_axes,
-    _add_statistics_box,
     _resolve_node_style,
+    _style_trace_data_axes,
 )
+from .rose_plot import _compute_rose_histogram, _draw_rose_axes
+from .style import configure_style, text_font_kwargs
+from .trace_plot import segments_to_xy
 
 logger = logging.getLogger(__name__)
 
 # ── 演示数据 ─────────────────────────────────────────────
+
 
 def _demo_endpoints():
     return np.array(
@@ -46,14 +48,16 @@ def _demo_endpoints():
             [3.0, 3.0, 10.0, 8.0],
             [1.0, 7.0, 9.0, 1.0],
             [6.0, 2.0, 6.0, 9.0],
-            [5.0, 4.0, 2.0, 8.0],    # 迹线8: 端点(5,4)在线6内部，形成真正的Y型节点
+            [5.0, 4.0, 2.0, 8.0],  # 迹线8: 端点(5,4)在线6内部，形成真正的Y型节点
         ],
         dtype=float,
     )
 
+
 def _demo_rotated_endpoints():
     """旋转后的端点数据，通过与 hull/nodes 相同的变换流程得到。"""
     return normalize_coordinates(_demo_endpoints(), _DEMO_SCANLINE_AZIMUTH, margin=1.0)
+
 
 def _demo_hull_vertices():
     return np.array(
@@ -71,16 +75,24 @@ def _demo_hull_vertices():
         dtype=float,
     )
 
+
 def _demo_circles():
     return (
         {"center_x": 3.0, "center_y": 3.0, "radius": 2.5},
         {"center_x": 8.0, "center_y": 6.0, "radius": 3.0},
     )
 
+
 def _demo_nodes():
     return (
         {"x": 0.0, "y": 0.0, "node_type": "I", "node_id": 0, "degree": 1},
-        {"x": 5.0, "y": 4.0, "node_type": "Y", "node_id": 1, "degree": 3},  # Y型: 迹线8端点落在迹线6内部
+        {
+            "x": 5.0,
+            "y": 4.0,
+            "node_type": "Y",
+            "node_id": 1,
+            "degree": 3,
+        },  # Y型: 迹线8端点落在迹线6内部
         {"x": 8.36, "y": 4.18, "node_type": "X", "node_id": 2, "degree": 4},  # X型: 迹线1 × 迹线5
     )
 
@@ -93,7 +105,9 @@ def _demo_rotated_hull_vertices():
 
 def _demo_rotated_circles():
     centers = np.array([[c["center_x"], c["center_y"]] for c in _demo_circles()], dtype=float)
-    rotated = normalize_points_like_lines(centers, _demo_endpoints(), _DEMO_SCANLINE_AZIMUTH, margin=1.0)
+    rotated = normalize_points_like_lines(
+        centers, _demo_endpoints(), _DEMO_SCANLINE_AZIMUTH, margin=1.0
+    )
     return tuple(
         {"center_x": float(rotated[i, 0]), "center_y": float(rotated[i, 1]), "radius": c["radius"]}
         for i, c in enumerate(_demo_circles())
@@ -102,15 +116,24 @@ def _demo_rotated_circles():
 
 def _demo_rotated_nodes():
     pts = np.array([[n["x"], n["y"]] for n in _demo_nodes()], dtype=float)
-    rotated = normalize_points_like_lines(pts, _demo_endpoints(), _DEMO_SCANLINE_AZIMUTH, margin=1.0)
+    rotated = normalize_points_like_lines(
+        pts, _demo_endpoints(), _DEMO_SCANLINE_AZIMUTH, margin=1.0
+    )
     return tuple(
-        {"x": float(rotated[i, 0]), "y": float(rotated[i, 1]), "node_type": n["node_type"], "node_id": n["node_id"], "degree": n["degree"]}
+        {
+            "x": float(rotated[i, 0]),
+            "y": float(rotated[i, 1]),
+            "node_type": n["node_type"],
+            "node_id": n["node_id"],
+            "degree": n["degree"],
+        }
         for i, n in enumerate(_demo_nodes())
     )
 
 
 def _demo_joint_strikes():
     return np.array([63.43, 120.96, 0.0, 90.0, 0.0, 54.46, 126.87, 0.0, 90.0], dtype=float)
+
 
 _DEMO_SCANLINE_AZIMUTH = 298.0
 _DEMO_NORTH_ANGLE_DEG = 28.0
@@ -171,9 +194,6 @@ def _style_val(style: dict[str, Any], key: str, default: Any) -> Any:
 # ── 几何辅助 ─────────────────────────────────────────────
 
 
-
-
-
 def _extract_preview_extras(
     hull_vertices: np.ndarray | None = None,
     circles: tuple[dict[str, float], ...] | None = None,
@@ -185,8 +205,22 @@ def _extract_preview_extras(
         extra_xs_parts.append(hull_vertices[:, 0])
         extra_ys_parts.append(hull_vertices[:, 1])
     if circles:
-        cx = np.array([x for c in circles for x in (c["center_x"] - c["radius"], c["center_x"] + c["radius"])], dtype=float)
-        cy = np.array([y for c in circles for y in (c["center_y"] - c["radius"], c["center_y"] + c["radius"])], dtype=float)
+        cx = np.array(
+            [
+                x
+                for c in circles
+                for x in (c["center_x"] - c["radius"], c["center_x"] + c["radius"])
+            ],
+            dtype=float,
+        )
+        cy = np.array(
+            [
+                y
+                for c in circles
+                for y in (c["center_y"] - c["radius"], c["center_y"] + c["radius"])
+            ],
+            dtype=float,
+        )
         extra_xs_parts.append(cx)
         extra_ys_parts.append(cy)
     if nodes:
@@ -236,9 +270,15 @@ def _add_preview_legend(
         "node_style": _resolve_node_style(style),
     }
     _render_legend(
-        ax, items, styles,
-        row_spacing=0.16, top_margin=0.08, bottom_margin=0.08,
-        box_height_cap=0.96, box_bottom=0.02, first_row_offset=0.02,
+        ax,
+        items,
+        styles,
+        row_spacing=0.16,
+        top_margin=0.08,
+        bottom_margin=0.08,
+        box_height_cap=0.96,
+        box_bottom=0.02,
+        first_row_offset=0.02,
     )
 
 
@@ -298,14 +338,16 @@ def render_preview_trace(
         circles=circles if show_circles else None,
         nodes=nodes if show_nodes else None,
     )
-    x_min, x_max, y_min, y_max = compute_data_bounds(
-        segments, extra_xs=extra_xs, extra_ys=extra_ys
-    )
+    x_min, x_max, y_min, y_max = compute_data_bounds(segments, extra_xs=extra_xs, extra_ys=extra_ys)
     x_span = max(x_max - x_min, _MIN_DATA_SPAN)
     y_span = max(y_max - y_min, _MIN_DATA_SPAN)
     base_span = max(x_span, y_span, _MIN_DATA_SPAN)
     left_pad = max(x_span * 0.14, base_span * 0.08)
-    right_pad = max(x_span * 0.04, base_span * 0.04, max(0.0, _choose_scale_length(base_span) - x_span + x_span * 0.05))
+    right_pad = max(
+        x_span * 0.04,
+        base_span * 0.04,
+        max(0.0, _choose_scale_length(base_span) - x_span + x_span * 0.05),
+    )
     bottom_pad = max(y_span * 0.16, base_span * 0.08)
     top_pad = max(y_span * 0.12, base_span * 0.08)
     xlim = (x_min - left_pad, x_max + right_pad)
@@ -326,8 +368,14 @@ def render_preview_trace(
         vertices = np.asarray(hull_vertices, dtype=float)
         if vertices.shape[0] >= 3:
             patch = Polygon(
-                vertices, fill=True, facecolor=hull_line_color, alpha=hull_fill_alpha,
-                edgecolor=hull_line_color, linewidth=0.8, linestyle="--", zorder=2,
+                vertices,
+                fill=True,
+                facecolor=hull_line_color,
+                alpha=hull_fill_alpha,
+                edgecolor=hull_line_color,
+                linewidth=0.8,
+                linestyle="--",
+                zorder=2,
             )
             ax.add_patch(patch)
 
@@ -335,16 +383,27 @@ def render_preview_trace(
     if show_circles and circles:
         for c in circles:
             patch = Circle(
-                (c["center_x"], c["center_y"]), c["radius"],
-                fill=True, facecolor=circle_window_line_color, alpha=circle_window_fill_alpha,
-                edgecolor=circle_window_line_color, linewidth=0.8, linestyle="--", zorder=3,
+                (c["center_x"], c["center_y"]),
+                c["radius"],
+                fill=True,
+                facecolor=circle_window_line_color,
+                alpha=circle_window_fill_alpha,
+                edgecolor=circle_window_line_color,
+                linewidth=0.8,
+                linestyle="--",
+                zorder=3,
             )
             ax.add_patch(patch)
 
     # 2. 迹线
     x_plot, y_plot = segments_to_xy(segments)
     ax.plot(
-        x_plot, y_plot, "-", color=trace_line_color, linewidth=trace_line_width, zorder=10,
+        x_plot,
+        y_plot,
+        "-",
+        color=trace_line_color,
+        linewidth=trace_line_width,
+        zorder=10,
     )
 
     # 3. 节点
@@ -353,7 +412,12 @@ def render_preview_trace(
         for node in nodes:
             ms = node_ms.get(node["node_type"], node_ms["I"])
             ax.plot(
-                node["x"], node["y"], linestyle="none", markersize=4, zorder=12, **ms,
+                node["x"],
+                node["y"],
+                linestyle="none",
+                markersize=4,
+                zorder=12,
+                **ms,
             )
 
     _style_trace_data_axes(ax)
@@ -377,7 +441,9 @@ def render_preview_trace(
     stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
     _add_statistics_box(stats_ax, data.stats_lines)
 
-    fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=float(title_font_size), fontweight="bold"))
+    fig.suptitle(
+        title, y=0.03, **text_font_kwargs(fontsize=float(title_font_size), fontweight="bold")
+    )
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08, bbox_inches="tight")
 
 
@@ -409,10 +475,17 @@ def render_preview_rose(
 
     fig, ax = new_figure((12, 12), dpi=dpi, subplot_kw={"projection": "polar"})
     _draw_rose_axes(
-        ax, theta, radii, bar_widths,
-        bar_color=rose_bar_color, bar_edge=rose_bar_edge, grid_color=rose_grid_color,
+        ax,
+        theta,
+        radii,
+        bar_widths,
+        bar_color=rose_bar_color,
+        bar_edge=rose_bar_edge,
+        grid_color=rose_grid_color,
     )
-    fig.suptitle("产状玫瑰花瓣图（预览）", y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
+    fig.suptitle(
+        "产状玫瑰花瓣图（预览）", y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold")
+    )
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)
 
 

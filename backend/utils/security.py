@@ -1,4 +1,5 @@
 """路径安全校验工具 — 防止路径遍历攻击。"""
+
 from __future__ import annotations
 
 import logging
@@ -13,13 +14,32 @@ __all__ = ["PathSecurityChecker"]
 class PathSecurityChecker:
     """路径安全校验器，确保所有文件操作限制在项目根目录内。"""
 
-    _WINDOWS_DEVICE_NAMES = frozenset({
-        "CON", "PRN", "AUX", "NUL",
-        "COM1", "COM2", "COM3", "COM4", "COM5",
-        "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
-        "LPT6", "LPT7", "LPT8", "LPT9",
-    })
+    _WINDOWS_DEVICE_NAMES = frozenset(
+        {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "COM2",
+            "COM3",
+            "COM4",
+            "COM5",
+            "COM6",
+            "COM7",
+            "COM8",
+            "COM9",
+            "LPT1",
+            "LPT2",
+            "LPT3",
+            "LPT4",
+            "LPT5",
+            "LPT6",
+            "LPT7",
+            "LPT8",
+            "LPT9",
+        }
+    )
 
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root.resolve().absolute()

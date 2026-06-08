@@ -1,4 +1,5 @@
 """暴露给 JS 的 API 类。"""
+
 from __future__ import annotations
 
 import base64
@@ -9,11 +10,13 @@ import subprocess
 import sys
 import threading
 import time
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import webview
+from PIL import Image
 
 from backend.services.audit_service import AuditService
 from backend.services.config_service import ConfigService
@@ -31,12 +34,14 @@ from trace_pipeline.utils.paths import get_project_root
 
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = get_project_root()
-_ALLOWED_EXTERNAL_HOSTS = frozenset({
-    "developer.microsoft.com",
-    "learn.microsoft.com",
-    "go.microsoft.com",
-    "aka.ms",
-})
+_ALLOWED_EXTERNAL_HOSTS = frozenset(
+    {
+        "developer.microsoft.com",
+        "learn.microsoft.com",
+        "go.microsoft.com",
+        "aka.ms",
+    }
+)
 
 
 class GuiApi:
@@ -48,6 +53,7 @@ class GuiApi:
 
     def __init__(self) -> None:
         import time
+
         t0 = time.perf_counter()
         self._path_checker = PathSecurityChecker(PROJECT_ROOT)
         self._config = ConfigService()
@@ -72,7 +78,8 @@ class GuiApi:
         logger.info(
             "GuiApi 就绪 (%.3f ms): input=%s, output=%s",
             (time.perf_counter() - t0) * 1000,
-            cfg.get("input_dir", ""), cfg.get("output_dir", ""),
+            cfg.get("input_dir", ""),
+            cfg.get("output_dir", ""),
             extra={
                 "stage": "gui_api_init_done",
                 "config_fields": list(cfg.keys()),
@@ -177,7 +184,8 @@ class GuiApi:
     def get_config(self) -> dict[str, Any]:
         cfg = self._config.get()
         logger.debug(
-            "get_config → %d 个字段", len(cfg),
+            "get_config → %d 个字段",
+            len(cfg),
             extra={"stage": "api_get_config", "field_count": len(cfg)},
         )
         return cfg
@@ -189,7 +197,17 @@ class GuiApi:
         self._sync_services_from_config(merged)
         self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
-        logger.info("set_config 完成 → %d 个字段 (%.3f ms)", len(merged), duration, extra={"stage": "api_set_config", "field_count": len(merged), "changed_keys": list(config.keys()), "duration_ms": round(duration, 3)})
+        logger.info(
+            "set_config 完成 → %d 个字段 (%.3f ms)",
+            len(merged),
+            duration,
+            extra={
+                "stage": "api_set_config",
+                "field_count": len(merged),
+                "changed_keys": list(config.keys()),
+                "duration_ms": round(duration, 3),
+            },
+        )
         return merged
 
     def reset_config(self) -> dict[str, Any]:
@@ -199,7 +217,11 @@ class GuiApi:
         self._sync_services_from_config(default)
         self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
-        logger.info("reset_config 完成 → 恢复默认 (%.3f ms)", duration, extra={"stage": "api_reset_config", "duration_ms": round(duration, 3)})
+        logger.info(
+            "reset_config 完成 → 恢复默认 (%.3f ms)",
+            duration,
+            extra={"stage": "api_reset_config", "duration_ms": round(duration, 3)},
+        )
         return default
 
     def reset_processing_config(self) -> dict[str, Any]:
@@ -209,7 +231,11 @@ class GuiApi:
         self._sync_services_from_config(cfg)
         self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
-        logger.info("reset_processing_config 完成 (%.3f ms)", duration, extra={"stage": "api_reset_processing_config", "duration_ms": round(duration, 3)})
+        logger.info(
+            "reset_processing_config 完成 (%.3f ms)",
+            duration,
+            extra={"stage": "api_reset_processing_config", "duration_ms": round(duration, 3)},
+        )
         return cfg
 
     def reset_style_config(self) -> dict[str, Any]:
@@ -219,13 +245,17 @@ class GuiApi:
         self._sync_services_from_config(cfg)
         self._invalidate_data_caches()
         duration = (time.perf_counter() - start) * 1000
-        logger.info("reset_style_config 完成 (%.3f ms)", duration, extra={"stage": "api_reset_style_config", "duration_ms": round(duration, 3)})
+        logger.info(
+            "reset_style_config 完成 (%.3f ms)",
+            duration,
+            extra={"stage": "api_reset_style_config", "duration_ms": round(duration, 3)},
+        )
         return cfg
 
     # ------------------------------------------------------------------
     # 文件
     # ------------------------------------------------------------------
-    def scan_files(self, force = False) -> list[dict[str, Any]]:
+    def scan_files(self, force=False) -> list[dict[str, Any]]:
         start = time.perf_counter()
         output_changed = self._check_output_changed()
         # 强制刷新或 output 变更时先使后端缓存失效，确保返回最新数据
@@ -239,7 +269,10 @@ class GuiApi:
         completed = sum(1 for r in results if r.get("status") == "completed")
         logger.info(
             "scan_files 完成: 共 %d 个文件 (待处理 %d / 已完成 %d) (%.3f ms)",
-            len(results), pending, completed, duration,
+            len(results),
+            pending,
+            completed,
+            duration,
             extra={
                 "stage": "api_scan_files",
                 "total": len(results),
@@ -257,7 +290,10 @@ class GuiApi:
         req_id = f"api-run-{int(time.perf_counter() * 1000)}"
         with LogContext(request_id=req_id):
             start = time.perf_counter()
-            self._audit.log("run_pipeline", params={"targets": targets, "input_dir": config.get("input_dir", "")})
+            self._audit.log(
+                "run_pipeline",
+                params={"targets": targets, "input_dir": config.get("input_dir", "")},
+            )
             try:
                 merged = {**self._config.get(), **config}
                 saved = self._config.set(merged)
@@ -268,15 +304,26 @@ class GuiApi:
                 result = self._pipeline.run(targets, saved)
                 duration = (time.perf_counter() - start) * 1000
                 logger.info(
-                    "run_pipeline 完成 (%.3f ms)", duration,
-                    extra={"stage": "api_run_pipeline", "targets": targets, "duration_ms": round(duration, 3)},
+                    "run_pipeline 完成 (%.3f ms)",
+                    duration,
+                    extra={
+                        "stage": "api_run_pipeline",
+                        "targets": targets,
+                        "duration_ms": round(duration, 3),
+                    },
                 )
                 return result
             except ValueError as exc:
                 duration = (time.perf_counter() - start) * 1000
                 logger.warning(
-                    "流水线配置校验失败: %s (%.3f ms)", exc, duration,
-                    extra={"stage": "api_run_pipeline", "error": str(exc), "duration_ms": round(duration, 3)},
+                    "流水线配置校验失败: %s (%.3f ms)",
+                    exc,
+                    duration,
+                    extra={
+                        "stage": "api_run_pipeline",
+                        "error": str(exc),
+                        "duration_ms": round(duration, 3),
+                    },
                 )
                 return {"status": "error", "message": str(exc)}
 
@@ -284,7 +331,9 @@ class GuiApi:
         event = self._pipeline.poll_progress()
         if event:
             logger.debug(
-                "进度轮询 → %s: %s", event.get("type"), event.get("message", ""),
+                "进度轮询 → %s: %s",
+                event.get("type"),
+                event.get("message", ""),
                 extra={"stage": "poll_progress", "event": event},
             )
         return event
@@ -298,6 +347,7 @@ class GuiApi:
 
         self._check_output_changed()
         import re
+
         out_dir = self._resolve_output_dir()
         results = []
         raw_pattern = re.compile(r"^(.+)_raw\(n=\d+\)\.png$")
@@ -307,15 +357,22 @@ class GuiApi:
                 continue
             stem = match.group(1)
             images = find_output_images(out_dir, stem)
-            results.append({
-                "outcrop": stem,
-                "raw_plot": str(images["raw"].resolve()) if images["raw"] else "",
-                "rotated_plot": str(images["rotated"].resolve()) if images["rotated"] else "",
-                "rose_plot": str(images["rose"].resolve()) if images["rose"] else "",
-            })
+            results.append(
+                {
+                    "outcrop": stem,
+                    "raw_plot": str(images["raw"].resolve()) if images["raw"] else "",
+                    "rotated_plot": str(images["rotated"].resolve()) if images["rotated"] else "",
+                    "rose_plot": str(images["rose"].resolve()) if images["rose"] else "",
+                }
+            )
         logger.debug(
-            "get_results → %d 个结果", len(results),
-            extra={"stage": "api_get_results", "result_count": len(results), "out_dir": str(out_dir)},
+            "get_results → %d 个结果",
+            len(results),
+            extra={
+                "stage": "api_get_results",
+                "result_count": len(results),
+                "out_dir": str(out_dir),
+            },
         )
         return results
 
@@ -326,13 +383,26 @@ class GuiApi:
         duration = (time.perf_counter() - start) * 1000
         if "error" in result:
             logger.warning(
-                "get_stats [%s] 失败: %s (%.3f ms)", outcrop, result["error"], duration,
-                extra={"stage": "api_get_stats", "outcrop": outcrop, "duration_ms": round(duration, 3), "error": result["error"]},
+                "get_stats [%s] 失败: %s (%.3f ms)",
+                outcrop,
+                result["error"],
+                duration,
+                extra={
+                    "stage": "api_get_stats",
+                    "outcrop": outcrop,
+                    "duration_ms": round(duration, 3),
+                    "error": result["error"],
+                },
             )
         else:
             logger.info(
                 "get_stats [%s] 完成: trace_count=%s, P10=%.4f, P20=%.4f, P21=%.4f (%.3f ms)",
-                outcrop, result.get("trace_count"), result.get("p10"), result.get("p20"), result.get("p21"), duration,
+                outcrop,
+                result.get("trace_count"),
+                result.get("p10"),
+                result.get("p20"),
+                result.get("p21"),
+                duration,
                 extra={
                     "stage": "api_get_stats",
                     "outcrop": outcrop,
@@ -354,27 +424,53 @@ class GuiApi:
         outcrops_str = ", ".join(outcrops[:10]) + ("..." if len(outcrops) > 10 else "")
         logger.info(
             "get_comparison [%s] 完成: %d/%d 个露头 (%.3f ms)",
-            outcrops_str, len(results), len(outcrops), duration,
-            extra={"stage": "api_get_comparison", "outcrops": outcrops[:50], "result_count": len(results), "duration_ms": round(duration, 3)},
+            outcrops_str,
+            len(results),
+            len(outcrops),
+            duration,
+            extra={
+                "stage": "api_get_comparison",
+                "outcrops": outcrops[:50],
+                "result_count": len(results),
+                "duration_ms": round(duration, 3),
+            },
         )
         return results
 
     # ------------------------------------------------------------------
     # 数据页
     # ------------------------------------------------------------------
-    def get_data(self, outcrop: str, section: str, page: int = 1, page_size: int = 20, source: str = "output") -> dict[str, Any]:
+    def get_data(
+        self, outcrop: str, section: str, page: int = 1, page_size: int = 20, source: str = "output"
+    ) -> dict[str, Any]:
         start = time.perf_counter()
         result = self._data.get_data(outcrop, section, page, page_size, source)
         duration = (time.perf_counter() - start) * 1000
         if "error" in result:
             logger.warning(
-                "get_data [%s/%s] 失败: %s (%.3f ms)", outcrop, section, result["error"], duration,
-                extra={"stage": "api_get_data", "outcrop": outcrop, "section": section, "source": source, "duration_ms": round(duration, 3), "error": result["error"]},
+                "get_data [%s/%s] 失败: %s (%.3f ms)",
+                outcrop,
+                section,
+                result["error"],
+                duration,
+                extra={
+                    "stage": "api_get_data",
+                    "outcrop": outcrop,
+                    "section": section,
+                    "source": source,
+                    "duration_ms": round(duration, 3),
+                    "error": result["error"],
+                },
             )
         else:
             logger.debug(
                 "get_data [%s/%s] page=%d: %d/%d 条记录 (%.3f ms)",
-                outcrop, section, page, len(result.get("data", [])), result.get("total", 0), duration,
+                outcrop,
+                section,
+                page,
+                len(result.get("data", [])),
+                result.get("total", 0),
+                duration,
                 extra={
                     "stage": "api_get_data",
                     "outcrop": outcrop,
@@ -394,7 +490,10 @@ class GuiApi:
     # ------------------------------------------------------------------
     def generate_preview(self, config: dict[str, Any]) -> dict[str, Any]:
         if not self._preview_lock.acquire(blocking=False):
-            logger.warning("generate_preview 被拒绝: 已有预览任务正在运行", extra={"stage": "api_preview_reject"})
+            logger.warning(
+                "generate_preview 被拒绝: 已有预览任务正在运行",
+                extra={"stage": "api_preview_reject"},
+            )
             return {"status": "busy", "message": "已有预览任务正在运行"}
         try:
             merged = {**self._config.get(), **config}
@@ -403,7 +502,8 @@ class GuiApi:
             img_count = len(result.get("images", []))
             logger.info(
                 "generate_preview → status=%s, %d 张预览图",
-                status, img_count,
+                status,
+                img_count,
                 extra={
                     "stage": "api_preview",
                     "status": status,
@@ -426,25 +526,36 @@ class GuiApi:
     # ------------------------------------------------------------------
     def generate_report(self, outcrop: str, report_type: str, fmt: str) -> dict[str, Any]:
         if not self._report_lock.acquire(blocking=False):
-            logger.warning("generate_report 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"})
+            logger.warning(
+                "generate_report 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"}
+            )
             return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
-            self._audit.log("generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt})
+            self._audit.log(
+                "generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt}
+            )
             result = self._report.generate(outcrop, report_type, fmt, self._config.get())
             return result
         finally:
             self._report_lock.release()
 
-    def generate_reports_zip(self, targets: list[str], report_type: str, fmt: str, save_path: str | None = None) -> dict[str, Any]:
+    def generate_reports_zip(
+        self, targets: list[str], report_type: str, fmt: str, save_path: str | None = None
+    ) -> dict[str, Any]:
         import zipfile
         from datetime import datetime
 
         # 与 generate_report 共用 _report_lock:避免并发写入同名 {outcrop}_report.docx 中间产物
         if not self._report_lock.acquire(blocking=False):
-            logger.warning("generate_reports_zip 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"})
+            logger.warning(
+                "generate_reports_zip 被拒绝: 已有报告任务正在运行",
+                extra={"stage": "api_report_reject"},
+            )
             return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
-            self._audit.log("generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt})
+            self._audit.log(
+                "generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt}
+            )
             cfg = self._config.get()
             files = []
             errors = []
@@ -474,7 +585,7 @@ class GuiApi:
                 zip_path = REPORT_DIR / f"reports_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
             # 报告产物只允许来自受信目录；保存位置来自系统对话框时可在项目外。
             try:
-                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
                     for f in files:
                         # 校验完整路径（而非仅文件名），防止路径遍历绕过
                         fp_safe = self._safe_known_path(f)
@@ -511,8 +622,13 @@ class GuiApi:
             return stats
         ns = stats.get("nodes_summary", {})
         logger.debug(
-            "get_provenance [%s]", outcrop,
-            extra={"stage": "api_provenance", "outcrop": outcrop, "area_source": stats.get("area_source")},
+            "get_provenance [%s]",
+            outcrop,
+            extra={
+                "stage": "api_provenance",
+                "outcrop": outcrop,
+                "area_source": stats.get("area_source"),
+            },
         )
         return {
             "outcrop": outcrop,
@@ -524,13 +640,19 @@ class GuiApi:
             "nodes": {
                 "merge_tolerance": ns.get("merge_tolerance") if isinstance(ns, dict) else None,
                 "node_count": ns.get("node_count") if isinstance(ns, dict) else None,
-                "intersection_count": ns.get("intersection_count") if isinstance(ns, dict) else None,
+                "intersection_count": ns.get("intersection_count")
+                if isinstance(ns, dict)
+                else None,
             },
         }
 
     def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
         logs = self._audit.get(limit)
-        logger.debug("get_audit_log → %d 条记录", len(logs), extra={"stage": "api_audit_log", "count": len(logs), "limit": limit})
+        logger.debug(
+            "get_audit_log → %d 条记录",
+            len(logs),
+            extra={"stage": "api_audit_log", "count": len(logs), "limit": limit},
+        )
         return logs
 
     # ------------------------------------------------------------------
@@ -552,19 +674,32 @@ class GuiApi:
             return False
         try:
             import webbrowser
+
             return webbrowser.open(url)
         except Exception as exc:
-            logger.warning("open_external 失败: %s", exc, extra={"stage": "api_open_external", "error": str(exc)})
+            logger.warning(
+                "open_external 失败: %s",
+                exc,
+                extra={"stage": "api_open_external", "error": str(exc)},
+            )
             return False
 
     def open_directory(self, path: str) -> bool:
         """打开指定目录（支持相对路径，限制在项目根目录内）。"""
         target = self._safe_known_path(path)
         if target is None or not target.exists():
-            logger.warning("open_directory 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_open_dir", "path": path})
+            logger.warning(
+                "open_directory 失败: 路径无效或不存在 → %s",
+                path,
+                extra={"stage": "api_open_dir", "path": path},
+            )
             return False
         if not target.is_dir():
-            logger.warning("open_directory 失败: 目标不是目录 → %s", path, extra={"stage": "api_open_dir", "path": path})
+            logger.warning(
+                "open_directory 失败: 目标不是目录 → %s",
+                path,
+                extra={"stage": "api_open_dir", "path": path},
+            )
             return False
         try:
             if sys.platform == "win32":
@@ -573,50 +708,72 @@ class GuiApi:
                 subprocess.Popen(["open", str(target)])
             else:
                 subprocess.Popen(["xdg-open", str(target)])
-            logger.info("open_directory → %s", target, extra={"stage": "api_open_dir", "path": str(target)})
+            logger.info(
+                "open_directory → %s", target, extra={"stage": "api_open_dir", "path": str(target)}
+            )
             return True
         except Exception as exc:
-            logger.warning("打开目录失败: %s → %s", path, exc, extra={"stage": "api_open_dir", "path": path, "error": str(exc)})
+            logger.warning(
+                "打开目录失败: %s → %s",
+                path,
+                exc,
+                extra={"stage": "api_open_dir", "path": path, "error": str(exc)},
+            )
             return False
 
     # 图片读取上限：5MB，防止大图片导致内存溢出
     _MAX_IMAGE_SIZE = 5 * 1024 * 1024
     # 安全的图片扩展名白名单（禁止 SVG 防止 XSS；禁止 html/htm 等）
-    _SAFE_IMAGE_EXTENSIONS: frozenset[str] = frozenset({".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"})
+    _SAFE_IMAGE_EXTENSIONS: frozenset[str] = frozenset(
+        {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
+    )
+    _IMAGE_MIME_TYPES: dict[str, str] = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+    }
+    _MIN_THUMBNAIL_PX = 64
+    _MAX_THUMBNAIL_PX = 1600
+
+    def _safe_image_path(self, path: str, stage: str) -> tuple[Path, os.stat_result, str] | None:
+        p = self._safe_known_path(path)
+        if p is None or not p.exists():
+            logger.warning(
+                "图片读取失败: 路径无效或不存在 -> %s",
+                path,
+                extra={"stage": stage, "path": path},
+            )
+            return None
+        stat = p.stat()
+        if stat.st_size > self._MAX_IMAGE_SIZE:
+            logger.warning(
+                "图片读取拒绝: 文件过大 %s (%d bytes > %d limit)",
+                path,
+                stat.st_size,
+                self._MAX_IMAGE_SIZE,
+                extra={"stage": stage, "path": path, "size_bytes": stat.st_size},
+            )
+            return None
+        ext = p.suffix.lower()
+        if ext not in self._SAFE_IMAGE_EXTENSIONS:
+            logger.warning(
+                "图片读取拒绝: 不安全的文件扩展名 %s",
+                ext,
+                extra={"stage": stage, "path": path, "ext": ext},
+            )
+            return None
+        return p, stat, ext
 
     def get_image_meta(self, path: str) -> dict[str, Any]:
         """返回图片版本元数据，用于前端缓存失效；不读取图片内容。"""
         try:
-            p = self._safe_known_path(path)
-            if p is None or not p.exists():
-                logger.warning(
-                    "get_image_meta 失败: 路径无效或不存在 -> %s",
-                    path,
-                    extra={"stage": "api_get_image_meta", "path": path},
-                )
+            resolved = self._safe_image_path(path, "api_get_image_meta")
+            if resolved is None:
                 return {}
-            stat = p.stat()
-            if stat.st_size > self._MAX_IMAGE_SIZE:
-                logger.warning(
-                    "get_image_meta 拒绝: 文件过大 %s (%d bytes > %d limit)",
-                    path,
-                    stat.st_size,
-                    self._MAX_IMAGE_SIZE,
-                    extra={
-                        "stage": "api_get_image_meta",
-                        "path": path,
-                        "size_bytes": stat.st_size,
-                    },
-                )
-                return {}
-            ext = p.suffix.lower()
-            if ext not in self._SAFE_IMAGE_EXTENSIONS:
-                logger.warning(
-                    "get_image_meta 拒绝: 不安全的文件扩展名 %s",
-                    ext,
-                    extra={"stage": "api_get_image_meta", "path": path, "ext": ext},
-                )
-                return {}
+            p, stat, ext = resolved
             return {
                 "path": str(p.resolve()),
                 "size": stat.st_size,
@@ -636,39 +793,86 @@ class GuiApi:
         """读取图片文件并返回 base64 data URL。限制在项目根目录内，单文件上限 5MB。"""
         try:
             # 强制以 PROJECT_ROOT 为 base，防止通过修改 output_dir 配置绕过路径限制
-            p = self._safe_known_path(path)
-            if p is None or not p.exists():
-                logger.warning("get_image 失败: 路径无效或不存在 → %s", path, extra={"stage": "api_get_image", "path": path})
+            resolved = self._safe_image_path(path, "api_get_image")
+            if resolved is None:
                 return ""
-            size = p.stat().st_size
-            if size > self._MAX_IMAGE_SIZE:
-                logger.warning("get_image 拒绝: 文件过大 %s (%d bytes > %d limit)", path, size, self._MAX_IMAGE_SIZE, extra={"stage": "api_get_image", "path": path, "size_bytes": size})
-                return ""
-            ext = p.suffix.lower()
-            if ext not in self._SAFE_IMAGE_EXTENSIONS:
-                logger.warning("get_image 拒绝: 不安全的文件扩展名 %s", ext, extra={"stage": "api_get_image", "path": path, "ext": ext})
-                return ""
+            p, _, ext = resolved
             with open(p, "rb") as f:
                 data = f.read()
-            mime = {
-                ".png": "image/png",
-                ".jpg": "image/jpeg",
-                ".jpeg": "image/jpeg",
-                ".gif": "image/gif",
-                ".bmp": "image/bmp",
-                ".webp": "image/webp",
-            }[ext]
+            mime = self._IMAGE_MIME_TYPES[ext]
             b64 = base64.b64encode(data).decode("utf-8")
-            logger.debug("get_image → %s (%d bytes)", path, len(data), extra={"stage": "api_get_image", "path": path, "size_bytes": len(data)})
+            logger.debug(
+                "get_image → %s (%d bytes)",
+                path,
+                len(data),
+                extra={"stage": "api_get_image", "path": path, "size_bytes": len(data)},
+            )
             return f"data:{mime};base64,{b64}"
         except Exception as exc:
-            logger.warning("读取图片失败: %s → %s", path, exc, extra={"stage": "api_get_image", "path": path, "error": str(exc)})
+            logger.warning(
+                "读取图片失败: %s → %s",
+                path,
+                exc,
+                extra={"stage": "api_get_image", "path": path, "error": str(exc)},
+            )
             return ""
 
-    def ask_save_path(self, default_name: str = "reports.zip", file_filter: str = "ZIP 文件 (*.zip)") -> str:
+    def get_image_thumbnail(self, path: str, max_px: int = 480) -> str:
+        """生成图片缩略图并返回 PNG data URL。沿用图片读取安全限制。"""
+        try:
+            resolved = self._safe_image_path(path, "api_get_image_thumbnail")
+            if resolved is None:
+                return ""
+            p, stat, _ = resolved
+            try:
+                requested_max_px = int(max_px)
+            except (TypeError, ValueError):
+                requested_max_px = 480
+            safe_max_px = max(
+                self._MIN_THUMBNAIL_PX,
+                min(requested_max_px, self._MAX_THUMBNAIL_PX),
+            )
+            resampling = getattr(Image, "Resampling", Image).LANCZOS
+            with Image.open(p) as img:
+                img.thumbnail((safe_max_px, safe_max_px), resampling)
+                has_alpha = img.mode in {"RGBA", "LA"} or "transparency" in img.info
+                if img.mode not in {"RGB", "RGBA"}:
+                    img = img.convert("RGBA" if has_alpha else "RGB")
+                output = BytesIO()
+                img.save(output, format="PNG", optimize=True)
+            data = output.getvalue()
+            b64 = base64.b64encode(data).decode("utf-8")
+            logger.debug(
+                "get_image_thumbnail → %s (%d -> %d bytes)",
+                path,
+                stat.st_size,
+                len(data),
+                extra={
+                    "stage": "api_get_image_thumbnail",
+                    "path": path,
+                    "source_size_bytes": stat.st_size,
+                    "encoded_size_bytes": len(data),
+                    "max_px": safe_max_px,
+                },
+            )
+            return f"data:image/png;base64,{b64}"
+        except Exception as exc:
+            logger.warning(
+                "读取图片缩略图失败: %s → %s",
+                path,
+                exc,
+                extra={"stage": "api_get_image_thumbnail", "path": path, "error": str(exc)},
+            )
+            return ""
+
+    def ask_save_path(
+        self, default_name: str = "reports.zip", file_filter: str = "ZIP 文件 (*.zip)"
+    ) -> str:
         """打开系统另存为对话框，返回用户选择的保存路径（包含文件名）。用户取消时返回空字符串。"""
         if self._window is None:
-            logger.warning("ask_save_path 失败: window 未初始化", extra={"stage": "api_ask_save_path"})
+            logger.warning(
+                "ask_save_path 失败: window 未初始化", extra={"stage": "api_ask_save_path"}
+            )
             return ""
         try:
             result = self._window.create_file_dialog(
@@ -680,23 +884,37 @@ class GuiApi:
             if isinstance(result, list) and result:
                 chosen = str(result[0])
                 self._remember_user_selected_path(chosen)
-                logger.info("ask_save_path → %s", chosen, extra={"stage": "api_ask_save_path", "selected": chosen})
+                logger.info(
+                    "ask_save_path → %s",
+                    chosen,
+                    extra={"stage": "api_ask_save_path", "selected": chosen},
+                )
                 return chosen
             if isinstance(result, str):
                 chosen = str(result)
                 self._remember_user_selected_path(chosen)
-                logger.info("ask_save_path → %s", chosen, extra={"stage": "api_ask_save_path", "selected": chosen})
+                logger.info(
+                    "ask_save_path → %s",
+                    chosen,
+                    extra={"stage": "api_ask_save_path", "selected": chosen},
+                )
                 return chosen
             logger.debug("ask_save_path → 用户取消选择", extra={"stage": "api_ask_save_path"})
             return ""
         except Exception as exc:
-            logger.warning("ask_save_path 失败: %s", exc, extra={"stage": "api_ask_save_path", "error": str(exc)})
+            logger.warning(
+                "ask_save_path 失败: %s",
+                exc,
+                extra={"stage": "api_ask_save_path", "error": str(exc)},
+            )
             return ""
 
     def browse_folder(self) -> str:
         """打开系统文件夹选择对话框，返回选中的路径。"""
         if self._window is None:
-            logger.warning("browse_folder 失败: window 未初始化", extra={"stage": "api_browse_folder"})
+            logger.warning(
+                "browse_folder 失败: window 未初始化", extra={"stage": "api_browse_folder"}
+            )
             return ""
         try:
             result = self._window.create_file_dialog(
@@ -705,16 +923,26 @@ class GuiApi:
             if isinstance(result, list) and result:
                 chosen = str(result[0])
                 self._remember_user_selected_path(chosen)
-                logger.info("browse_folder → %s", chosen, extra={"stage": "api_browse_folder", "selected": chosen})
+                logger.info(
+                    "browse_folder → %s",
+                    chosen,
+                    extra={"stage": "api_browse_folder", "selected": chosen},
+                )
                 return chosen
             if isinstance(result, str):
                 self._remember_user_selected_path(result)
-                logger.info("browse_folder → %s", result, extra={"stage": "api_browse_folder", "selected": result})
+                logger.info(
+                    "browse_folder → %s",
+                    result,
+                    extra={"stage": "api_browse_folder", "selected": result},
+                )
                 return result
             logger.debug("browse_folder → 用户取消选择", extra={"stage": "api_browse_folder"})
             return ""
         except Exception as exc:
-            logger.warning("浏览文件夹失败: %s", exc, extra={"stage": "api_browse_folder", "error": str(exc)})
+            logger.warning(
+                "浏览文件夹失败: %s", exc, extra={"stage": "api_browse_folder", "error": str(exc)}
+            )
             return ""
 
     def export_config_json(self, folder: str, content: str) -> bool:
@@ -722,19 +950,37 @@ class GuiApi:
         try:
             folder_path = self._safe_user_selected_path(folder, expect_dir=True)
             if folder_path is None:
-                logger.warning("export_config_json 失败: 路径越权 → %s", folder, extra={"stage": "api_export_config", "folder": folder})
+                logger.warning(
+                    "export_config_json 失败: 路径越权 → %s",
+                    folder,
+                    extra={"stage": "api_export_config", "folder": folder},
+                )
                 return False
             path = folder_path / "config.json"
             parsed = json.loads(content)
             # 深度校验：复用 validate_config 确保字段合法
             from trace_pipeline.config import validate_config
+
             validated = validate_config(parsed)
             path.write_text(json.dumps(validated, ensure_ascii=False, indent=2), encoding="utf-8")
             self._audit.log("export_config_json", params={"path": str(path)})
-            logger.info("export_config_json → %s", path, extra={"stage": "api_export_config", "path": str(path), "field_count": len(validated)})
+            logger.info(
+                "export_config_json → %s",
+                path,
+                extra={
+                    "stage": "api_export_config",
+                    "path": str(path),
+                    "field_count": len(validated),
+                },
+            )
             return True
         except Exception as exc:
-            logger.warning("导出配置失败: %s → %s", folder, exc, extra={"stage": "api_export_config", "folder": folder, "error": str(exc)})
+            logger.warning(
+                "导出配置失败: %s → %s",
+                folder,
+                exc,
+                extra={"stage": "api_export_config", "folder": folder, "error": str(exc)},
+            )
             return False
 
     def shutdown_pipeline(self) -> None:
@@ -752,7 +998,11 @@ class GuiApi:
             self._window.minimize()
             return True
         except Exception as exc:
-            logger.warning("window_minimize 失败: %s", exc, extra={"stage": "api_window_minimize", "error": str(exc)})
+            logger.warning(
+                "window_minimize 失败: %s",
+                exc,
+                extra={"stage": "api_window_minimize", "error": str(exc)},
+            )
             return False
 
     def window_maximize(self) -> bool:
@@ -769,7 +1019,11 @@ class GuiApi:
                 self._window_maximized = True
             return True
         except Exception as exc:
-            logger.warning("window_maximize 失败: %s", exc, extra={"stage": "api_window_maximize", "error": str(exc)})
+            logger.warning(
+                "window_maximize 失败: %s",
+                exc,
+                extra={"stage": "api_window_maximize", "error": str(exc)},
+            )
             return False
 
     def window_resize(self, width: int, height: int) -> bool:
@@ -783,7 +1037,11 @@ class GuiApi:
             self._window.resize(w, h)
             return True
         except Exception as exc:
-            logger.debug("window_resize 失败: %s", exc, extra={"stage": "api_window_resize", "error": str(exc)})
+            logger.debug(
+                "window_resize 失败: %s",
+                exc,
+                extra={"stage": "api_window_resize", "error": str(exc)},
+            )
             return False
 
     def window_close(self) -> bool:
@@ -794,7 +1052,9 @@ class GuiApi:
             self._window.destroy()
             return True
         except Exception as exc:
-            logger.warning("window_close 失败: %s", exc, extra={"stage": "api_window_close", "error": str(exc)})
+            logger.warning(
+                "window_close 失败: %s", exc, extra={"stage": "api_window_close", "error": str(exc)}
+            )
             return False
 
     def window_move_by(self, dx: int, dy: int) -> bool:
@@ -807,7 +1067,11 @@ class GuiApi:
             self._window.move(current_x + dx, current_y + dy)
             return True
         except Exception as exc:
-            logger.debug("window_move_by 失败: %s", exc, extra={"stage": "api_window_move", "error": str(exc)})
+            logger.debug(
+                "window_move_by 失败: %s",
+                exc,
+                extra={"stage": "api_window_move", "error": str(exc)},
+            )
             return False
 
     def window_position(self) -> dict[str, int]:
@@ -817,7 +1081,11 @@ class GuiApi:
         try:
             return {"x": self._window.x, "y": self._window.y}
         except Exception as exc:
-            logger.debug("window_position 失败: %s", exc, extra={"stage": "api_window_position", "error": str(exc)})
+            logger.debug(
+                "window_position 失败: %s",
+                exc,
+                extra={"stage": "api_window_position", "error": str(exc)},
+            )
             return {"x": 0, "y": 0}
 
     def window_move_to(self, x: int, y: int) -> bool:
@@ -828,7 +1096,11 @@ class GuiApi:
             self._window.move(x, y)
             return True
         except Exception as exc:
-            logger.debug("window_move_to 失败: %s", exc, extra={"stage": "api_window_move_to", "error": str(exc)})
+            logger.debug(
+                "window_move_to 失败: %s",
+                exc,
+                extra={"stage": "api_window_move_to", "error": str(exc)},
+            )
             return False
 
     def window_is_maximized(self) -> bool:
@@ -837,10 +1109,12 @@ class GuiApi:
 
     def check_webview2(self) -> dict[str, Any]:
         from backend.webview2_checker import WebView2Checker
+
         checker = WebView2Checker()
         installed = checker.is_installed()
         logger.debug(
-            "check_webview2 → installed=%s", installed,
+            "check_webview2 → installed=%s",
+            installed,
             extra={"stage": "api_check_webview2", "installed": installed},
         )
         return {"installed": installed, "url": checker.get_download_url()}

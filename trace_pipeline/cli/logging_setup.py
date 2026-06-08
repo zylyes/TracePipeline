@@ -2,6 +2,7 @@
 
 保留原有导入路径 ``from trace_pipeline.cli.logging_setup import setup_logging`` 向后兼容。
 """
+
 from __future__ import annotations
 
 from trace_pipeline.logging import setup_logging

@@ -1,4 +1,5 @@
 """WebView2 Runtime 检测。"""
+
 from __future__ import annotations
 
 import logging
@@ -14,9 +15,18 @@ else:  # pragma: no cover - only exercised on non-Windows platforms
 logger = logging.getLogger(__name__)
 
 _WEBVIEW2_REG_KEYS = [
-    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
-    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
-    (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
+    (
+        winreg.HKEY_LOCAL_MACHINE,
+        r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+    ),
+    (
+        winreg.HKEY_LOCAL_MACHINE,
+        r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+    ),
+    (
+        winreg.HKEY_CURRENT_USER,
+        r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+    ),
 ]
 
 _DOWNLOAD_URL = "https://developer.microsoft.com/en-us/microsoft-edge/webview2/"

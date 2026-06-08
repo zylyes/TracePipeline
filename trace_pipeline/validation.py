@@ -3,11 +3,12 @@
 本模块提供纯校验函数，不依赖任何业务模块，
 供 config.py 与 models.py 共同使用，避免循环概念依赖。
 """
+
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
-from typing import Any, Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 __all__ = [
     "coerce_bool",

@@ -1,4 +1,5 @@
 """圆形取样窗策略 — 三种策略布局与分发。"""
+
 from __future__ import annotations
 
 import math
@@ -63,16 +64,23 @@ def _compute_hybrid_windows(
             radius_max = min(side_h / 2.0, edge_limit)
             group_key = f"hybrid:{cut_fraction:.12g}:{side}"
             if radius_max <= _EPS:
-                invalids.append(_invalid_window(
-                    cut_position, side, "可用侧向高度或端部距离不足",
-                    strategy="hybrid", group_key=group_key,
-                ))
+                invalids.append(
+                    _invalid_window(
+                        cut_position,
+                        side,
+                        "可用侧向高度或端部距离不足",
+                        strategy="hybrid",
+                        group_key=group_key,
+                    )
+                )
                 continue
             for radius_fraction in config.radius_fractions:
                 radius = radius_max * radius_fraction
-                specs.append(_BatchSpec(
-                    cut_position, cut_position, sign * radius, radius,
-                    side, "hybrid", group_key))
+                specs.append(
+                    _BatchSpec(
+                        cut_position, cut_position, sign * radius, radius, side, "hybrid", group_key
+                    )
+                )
     return _resolve_batch(specs, invalids, local_segments, config.min_intersections)
 
 
@@ -91,21 +99,33 @@ def _compute_tangent_windows(
             cut_position = radius * (2 * index + 1) if math.isfinite(radius) else math.nan
             center_y = sign * radius if math.isfinite(radius) else math.nan
             if not math.isfinite(radius) or radius <= _EPS:
-                invalids.append(_invalid_window(
-                    0.0, side, "测线长度不足",
-                    strategy="tangent", group_key=group_key,
-                ))
+                invalids.append(
+                    _invalid_window(
+                        0.0,
+                        side,
+                        "测线长度不足",
+                        strategy="tangent",
+                        group_key=group_key,
+                    )
+                )
                 continue
             if side_h + _EPS < 2.0 * radius:
-                invalids.append(_invalid_window(
-                    cut_position, side, "可用侧向高度不足",
-                    strategy="tangent", group_key=group_key,
-                    center_x=cut_position, center_y=center_y, radius=radius,
-                ))
+                invalids.append(
+                    _invalid_window(
+                        cut_position,
+                        side,
+                        "可用侧向高度不足",
+                        strategy="tangent",
+                        group_key=group_key,
+                        center_x=cut_position,
+                        center_y=center_y,
+                        radius=radius,
+                    )
+                )
                 continue
-            specs.append(_BatchSpec(
-                cut_position, cut_position, center_y, radius,
-                side, "tangent", group_key))
+            specs.append(
+                _BatchSpec(cut_position, cut_position, center_y, radius, side, "tangent", group_key)
+            )
     return _resolve_batch(specs, invalids, local_segments, config.min_intersections)
 
 
@@ -120,9 +140,13 @@ def _compute_concentric_windows(
     if not math.isfinite(float(radius_max)) or radius_max <= _EPS:
         return (
             _invalid_window(
-                cut_position, "center", "可用半径不足",
-                strategy="concentric", group_key=group_key,
-                center_x=cut_position, center_y=0.0,
+                cut_position,
+                "center",
+                "可用半径不足",
+                strategy="concentric",
+                group_key=group_key,
+                center_x=cut_position,
+                center_y=0.0,
             ),
         )
 

@@ -2,6 +2,7 @@
 
 消除 DataService / FileService / GuiApi 中重复的 _resolve 方法和不一致的错误格式。
 """
+
 from __future__ import annotations
 
 import re

@@ -1,4 +1,5 @@
 """单元测试 — geology/endpoints.py 端点坐标计算。"""
+
 from __future__ import annotations
 
 import math
@@ -86,9 +87,7 @@ class TestComputeEndpoints:
         """端点坐标应为有限浮点数，且双侧迹线的端点距离与 segment_lengths
         处于同一数量级（允许几何关系带来的差异）。"""
         # 一组典型数据（O76 第 1 条迹线近似参数）
-        df = self._make_df([
-            [2.5, 0.3, 298.0, 1.2, 5.0, 0.8, 4.0, 298.0, 1]
-        ])
+        df = self._make_df([[2.5, 0.3, 298.0, 1.2, 5.0, 0.8, 4.0, 298.0, 1]])
         result = compute_endpoints(df)
         endpoints = result.endpoints[0]
         # 端点坐标应为有限浮点数

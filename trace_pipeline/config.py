@@ -5,6 +5,7 @@
   - 将相对路径解析为绝对路径
   - 合并 CLI 参数覆盖
 """
+
 from __future__ import annotations
 
 import json
@@ -13,15 +14,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict
 
+from trace_pipeline.utils.paths import get_project_root
+
 from .validation import coerce_bool, coerce_scalar_config_fields
 
 logger = logging.getLogger(__name__)
-
-# ===========================================================================
-# 路径常量
-# ===========================================================================
-
-from trace_pipeline.utils.paths import get_project_root
 
 PROJECT_ROOT = get_project_root()
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.json"
@@ -117,13 +114,19 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         logger.error(
-            "配置文件 JSON 解析失败: %s", exc,
-            extra={"stage": "config_load", "config_path": str(path), "error_type": "JSONDecodeError"},
+            "配置文件 JSON 解析失败: %s",
+            exc,
+            extra={
+                "stage": "config_load",
+                "config_path": str(path),
+                "error_type": "JSONDecodeError",
+            },
         )
         raise ValueError(f"配置文件 {path} 不是合法 JSON: {exc}") from exc
     except OSError as exc:
         logger.error(
-            "配置文件读取失败: %s", exc,
+            "配置文件读取失败: %s",
+            exc,
             extra={"stage": "config_load", "config_path": str(path), "error_type": "OSError"},
         )
         raise OSError(f"无法读取配置文件 {path}: {exc}") from exc
@@ -136,7 +139,8 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
         raise ValueError(f"配置文件 {path} 必须包含一个 JSON 对象")
 
     logger.info(
-        "配置文件加载成功: %s", path,
+        "配置文件加载成功: %s",
+        path,
         extra={"stage": "config_load", "config_path": str(path), "keys": list(data.keys())},
     )
     base_dir = resolve_config_base_dir(path) if explicit_path else PROJECT_ROOT
@@ -164,10 +168,7 @@ def validate_config(
         logger.warning("忽略未知配置项: %s", ", ".join(sorted(unknown)))
     merged.update({k: v for k, v in cfg.items() if k in allowed_keys})
 
-    missing = [
-        k for k in _REQUIRED_KEYS
-        if merged.get(k) is None or str(merged[k]).strip() == ""
-    ]
+    missing = [k for k in _REQUIRED_KEYS if merged.get(k) is None or str(merged[k]).strip() == ""]
     # table_stem 在 process_all=True 时允许为空（批量模式从文件扫描获取）
     if not merged.get("process_all", True):
         for k in ("table_stem",):
@@ -300,12 +301,20 @@ def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:
             logger.info("自动创建目录: %s (%s)", name, dir_path)
         except PermissionError as exc:
             logger.warning(
-                "无权限创建目录 %s: %s，程序将继续运行", dir_path, exc,
-                extra={"stage": "workspace_init", "dir": str(dir_path), "error_type": "PermissionError"},
+                "无权限创建目录 %s: %s，程序将继续运行",
+                dir_path,
+                exc,
+                extra={
+                    "stage": "workspace_init",
+                    "dir": str(dir_path),
+                    "error_type": "PermissionError",
+                },
             )
         except OSError as exc:
             logger.warning(
-                "创建目录 %s 失败: %s，程序将继续运行", dir_path, exc,
+                "创建目录 %s 失败: %s，程序将继续运行",
+                dir_path,
+                exc,
                 extra={"stage": "workspace_init", "dir": str(dir_path), "error_type": "OSError"},
             )
 

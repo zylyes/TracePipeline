@@ -1,4 +1,5 @@
 """几何运算子包。"""
+
 from __future__ import annotations
 
 from .segments import (

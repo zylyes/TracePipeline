@@ -1,4 +1,5 @@
 """日志读取服务 — 解析结构化 JSON Lines 日志。"""
+
 from __future__ import annotations
 
 import json
@@ -34,7 +35,7 @@ def _tail_lines(path: Path, max_lines: int) -> list[str]:
                 nl = buf.rfind(b"\n")
                 if nl == -1:
                     break
-                line = buf[nl + 1:].decode("utf-8", errors="replace").strip()
+                line = buf[nl + 1 :].decode("utf-8", errors="replace").strip()
                 if line:
                     lines.append(line)
                     if len(lines) >= max_lines:
@@ -101,11 +102,17 @@ class LogService:
         records.sort(key=lambda r: r.get("timestamp", ""))
 
         if level != "ALL":
-            level_order = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "WARN": 30, "ERROR": 40, "CRITICAL": 50}
+            level_order = {
+                "DEBUG": 10,
+                "INFO": 20,
+                "WARNING": 30,
+                "WARN": 30,
+                "ERROR": 40,
+                "CRITICAL": 50,
+            }
             threshold = level_order.get(level, 20)
             records = [
-                r for r in records
-                if level_order.get(r.get("level", "INFO"), 20) >= threshold
+                r for r in records if level_order.get(r.get("level", "INFO"), 20) >= threshold
             ]
 
         if len(records) > tail:

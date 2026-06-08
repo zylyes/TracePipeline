@@ -205,7 +205,7 @@ const advanced = ref({
   auto_density_threshold: 5.0,
   tangent_window_count: 3,
   min_intersections: 5,
-  node_merge_tolerance: 1e-6,
+  node_merge_tolerance: 0.01,
   hull_buffer_ratio: 0.25,
   disagreement_threshold: '',
 })
@@ -248,7 +248,7 @@ onMounted(async () => {
     advanced.value.auto_density_threshold = cfg.auto_density_threshold ?? 5.0
     advanced.value.tangent_window_count = cfg.tangent_window_count ?? 3
     advanced.value.min_intersections = cfg.min_intersections ?? 5
-    advanced.value.node_merge_tolerance = cfg.node_merge_tolerance ?? 1e-6
+    advanced.value.node_merge_tolerance = cfg.node_merge_tolerance ?? 0.01
   } catch (e) {
     // ignore
   }
@@ -294,7 +294,7 @@ async function resetDevConfig() {
     auto_density_threshold: 5.0,
     tangent_window_count: 3,
     min_intersections: 5,
-    node_merge_tolerance: 1e-6,
+    node_merge_tolerance: 0.01,
     hull_buffer_ratio: 0.25,
     disagreement_threshold: '',
   }

@@ -3,6 +3,7 @@
     <div class="preview-header">
       <h3>预览</h3>
       <div class="overlay-controls">
+        <el-button size="small" type="primary" plain @click="generatePreview">生成预览</el-button>
         <el-checkbox v-model="showHull" size="small" @change="generatePreview">显示凸包</el-checkbox>
         <el-checkbox v-model="showCircles" size="small" @change="generatePreview">显示圆窗</el-checkbox>
         <el-checkbox v-model="showNodes" size="small" @change="generatePreview">显示节点</el-checkbox>
@@ -13,7 +14,7 @@
       <div class="preview-box" v-for="(img, idx) in previewImages" :key="img.key" @click="openViewer(idx)">
         <div class="preview-img-wrapper" v-loading="loading">
           <img v-if="img.url" :src="img.url" class="preview-img" />
-          <el-empty v-else description="修改配置后自动生成预览" />
+          <el-empty v-else description="点击生成预览后显示" />
         </div>
         <div class="preview-label">{{ img.label }}</div>
       </div>
@@ -49,6 +50,7 @@ interface PreviewImage {
 
 const props = defineProps<{
   styleConfig: Record<string, any>
+  previewTrigger: number
 }>()
 
 const previewImages = ref<PreviewImage[]>([
@@ -127,11 +129,9 @@ function generatePreview() {
   debounceTimer = window.setTimeout(doGenerate, 500)
 }
 
-watch(() => props.styleConfig, (val) => {
-  if (val && Object.keys(val).length > 0) {
-    generatePreview()
-  }
-}, { immediate: true, deep: true })
+watch(() => props.previewTrigger, () => {
+  generatePreview()
+})
 </script>
 
 <style scoped lang="scss">

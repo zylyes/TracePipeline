@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -27,6 +28,8 @@ from trace_pipeline.plotting.overlays import (
 
 logger = logging.getLogger(__name__)
 
+_INPUT_EXTENSIONS = (".xlsx", ".xls")
+
 
 from trace_pipeline.utils.numpy_compat import to_native as _to_native
 
@@ -35,18 +38,52 @@ class StatsService:
     """读取已处理结果，返回统计指标和覆盖层几何。"""
 
     def __init__(self) -> None:
-        self._cache = TTLCache(ttl=300.0)
+        self._cache = TTLCache(ttl=300.0, maxsize=128)
         logger.info("StatsService 已初始化（带统计缓存）", extra={"stage": "stats_service_init", "cache_ttl": self._cache._ttl})
 
     # 影响统计结果的关键配置字段子集
     _STAT_KEYS = {
         "window_strategy", "auto_density_threshold", "tangent_window_count",
-        "enable_node_recognition", "node_merge_tolerance",
+        "min_intersections", "enable_node_recognition", "node_merge_tolerance",
+        "show_node_overlay", "node_label_mode", "input_dir",
     }
+
+    @staticmethod
+    def _input_fingerprint(input_dir: Any, table_stem: str) -> dict[str, Any]:
+        """Return a stable fingerprint for the source Excel file used by stats."""
+        try:
+            base = Path(str(input_dir)).expanduser().resolve()
+        except (OSError, RuntimeError):
+            base = Path(str(input_dir)).expanduser().absolute()
+
+        for ext in _INPUT_EXTENSIONS:
+            path = base / f"{table_stem}{ext}"
+            try:
+                stat = path.stat()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                return {
+                    "base": str(base),
+                    "file": f"{table_stem}{ext}",
+                    "error": type(exc).__name__,
+                }
+            if path.is_file():
+                return {
+                    "base": str(base),
+                    "file": path.name,
+                    "mtime_ns": stat.st_mtime_ns,
+                    "size": stat.st_size,
+                }
+
+        return {"base": str(base), "file": f"{table_stem}<missing>"}
 
     def _make_key(self, outcrop: str, config: dict[str, Any] | None) -> str:
         # 仅提取影响统计结果的关键字段，避免无关字段（如 is_dev_mode、style）导致缓存失效
-        effective_cfg = {k: v for k, v in (config or {}).items() if k in self._STAT_KEYS}
+        cfg = config or {}
+        table_stem = f"{outcrop}_process"
+        effective_cfg = {k: v for k, v in cfg.items() if k in self._STAT_KEYS}
+        effective_cfg["input_fingerprint"] = self._input_fingerprint(cfg.get("input_dir", "input"), table_stem)
         cfg_str = json.dumps(effective_cfg, sort_keys=True, ensure_ascii=False)
         # 使用稳定哈希替代内置 hash()，避免进程重启后哈希随机化导致缓存失效
         cfg_hash = hashlib.sha256(cfg_str.encode("utf-8")).hexdigest()[:16]
@@ -123,7 +160,7 @@ class StatsService:
 
         # 节点识别
         node_config = NodeRecognitionConfig(
-            enabled=cfg.get("enable_node_recognition", True),
+            enabled=cfg.get("enable_node_recognition", False),
             merge_tolerance=cfg.get("node_merge_tolerance", 0.01),
             show_overlay=cfg.get("show_node_overlay", True),
             label_mode=cfg.get("node_label_mode", "type"),

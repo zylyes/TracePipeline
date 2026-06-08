@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed, onActivated } from 'vue'
 import { Document, Picture } from '@element-plus/icons-vue'
 import { msg } from '@/utils/message'
 import StatCards from '@/components/StatCards.vue'
@@ -135,6 +135,11 @@ const viewerImages = ref<Array<{ title: string; src: string }>>([])
 const viewerInitialIndex = ref(0)
 
 async function loadOutcrops(force = false) {
+  if (isLoadingOutcrops) {
+    console.warn('[StatisticsView] loadOutcrops 被重复调用，已忽略')
+    return
+  }
+  isLoadingOutcrops = true
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
@@ -150,9 +155,12 @@ async function loadOutcrops(force = false) {
     }
   } catch (e) {
     msg.error('加载露头列表失败')
+  } finally {
+    isLoadingOutcrops = false
   }
 }
 
+let isLoadingOutcrops = false
 let isLoadingStats = false
 let hasInitializedStats = false
 
@@ -196,7 +204,7 @@ async function loadStats(force = false) {
       if (match.rotated_plot) {
         rotatedImageUrl.value = await loadImageBase64(match.rotated_plot)
       }
-      if (match.rose_plot) {
+      if (pipelineStore.lastExportRosePlot && match.rose_plot) {
         roseImageUrl.value = await loadImageBase64(match.rose_plot)
       }
     }
@@ -247,20 +255,17 @@ async function exportReport() {
   }
 }
 
-onMounted(() => {
-  hasInitializedStats = true
-  loadOutcrops()
-})
-
 // KeepAlive 激活时，若缓存已失效则刷新数据
 onActivated(() => {
   if (!hasInitializedStats) {
     hasInitializedStats = true
     loadOutcrops()
-  } else if (!cacheStore.isScanValid || !cacheStore.isResultsValid) {
+  } else if (!cacheStore.isScanValid) {
     cacheStore.invalidateStats()
-    cacheStore.invalidateResults()
     loadOutcrops(true)
+  } else if (!cacheStore.isResultsValid && selectedOutcrop.value) {
+    cacheStore.invalidateResults()
+    loadStats(false)
   }
 })
 </script>

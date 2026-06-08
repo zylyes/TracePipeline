@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from backend.utils.cache import TTLCache
 from backend.utils.path_utils import resolve_path, error_response, validate_outcrop_name
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ class DataService:
     def __init__(self, output_dir: str = "output", input_dir: str = "input") -> None:
         self._output_dir = resolve_path(output_dir)
         self._input_dir = resolve_path(input_dir)
+        self._cache = TTLCache(ttl=300.0, maxsize=64)
 
     @staticmethod
     def _paginate(data: list, page: int, page_size: int) -> tuple[list, int]:
@@ -52,6 +54,11 @@ class DataService:
         total = len(data)
         start = (page - 1) * page_size
         return data[start:start + page_size], total
+
+    @staticmethod
+    def _file_signature(path: Path) -> tuple[int, int]:
+        stat = path.stat()
+        return stat.st_mtime_ns, stat.st_size
 
     def get_data(
         self,
@@ -80,8 +87,18 @@ class DataService:
 
         sheet_name = SECTION_MAP.get(section, section)
         try:
-            # header=1: 跳过第1行标题，将第2行作为表头
-            df = pd.read_excel(path, sheet_name=sheet_name, header=1)
+            mtime_ns, size = self._file_signature(path)
+        except OSError as exc:
+            return error_response(str(exc))
+        cache_key = f"output:{path}:{sheet_name}:{mtime_ns}:{size}"
+        cached = self._cache.get(cache_key)
+        try:
+            if cached is None:
+                # header=1: 跳过第1行标题，将第2行作为表头
+                df = pd.read_excel(path, sheet_name=sheet_name, header=1)
+                cached = (list(df.columns), df.to_dict("records"))
+                self._cache.set(cache_key, cached)
+            columns, data = cached
         except ValueError:
             # Sheet 不存在（旧格式单工作表文件）
             logger.warning(
@@ -96,7 +113,6 @@ class DataService:
             )
             return error_response(str(exc))
 
-        data = df.to_dict("records")
         page_data, total = self._paginate(data, page, page_size)
 
         logger.debug(
@@ -111,7 +127,7 @@ class DataService:
                 "page_size": page_size,
                 "total": total,
                 "returned": len(page_data),
-                "column_count": len(df.columns),
+                "column_count": len(columns),
             },
         )
         return {
@@ -121,7 +137,7 @@ class DataService:
             "page_size": page_size,
             "total": total,
             "data": page_data,
-            "columns": list(df.columns),
+            "columns": columns,
         }
 
     def _get_input_data(self, outcrop: str, page: int, page_size: int) -> dict[str, Any]:
@@ -132,6 +148,25 @@ class DataService:
             path = self._input_dir / f"{table_stem}.xlsx"
             if not path.exists():
                 return error_response(f"输入文件不存在: {self._input_dir / table_stem}.xls/.xlsx")
+
+        try:
+            mtime_ns, size = self._file_signature(path)
+        except OSError as exc:
+            return error_response(str(exc))
+        cache_key = f"input:{path}:{outcrop}:{mtime_ns}:{size}"
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            headers, data = cached
+            page_data, total = self._paginate(data, page, page_size)
+            return {
+                "outcrop": outcrop,
+                "section": "原始输入",
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "data": page_data,
+                "columns": headers,
+            }
 
         try:
             df = pd.read_excel(path, sheet_name=outcrop, header=None)
@@ -159,6 +194,8 @@ class DataService:
             if record:
                 data.append(record)
 
+        self._cache.set(cache_key, (headers, data))
+
         page_data, total = self._paginate(data, page, page_size)
 
         return {
@@ -174,8 +211,10 @@ class DataService:
     def set_input_dir(self, path: str) -> None:
         """动态更新输入目录。"""
         self._input_dir = resolve_path(path)
+        self._cache.invalidate()
 
     def update_dirs(self, output_dir: str, input_dir: str) -> None:
         """同时更新输入/输出目录。"""
         self._output_dir = resolve_path(output_dir)
         self._input_dir = resolve_path(input_dir)
+        self._cache.invalidate()

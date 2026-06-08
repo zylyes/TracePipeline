@@ -7,6 +7,7 @@ import time
 from collections import deque
 from typing import Any
 
+from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.config import resolve_io_paths
 from trace_pipeline.logging import LogContext
 from trace_pipeline.models import PipelineStatus, RunConfig
@@ -33,6 +34,13 @@ class PipelineService:
 
     def run(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
         """启动后台线程，非阻塞返回。"""
+        try:
+            validated_targets = [validate_outcrop_name(str(target)) for target in targets]
+        except ValueError as exc:
+            return {"status": "error", "message": str(exc)}
+        if not validated_targets:
+            return {"status": "error", "message": "请至少选择一个处理目标"}
+
         with self._lock:
             if self._running:
                 return {"status": "busy", "message": "已有任务正在运行"}
@@ -41,11 +49,11 @@ class PipelineService:
             self._shutdown_event.clear()
         self._worker_thread = threading.Thread(
             target=self._run_background,
-            args=(targets, config),
+            args=(validated_targets, config),
             daemon=True,  # daemon=True 确保主进程关闭时线程不会阻止退出
         )
         self._worker_thread.start()
-        return {"status": "started", "total": len(targets)}
+        return {"status": "started", "total": len(validated_targets)}
 
     def poll_progress(self) -> dict[str, Any] | None:
         """前端轮询接口，线程安全、非阻塞。"""
@@ -142,14 +150,14 @@ class PipelineService:
                     item_duration = (time.perf_counter() - item_start) * 1000
                     result_dict = {
                         "outcrop": outcrop,
-                        "status": result.status,
+                        "status": result.status.value,
                         "trace_count": result.trace_count,
                         "mean_length": result.mean_length,
                         "scanline_azimuth": result.scanline_azimuth,
                         "excel_path": result.excel_path,
-                        "raw_plot_path": result.raw_plot_path,
-                        "rotated_plot_path": result.rotated_plot_path,
-                        "rose_plot_path": result.rose_plot_path,
+                        "raw_plot": result.raw_plot_path,
+                        "rotated_plot": result.rotated_plot_path,
+                        "rose_plot": result.rose_plot_path,
                         "window_strategy": result.window_strategy,
                         "area_source": result.area_source,
                         "error": result.error,

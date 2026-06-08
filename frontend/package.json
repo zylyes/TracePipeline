@@ -1,7 +1,7 @@
 {
   "name": "tracepipeline-gui",
   "private": true,
-  "version": "3.7.8",
+  "version": "3.8.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,10 +20,10 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "@vitejs/plugin-vue": "^5.0.4",
+    "@vitejs/plugin-vue": "^6.0.7",
     "sass": "^1.74.1",
     "typescript": "^5.4.5",
-    "vite": "^5.2.8",
+    "vite": "^8.0.16",
     "vue-tsc": "^2.0.11"
   },
   "note": "请确保 package-lock.json 已生成并提交到版本控制，以保证构建一致性。"

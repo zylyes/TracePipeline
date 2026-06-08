@@ -21,9 +21,9 @@ export const usePipelineStore = defineStore('pipeline', () => {
   })
   const results = ref<PipelineResult[]>([])
 
-  // 从 localStorage 恢复持久化状态，默认 true
-  const lastEnableNodeRecognition = ref(loadBool(STORAGE_KEY_NODE, true))
-  const lastExportRosePlot = ref(loadBool(STORAGE_KEY_ROSE, true))
+  // 从 localStorage 恢复持久化状态，默认跟随后端轻量配置
+  const lastEnableNodeRecognition = ref(loadBool(STORAGE_KEY_NODE, false))
+  const lastExportRosePlot = ref(loadBool(STORAGE_KEY_ROSE, false))
 
   const isRunning = computed(() => running.value)
 

@@ -25,6 +25,7 @@ export const useCacheStore = defineStore('cache', () => {
   const resultsCache = ref<CachedItem<any[]> | null>(null)
   // 图片缓存: path -> base64
   const imageCache = ref<Map<string, CachedItem<string>>>(new Map())
+  const imageMaxChars = 80_000_000
 
   const isScanValid = computed(() => {
     if (!scanResult.value) return false
@@ -98,6 +99,28 @@ export const useCacheStore = defineStore('cache', () => {
     return item.data
   }
 
+  function getImageCacheChars(): number {
+    let total = 0
+    for (const item of imageCache.value.values()) total += item.data.length
+    return total
+  }
+
+  function pruneImageCache(protectedPath?: string) {
+    while (imageCache.value.size > 1 && getImageCacheChars() > imageMaxChars) {
+      let oldestKey: string | null = null
+      let oldestTime = Infinity
+      for (const [k, v] of imageCache.value.entries()) {
+        if (k === protectedPath) continue
+        if (v.timestamp < oldestTime) {
+          oldestTime = v.timestamp
+          oldestKey = k
+        }
+      }
+      if (oldestKey === null) break
+      imageCache.value.delete(oldestKey)
+    }
+  }
+
   function setImage(path: string, data: string) {
     // LRU 淘汰：超过最大条目时删除最旧的记录
     if (imageCache.value.size >= IMAGE_MAX_COUNT && !imageCache.value.has(path)) {
@@ -114,6 +137,7 @@ export const useCacheStore = defineStore('cache', () => {
       }
     }
     imageCache.value.set(path, { data, timestamp: Date.now() })
+    pruneImageCache(path)
   }
 
   // --- 失效 ---

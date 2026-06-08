@@ -18,7 +18,7 @@ from backend.utils.cache import TTLCache
 from trace_pipeline.utils.paths import get_project_root
 
 logger = logging.getLogger(__name__)
-PREVIEW_DIR = get_project_root() / "output" / "preview"
+PREVIEW_DIR = get_project_root() / "cache" / "preview"
 PREVIEW_DPI = 300
 
 _PREVIEW_LOCK = threading.Lock()

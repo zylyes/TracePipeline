@@ -129,12 +129,12 @@ const POLL_INTERVAL = 300
 
   // 处理参数（本地状态，默认从配置加载）
   const params = ref({
-    export_rose_plot: true,
-    rose_dpi: 400,
+    export_rose_plot: false,
+    rose_dpi: 600,
     rose_bin_width: 10,
-    trace_dpi: 300,
+    trace_dpi: 600,
     rotated_trace_dpi: 600,
-    enable_node_recognition: true,
+    enable_node_recognition: false,
   })
 
   // 监听开关变化，实时持久化到全局 store（localStorage）
@@ -177,12 +177,12 @@ let syncingParams = false
 watch(() => configStore.config, (newCfg) => {
   if (syncingParams || !newCfg || Object.keys(newCfg).length === 0) return
   params.value = {
-    export_rose_plot: newCfg.export_rose_plot ?? true,
-    rose_dpi: newCfg.rose_dpi ?? 400,
+    export_rose_plot: newCfg.export_rose_plot ?? false,
+    rose_dpi: newCfg.rose_dpi ?? 600,
     rose_bin_width: newCfg.rose_bin_width ?? 10,
-    trace_dpi: newCfg.trace_dpi ?? 300,
+    trace_dpi: newCfg.trace_dpi ?? 600,
     rotated_trace_dpi: newCfg.rotated_trace_dpi ?? 600,
-    enable_node_recognition: newCfg.enable_node_recognition ?? true,
+    enable_node_recognition: newCfg.enable_node_recognition ?? false,
   }
 }, { deep: true })
 
@@ -190,8 +190,14 @@ watch(() => configStore.config, (newCfg) => {
 const modalVisible = ref(false)
 const modalOutcrop = ref('')
 const modalImages = ref<Array<{ key: string; title: string; src: string }>>([])
+let isLoadingFiles = false
 
 async function loadFiles(force = false) {
+  if (isLoadingFiles) {
+    console.warn('[ProcessingView] loadFiles 被重复调用，已忽略')
+    return
+  }
+  isLoadingFiles = true
   try {
     if (force) {
       cacheStore.invalidateScan()
@@ -216,6 +222,8 @@ async function loadFiles(force = false) {
     setTimeout(() => {
       loadFiles(true).catch(() => {})
     }, 1000)
+  } finally {
+    isLoadingFiles = false
   }
 }
 
@@ -496,24 +504,28 @@ onMounted(async () => {
   const cfg = configStore.config
   if (cfg && Object.keys(cfg).length > 0) {
     params.value = {
-      export_rose_plot: cfg.export_rose_plot ?? true,
-      rose_dpi: cfg.rose_dpi ?? 400,
+      export_rose_plot: cfg.export_rose_plot ?? false,
+      rose_dpi: cfg.rose_dpi ?? 600,
       rose_bin_width: cfg.rose_bin_width ?? 10,
-      trace_dpi: cfg.trace_dpi ?? 300,
+      trace_dpi: cfg.trace_dpi ?? 600,
       rotated_trace_dpi: cfg.rotated_trace_dpi ?? 600,
-      enable_node_recognition: cfg.enable_node_recognition ?? true,
+      enable_node_recognition: cfg.enable_node_recognition ?? false,
     }
   }
 
   // 将当前参数同步到 pipelineStore，确保 UI 显隐与设置一致
   pipelineStore.setLastRunConfig(params.value.enable_node_recognition, params.value.export_rose_plot)
 
-  await loadFiles(true)
+  await loadFiles(false)
 })
 
-// KeepAlive 激活时强制刷新文件列表，确保切换回来时显示最新状态
+// KeepAlive 激活时只在缓存过期或本地列表为空时刷新，避免首次激活重复扫描。
 onActivated(() => {
-  loadFiles(true).catch(() => {})
+  if (!cacheStore.isScanValid) {
+    loadFiles(true).catch(() => {})
+  } else if (files.value.length === 0) {
+    loadFiles(false).catch(() => {})
+  }
 })
 
 // 监听 files 为空时自动重试（兜底：处理 KeepAlive 复用时缓存过期的情况）

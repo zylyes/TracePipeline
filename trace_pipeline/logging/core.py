@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import shutil
 import sys
@@ -90,7 +91,12 @@ class JsonFormatter(logging.Formatter):
             payload["extra"] = extras
 
         # 确保无 NaN/inf（JSON 标准不支持）
-        return json.dumps(payload, ensure_ascii=False, default=_json_default)
+        return json.dumps(
+            _json_sanitize(payload),
+            ensure_ascii=False,
+            default=_json_default,
+            allow_nan=False,
+        )
 
 
 from trace_pipeline.utils.numpy_compat import to_native as _to_native
@@ -100,8 +106,23 @@ def _json_default(obj: Any) -> Any:
     """处理 numpy 等不可 JSON 序列化的类型，支持嵌套结构。"""
     result = _to_native(obj, max_depth=10)
     if result is not obj:
-        return result
+        return _json_sanitize(result)
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _json_sanitize(obj: Any, max_depth: int = 20, _depth: int = 0) -> Any:
+    """递归转换日志载荷，保证输出为标准 JSON。"""
+    if _depth > max_depth:
+        return str(obj)
+
+    obj = _to_native(obj, max_depth=max_depth - _depth)
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_sanitize(v, max_depth, _depth + 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_sanitize(v, max_depth, _depth + 1) for v in obj]
+    return obj
 
 
 class DailyRotatingJsonHandler(logging.FileHandler):

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
@@ -24,38 +25,43 @@ class TTLCache:
         self._ttl = ttl
         self._maxsize = maxsize
         self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+        self._lock = threading.RLock()
 
     def get(self, key: str) -> Any | None:
         """获取缓存值，过期或不存在返回 None。"""
-        entry = self._store.get(key)
-        if entry is None:
-            return None
-        ts, value = entry
-        if time.monotonic() - ts > self._ttl:
-            del self._store[key]
-            return None
-        self._store.move_to_end(key)
-        return value
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is None:
+                return None
+            ts, value = entry
+            if time.monotonic() - ts > self._ttl:
+                del self._store[key]
+                return None
+            self._store.move_to_end(key)
+            return value
 
     def set(self, key: str, value: Any) -> None:
         """写入缓存，并淘汰过期/超限条目。"""
-        self._store[key] = (time.monotonic(), value)
-        self._store.move_to_end(key)
-        self._evict_expired()
-        self._trim()
+        with self._lock:
+            self._store[key] = (time.monotonic(), value)
+            self._store.move_to_end(key)
+            self._evict_expired()
+            self._trim()
 
     def invalidate(self, key: str | None = None) -> None:
         """使指定键或全部缓存失效。"""
-        if key is None:
-            self._store.clear()
-        else:
-            self._store.pop(key, None)
+        with self._lock:
+            if key is None:
+                self._store.clear()
+            else:
+                self._store.pop(key, None)
 
     def invalidate_prefix(self, prefix: str) -> None:
         """使所有以 prefix 开头的键失效。"""
-        keys = [k for k in self._store if k.startswith(prefix)]
-        for k in keys:
-            del self._store[k]
+        with self._lock:
+            keys = [k for k in self._store if k.startswith(prefix)]
+            for k in keys:
+                del self._store[k]
 
     def _evict_expired(self) -> None:
         now = time.monotonic()

@@ -206,12 +206,13 @@ async function importJSON(event: Event) {
   try {
     const text = await file.text()
     const imported = JSON.parse(text)
-    form.value = { ...imported }
-    if (imported.style && typeof imported.style === 'object') {
-      styleConfig.value = { ...styleConfig.value, ...imported.style }
+    const saved = await configStore.saveConfig(imported)
+    form.value = { ...saved }
+    if (saved.style && typeof saved.style === 'object') {
+      styleConfig.value = { ...DEFAULT_STYLE, ...saved.style }
     }
-    if (imported.input_dir) appStore.inputDir = imported.input_dir
-    if (imported.output_dir) appStore.outputDir = imported.output_dir
+    if (saved.input_dir) appStore.inputDir = saved.input_dir
+    if (saved.output_dir) appStore.outputDir = saved.output_dir
     msg.success(`已导入配置: ${file.name}`)
   } catch (e) {
     msg.error('导入失败：无效的 JSON 文件')

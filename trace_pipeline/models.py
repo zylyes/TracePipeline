@@ -203,6 +203,7 @@ class RunConfig:
     enable_node_recognition: bool = False
     node_merge_tolerance: float = 0.01
     show_node_overlay: bool = True
+    node_label_mode: str = "type"
 
     def __post_init__(self) -> None:
         for name in ("table_stem", "outcrop", "output_prefix", "input_dir", "output_dir"):
@@ -217,7 +218,8 @@ class RunConfig:
                       "trace_dpi", "rotated_trace_dpi", "window_strategy",
                       "auto_density_threshold", "tangent_window_count",
                       "min_intersections", "enable_node_recognition",
-                      "node_merge_tolerance", "show_node_overlay")
+                      "node_merge_tolerance", "show_node_overlay",
+                      "node_label_mode")
         }
         coerce_scalar_config_fields(field_values)
         for k, v in field_values.items():
@@ -240,14 +242,13 @@ class RunConfig:
             "rotated_trace_dpi", "window_strategy", "auto_density_threshold",
             "tangent_window_count", "min_intersections", "style",
             "enable_node_recognition", "node_merge_tolerance",
-            "show_node_overlay",
+            "show_node_overlay", "node_label_mode",
         }
-        return cls(**{k: cfg[k] for k in known if k in cfg})
-
-    @property
-    def node_label_mode(self) -> str:
-        """从 style 字典中读取节点标签模式，向后兼容。"""
-        return self.style.get("node_label_mode", "type")
+        values = {k: cfg[k] for k in known if k in cfg}
+        style = values.get("style")
+        if "node_label_mode" not in values and isinstance(style, Mapping):
+            values["node_label_mode"] = style.get("node_label_mode", "type")
+        return cls(**values)
 
     @property
     def node_style(self) -> str:
@@ -275,7 +276,7 @@ class RunResult:
     rose_plot_path: str = ""
     window_strategy: str = ""
     area_source: str = ""
-    error: str = ""
+    error: str | None = None
     error_type: str = ""
     error_traceback: str = ""
     node_count: int = 0
@@ -320,6 +321,7 @@ class RunResult:
             node_y_count=node_y_count,
             node_x_count=node_x_count,
             intersection_count=intersection_count,
+            error=None,
         )
 
     @classmethod

@@ -13,9 +13,10 @@ from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 from trace_pipeline.utils.paths import get_project_root
 
 # 在导入任何 GUI 库之前设置 DPI 感知，确保获取正确的屏幕物理像素
-# Per-Monitor V2 (-4) 是 Windows 10 1607+ 推荐方案，支持多显示器不同 DPI
+# Per-Monitor V2 是 Windows 10 1607+ 推荐方案，支持多显示器不同 DPI
+DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
 try:
-    ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 except Exception:
     try:
         ctypes.windll.user32.SetProcessDPIAware()

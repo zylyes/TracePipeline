@@ -119,7 +119,7 @@ import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { loadImageBase64 } from '@/utils/image'
-import { getChartColors, getEchartsFontFamily } from '@/utils/echarts-theme'
+import { getChartColors, getEchartsFontFamily, cssVar } from '@/utils/echarts-theme'
 import type { ComparisonRow, PipelineResult } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
@@ -200,19 +200,25 @@ const barOption = computed(() => {
   const outcrops = tableData.value.map(d => d.outcrop)
   const metric = chartMetric.value
 
+  const colorPrimary = cssVar('--tp-text-primary')
+  const colorSecondary = cssVar('--tp-text-secondary')
+  const colorBorder = cssVar('--tp-border')
+  const colorBorderLight = cssVar('--tp-border-light')
+  const legendTextStyle = { fontFamily: echartsFont, color: colorSecondary }
+
   const base = {
-    title: { text: '多露头参数对比', left: 'center', textStyle: { fontFamily: echartsFont, fontSize: 14, fontWeight: 600, color: 'var(--tp-text-primary)' } },
+    title: { text: '多露头参数对比', left: 'center', textStyle: { fontFamily: echartsFont, fontSize: 14, fontWeight: 600, color: colorPrimary } },
     tooltip: { trigger: 'axis', textStyle: { fontFamily: echartsFont } },
-    legend: { bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
+    legend: { bottom: 0, textStyle: legendTextStyle },
     grid: { left: '10%', right: '10%', bottom: '15%' },
-    xAxis: { type: 'category', data: outcrops, axisLabel: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' }, axisLine: { lineStyle: { color: 'var(--tp-border)' } } },
-    yAxis: { type: 'value', axisLabel: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' }, splitLine: { lineStyle: { color: 'var(--tp-border-light)' } } },
+    xAxis: { type: 'category', data: outcrops, axisLabel: { fontFamily: echartsFont, color: colorSecondary }, axisLine: { lineStyle: { color: colorBorder } } },
+    yAxis: { type: 'value', axisLabel: { fontFamily: echartsFont, color: colorSecondary }, splitLine: { lineStyle: { color: colorBorderLight } } },
   }
 
   if (metric === 'density') {
     return {
       ...base,
-      legend: { data: ['P10', 'P20', 'P21'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
+      legend: { data: ['P10', 'P20', 'P21'], bottom: 0, textStyle: legendTextStyle },
       series: [
         { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
         { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
@@ -224,7 +230,7 @@ const barOption = computed(() => {
   if (metric === 'type') {
     return {
       ...base,
-      legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
+      legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: legendTextStyle },
       series: [
         { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
         { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
@@ -241,7 +247,7 @@ const barOption = computed(() => {
   if (metric === 'node') {
     return {
       ...base,
-      legend: { data: ['节点总数', 'X节点', 'Y节点', 'I节点'], bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
+      legend: { data: ['节点总数', 'X节点', 'Y节点', 'I节点'], bottom: 0, textStyle: legendTextStyle },
       series: [
         { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
         { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
@@ -260,7 +266,7 @@ const barOption = computed(() => {
   }
   return {
     ...base,
-    legend: { data: series.map(s => s.name), bottom: 0, textStyle: { fontFamily: echartsFont, color: 'var(--tp-text-secondary)' } },
+    legend: { data: series.map(s => s.name), bottom: 0, textStyle: legendTextStyle },
     series,
   }
 })

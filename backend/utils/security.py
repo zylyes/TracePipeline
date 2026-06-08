@@ -24,7 +24,13 @@ class PathSecurityChecker:
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root.resolve().absolute()
 
-    def safe_path(self, path: str, base: Path | None = None) -> Path | None:
+    def safe_path(
+        self,
+        path: str,
+        base: Path | None = None,
+        *,
+        allow_external_base: bool = False,
+    ) -> Path | None:
         """解析并校验路径在项目根目录内，防止路径遍历攻击。
 
         校验规则：
@@ -32,7 +38,9 @@ class PathSecurityChecker:
         2. URL 递归解码后再次检查 ".."
         3. 拒绝 Windows 设备名（检查所有路径段）
         4. 解析符号链接后限制在 base 目录下
-        5. 拒绝非预期扩展名（防止 XSS）
+
+        注意：扩展名白名单校验不在此实现，由调用方按需校验
+        （例如 GuiApi.get_image 限制图片扩展名以防 XSS）。
 
         Args:
             path: 原始路径字符串。
@@ -69,23 +77,25 @@ class PathSecurityChecker:
                     return None
 
         p = Path(decoded)
+        raw_base = Path(base) if base is not None else self._project_root
         if not p.is_absolute():
-            p = self._project_root / p
+            p = raw_base / p
 
         # resolve() 会跟随符号链接；同时检查 base 自身是否被符号链接篡改
         try:
             p = p.resolve().absolute()
-            base = Path(base or self._project_root).resolve().absolute()
+            base = raw_base.resolve().absolute()
         except (OSError, RuntimeError) as exc:
             logger.warning("路径解析失败 %s: %s", path, exc)
             return None
 
-        # 确保 base 仍是原始项目根目录（防御 base 被符号链接指向外部）
-        try:
-            base.relative_to(self._project_root)
-        except ValueError:
-            logger.warning("base 目录越权: %s", base)
-            return None
+        # 默认只允许项目根内路径；GUI 文件对话框选择的目录可显式放宽为可信外部基准。
+        if not allow_external_base:
+            try:
+                base.relative_to(self._project_root)
+            except ValueError:
+                logger.warning("base 目录越权: %s", base)
+                return None
 
         try:
             p.relative_to(base)

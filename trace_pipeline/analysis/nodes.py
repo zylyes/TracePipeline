@@ -118,6 +118,22 @@ def _merge_candidates(
     return list(groups.values())
 
 
+def _compute_topological_value(trace_params: dict[int, list[float]], tol: float) -> int:
+    """计算节点拓扑值：每条迹线贡献 2（内部通过）或 1-2（端点参与）。"""
+    tv = 0
+    for params in trace_params.values():
+        unique_params: list[float] = []
+        for p in params:
+            if not any(abs(p - up) <= tol for up in unique_params):
+                unique_params.append(p)
+        if any(_is_interior(p, tol) for p in unique_params):
+            tv += 2
+        else:
+            n_endpoints = sum(1 for p in unique_params if p <= tol or p >= 1.0 - tol)
+            tv += 2 if n_endpoints >= 2 else 1
+    return tv
+
+
 def _classify_and_compute_node(
     cluster: list[_Candidate], tol: float
 ) -> tuple[str, int]:
@@ -134,48 +150,13 @@ def _classify_and_compute_node(
         if _is_interior(cand.param, tol):
             interior_traces.add(cand.trace_idx)
 
-    # X 型：至少两条迹线以内部方式通过
+    tv = _compute_topological_value(trace_params, tol)
+
     if len(interior_traces) >= 2:
-        tv = 0
-        for params in trace_params.values():
-            unique_params: list[float] = []
-            for p in params:
-                if not any(abs(p - up) <= tol for up in unique_params):
-                    unique_params.append(p)
-            has_internal = any(_is_interior(p, tol) for p in unique_params)
-            if has_internal:
-                tv += 2
-            else:
-                n_endpoints = sum(1 for p in unique_params if p <= tol or p >= 1.0 - tol)
-                tv += 2 if n_endpoints >= 2 else 1
         return "X", tv
-
-    # 计算拓扑值
-    tv = 0
-    for params in trace_params.values():
-        unique_params: list[float] = []
-        for p in params:
-            if not any(abs(p - up) <= tol for up in unique_params):
-                unique_params.append(p)
-
-        has_internal = any(_is_interior(p, tol) for p in unique_params)
-        if has_internal:
-            tv += 2
-        else:
-            n_endpoints = sum(1 for p in unique_params if p <= tol or p >= 1.0 - tol)
-            tv += 2 if n_endpoints >= 2 else 1
-
-    # Y 型判定
     if len(interior_traces) == 1 or tv >= 3:
         return "Y", tv
-
     return "I", tv
-
-
-def _is_endpoint_cluster(params: list[float], tol: float) -> bool:
-    """判断是否为端点聚类（多个端点重合）。"""
-    endpoints = [p for p in params if p <= tol or p >= 1.0 - tol]
-    return len(endpoints) >= 2
 
 
 def recognize_trace_nodes(

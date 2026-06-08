@@ -2,7 +2,7 @@
   <div class="statistics-view">
     <h2 class="page-title">统计</h2>
     <div class="toolbar">
-      <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="loadStats" size="small">
+      <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="() => loadStats()" size="small">
         <el-option v-for="o in outcrops" :key="o" :label="o" :value="o" />
       </el-select>
       <el-button :icon="Document" :loading="exportLoading" @click="exportReport" size="small" type="primary" plain>导出统计报告</el-button>

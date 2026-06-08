@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Sequence
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from typing import Any
 
 from tqdm import tqdm
@@ -76,28 +77,51 @@ def execute_targets(
         logger.info("启用并行处理：%d 进程", workers)
         parallel_results: list[RunResult | None] = [None] * total
         pbar = tqdm(total=total, desc="处理迹线表", unit="个", ncols=100)
+        executor = ProcessPoolExecutor(max_workers=workers)
+        timed_out = False
         try:
-            with ProcessPoolExecutor(max_workers=workers) as executor:
-                future_map = {}
-                for idx, target in enumerate(targets):
-                    try:
-                        run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
-                    except Exception as exc:
-                        parallel_results[idx] = RunResult.failure(target.stem, str(exc), error_type=type(exc).__name__)
-                        pbar.update(1)
-                        continue
-                    future_map[executor.submit(run_pipeline, run_cfg)] = (idx, target.stem)
+            future_map = {}
+            for idx, target in enumerate(targets):
+                try:
+                    run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
+                except Exception as exc:
+                    parallel_results[idx] = RunResult.failure(target.stem, str(exc), error_type=type(exc).__name__)
+                    pbar.update(1)
+                    continue
+                future = executor.submit(run_pipeline, run_cfg)
+                future_map[future] = (idx, target.stem, time.monotonic() + 300.0)
 
-                for future in as_completed(future_map):
-                    idx, stem = future_map[future]
-                    try:
-                        result = future.result(timeout=300)
-                    except Exception as exc:
-                        result = RunResult.failure(stem, str(exc), error_type=type(exc).__name__)
+            pending = set(future_map)
+            while pending:
+                now = time.monotonic()
+                next_deadline = min(
+                    deadline for _, _, deadline in (future_map[f] for f in pending)
+                )
+                timeout = max(0.0, next_deadline - now)
+                done, _ = wait(pending, timeout=timeout, return_when=FIRST_COMPLETED)
+                if not done:
+                    now = time.monotonic()
+                    done = {f for f in pending if future_map[f][2] <= now}
+                    timed_out = timed_out or bool(done)
+
+                for future in done:
+                    pending.remove(future)
+                    idx, stem, deadline = future_map[future]
+                    if future.done():
+                        try:
+                            result = future.result()
+                        except Exception as exc:
+                            result = RunResult.failure(stem, str(exc), error_type=type(exc).__name__)
+                    elif time.monotonic() >= deadline:
+                        future.cancel()
+                        result = RunResult.failure(stem, "处理超时(300s)", error_type="TimeoutError")
+                    else:
+                        continue
                     parallel_results[idx] = result
                     pbar.set_postfix_str(f"完成: {stem}")
                     pbar.update(1)
         finally:
+            executor.shutdown(wait=not timed_out, cancel_futures=timed_out)
             pbar.close()
         valid = [r for r in parallel_results if r is not None]
         if len(valid) < total:
@@ -112,10 +136,20 @@ def execute_targets(
             try:
                 run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
             except Exception as exc:
-                serial_results.append(RunResult.failure(target.stem, str(exc)))
+                serial_results.append(
+                    RunResult.failure(target.stem, str(exc), error_type=type(exc).__name__)
+                )
                 continue
 
-            result = run_pipeline(run_cfg)
+            try:
+                result = run_pipeline(run_cfg)
+            except Exception as exc:
+                # 单文件崩溃不应中断整批,降级为失败结果并继续
+                logger.warning("处理 %s 时发生未捕获异常: %s", target.stem, exc)
+                serial_results.append(
+                    RunResult.failure(target.stem, str(exc), error_type=type(exc).__name__)
+                )
+                continue
             serial_results.append(result)
 
             if result.status is PipelineStatus.SUCCESS:

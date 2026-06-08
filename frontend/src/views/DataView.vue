@@ -2,7 +2,7 @@
   <div class="data-view">
     <h2 class="page-title">数据</h2>
     <div class="toolbar">
-      <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="onOutcropChange" size="small">
+      <el-select v-model="selectedOutcrop" placeholder="选择露头" @change="() => onOutcropChange()" size="small">
         <el-option v-for="o in outcrops" :key="o" :label="o" :value="o" />
       </el-select>
       <el-tabs v-model="source" class="modern-tabs compact" @tab-change="onSourceChange">
@@ -155,8 +155,29 @@ onActivated(() => {
   if (!hasInitializedData) {
     hasInitializedData = true
     loadOutcrops()
-  } else if (!cacheStore.isScanValid) {
+    return
+  }
+
+  // 同步路由 query：从处理页"预览数据"跳转时携带新的 outcrop/source
+  const querySource = route.query.source as string | undefined
+  if (querySource && querySource !== source.value) {
+    source.value = querySource
+  }
+  const queryOutcrop = route.query.outcrop as string | undefined
+
+  if (!cacheStore.isScanValid) {
     loadOutcrops(true)
+    return
+  }
+
+  // scan 缓存有效：若 query 指定了新露头则切换,否则刷新当前源
+  if (queryOutcrop && outcrops.value.includes(queryOutcrop) && queryOutcrop !== selectedOutcrop.value) {
+    selectedOutcrop.value = queryOutcrop
+  }
+  if (source.value === 'input') {
+    basicInfo.value = null
+  } else if (selectedOutcrop.value) {
+    onOutcropChange()
   }
 })
 </script>

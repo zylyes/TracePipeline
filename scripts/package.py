@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -31,11 +32,13 @@ STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 DIST_DIR = PROJECT_ROOT / "dist"
 BUILD_DIR = PROJECT_ROOT / "build"
 ICON_FILE = PROJECT_ROOT / "reference" / "ECUT.ico"
-VENV_PYTHON = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
-ISCC_EXE = Path("D:/Inno Setup 6/ISCC.exe")
-ISS_LANG_DIR = Path("D:/Inno Setup 6/Languages")
-SEVEN_ZIP = Path("C:/Program Files/7-Zip/7z.exe")
-SFX_MODULE = Path("C:/Program Files/7-Zip/7z.sfx")
+VENV_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
+_iscc = os.environ.get("ISCC_EXE", "")
+_7z = os.environ.get("SEVEN_ZIP", "")
+ISCC_EXE = Path(_iscc) if _iscc else Path("D:/Inno Setup 6/ISCC.exe")
+ISS_LANG_DIR = ISCC_EXE.parent / "Languages" if _iscc else Path("D:/Inno Setup 6/Languages")
+SEVEN_ZIP = Path(_7z) if _7z else Path("C:/Program Files/7-Zip/7z.exe")
+SFX_MODULE = SEVEN_ZIP.parent / "7z.sfx" if _7z else Path("C:/Program Files/7-Zip/7z.sfx")
 
 # 输出目录名
 APP_NAME = "TracePipeline"
@@ -167,6 +170,8 @@ def check_prerequisites(
     skip_frontend: bool = False,
     skip_installer: bool = False,
     skip_portable: bool = False,
+    iscc_path: Path | None = None,
+    seven_zip_path: Path | None = None,
 ) -> bool:
     """检查打包所需的前置条件。返回 True 表示全部通过。"""
     ok = True
@@ -189,7 +194,7 @@ def check_prerequisites(
         info(f"前端构建产物: {STATIC_DIR}")
 
     # PyInstaller（在 venv 中）
-    pi = PROJECT_ROOT / "venv" / "Scripts" / "pyinstaller.exe"
+    pi = PROJECT_ROOT / ".venv" / "Scripts" / "pyinstaller.exe"
     if not pi.exists():
         error(f"PyInstaller 未安装: {pi}")
         ok = False
@@ -204,20 +209,22 @@ def check_prerequisites(
         info(f"图标: {ICON_FILE} ({format_size(ICON_FILE.stat().st_size)})")
 
     # Inno Setup 6
+    _iscc = iscc_path or ISCC_EXE
     if not skip_installer:
-        if not ISCC_EXE.exists():
-            warn(f"未找到 Inno Setup 6 编译器: {ISCC_EXE}")
+        if not _iscc.exists():
+            warn(f"未找到 Inno Setup 6 编译器: {_iscc}")
         else:
-            info(f"Inno Setup 6: {ISCC_EXE}")
+            info(f"Inno Setup 6: {_iscc}")
 
     # 7-Zip（便捷版需要）
+    _se7z = seven_zip_path or SEVEN_ZIP
     if not skip_portable:
-        if not SEVEN_ZIP.exists():
-            warn(f"未找到 7-Zip: {SEVEN_ZIP}，便捷版将不可用")
-        elif not SFX_MODULE.exists():
-            warn(f"未找到 7-Zip SFX 模块: {SFX_MODULE}，便捷版将不可用")
+        if not _se7z.exists():
+            warn(f"未找到 7-Zip: {_se7z}，便捷版将不可用")
+        elif not (_se7z.parent / "7z.sfx").exists():
+            warn(f"未找到 7-Zip SFX 模块: {_se7z.parent / '7z.sfx'}，便捷版将不可用")
         else:
-            info(f"7-Zip: {SEVEN_ZIP}")
+            info(f"7-Zip: {_se7z}")
 
     return ok
 
@@ -302,9 +309,15 @@ def run_pyinstaller() -> bool:
 # ---------------------------------------------------------------------------
 def generate_iss(version: str) -> Path:
     """生成 Inno Setup 脚本，返回 .iss 文件路径。"""
-    dist_dir_bs = str(DIST_DIR)
-    icon_bs = str(ICON_FILE)
-    lang_bs = str(ISS_LANG_DIR)
+    dist_dir_bs = str(DIST_DIR.resolve())
+    icon_bs = str(ICON_FILE.resolve())
+    # Windows 反斜杠转义给 Inno Setup
+    lang_bs = str(ISS_LANG_DIR.resolve())
+
+    # 语言文件路径：如果自定义 Languages 目录不存在，回退到 compiler: 内置
+    lang_cn = f"{lang_bs}\\ChineseSimplified.isl"
+    if not Path(lang_bs, "ChineseSimplified.isl").exists():
+        lang_cn = "compiler:Languages\\ChineseSimplified.isl"
 
     iss_content = f'''; Inno Setup 6 安装脚本 — TracePipeline
 ; 由 scripts/package.py 自动生成
@@ -329,7 +342,7 @@ UninstallDisplayName=TracePipeline v{version}
 VersionInfoVersion={version}
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "{lang_bs}\\ChineseSimplified.isl"
+Name: "chinesesimplified"; MessagesFile: "{lang_cn}"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
@@ -495,7 +508,27 @@ def main() -> int:
         action="store_true",
         help="仅生成 requirements.txt 后退出",
     )
+    parser.add_argument(
+        "--iscc-path",
+        type=Path,
+        default=None,
+        help="Inno Setup 6 编译器路径（覆盖环境变量 ISCC_EXE）",
+    )
+    parser.add_argument(
+        "--seven-zip-path",
+        type=Path,
+        default=None,
+        help="7-Zip 安装目录（覆盖环境变量 SEVEN_ZIP）",
+    )
     args = parser.parse_args()
+
+    _iscc = args.iscc_path or ISCC_EXE
+    _se7z = args.seven_zip_path or SEVEN_ZIP
+    global ISCC_EXE, ISS_LANG_DIR, SEVEN_ZIP, SFX_MODULE
+    ISCC_EXE = _iscc
+    ISS_LANG_DIR = _iscc.parent / "Languages"
+    SEVEN_ZIP = _se7z
+    SFX_MODULE = _se7z.parent / "7z.sfx"
 
     print(f"\n{CYAN}{'=' * 60}{RESET}")
     print(f"{CYAN}  TracePipeline 应用打包脚本{RESET}")

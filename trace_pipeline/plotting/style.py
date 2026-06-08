@@ -248,7 +248,9 @@ def apply_style_overrides(style: dict[str, Any]) -> Generator[None, None, None]:
                     setattr(mod, attr, style[key])
 
             # 字号覆盖（向后兼容 global_font_size）
-            _font_size = style.get("label_font_size") or style.get("global_font_size")
+            _font_size = style.get("label_font_size")
+            if _font_size is None:
+                _font_size = style.get("global_font_size")
             if _font_size is not None:
                 orig["_rc_font_size"] = matplotlib.rcParams.get("font.size")
                 matplotlib.rcParams["font.size"] = float(_font_size)

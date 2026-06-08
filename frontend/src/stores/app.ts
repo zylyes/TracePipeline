@@ -20,8 +20,8 @@ function saveSettings(data: any) {
 const initial = loadSettings()
 
 export const useAppStore = defineStore('app', () => {
-  const inputDir = ref(initial.inputDir || './input')
-  const outputDir = ref(initial.outputDir || './output')
+  const inputDir = ref(initial.inputDir || 'input')
+  const outputDir = ref(initial.outputDir || 'output')
   const currentPage = ref(initial.currentPage || 'processing')
   const isDevMode = ref(false)
   const lastOperationTime = ref(initial.lastOperationTime || '')

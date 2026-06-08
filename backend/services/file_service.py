@@ -20,7 +20,7 @@ class FileService:
     def __init__(self, input_dir: str = "input") -> None:
         self.input_dir = resolve_path(input_dir)
         self._output_dir = resolve_path("output")
-        self._cache = TTLCache(ttl=3.0)
+        self._cache = TTLCache(ttl=30.0)
         logger.info("FileService 已初始化（带扫描缓存）", extra={"stage": "file_service_init", "scan_ttl": self._cache._ttl})
 
     def scan(self) -> list[dict[str, Any]]:
@@ -37,8 +37,8 @@ class FileService:
         results: list[dict[str, Any]] = []
         for tf in tables:
             outcrop = tf.outcrop
-            has_raw = next(self._output_dir.glob(f"{outcrop}_raw*.png"), None) is not None
-            has_rotated = next(self._output_dir.glob(f"{outcrop}_rotated*.png"), None) is not None
+            has_raw = next(self._output_dir.glob(f"{outcrop}_raw(n=*).png"), None) is not None
+            has_rotated = next(self._output_dir.glob(f"{outcrop}_rotated(strike=*).png"), None) is not None
             status = "completed" if has_raw and has_rotated else "pending"
             results.append({
                 "stem": tf.stem,

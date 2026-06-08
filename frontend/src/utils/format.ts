@@ -1,6 +1,6 @@
 /** 格式化工具 */
 
-export type AreaSourceKey = 'measured' | 'window' | 'window_equivalent' | 'hull' | 'hull_buffered'
+export type AreaSourceKey = 'measured' | 'window' | 'window_equivalent' | 'hull' | 'hull_buffered' | 'unavailable'
 
 const AREA_SOURCE_MAP: Record<string, string> = {
   measured: '实测面积',
@@ -8,6 +8,7 @@ const AREA_SOURCE_MAP: Record<string, string> = {
   window_equivalent: '等效圆窗',
   hull: '凸包',
   hull_buffered: '缓冲凸包',
+  unavailable: '不可用',
 }
 
 export function formatAreaSource(source: string | undefined | null): string {

@@ -9,6 +9,7 @@ from typing import Any
 from trace_pipeline.config import PROJECT_ROOT
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.pipeline import load_trace_data
+from backend.utils.path_utils import validate_outcrop_name
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,10 @@ class ReportService:
 
     def generate(self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]) -> dict[str, Any]:
         """生成报告并返回文件路径。"""
+        try:
+            validate_outcrop_name(outcrop)
+        except ValueError as exc:
+            return {"error": str(exc)}
         import time
         start = time.perf_counter()
 

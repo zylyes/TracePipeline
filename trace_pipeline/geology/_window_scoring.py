@@ -12,8 +12,6 @@ from ._circle_window import _tangent_radius
 from ._stat_types import _EPS, CircleWindowDiagnostic, TraceStatisticsConfig
 from ._window_strategies import compute_circle_windows
 
-__all__: list[str] = []
-
 logger = logging.getLogger(__name__)
 _WINDOW_STRATEGIES = ("tangent", "hybrid", "concentric")
 _AUTO_TIE_TOLERANCE = 0.12

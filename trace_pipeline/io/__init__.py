@@ -4,7 +4,7 @@ from .excel_reader import read_trace_excel
 from .excel_writer import (
     DEFAULT_LAYOUT,
     ExcelLayout,
-    build_excel_sections,
+    build_result_workbook_sections,
     write_excel_multi_sheets,
 )
 
@@ -13,7 +13,7 @@ __all__ = [
     "ExcelLayout",
     "TRACE_SUFFIX",
     "TraceFile",
-    "build_excel_sections",
+    "build_result_workbook_sections",
     "find_trace_tables",
     "read_trace_excel",
     "write_excel_multi_sheets",

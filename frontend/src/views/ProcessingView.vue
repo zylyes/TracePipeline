@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { msg } from '@/utils/message'
 import { Loading, Document, Setting, List } from '@element-plus/icons-vue'
@@ -112,6 +112,7 @@ import { useConfigStore } from '@/stores/config'
 import { useAppStore } from '@/stores/app'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
+import { formatAreaSource } from '@/utils/format'
 import type { TraceFile, PipelineResult } from '@/types'
 
 defineOptions({ name: 'Processing' })
@@ -157,14 +158,6 @@ const logListRef = ref<HTMLDivElement>()
 const MAX_LOGS = 50
 const startTime = ref(0)
 
-const AREA_SOURCE_LABELS: Record<string, string> = {
-  measured: '实测',
-  hull: '凸包',
-  hull_buffered: '缓冲凸包',
-  window_equivalent: '圆窗等效',
-  unavailable: '不可用',
-}
-
 function addLog(type: ProcessLog['type'], message: string) {
   const now = new Date()
   const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
@@ -200,11 +193,11 @@ const modalImages = ref<Array<{ key: string; title: string; src: string }>>([])
 
 async function loadFiles(force = false) {
   try {
-    // 强制刷新时先清除缓存，确保获取最新数据
     if (force) {
       cacheStore.invalidateScan()
     }
-    let data = force ? null : cacheStore.getScan()
+    // 优先使用缓存，但仅当非强制刷新且缓存有效时
+    let data = (!force) ? cacheStore.getScan() : null
     if (!data) {
       data = await api.scan_files(force)
       cacheStore.setScan(data!)
@@ -215,9 +208,14 @@ async function loadFiles(force = false) {
       path: f.path,
       status: f.status === 'completed' ? 'completed' : 'pending',
     })) as TraceFile[]
-  } catch (e) {
-    msg.error('扫描文件失败')
+  } catch (e: any) {
+    const errMsg = e?.message || String(e) || '未知错误'
+    msg.error(`扫描文件失败: ${errMsg}`)
     console.error('[ProcessingView] loadFiles error:', e)
+    // 失败后延迟 1s 自动重试一次
+    setTimeout(() => {
+      loadFiles(true).catch(() => {})
+    }, 1000)
   }
 }
 
@@ -359,111 +357,123 @@ async function startPipeline() {
 }
 
 let pollTimer: number | null = null
-let pollAbortController: AbortController | null = null
+let pollStopped = true
 let pollErrorCount = 0
 const MAX_POLL_ERRORS = 5
 
 function startPolling() {
-  if (pollTimer) clearInterval(pollTimer)
+  stopPolling()
+  pollStopped = false
   pollErrorCount = 0
-  pollAbortController = new AbortController()
-  pollTimer = window.setInterval(async () => {
-    if (pollAbortController?.signal.aborted) return
-    try {
-      const evt = await api.poll_progress()
-      pollErrorCount = 0
-      if (!evt) return
-      switch (evt.type) {
-        case 'start':
-          pipelineStore.progress.total = evt.total
-          addLog('info', `开始处理，共 ${evt.total} 个文件`)
-          currentStatus.value = ''
-          break
-        case 'progress':
-          pipelineStore.progress = {
-            current: evt.current,
-            total: evt.total,
-            filename: evt.filename,
-            message: evt.message,
-          }
-          currentStatus.value = `正在处理：${evt.filename}（${evt.current}/${evt.total}）`
-          break
-        case 'file_complete':
-          pipelineStore.results.push(evt)
-          if (evt.result) {
-            if (evt.result.status === 'success') {
-              let info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 测线走向=${evt.result.scanline_azimuth.toFixed(1)}°, 采用策略=${AREA_SOURCE_LABELS[evt.result.area_source] || evt.result.area_source || 'unavailable'}`
-              if (params.value.enable_node_recognition && evt.result.node_count != null) {
-                info += `, 节点=${evt.result.node_count}(X${evt.result.node_x_count ?? 0}/Y${evt.result.node_y_count ?? 0}/I${evt.result.node_i_count ?? 0})`
-              }
-              addLog('success', info)
-            } else {
-              const errType = evt.result.error_type || ''
-              let errHint = ''
-              if (errType === 'PermissionError') {
-                errHint = '文件被占用或权限不足，请关闭已打开的输出文件（如 Excel/WPS）后重试'
-              } else if (errType === 'FileNotFoundError') {
-                errHint = '输入文件不存在，请检查文件路径'
-              }
-              const errDetail = errHint ? `${errHint}` : (evt.result.error || '未知错误')
-              addLog('error', `${evt.result.outcrop} 处理失败：${errDetail}`)
-              if (errType === 'PermissionError') {
-                msg.warning(`${evt.result.outcrop} 处理失败：${errHint}`, 3000)
-              } else if (errType === 'FileNotFoundError') {
-                msg.warning(`${evt.result.outcrop} 处理失败：${errHint}`, 3000)
-              }
-            }
-            const fileIdx = files.value.findIndex((f) => f.outcrop === evt.result.outcrop)
-            if (fileIdx >= 0) {
-              files.value[fileIdx].status = evt.result.status === 'success' ? 'completed' : 'error'
-            }
-          }
-          appStore.updateLastOperation(`${evt.filename} 完成`)
-          break
-        case 'complete': {
-          const duration = ((Date.now() - startTime.value) / 1000).toFixed(1)
-          pipelineStore.running = false
-          appStore.pipelineStatus = 'completed'
-          stopPolling()
-          addLog('success', `全部处理完成 — 总耗时 ${duration}s`)
-          currentStatus.value = ''
-          msg.success(`处理完成（${duration}s）`)
-          appStore.updateLastOperation('处理完成')
-          // 处理完成后使所有数据缓存失效，确保其他页面刷新时获取最新结果
-          cacheStore.invalidateAll()
-          loadFiles(true)
-          break
-        }
-        case 'error': {
-          const duration = ((Date.now() - startTime.value) / 1000).toFixed(1)
-          pipelineStore.running = false
-          appStore.pipelineStatus = 'error'
-          stopPolling()
-          addLog('error', `处理出错：${evt.message || '未知错误'} — 已运行 ${duration}s`)
-          currentStatus.value = ''
-          msg.error(evt.message)
-          appStore.updateLastOperation('处理出错')
-          break
-        }
-      }
-    } catch (e) {
-      pollErrorCount++
-      if (pollErrorCount >= MAX_POLL_ERRORS) {
-        stopPolling()
-        pipelineStore.running = false
-        appStore.pipelineStatus = 'error'
-        addLog('error', `轮询失败（连续 ${MAX_POLL_ERRORS} 次），已停止`)
-        msg.error('与后端通信失败，请检查后端是否仍在运行')
-      }
+  scheduleNextPoll(0)
+}
+
+function scheduleNextPoll(delay: number) {
+  if (pollStopped) return
+  pollTimer = window.setTimeout(runPollTick, delay)
+}
+
+async function runPollTick() {
+  if (pollStopped) return
+  try {
+    const evt = await api.poll_progress()
+    pollErrorCount = 0
+    if (!pollStopped && evt) handlePollEvent(evt)
+  } catch (e) {
+    pollErrorCount++
+    if (pollErrorCount >= MAX_POLL_ERRORS) {
+      stopPolling()
+      pipelineStore.running = false
+      appStore.pipelineStatus = 'error'
+      addLog('error', `轮询失败（连续 ${MAX_POLL_ERRORS} 次），已停止`)
+      msg.error('与后端通信失败，请检查后端是否仍在运行')
+      return
     }
-  }, POLL_INTERVAL)
+  }
+  // 仅在上一次请求完成后才调度下一次,避免并发在途请求
+  scheduleNextPoll(POLL_INTERVAL)
+}
+
+function handlePollEvent(evt: any) {
+  switch (evt.type) {
+    case 'start':
+      pipelineStore.progress.total = evt.total
+      addLog('info', `开始处理，共 ${evt.total} 个文件`)
+      currentStatus.value = ''
+      break
+    case 'progress':
+      pipelineStore.progress = {
+        current: evt.current,
+        total: evt.total,
+        filename: evt.filename,
+        message: evt.message,
+      }
+      currentStatus.value = `正在处理：${evt.filename}（${evt.current}/${evt.total}）`
+      break
+    case 'file_complete':
+      if (evt.result) pipelineStore.results.push(evt.result)
+      if (evt.result) {
+        if (evt.result.status === 'success') {
+          let info = `${evt.result.outcrop} 处理完成 — 迹线数=${evt.result.trace_count}, 测线走向=${evt.result.scanline_azimuth.toFixed(1)}°, 采用策略=${formatAreaSource(evt.result.area_source)}`
+          if (params.value.enable_node_recognition && evt.result.node_count != null) {
+            info += `, 节点=${evt.result.node_count}(X${evt.result.node_x_count ?? 0}/Y${evt.result.node_y_count ?? 0}/I${evt.result.node_i_count ?? 0})`
+          }
+          addLog('success', info)
+        } else {
+          const errType = evt.result.error_type || ''
+          let errHint = ''
+          if (errType === 'PermissionError') {
+            errHint = '文件被占用或权限不足，请关闭已打开的输出文件（如 Excel/WPS）后重试'
+          } else if (errType === 'FileNotFoundError') {
+            errHint = '输入文件不存在，请检查文件路径'
+          }
+          const errDetail = errHint ? `${errHint}` : (evt.result.error || '未知错误')
+          addLog('error', `${evt.result.outcrop} 处理失败：${errDetail}`)
+          if (errType === 'PermissionError') {
+            msg.warning(`${evt.result.outcrop} 处理失败：${errHint}`, 3000)
+          } else if (errType === 'FileNotFoundError') {
+            msg.warning(`${evt.result.outcrop} 处理失败：${errHint}`, 3000)
+          }
+        }
+        const fileIdx = files.value.findIndex((f) => f.outcrop === evt.result.outcrop)
+        if (fileIdx >= 0) {
+          files.value[fileIdx].status = evt.result.status === 'success' ? 'completed' : 'error'
+        }
+      }
+      appStore.updateLastOperation(`${evt.filename} 完成`)
+      break
+    case 'complete': {
+      const duration = ((Date.now() - startTime.value) / 1000).toFixed(1)
+      pipelineStore.running = false
+      appStore.pipelineStatus = 'completed'
+      stopPolling()
+      addLog('success', `全部处理完成 — 总耗时 ${duration}s`)
+      currentStatus.value = ''
+      msg.success(`处理完成（${duration}s）`)
+      appStore.updateLastOperation('处理完成')
+      // 处理完成后使所有数据缓存失效，确保其他页面刷新时获取最新结果
+      cacheStore.invalidateAll()
+      loadFiles(true)
+      break
+    }
+    case 'error': {
+      const duration = ((Date.now() - startTime.value) / 1000).toFixed(1)
+      pipelineStore.running = false
+      appStore.pipelineStatus = 'error'
+      stopPolling()
+      addLog('error', `处理出错：${evt.message || '未知错误'} — 已运行 ${duration}s`)
+      currentStatus.value = ''
+      msg.error(evt.message)
+      appStore.updateLastOperation('处理出错')
+      break
+    }
+  }
 }
 
 function stopPolling() {
-  pollAbortController?.abort()
-  pollAbortController = null
+  pollStopped = true
   if (pollTimer) {
-    clearInterval(pollTimer)
+    clearTimeout(pollTimer)
     pollTimer = null
   }
 }
@@ -498,7 +508,19 @@ onMounted(async () => {
   // 将当前参数同步到 pipelineStore，确保 UI 显隐与设置一致
   pipelineStore.setLastRunConfig(params.value.enable_node_recognition, params.value.export_rose_plot)
 
-  await loadFiles()
+  await loadFiles(true)
+})
+
+// KeepAlive 激活时强制刷新文件列表，确保切换回来时显示最新状态
+onActivated(() => {
+  loadFiles(true).catch(() => {})
+})
+
+// 监听 files 为空时自动重试（兜底：处理 KeepAlive 复用时缓存过期的情况）
+watch(() => files.value.length, (len) => {
+  if (len === 0 && !pipelineStore.running) {
+    loadFiles(false).catch(() => {})
+  }
 })
 
 onUnmounted(() => {

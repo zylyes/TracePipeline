@@ -459,9 +459,13 @@ const bootSteps: BootStep[] = [
   },
   {
     label: '正在扫描工作目录...',
-    targetProgress: 60,
+    targetProgress: 65,
     task: async () => {
-      const files = await api.scan_files()
+      // 确保后端缓存失效，扫描最新文件列表
+      const files = await api.scan_files(true)
+      if (!files || files.length === 0) {
+        throw new Error('未发现迹线表文件，请检查 input 目录')
+      }
       cacheStore.setScan(files)
     }
   },

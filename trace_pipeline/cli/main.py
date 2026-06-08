@@ -12,11 +12,9 @@ from .dispatcher import decide_targets, execute_targets
 from .interactive import select_targets_interactive
 from .logging_setup import setup_logging
 from ..models import PipelineStatus
+from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 
 __all__ = ["main"]
-
-
-from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 
 
 def _init_plotting() -> None:

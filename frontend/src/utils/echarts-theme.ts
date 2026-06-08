@@ -77,6 +77,18 @@ export function getChartColors(): string[] {
   return [...CHART_COLORS]
 }
 
+/**
+ * 读取单个 CSS 变量的实际值(供 ECharts Canvas 使用)。
+ * ECharts Canvas 渲染器不识别 `var(--x)` 字符串,必须解析为具体色值。
+ */
+export function cssVar(name: string): string | undefined {
+  try {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const CHART_COLOR_PRIMARY = CHART_COLORS[0]
 export const CHART_COLOR_SECONDARY = CHART_COLORS[1]
 export const CHART_COLOR_TERTIARY = CHART_COLORS[2]

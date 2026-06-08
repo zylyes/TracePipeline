@@ -17,6 +17,6 @@ def find_output_images(out_dir: Path, outcrop: str) -> dict[str, Path | None]:
         包含 "raw" / "rotated" / "rose" 键的字典，值为 Path 或 None。
     """
     raw = next((p for p in out_dir.glob(f"{outcrop}_raw*.png")), None)
-    rotated = next((p for p in out_dir.glob(f"{outcrop}_rotated(strike=*.png")), None)
-    rose = next((p for p in out_dir.glob(f"{outcrop}_rose(bin=*.png")), None)
+    rotated = next((p for p in out_dir.glob(f"{outcrop}_rotated(strike=*).png")), None)
+    rose = next((p for p in out_dir.glob(f"{outcrop}_rose(bin=*).png")), None)
     return {"raw": raw, "rotated": rotated, "rose": rose}

@@ -5,46 +5,26 @@ import logging
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
-from matplotlib.patches import Circle, Polygon, Rectangle
+from matplotlib.patches import Circle, Polygon
 
 from ._helpers import new_figure, save_figure, add_data_north_arrow, compute_data_bounds
 from .style import configure_style, text_font_kwargs
 from ._layout import (
-    _ANNOTATION_LINE_WIDTH,
-    _ANNOTATION_ZORDER,
     _MIN_DATA_SPAN,
     _TRACE_AXES_BOUNDS,
-    _FRAME_BOTTOM,
-    _FRAME_LEFT,
-    _FRAME_WIDTH,
-    _STATS_W,
-    _STATS_H,
-    _LEGEND_W,
-    _LEGEND_BOTTOM_MARGIN,
-    _HARD_GAP,
-    _SINGLE_FRAME_TOP,
-    _DOUBLE_FRAME_TOP,
-    _STATS_AXES_BOUNDS,
-    _SCALE_AXES_BOUNDS,
     _choose_scale_length,
-    _format_scale_label,
+    _draw_scale_bar,
+    _render_legend,
     _add_scale_bar_band,
-    _add_north_arrow,
-    _style_trace_axes,
     _style_trace_data_axes,
     _resolve_layout,
     _add_outer_frame,
     _blank_panel_axes,
-    _compact_statistics_label,
-    _mathtext_units,
-    _split_statistics_line,
-    _statistics_font_size,
     _add_statistics_box,
     _resolve_node_style,
-    _NODE_STYLE_PRESETS,
 )
 
 logger = logging.getLogger(__name__)
@@ -296,41 +276,7 @@ def _add_scale_bar(
         y = data_y
     tick = min(layout.bottom_pad * _DEFAULT_LAYOUT.tick_pad_ratio, layout.base_span * _DEFAULT_LAYOUT.tick_base_ratio)
 
-    ax.plot(
-        [x0, x1],
-        [y, y],
-        color="black",
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        solid_capstyle="butt",
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.plot(
-        [x0, x0],
-        [y - tick, y + tick],
-        color="black",
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.plot(
-        [x1, x1],
-        [y - tick, y + tick],
-        color="black",
-        linewidth=_ANNOTATION_LINE_WIDTH,
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.text(
-        (x0 + x1) / 2.0,
-        y - tick * 1.45,
-        _format_scale_label(layout.scale_length),
-        ha="center",
-        va="top",
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=7.2, color="black"),
-    )
+    _draw_scale_bar(ax, x0, x1, y, tick, layout.scale_length, label_offset_ratio=1.45)
 
 
 def _add_circle_window_overlays(
@@ -370,12 +316,6 @@ def _add_convex_hull_overlay(ax: plt.Axes, hull_overlay: ConvexHullOverlay) -> N
     ax.add_patch(patch)
 
 
-_NODE_MARKER_STYLE: dict[str, dict[str, object]] = {
-    "I": {"marker": "o", "markerfacecolor": "#4CAF50", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "Y": {"marker": "^", "markerfacecolor": "#F44336", "markeredgecolor": "black", "markeredgewidth": 0.8},
-    "X": {"marker": "X", "markerfacecolor": "#2196F3", "markeredgecolor": "black", "markeredgewidth": 0.8},
-}
-
 def _add_node_overlays(
     ax: plt.Axes,
     node_overlays: Sequence[NodeOverlay],
@@ -406,10 +346,6 @@ def _add_legend(
     node_overlays: Sequence[NodeOverlay] | None = None,
 ) -> None:
     """绘制自适应图例。"""
-    ax.set_xlim(0.0, 1.0)
-    ax.set_ylim(0.0, 1.0)
-    ax.set_axis_off()
-
     items: list[tuple[str, str]] = [("trace", "迹线")]
     if has_hull and area_source == "hull":
         items.append(("hull", "面积: 凸包"))
@@ -434,111 +370,26 @@ def _add_legend(
             if key in type_counts:
                 items.append((f"node_{key}", f"{type_labels[key]} — {type_counts[key]}"))
 
-    # 自适应图例框高度（与 preview_plot.py 一致）
-    row_spacing = 0.18
-    top_margin = 0.06
-    bottom_margin = 0.06
-    n_items = len(items)
-    box_height = min(top_margin + n_items * row_spacing + bottom_margin, 0.94)
-    box_bottom = 0.04  # 贴底部上方，留 4% 余量
-
-    ax.add_patch(
-        Rectangle(
-            (0.02, box_bottom),
-            0.96,
-            box_height,
-            facecolor="white",
-            edgecolor="0.68",
-            linewidth=0.6,
-            alpha=0.94,
-            transform=ax.transAxes,
-            clip_on=True,
-            zorder=_ANNOTATION_ZORDER,
-        )
+    styles = {
+        "trace_color": _TRACE_LINE_COLOR,
+        "trace_width": _TRACE_LINE_WIDTH,
+        "hull_fill": _HULL_FILL_COLOR,
+        "hull_alpha": _HULL_FILL_ALPHA,
+        "hull_edge": _HULL_LINE_COLOR,
+        "hull_lw": _HULL_LINE_WIDTH,
+        "hull_ls": _HULL_LINE_STYLE,
+        "circle_fill": _CIRCLE_WINDOW_FILL_COLOR,
+        "circle_alpha": _CIRCLE_WINDOW_FILL_ALPHA,
+        "circle_edge": _CIRCLE_WINDOW_LINE_COLOR,
+        "circle_lw": _CIRCLE_WINDOW_LINE_WIDTH,
+        "circle_ls": _CIRCLE_WINDOW_LINE_STYLE,
+        "node_style": _resolve_node_style({}),
+    }
+    _render_legend(
+        ax, items, styles,
+        row_spacing=0.18, top_margin=0.06, bottom_margin=0.06,
+        box_height_cap=0.94, box_bottom=0.04, first_row_offset=0.08,
     )
-
-    first_row_y = box_bottom + box_height - top_margin - 0.08
-    y_positions = tuple(first_row_y - i * row_spacing for i in range(n_items))
-    icon_h = 0.12
-    icon_half = icon_h / 2.0
-    for (kind, label), y in zip(items, y_positions, strict=False):
-        if kind == "trace":
-            ax.plot(
-                [0.08, 0.24],
-                [y, y],
-                color=_TRACE_LINE_COLOR,
-                linewidth=_TRACE_LINE_WIDTH,
-                transform=ax.transAxes,
-                clip_on=True,
-                zorder=_ANNOTATION_ZORDER + 1,
-            )
-        elif kind == "hull":
-            ax.add_patch(
-                Rectangle(
-                    (0.08, y - icon_half),
-                    0.16,
-                    icon_h,
-                    facecolor=_HULL_FILL_COLOR,
-                    alpha=_HULL_FILL_ALPHA,
-                    edgecolor=_HULL_LINE_COLOR,
-                    linewidth=_HULL_LINE_WIDTH,
-                    linestyle=_HULL_LINE_STYLE,
-                    transform=ax.transAxes,
-                    clip_on=True,
-                    zorder=_ANNOTATION_ZORDER + 1,
-                )
-            )
-        elif kind == "circle":
-            ax.add_patch(
-                Rectangle(
-                    (0.08, y - icon_half),
-                    0.16,
-                    icon_h,
-                    facecolor=_CIRCLE_WINDOW_FILL_COLOR,
-                    alpha=_CIRCLE_WINDOW_FILL_ALPHA,
-                    edgecolor=_CIRCLE_WINDOW_LINE_COLOR,
-                    linewidth=_CIRCLE_WINDOW_LINE_WIDTH,
-                    linestyle=_CIRCLE_WINDOW_LINE_STYLE,
-                    transform=ax.transAxes,
-                    clip_on=True,
-                    zorder=_ANNOTATION_ZORDER + 1,
-                )
-            )
-        elif kind.startswith("node_"):
-            node_type = kind.replace("node_", "")
-            node_ms = _resolve_node_style({})
-            ms = node_ms.get(node_type, node_ms["I"])
-            ax.plot(
-                0.16,
-                y,
-                linestyle="none",
-                markersize=3.5,
-                transform=ax.transAxes,
-                clip_on=True,
-                zorder=_ANNOTATION_ZORDER + 1,
-                **ms,
-            )
-        else:
-            ax.plot(
-                [0.08, 0.24],
-                [y, y],
-                color="0.55",
-                linewidth=0.65,
-                transform=ax.transAxes,
-                clip_on=True,
-                zorder=_ANNOTATION_ZORDER + 1,
-            )
-        ax.text(
-            0.31,
-            y,
-            label,
-            ha="left",
-            va="center",
-            transform=ax.transAxes,
-            clip_on=True,
-            zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=5.8, color="black"),
-        )
 
 
 def _compute_adaptive_figsize(layout: _DecorationLayout) -> tuple[float, float]:

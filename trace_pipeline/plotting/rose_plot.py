@@ -9,7 +9,7 @@ import numpy as np
 
 from ..geology.angles import fold_strikes_to_semicircle
 from ._helpers import new_figure, save_figure
-from .style import apply_axis_text_fonts, configure_style, text_font_kwargs
+from .style import apply_axis_text_fonts, configure_style, heading_font_kwargs
 
 if TYPE_CHECKING:
     from matplotlib.projections.polar import PolarAxes
@@ -135,5 +135,5 @@ def render_rose_plot(
         bar_edge=_ROSE_BAR_EDGE,
         grid_color=_ROSE_GRID_COLOR,
     )
-    fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold"))
+    fig.suptitle(title, y=0.03, **heading_font_kwargs(fontsize=10.8, fontweight="bold"))
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)

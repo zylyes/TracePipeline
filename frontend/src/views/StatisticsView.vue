@@ -18,6 +18,11 @@
       class="stats-warning"
     />
 
+    <div v-if="statsLoading" class="stats-loading-strip">
+      <span class="tp-loading-orbit"></span>
+      <span>正在刷新统计图表与结果图索引</span>
+    </div>
+
     <StatCards :stats="stats" :show-nodes="pipelineStore.lastEnableNodeRecognition" />
 
     <div class="charts-row">
@@ -26,7 +31,7 @@
     </div>
 
     <!-- 三图切换展示区 -->
-    <div class="images-panel tp-card">
+    <div class="images-panel tp-card tp-neon-edge" v-loading="statsLoading" element-loading-text="正在载入结果图">
       <div class="images-header">
         <div class="images-header-left">
           <div class="images-icon">
@@ -103,6 +108,7 @@ const cacheStore = useCacheStore()
 const outcrops = ref<string[]>([])
 const selectedOutcrop = ref('')
 const stats = ref<any>({})
+const statsLoading = ref(false)
 
 const alertType = computed<'success' | 'warning' | 'error'>(() => {
   const source = stats.value?.area_source
@@ -174,6 +180,7 @@ async function loadStats(force = false) {
     return
   }
   isLoadingStats = true
+  statsLoading.value = true
   stats.value = {}
   rawImageUrl.value = ''
   rotatedImageUrl.value = ''
@@ -213,6 +220,7 @@ async function loadStats(force = false) {
     msg.error('加载统计失败')
   } finally {
     isLoadingStats = false
+    statsLoading.value = false
   }
 }
 
@@ -330,6 +338,34 @@ onActivated(() => {
   border-radius: var(--tp-radius-md);
 }
 
+.stats-loading-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--tp-space-3);
+  margin-bottom: var(--tp-space-4);
+  padding: 10px 14px;
+  border-radius: var(--tp-radius-lg);
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  color: var(--tp-brand-accent);
+  font-family: var(--tp-font-heading);
+  font-size: 13px;
+  box-shadow: var(--tp-glow-cyan-sm);
+}
+
+.stats-loading-strip .tp-loading-orbit {
+  width: 22px;
+  height: 22px;
+}
+
+.stats-loading-strip .tp-loading-orbit::before {
+  inset: 3px;
+}
+
+.stats-loading-strip .tp-loading-orbit::after {
+  inset: 8px;
+}
+
 /* ── 图片展示区 ── */
 .images-panel {
   padding: var(--tp-space-4) var(--tp-space-5);
@@ -413,7 +449,11 @@ onActivated(() => {
   justify-content: center;
   align-items: center;
   min-height: 300px;
-  background: var(--tp-bg-sunken);
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.035) 1px, transparent 1px),
+    var(--tp-bg-sunken);
+  background-size: 24px 24px;
   border-radius: var(--tp-radius-md);
   overflow: hidden;
   border: 1px solid var(--tp-border-light);
@@ -428,6 +468,7 @@ onActivated(() => {
 }
 
 .plot-img:hover {
-  transform: scale(1.01);
+  transform: scale(1.012);
+  filter: drop-shadow(0 8px 24px rgba(26, 54, 93, 0.16));
 }
 </style>

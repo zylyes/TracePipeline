@@ -1,5 +1,5 @@
 <template>
-  <div class="config-form tp-card">
+  <div class="config-form tp-card tp-neon-edge">
     <el-form :model="form" label-width="100px" size="small">
       <div class="form-section">
         <h3 class="section-title">
@@ -288,6 +288,17 @@ async function browse(type: string) {
   margin: 0 0 var(--tp-space-3);
   padding-bottom: var(--tp-space-2);
   border-bottom: 1px solid var(--tp-border-light);
+  position: relative;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 96px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--tp-brand-accent-light), transparent);
 }
 
 .section-icon {
@@ -338,15 +349,16 @@ async function browse(type: string) {
   align-items: center;
   gap: 6px;
   padding: 10px 4px;
-  background: var(--tp-bg-sunken);
+  background: rgba(238, 240, 244, 0.76);
   border-radius: var(--tp-radius-md);
   border: 1px solid var(--tp-border-light);
   transition: all var(--tp-duration-normal);
 }
 
 .color-picker-item:hover {
-  background: var(--tp-bg-hover);
-  box-shadow: var(--tp-shadow-sm);
+  background: rgba(232, 236, 241, 0.92);
+  box-shadow: var(--tp-shadow-sm), var(--tp-glow-cyan-sm);
+  transform: translateY(-1px);
 }
 
 .color-label {

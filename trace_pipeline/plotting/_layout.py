@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 from matplotlib.patches import Rectangle
 
 from ._helpers import _north_arrow_geometry
-from .style import text_font_kwargs
+from .style import body_font_kwargs, heading_font_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -323,7 +323,7 @@ def _add_statistics_box(
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER + 1,
-        **text_font_kwargs(fontsize=7.2, fontweight="bold", color="black"),
+        **heading_font_kwargs(fontsize=7.2, fontweight="bold", color="black"),
     )
     ax.plot(
         [x_label, x_value],
@@ -345,7 +345,7 @@ def _add_statistics_box(
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=font_size, color="0.20"),
+            **body_font_kwargs(fontsize=font_size, color="0.20"),
         )
         ax.text(
             x_value,
@@ -356,7 +356,7 @@ def _add_statistics_box(
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=font_size, color="black"),
+            **body_font_kwargs(fontsize=font_size, color="black"),
         )
 
 
@@ -495,7 +495,7 @@ def _add_north_arrow(
         transform=ax.transAxes,
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
+        **heading_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
     )
 
 
@@ -622,7 +622,7 @@ def _render_legend(
             transform=ax.transAxes,
             clip_on=True,
             zorder=_ANNOTATION_ZORDER + 1,
-            **text_font_kwargs(fontsize=5.8, color="black"),
+            **body_font_kwargs(fontsize=5.8, color="black"),
         )
 
 
@@ -674,7 +674,7 @@ def _draw_scale_bar(
         va="top",
         clip_on=True,
         zorder=_ANNOTATION_ZORDER,
-        **text_font_kwargs(fontsize=7.2, color="black"),
+        **body_font_kwargs(fontsize=7.2, color="black"),
     )
 
 

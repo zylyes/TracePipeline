@@ -1,8 +1,8 @@
 <template>
-  <div class="dev-panel">
+  <div class="dev-panel tp-neon-edge">
     <el-collapse v-model="activeNames" @change="onCollapseChange">
       <el-collapse-item title="毕设报告导出" name="report">
-        <div v-loading="loading.report" class="report-form">
+        <div v-loading="loading.report" element-loading-text="正在读取已完成露头" class="report-form">
           <el-form label-width="80px" size="small">
             <el-row :gutter="16">
               <el-col :span="12">
@@ -69,7 +69,7 @@
       </el-collapse-item>
 
       <el-collapse-item title="操作审计日志" name="audit">
-        <div class="audit-scroll-container" v-loading="loading.audit">
+        <div class="audit-scroll-container" v-loading="loading.audit" element-loading-text="正在加载审计记录">
           <div class="audit-list">
             <div
               v-for="item in auditLogs"
@@ -99,7 +99,7 @@
           </el-select>
           <el-button size="small" @click="loadBackendLogs">刷新</el-button>
         </div>
-        <div class="backend-log-content" v-loading="backendLogLoading">
+        <div class="backend-log-content" v-loading="backendLogLoading" element-loading-text="正在读取后端日志">
           <pre v-if="backendLogs.length">{{ backendLogs.join('\n') }}</pre>
           <el-empty v-else description="暂无日志" />
         </div>
@@ -404,11 +404,11 @@ onActivated(() => {
 
 <style scoped lang="scss">
 .dev-panel {
-  background: var(--tp-bg-card);
+  background: var(--tp-surface-cyber);
   border-radius: var(--tp-radius-lg);
   padding: var(--tp-space-4) var(--tp-space-5);
-  box-shadow: var(--tp-shadow-md);
-  border: 1px solid var(--tp-border-light);
+  box-shadow: var(--tp-shadow-md), inset 0 1px 0 rgba(255,255,255,0.72);
+  border: 1px solid rgba(125, 211, 252, 0.18);
   margin-top: var(--tp-space-4);
 }
 :deep(.el-collapse) {
@@ -445,7 +445,11 @@ onActivated(() => {
   align-items: center;
 }
 .backend-log-content {
-  background: var(--tp-bg-sunken);
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.03) 1px, transparent 1px),
+    var(--tp-bg-sunken);
+  background-size: 24px 24px;
   border: 1px solid var(--tp-border-light);
   border-radius: var(--tp-radius-sm);
   padding: var(--tp-space-3);
@@ -483,10 +487,14 @@ onActivated(() => {
   gap: var(--tp-space-3);
   padding: var(--tp-space-2) var(--tp-space-3);
   border-radius: var(--tp-radius-xs);
-  background: var(--tp-bg-sunken);
+  background: rgba(238, 240, 244, 0.74);
   border: 1px solid var(--tp-border-light);
   font-size: 13px;
   line-height: 1.6;
+}
+.audit-item:hover {
+  border-color: rgba(56, 189, 248, 0.20);
+  box-shadow: var(--tp-glow-cyan-sm);
 }
 .audit-time {
   color: var(--tp-text-muted);

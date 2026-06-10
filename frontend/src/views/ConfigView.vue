@@ -5,7 +5,7 @@
     <StylePreview :style-config="styleConfig" :preview-trigger="previewTrigger" @save-style="saveStyleConfig" @reset-style="resetStyleConfig" />
     <DevPanel v-show="appStore.isDevMode" @saved="loadConfig" @reset="loadConfig" />
 
-    <div class="action-bar tp-card">
+    <div class="action-bar tp-card tp-neon-edge">
       <div class="action-group primary">
         <el-button :icon="Refresh" @click="reloadConfig" size="small">重新加载配置</el-button>
         <el-button :icon="Upload" @click="triggerImportJSON" size="small">导入 JSON</el-button>

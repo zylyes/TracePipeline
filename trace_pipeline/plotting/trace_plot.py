@@ -26,7 +26,7 @@ from ._layout import (
     _resolve_node_style,
     _style_trace_data_axes,
 )
-from .style import configure_style, text_font_kwargs
+from .style import configure_style, heading_font_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -566,6 +566,6 @@ def render_trace_plot(
         stats_ax = _blank_panel_axes(fig, layout_bounds["trace_statistics"], "trace_statistics")
         _add_statistics_box(stats_ax, statistics_lines, rect=(0.02, 0.02, 0.98, 0.98))
 
-        fig.suptitle(title, y=0.03, **text_font_kwargs(fontsize=10.4, fontweight="bold"))
+        fig.suptitle(title, y=0.03, **heading_font_kwargs(fontsize=10.4, fontweight="bold"))
 
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08, bbox_inches="tight")

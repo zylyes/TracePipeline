@@ -25,14 +25,13 @@
   /* 中文正文：宋体体系严格优先（Windows → macOS → Linux → 通用衬线） */
   --tp-font-body-zh: "SimSun", "STSong", "Songti SC", "NSimSun", "WenQuanYi Micro Song", "Noto Serif CJK SC", "Source Han Serif SC", serif;
 
-  /* 等宽：用于代码、日志、时间戳（Windows → macOS → Linux → 通用等宽） */
-  --tp-font-mono: "Consolas", "SF Mono", "Monaco", "Courier New", "Liberation Mono", "Lucida Console", "DejaVu Sans Mono", monospace;
-
   /* 组合栈：Times New Roman 优先确保英文/数字走 TNR，中文自动回退至黑体/宋体 */
   --tp-font-heading: var(--tp-font-latin), var(--tp-font-heading-zh);
   --tp-font-body: var(--tp-font-latin), var(--tp-font-body-zh);
   /* 数据栈：Times New Roman 优先确保数字/英文统一，中文回退至宋体 */
   --tp-font-data: var(--tp-font-latin), var(--tp-font-body-zh);
+  /* 日志/时间戳也遵循统一字体规范，避免程序内局部等宽字体割裂 */
+  --tp-font-mono: var(--tp-font-data);
 }
 
 /* ── 全局基础排版 ───────────────────────────── */
@@ -42,7 +41,9 @@ html {
   -webkit-font-smoothing: auto;
 }
 
-body {
+body,
+#app,
+.el-config-provider {
   font-family: var(--tp-font-body);
   font-size: 16px;
   line-height: 1.6;
@@ -52,7 +53,7 @@ body {
      改用 optimizeSpeed + 手动字距控制以兼顾渲染质量与性能 */
   text-rendering: optimizeSpeed;
   /* 中英文混排基线对齐：统一字距，避免 CJK 与 Latin 间距不均 */
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   /* CJK 标点压缩：允许中文标点在行首/行尾自动调整 */
   -webkit-text-spacing: auto;
 }
@@ -60,6 +61,10 @@ body {
 /* ── 标题层级：中文黑体 ─────────────────────── */
 h1, h2, h3, h4, h5, h6,
 .tp-title, .tp-heading,
+.page-title, .section-title, .panel-title, .card-title,
+.module-name, .chart-header h3, .images-panel-header h3,
+.el-card__header, .native-table th,
+caption, th, legend,
 .el-dialog__title,
 .el-drawer__title {
   font-family: var(--tp-font-heading);
@@ -74,7 +79,7 @@ h3 { font-size: 19px; }
 h4 { font-size: 16px; }
 
 /* ── 正文：Times New Roman 优先，中文自动回退宋体 ────── */
-p, span, div, li, td, th, label,
+p, span, div, li, td, label,
 .tp-body, .tp-text {
   font-family: var(--tp-font-body);
 }
@@ -251,7 +256,7 @@ canvas {
 /* 宽松排版：适用于段落、说明文字 */
 .tp-relaxed-text {
   line-height: 1.75;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 

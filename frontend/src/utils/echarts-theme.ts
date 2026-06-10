@@ -111,25 +111,25 @@ export function baseAxisLabelStyle() {
 export function baseTooltipStyle() {
   const font = getEchartsFontFamily()
   return {
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderColor: '#E2E8F0',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: 'rgba(56,189,248,0.28)',
     borderWidth: 1,
     textStyle: { fontFamily: font, fontSize: 12, color: '#1A202C' },
-    extraCssText: 'border-radius:10px;box-shadow:0 12px 24px rgba(0,0,0,0.06);backdrop-filter:blur(8px);',
+    extraCssText: 'border-radius:12px;box-shadow:0 16px 32px rgba(26,54,93,0.12),0 0 24px rgba(56,189,248,0.16);backdrop-filter:blur(10px) saturate(1.12);',
   }
 }
 
 export function baseAnimationConfig() {
   return {
-    animationDuration: 800,
-    animationEasing: 'cubicOut' as const,
-    animationDurationUpdate: 500,
+    animationDuration: 900,
+    animationEasing: 'quarticOut' as const,
+    animationDurationUpdate: 520,
     animationEasingUpdate: 'cubicInOut' as const,
   }
 }
 
 export function baseSeriesAnimation() {
   return {
-    animationDelay: (idx: number) => idx * 50,
+    animationDelay: (idx: number) => idx * 45,
   }
 }

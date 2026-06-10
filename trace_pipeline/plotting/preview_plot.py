@@ -29,7 +29,7 @@ from ._layout import (
     _style_trace_data_axes,
 )
 from .rose_plot import _compute_rose_histogram, _draw_rose_axes
-from .style import configure_style, text_font_kwargs
+from .style import configure_style, heading_font_kwargs
 from .trace_plot import segments_to_xy
 
 logger = logging.getLogger(__name__)
@@ -442,7 +442,7 @@ def render_preview_trace(
     _add_statistics_box(stats_ax, data.stats_lines)
 
     fig.suptitle(
-        title, y=0.03, **text_font_kwargs(fontsize=float(title_font_size), fontweight="bold")
+        title, y=0.03, **heading_font_kwargs(fontsize=float(title_font_size), fontweight="bold")
     )
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08, bbox_inches="tight")
 
@@ -484,7 +484,9 @@ def render_preview_rose(
         grid_color=rose_grid_color,
     )
     fig.suptitle(
-        "产状玫瑰花瓣图（预览）", y=0.03, **text_font_kwargs(fontsize=10.8, fontweight="bold")
+        "产状玫瑰花瓣图（预览）",
+        y=0.03,
+        **heading_font_kwargs(fontsize=10.8, fontweight="bold"),
     )
     return save_figure(fig, output_dir, filename, dpi=dpi, pad_inches=0.08)
 

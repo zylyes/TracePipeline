@@ -74,16 +74,18 @@ def _is_summary_section(section: ExcelSection) -> bool:
     return section.title in _SUMMARY_TITLES
 
 
-_CJK_FONT = "SimSun"
+_CJK_BODY_FONT = "SimSun"
+_CJK_HEADING_FONT = "SimHei"
 _WESTERN_FONT = "Times New Roman"
 
 
 def _build_mixed_font_text(
     value: str,
+    cjk_font: str,
     bold: bool = False,
     color: str | None = None,
 ) -> CellRichText:
-    """将混合中英文文本拆为 CellRichText，中文=宋体，英文/数字=Times New Roman。"""
+    """将混合中英文文本拆为 CellRichText，中文按角色字体，英文/数字=Times New Roman。"""
     blocks: list[TextBlock] = []
     current_text = ""
     current_cjk: bool | None = None
@@ -95,22 +97,23 @@ def _build_mixed_font_text(
         elif ch_is_cjk == current_cjk:
             current_text += ch
         else:
-            blocks.append(_make_text_block(current_text, current_cjk, bold, color))
+            blocks.append(_make_text_block(current_text, current_cjk, cjk_font, bold, color))
             current_text = ch
             current_cjk = ch_is_cjk
     if current_text:
         assert current_cjk is not None
-        blocks.append(_make_text_block(current_text, current_cjk, bold, color))
+        blocks.append(_make_text_block(current_text, current_cjk, cjk_font, bold, color))
     return CellRichText(*blocks)
 
 
 def _make_text_block(
     text: str,
     is_cjk: bool,
+    cjk_font: str,
     bold: bool,
     color_str: str | None,
 ) -> TextBlock:
-    font_kwargs: dict[str, object] = {"rFont": _CJK_FONT if is_cjk else _WESTERN_FONT}
+    font_kwargs: dict[str, object] = {"rFont": cjk_font if is_cjk else _WESTERN_FONT}
     if bold:
         font_kwargs["b"] = True
     if color_str:
@@ -118,17 +121,24 @@ def _make_text_block(
     return TextBlock(InlineFont(**font_kwargs), text)
 
 
-def _apply_cell_font(cell, *, bold: bool = False, color: str | None = None) -> None:
-    """按单元格内容类型设置字体：中文→宋体，数字/英文→Times New Roman。"""
+def _apply_cell_font(
+    cell,
+    *,
+    role: str = "body",
+    bold: bool = False,
+    color: str | None = None,
+) -> None:
+    """按输出规范设置字体：标题中文黑体，正文中文宋体，英文/数字 Times New Roman。"""
     value = cell.value
     if value is None:
         return
+    cjk_font = _CJK_HEADING_FONT if role == "heading" else _CJK_BODY_FONT
     if isinstance(value, str):
         classification = classify_text(value)
         if classification == "mixed":
-            cell.value = _build_mixed_font_text(value, bold=bold, color=color)
+            cell.value = _build_mixed_font_text(value, cjk_font, bold=bold, color=color)
         else:
-            font_name = _CJK_FONT if classification == "cjk" else _WESTERN_FONT
+            font_name = cjk_font if classification == "cjk" else _WESTERN_FONT
             font_kwargs: dict = {"name": font_name, "bold": bold}
             if color:
                 font_kwargs["color"] = color
@@ -392,7 +402,7 @@ def _write_sheet_title(ws, title: str, column_count: int) -> None:
     if not title:
         return
     cell = ws.cell(row=1, column=1, value=title)
-    _apply_cell_font(cell, bold=True, color="FFFFFF")
+    _apply_cell_font(cell, role="heading", bold=True, color="FFFFFF")
     cell.fill = PatternFill("solid", fgColor="4F81BD")
     cell.alignment = Alignment(horizontal="center", vertical="center")
     if column_count > 1:
@@ -415,7 +425,7 @@ def _style_sheet(ws, df: pd.DataFrame, has_title: bool = True) -> None:
         min_row=header_row, max_row=header_row, min_col=first_col, max_col=last_col
     ):
         for cell in row:
-            _apply_cell_font(cell, bold=True)
+            _apply_cell_font(cell, role="heading", bold=True)
             cell.fill = PatternFill("solid", fgColor="D9EAF7")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = border
@@ -428,7 +438,7 @@ def _style_sheet(ws, df: pd.DataFrame, has_title: bool = True) -> None:
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center")
-            _apply_cell_font(cell, bold=False)
+            _apply_cell_font(cell, role="body", bold=False)
             if isinstance(cell.value, numbers.Integral):
                 cell.number_format = "0"
             elif isinstance(cell.value, numbers.Real):

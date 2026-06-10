@@ -1,6 +1,13 @@
 <template>
   <Transition name="splash-fade" @after-leave="onAfterLeave">
     <div v-if="visible" class="splash-screen">
+      <div class="splash-grid"></div>
+      <div class="splash-radar">
+        <span class="radar-ring ring-1"></span>
+        <span class="radar-ring ring-2"></span>
+        <span class="radar-ring ring-3"></span>
+        <span class="radar-sweep"></span>
+      </div>
       <div class="splash-content">
         <!-- Logo 区域 -->
         <div class="splash-logo">
@@ -53,6 +60,10 @@
 
         <!-- 进度条区域 -->
         <div class="progress-container">
+          <div class="progress-track-label">
+            <span>INIT VECTOR</span>
+            <span>GEODATA CORE</span>
+          </div>
           <div class="progress-bar">
             <div
               class="progress-fill"
@@ -177,12 +188,61 @@ onMounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(145deg, var(--tp-brand-primary) 0%, var(--el-color-primary-dark-2) 100%);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(56, 189, 248, 0.22), transparent 25%),
+    radial-gradient(circle at 18% 18%, rgba(15, 118, 110, 0.16), transparent 26%),
+    linear-gradient(145deg, #0d213a 0%, var(--tp-brand-primary) 52%, #0b3a52 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  overflow: hidden;
+}
+
+.splash-grid {
+  position: absolute;
+  inset: -1px;
+  background-image:
+    linear-gradient(rgba(125, 211, 252, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.075) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(circle at center, #000 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.splash-radar {
+  position: absolute;
+  width: min(62vw, 620px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.radar-ring {
+  position: absolute;
+  inset: var(--ring-inset, 0);
+  border-radius: 50%;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.05);
+}
+
+.ring-1 { --ring-inset: 7%; }
+.ring-2 { --ring-inset: 23%; }
+.ring-3 { --ring-inset: 39%; }
+
+.radar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.26) 18deg, transparent 48deg);
+  animation: radarSweep 4s linear infinite;
+  filter: blur(0.2px);
+}
+
+@keyframes radarSweep {
+  to { transform: rotate(360deg); }
 }
 
 .splash-content {
@@ -190,11 +250,24 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 40px;
+  position: relative;
+  z-index: 1;
 }
 
 .splash-logo {
   margin-bottom: 24px;
   animation: logoFloat 4s ease-in-out infinite, logoEntry 1.2s var(--tp-easing-smooth) forwards;
+  position: relative;
+}
+
+.splash-logo::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 68%);
+  filter: blur(12px);
+  z-index: -1;
 }
 
 /* ── Logo 绘制动画 ── */
@@ -266,13 +339,13 @@ onMounted(() => {
   font-weight: 700;
   color: var(--tp-text-inverse);
   margin: 0 0 8px 0;
-  letter-spacing: 2px;
+  letter-spacing: 0;
   animation: titleSlideIn 0.6s 0.2s var(--tp-easing-expo) both;
 }
 
 @keyframes titleSlideIn {
-  from { opacity: 0; transform: translateY(12px); letter-spacing: 6px; }
-  to { opacity: 1; transform: translateY(0); letter-spacing: 2px; }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .splash-subtitle {
@@ -280,7 +353,7 @@ onMounted(() => {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.55);
   margin: 0 0 48px 0;
-  letter-spacing: 1px;
+  letter-spacing: 0;
   animation: subtitleFade 0.5s 0.4s var(--tp-easing-expo) both;
 }
 
@@ -293,24 +366,36 @@ onMounted(() => {
   width: 340px;
 }
 
+.progress-track-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-family: var(--tp-font-data);
+  font-size: 10px;
+  letter-spacing: 0;
+  color: rgba(125, 211, 252, 0.62);
+}
+
 .progress-bar {
-  height: 4px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  border-radius: var(--tp-radius-full);
   overflow: hidden;
   margin-bottom: 14px;
   position: relative;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.22), 0 0 18px rgba(56, 189, 248, 0.10);
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--tp-brand-accent) 0%, var(--tp-brand-accent-light) 50%, var(--tp-brand-accent) 100%);
   background-size: 200% 100%;
-  border-radius: 2px;
+  border-radius: var(--tp-radius-full);
   transition: width var(--tp-duration-fast) var(--tp-easing);
   position: relative;
   animation: progressShimmer 2s linear infinite;
-  box-shadow: 0 0 8px var(--tp-brand-accent-glow), 0 0 20px var(--tp-brand-accent-bg);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.65), 0 0 26px rgba(2, 132, 199, 0.24);
 
   &.progress-error {
     background: linear-gradient(90deg, var(--tp-danger) 0%, var(--tp-warning) 100%);

@@ -51,7 +51,10 @@
           :style="imageStyle"
           draggable="false"
         />
-        <el-empty v-else description="图片加载中" />
+        <div v-else class="viewer-loading">
+          <span class="tp-loading-orbit"></span>
+          <span>图片加载中</span>
+        </div>
       </div>
 
       <!-- 底部信息 -->
@@ -235,13 +238,15 @@ function onMouseUp() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.92);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.10), transparent 34%),
+    rgba(3, 7, 18, 0.93);
   z-index: 10000;
   display: flex;
   flex-direction: column;
   outline: none;
   animation: viewerFadeIn 0.25s var(--tp-easing);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px) saturate(1.08);
 }
 
 @keyframes viewerFadeIn {
@@ -259,11 +264,12 @@ function onMouseUp() {
 }
 
 .viewer-toolbar.top {
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  background: linear-gradient(to bottom, rgba(3, 7, 18, 0.78), transparent);
+  backdrop-filter: blur(8px);
 }
 
 .viewer-toolbar.bottom {
-  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+  background: linear-gradient(to top, rgba(3, 7, 18, 0.78), transparent);
   justify-content: center;
   gap: 24px;
   font-size: 13px;
@@ -273,6 +279,7 @@ function onMouseUp() {
 .viewer-title {
   font-size: 14px;
   font-weight: 500;
+  text-shadow: 0 0 14px rgba(56, 189, 248, 0.28);
 }
 
 .viewer-actions {
@@ -299,7 +306,8 @@ function onMouseUp() {
 
 .nav-arrow:hover {
   color: var(--tp-text-inverse);
-  background: rgba(255,255,255,0.1);
+  background: rgba(56, 189, 248, 0.14);
+  box-shadow: var(--tp-glow-cyan-sm);
 }
 
 .nav-left {
@@ -325,6 +333,15 @@ function onMouseUp() {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+  filter: drop-shadow(0 18px 42px rgba(0, 0, 0, 0.35));
+}
+
+.viewer-loading {
+  display: grid;
+  place-items: center;
+  gap: var(--tp-space-3);
+  color: rgba(255,255,255,0.78);
+  font-family: var(--tp-font-heading);
 }
 
 .zoom-info {

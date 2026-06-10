@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -11,10 +12,86 @@ from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.config import PROJECT_ROOT
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
 from trace_pipeline.pipeline import load_trace_data
+from trace_pipeline.utils.fonts import is_cjk
 
 logger = logging.getLogger(__name__)
 
 REPORT_DIR = PROJECT_ROOT / "reports"
+
+_LATIN_FONT = "TimesNewRoman"
+_LATIN_FALLBACK_FONT = "Times-Roman"
+_CJK_BODY_FONT = "ReportBodyCJK"
+_CJK_HEADING_FONT = "ReportHeadingCJK"
+
+
+def _font_candidates(kind: str) -> list[tuple[str, str]]:
+    windir = os.environ.get("WINDIR", r"C:\Windows")
+    fonts_dir = os.path.join(windir, "Fonts")
+    user_fonts = os.path.expanduser("~/.fonts")
+    if kind == "latin":
+        return [
+            (os.path.join(fonts_dir, "times.ttf"), "Times New Roman"),
+            (os.path.join(fonts_dir, "timesbd.ttf"), "Times New Roman Bold"),
+            ("/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf", "Times New Roman"),
+            ("/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf", "Liberation Serif"),
+            ("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", "DejaVu Serif"),
+        ]
+    if kind == "heading":
+        return [
+            (os.path.join(fonts_dir, "simhei.ttf"), "SimHei"),
+            (os.path.join(fonts_dir, "msyhbd.ttc"), "Microsoft YaHei Bold"),
+            (os.path.join(fonts_dir, "msyh.ttc"), "Microsoft YaHei"),
+            ("/System/Library/Fonts/STHeiti Light.ttc", "STHeiti"),
+            ("/System/Library/Fonts/PingFang.ttc", "PingFang"),
+            ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "Noto Sans CJK"),
+            ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "WenQuanYi Zen Hei"),
+            (os.path.join(user_fonts, "NotoSansCJK-Regular.ttc"), "Noto Sans CJK"),
+        ]
+    return [
+        (os.path.join(fonts_dir, "simsun.ttc"), "SimSun"),
+        (os.path.join(fonts_dir, "SimSun.ttf"), "SimSun"),
+        ("/System/Library/Fonts/Supplemental/Songti.ttc", "Songti"),
+        ("/System/Library/Fonts/STSong.ttf", "STSong"),
+        ("/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc", "Noto Serif CJK"),
+        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "Noto Sans CJK"),
+        ("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc", "WenQuanYi Micro Hei"),
+        (os.path.join(user_fonts, "NotoSerifCJK-Regular.ttc"), "Noto Serif CJK"),
+        (os.path.join(user_fonts, "NotoSansCJK-Regular.ttc"), "Noto Sans CJK"),
+    ]
+
+
+def _register_pdf_font(pdfmetrics, ttfont_cls, font_name: str, candidates, fallback: str) -> str:
+    """注册 ReportLab 字体，成功返回注册名，失败返回 fallback。"""
+    for font_path, label in candidates:
+        if not font_path or not os.path.exists(font_path):
+            continue
+        try:
+            pdfmetrics.registerFont(ttfont_cls(font_name, font_path))
+            return font_name
+        except Exception as exc:
+            logger.warning("注册字体 %s (%s) 失败: %s", label, font_path, exc)
+    return fallback
+
+
+def _pdf_mixed_font_markup(text: str, *, cjk_font: str, latin_font: str) -> str:
+    """将中英文混排文本拆成 ReportLab font 片段。"""
+    blocks: list[str] = []
+    current_font = ""
+    current_text = ""
+    for ch in str(text):
+        font = cjk_font if is_cjk(ch) else latin_font
+        if not current_font:
+            current_font = font
+            current_text = ch
+        elif font == current_font:
+            current_text += ch
+        else:
+            blocks.append(f'<font name="{current_font}">{escape(current_text)}</font>')
+            current_font = font
+            current_text = ch
+    if current_text:
+        blocks.append(f'<font name="{current_font}">{escape(current_text)}</font>')
+    return "".join(blocks)
 
 
 def _find_system_font() -> tuple[str, str]:
@@ -306,6 +383,7 @@ class ReportService:
             from reportlab.lib.enums import TA_CENTER
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
             from reportlab.pdfbase import pdfmetrics
             from reportlab.pdfbase.ttfonts import TTFont
             from reportlab.platypus import Image as RLImage
@@ -316,22 +394,42 @@ class ReportService:
 
         ctx = self._build_report_context(outcrop, trace, statistics, report_type, config)
         try:
-            font_path, font_name = _find_system_font()
-            if font_path and font_name:
+            fallback_path, _fallback_name = _find_system_font()
+            fallback_candidates = [(fallback_path, "System CJK")] if fallback_path else []
+            latin_font = _register_pdf_font(
+                pdfmetrics,
+                TTFont,
+                _LATIN_FONT,
+                _font_candidates("latin"),
+                _LATIN_FALLBACK_FONT,
+            )
+            body_font = _register_pdf_font(
+                pdfmetrics,
+                TTFont,
+                _CJK_BODY_FONT,
+                [*_font_candidates("body"), *fallback_candidates],
+                latin_font,
+            )
+            if body_font == latin_font:
                 try:
-                    pdfmetrics.registerFont(TTFont(font_name, font_path))
+                    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+                    body_font = "STSong-Light"
                 except Exception as exc:
-                    logger.warning("注册字体 %s 失败: %s", font_name, exc)
-                    font_name = "Times-Roman"
-            else:
-                font_name = "Times-Roman"
+                    logger.warning("注册 PDF 中文兜底字体 STSong-Light 失败: %s", exc)
+            heading_font = _register_pdf_font(
+                pdfmetrics,
+                TTFont,
+                _CJK_HEADING_FONT,
+                [*_font_candidates("heading"), *fallback_candidates],
+                body_font,
+            )
 
             doc = SimpleDocTemplate(str(REPORT_DIR / f"{outcrop}_report.pdf"), pagesize=A4)
             styles = getSampleStyleSheet()
             title_style = ParagraphStyle(
                 "CustomTitle",
                 parent=styles["Heading1"],
-                fontName=font_name,
+                fontName=heading_font,
                 fontSize=18,
                 alignment=TA_CENTER,
                 spaceAfter=20,
@@ -339,14 +437,27 @@ class ReportService:
             body_style = ParagraphStyle(
                 "CustomBody",
                 parent=styles["BodyText"],
-                fontName=font_name,
+                fontName=body_font,
                 fontSize=11,
                 spaceAfter=8,
             )
 
-            story = [Paragraph(ctx["title"], title_style), Spacer(1, 12)]
+            story = [
+                Paragraph(
+                    _pdf_mixed_font_markup(
+                        ctx["title"], cjk_font=heading_font, latin_font=latin_font
+                    ),
+                    title_style,
+                ),
+                Spacer(1, 12),
+            ]
             for line in ctx["stat_lines"]:
-                story.append(Paragraph(line, body_style))
+                story.append(
+                    Paragraph(
+                        _pdf_mixed_font_markup(line, cjk_font=body_font, latin_font=latin_font),
+                        body_style,
+                    )
+                )
             if ctx["stat_lines"]:
                 story.append(Spacer(1, 12))
             for img_path in ctx["img_paths"]:

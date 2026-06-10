@@ -1,5 +1,5 @@
 <template>
-  <div class="file-list tp-card">
+  <div class="file-list tp-card tp-neon-edge">
     <div class="file-list-header">
       <div class="file-list-header-left">
         <div class="file-list-icon">
@@ -21,6 +21,7 @@
       ref="tableRef"
       row-key="stem"
       v-loading="loading"
+      element-loading-text="正在扫描输入目录"
       empty-text="暂无数据"
       :header-cell-style="headerCellStyle"
     >
@@ -56,6 +57,7 @@ import type { TraceFile } from '@/types'
 
 const props = defineProps<{
   files: TraceFile[]
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -68,7 +70,6 @@ const emit = defineEmits<{
 
 const tableRef = ref<InstanceType<typeof ElTable>>()
 const selectAll = ref(false)
-const loading = ref(false)
 
 const headerCellStyle = () => ({
   fontFamily: 'var(--tp-font-heading)',
@@ -164,6 +165,9 @@ watch(() => props.files, () => {
   color: var(--tp-text-muted);
   font-size: 14px;
   font-family: var(--tp-font-body);
+  padding: 2px 8px;
+  border-radius: var(--tp-radius-full);
+  background: rgba(160, 174, 192, 0.10);
 }
 
 :deep(.el-table) {
@@ -191,5 +195,9 @@ watch(() => props.files, () => {
 
 :deep(.el-button--link) {
   font-family: var(--tp-font-heading);
+}
+
+:deep(.el-table__empty-block) {
+  min-height: 120px;
 }
 </style>

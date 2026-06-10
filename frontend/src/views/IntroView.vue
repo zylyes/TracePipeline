@@ -24,12 +24,24 @@
     <!-- 功能模块 -->
     <div class="modules-section">
       <div class="modules-row">
-        <div v-for="mod in modules" :key="mod.path" class="module-card" @click="$router.push(mod.path)">
-          <div class="module-accent" :style="{ background: mod.color }" />
+        <div
+          v-for="mod in modules"
+          :key="mod.path"
+          class="module-card"
+          :style="{ '--accent-color': mod.color }"
+          role="button"
+          tabindex="0"
+          @click="$router.push(mod.path)"
+          @keydown.enter="$router.push(mod.path)"
+          @keydown.space.prevent="$router.push(mod.path)"
+        >
+          <div class="module-accent" />
           <div class="module-body">
             <component :is="mod.icon" :size="40" :color="mod.color" class="module-icon" />
-            <h3 class="module-name">{{ mod.name }}</h3>
-            <p class="module-desc">{{ mod.desc }}</p>
+            <div class="module-copy">
+              <h3 class="module-name">{{ mod.name }}</h3>
+              <p class="module-desc">{{ mod.desc }}</p>
+            </div>
           </div>
 
         </div>
@@ -137,21 +149,50 @@ const steps = [
   position: relative;
   background: linear-gradient(145deg, var(--tp-brand-primary) 0%, var(--tp-bg-sidebar-hover) 60%, var(--tp-brand-primary) 100%);
   border-radius: var(--tp-radius-xl);
-  padding: 36px 40px;
+  min-height: 400px;
+  padding: 42px 40px 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: var(--tp-text-inverse);
   margin-bottom: var(--tp-space-5);
-  overflow: visible;
+  overflow: hidden;
+  box-shadow: var(--tp-shadow-lg), 0 0 40px rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(125, 211, 252, 0.18);
 }
 
 .hero-texture {
   position: absolute;
   inset: 0;
   background-image:
+    linear-gradient(rgba(125, 211, 252, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.06) 1px, transparent 1px),
     radial-gradient(circle at 20% 30%, var(--tp-brand-accent-bg) 0%, transparent 50%),
     radial-gradient(circle at 80% 70%, rgba(74, 158, 122, 0.06) 0%, transparent 50%);
+  background-size: 32px 32px, 32px 32px, auto, auto;
   pointer-events: none;
   animation: heroTextureShift 8s ease-in-out infinite alternate;
+}
+
+.hero-section::after {
+  content: '';
+  position: absolute;
+  left: -30%;
+  top: 0;
+  width: 28%;
+  height: 100%;
+  background: var(--tp-scanline);
+  transform: skewX(-18deg);
+  animation: heroScan 4.8s var(--tp-easing-smooth) infinite;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+@keyframes heroScan {
+  0%, 42% { left: -30%; opacity: 0; }
+  52% { opacity: 1; }
+  100% { left: 110%; opacity: 0; }
 }
 
 @keyframes heroTextureShift {
@@ -162,7 +203,8 @@ const steps = [
 .hero-content {
   position: relative;
   z-index: 1;
-  max-width: 580px;
+  width: 100%;
+  max-width: 680px;
   margin: 0 auto;
 }
 
@@ -197,11 +239,13 @@ const steps = [
   margin: 0 0 8px;
   color: var(--tp-text-inverse);
   animation: heroTitleIn 0.7s 0.15s var(--tp-easing-expo) both;
+  letter-spacing: 0;
+  text-shadow: 0 0 22px rgba(56, 189, 248, 0.24);
 }
 
 @keyframes heroTitleIn {
-  from { opacity: 0; transform: translateY(16px); letter-spacing: 4px; }
-  to { opacity: 1; transform: translateY(0); letter-spacing: normal; }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .hero-subtitle {
@@ -225,7 +269,7 @@ const steps = [
   line-height: var(--tp-leading-relaxed);
   opacity: 0.65;
   margin: 0 auto;
-  max-width: 480px;
+  max-width: 620px;
   color: rgba(255, 255, 255, 0.7);
   animation: heroDescIn 0.5s 0.5s var(--tp-easing-expo) both;
 }
@@ -238,8 +282,10 @@ const steps = [
 .hero-badges {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 22px;
+  padding-bottom: 2px;
 }
 
 .badge {
@@ -259,14 +305,17 @@ const steps = [
 }
 
 .modules-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: 14px;
+  align-items: stretch;
+  overflow: visible;
 }
 
 .module-card {
-  flex: 1;
   min-width: 0;
-  background: var(--tp-bg-elevated);
+  min-height: 166px;
+  background: var(--tp-surface-cyber);
   border: 1px solid var(--tp-border-light);
   border-radius: var(--tp-radius-lg);
   cursor: pointer;
@@ -276,35 +325,74 @@ const steps = [
   flex-direction: column;
   position: relative;
   box-shadow: var(--tp-shadow-sm);
+  isolation: isolate;
+  outline: none;
+  background-clip: padding-box;
 }
 
-.module-card:hover {
+.module-card:hover,
+.module-card:focus-visible {
   transform: translateY(-4px) scale(1.015);
-  box-shadow: var(--tp-shadow-lg), 0 0 0 1px var(--tp-brand-accent-border);
+  box-shadow: var(--tp-shadow-lg), var(--tp-glow-cyan-sm), 0 0 0 1px var(--tp-brand-accent-border);
   border-color: var(--tp-brand-accent-border);
 }
 
-.module-accent {
-  height: 3px;
-  width: 100%;
-  flex-shrink: 0;
+.module-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.14), transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,0.35), transparent 34%);
   opacity: 0;
-  transform: scaleX(0);
-  transition: all 0.35s var(--tp-easing-expo);
+  transition: opacity var(--tp-duration-normal) var(--tp-easing-smooth);
+  pointer-events: none;
 }
 
-.module-card:hover .module-accent {
+.module-card:hover::before,
+.module-card:focus-visible::before {
+  opacity: 1;
+}
+
+.module-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  width: auto;
+  background: linear-gradient(90deg, transparent, var(--accent-color, var(--tp-brand-accent)), transparent);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.4s var(--tp-easing-expo), opacity 0.4s var(--tp-easing-expo);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.module-card:hover .module-accent,
+.module-card:focus-visible .module-accent {
   opacity: 1;
   transform: scaleX(1);
 }
 
 .module-body {
-  padding: 18px 14px 14px;
+  padding: 22px 14px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   flex: 1;
+  min-height: 0;
+}
+
+.module-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
 }
 
 .module-icon {
@@ -314,7 +402,8 @@ const steps = [
   transition: all var(--tp-duration-normal) var(--tp-easing-expo);
 }
 
-.module-card:hover .module-icon {
+.module-card:hover .module-icon,
+.module-card:focus-visible .module-icon {
   transform: scale(1.1) translateY(-2px);
   opacity: 1;
 }
@@ -325,6 +414,7 @@ const steps = [
   font-weight: 600;
   color: var(--tp-text-primary);
   margin: 0 0 6px;
+  overflow-wrap: anywhere;
 }
 
 .module-desc {
@@ -333,12 +423,15 @@ const steps = [
   color: var(--tp-text-secondary);
   line-height: 1.55;
   margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ── 快速开始 ──────────────────────────────────────── */
 .quickstart-section {
   padding: var(--tp-space-5) var(--tp-space-6);
   margin-bottom: var(--tp-space-5);
+  overflow: visible;
 }
 
 .section-title {
@@ -379,8 +472,9 @@ const steps = [
 }
 
 .step-item:hover {
-  background: var(--tp-bg-hover);
-  box-shadow: var(--tp-shadow-sm);
+  background: rgba(232, 236, 241, 0.86);
+  box-shadow: var(--tp-shadow-sm), inset 0 0 0 1px rgba(56, 189, 248, 0.12);
+  transform: translateY(-1px);
 }
 
 .step-number {
@@ -460,12 +554,11 @@ const steps = [
 
 @media (max-width: 1024px) {
   .modules-row {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
   }
 
   .module-card {
-    flex: 1 1 calc(33.333% - 14px);
-    min-width: 160px;
+    min-width: 0;
   }
 
   .step-group {
@@ -479,7 +572,8 @@ const steps = [
   }
 
   .hero-section {
-    padding: 24px 20px;
+    min-height: 360px;
+    padding: 32px 22px 46px;
   }
 
   .hero-title {
@@ -501,16 +595,17 @@ const steps = [
   }
 
   .modules-row {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
   }
 
   .module-card {
-    flex: 1 1 calc(50% - 10px);
-    min-width: 140px;
+    min-width: 0;
+    min-height: 156px;
   }
 
   .module-body {
-    padding: 14px 10px 10px;
+    padding: 20px 10px 10px;
   }
 
   .module-name {
@@ -564,7 +659,8 @@ const steps = [
   }
 
   .hero-section {
-    padding: 18px 14px;
+    min-height: 340px;
+    padding: 28px 14px 42px;
     border-radius: var(--tp-radius-lg);
   }
 
@@ -591,13 +687,13 @@ const steps = [
   }
 
   .modules-row {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 8px;
   }
 
   .module-card {
-    flex: none;
     min-width: 0;
+    min-height: 0;
   }
 
   .module-body {
@@ -605,7 +701,18 @@ const steps = [
     align-items: center;
     text-align: left;
     gap: 12px;
-    padding: 12px 14px;
+    padding: 14px 14px;
+  }
+
+  .module-accent {
+    top: 6px;
+    left: 14px;
+    right: 14px;
+  }
+
+  .module-copy {
+    align-items: flex-start;
+    text-align: left;
   }
 
   .module-icon {

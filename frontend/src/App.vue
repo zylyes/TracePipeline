@@ -9,7 +9,7 @@
     <SplashScreen
       v-if="showSplash"
       :steps="bootSteps"
-      :min-duration="350"
+      :min-duration="2200"
       @complete="onSplashComplete"
     />
 
@@ -472,7 +472,13 @@ const bootSteps: BootStep[] = [
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: var(--tp-bg-base);
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.16), transparent 30%),
+    radial-gradient(circle at 85% 10%, rgba(15, 118, 110, 0.10), transparent 28%),
+    var(--tp-bg-base);
+  background-size: 28px 28px, 28px 28px, auto, auto, auto;
 }
 
 /* Vue Transition 默认渲染为 span（inline），必须显式 block 才能正确参与 flex 布局 */
@@ -488,7 +494,8 @@ const bootSteps: BootStep[] = [
 /* ── 标题栏：标题相对内容区居中（排除侧边栏宽度）── */
 .title-bar {
   height: 36px;
-  background: var(--tp-brand-primary);
+  background:
+    linear-gradient(90deg, #10243f 0%, var(--tp-brand-primary) 45%, #0f3b57 100%);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -497,8 +504,20 @@ const bootSteps: BootStep[] = [
   user-select: none;
   position: relative;
   z-index: 100;
-  /* 微妙的底部边线分隔 */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 0 rgba(125, 211, 252, 0.18), 0 10px 28px rgba(15, 35, 60, 0.12);
+  overflow: hidden;
+}
+
+.title-bar::after {
+  content: '';
+  position: absolute;
+  left: 152px;
+  right: 132px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.78), rgba(15, 118, 110, 0.46), transparent);
+  opacity: 0.8;
+  pointer-events: none;
 }
 
 .title-bar-center {
@@ -516,8 +535,9 @@ const bootSteps: BootStep[] = [
   font-family: var(--tp-font-heading);
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.84);
+  letter-spacing: 0;
+  text-shadow: 0 0 14px rgba(56, 189, 248, 0.28);
 }
 
 .title-bar-right {
@@ -537,13 +557,17 @@ const bootSteps: BootStep[] = [
   background: transparent;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  transition: all var(--tp-duration-fast);
+  transition: color var(--tp-duration-fast), background var(--tp-duration-fast), transform var(--tp-duration-fast);
   outline: none;
 }
 
 .win-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(125, 211, 252, 0.14);
   color: var(--tp-text-inverse);
+}
+
+.win-btn:active {
+  transform: scale(0.94);
 }
 
 .win-btn.close:hover {
@@ -560,12 +584,17 @@ const bootSteps: BootStep[] = [
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
 /* ── 侧边栏 ── */
 .sidebar {
   width: 152px;
-  background: var(--tp-brand-primary);
+  background:
+    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #10243f 0%, var(--tp-brand-primary) 48%, #112b46 100%);
+  background-size: 22px 22px, 22px 22px, auto;
   color: var(--tp-text-inverse);
   display: flex;
   flex-direction: column;
@@ -573,6 +602,18 @@ const bootSteps: BootStep[] = [
   position: relative;
   transition: width 0.25s var(--tp-easing);
   overflow: hidden;
+  box-shadow: inset -1px 0 0 rgba(125, 211, 252, 0.12), 10px 0 34px rgba(26, 54, 93, 0.14);
+}
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 36px;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.58), transparent);
+  pointer-events: none;
 }
 
 .sidebar.collapsed {
@@ -585,7 +626,7 @@ const bootSteps: BootStep[] = [
   align-items: center;
   gap: 10px;
   padding: 0 13px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(125, 211, 252, 0.12);
   cursor: pointer;
   transition: justify-content padding 0.25s var(--tp-easing);
   position: relative;
@@ -604,7 +645,7 @@ const bootSteps: BootStep[] = [
 }
 
 .sidebar-header:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(56, 189, 248, 0.08);
 }
 
 .sidebar.collapsed .sidebar-header {
@@ -658,7 +699,7 @@ const bootSteps: BootStep[] = [
   text-decoration: none;
   font-size: 14px;
   border-radius: var(--tp-radius-md);
-  transition: all var(--tp-duration-normal) var(--tp-easing);
+  transition: color var(--tp-duration-normal) var(--tp-easing), background var(--tp-duration-normal) var(--tp-easing), transform var(--tp-duration-normal) var(--tp-easing);
   overflow: hidden;
 }
 
@@ -667,7 +708,7 @@ const bootSteps: BootStep[] = [
   position: absolute;
   inset: 0;
   border-radius: var(--tp-radius-md);
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(255, 255, 255, 0.055));
   opacity: 0;
   transform: scaleX(0.3);
   transition: all var(--tp-duration-normal) var(--tp-easing-expo);
@@ -703,6 +744,7 @@ const bootSteps: BootStep[] = [
 
 .menu-item:hover {
   color: rgba(255, 255, 255, 0.9);
+  transform: translateX(2px);
 }
 
 .menu-item:hover::before {
@@ -717,7 +759,8 @@ const bootSteps: BootStep[] = [
 
 .menu-item.active {
   color: var(--tp-text-inverse);
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.20), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.16), var(--tp-shadow-sidebar-item);
 }
 
 .menu-item.active .menu-icon {
@@ -733,16 +776,16 @@ const bootSteps: BootStep[] = [
   transform: translateY(-50%);
   width: 3px;
   height: 18px;
-  background: var(--tp-brand-accent-light);
+  background: linear-gradient(180deg, var(--tp-brand-accent-light), var(--tp-geo-emerald));
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 8px var(--tp-brand-accent-glow);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.72), 0 0 22px rgba(15, 118, 110, 0.32);
   transition: all var(--tp-duration-normal) var(--tp-easing-expo);
 }
 
 /* ── 侧边栏底部 ── */
 .sidebar-footer {
   padding: 10px 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(125, 211, 252, 0.12);
   overflow: hidden;
 }
 
@@ -786,7 +829,8 @@ const bootSteps: BootStep[] = [
 
 .footer-btn:hover {
   color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(56, 189, 248, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.10);
 }
 
 .footer-btn :deep(.el-icon) {
@@ -820,17 +864,35 @@ const bootSteps: BootStep[] = [
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--tp-bg-base);
+  background: transparent;
   overflow: hidden;
   position: relative;
+}
+
+.main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 72% 6%, rgba(56, 189, 248, 0.12), transparent 28%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ── 状态栏 ── */
 .status-bar {
   height: 36px;
-  background: var(--tp-bg-raised);
-  border-top: 1px solid var(--tp-border-light);
-  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.02);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  border-top: 1px solid rgba(125, 211, 252, 0.18);
+  box-shadow: 0 -8px 24px rgba(15, 35, 60, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.72);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -876,7 +938,7 @@ const bootSteps: BootStep[] = [
   border-radius: 50%;
   background: var(--tp-success);
   animation: tp-pulse 2s ease-in-out infinite;
-  box-shadow: 0 0 6px var(--tp-success-border);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.45), 0 0 18px rgba(16, 185, 129, 0.20);
 }
 
 .status-running .status-text {
@@ -901,8 +963,9 @@ const bootSteps: BootStep[] = [
 }
 
 .status-path:hover {
-  background: var(--tp-bg-hover);
+  background: rgba(56, 189, 248, 0.10);
   color: var(--tp-text-primary);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.12);
 }
 
 .path-text {
@@ -920,17 +983,19 @@ const bootSteps: BootStep[] = [
 /* 页面切换动画 */
 .page-slide-enter-active,
 .page-slide-leave-active {
-  transition: opacity 0.4s var(--tp-easing-smooth), transform 0.4s var(--tp-easing-smooth);
+  transition: opacity 0.36s var(--tp-easing-expo), transform 0.36s var(--tp-easing-expo), filter 0.36s var(--tp-easing-expo);
 }
 
 .page-slide-enter-from {
   opacity: 0;
-  transform: translateY(12px) scale(0.98);
+  transform: translateY(14px) scale(0.985);
+  filter: blur(4px);
 }
 
 .page-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px) scale(0.99);
+  filter: blur(2px);
 }
 
 /* ── 右下角 resize grip ── */

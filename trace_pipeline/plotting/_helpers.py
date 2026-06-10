@@ -16,7 +16,7 @@ force_noninteractive_backend()
 
 import matplotlib.pyplot as plt  # noqa: E402
 
-from .style import text_font_kwargs  # noqa: E402
+from .style import heading_font_kwargs  # noqa: E402
 
 __all__ = ["new_figure", "save_figure", "add_data_north_arrow", "compute_data_bounds"]
 
@@ -153,7 +153,7 @@ def add_data_north_arrow(
         va="center",
         clip_on=False,
         zorder=15,
-        **text_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
+        **heading_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
     )
 
 

@@ -12,7 +12,7 @@
           <span class="modal-title">{{ outcrop }} 处理结果</span>
           <el-button circle :icon="Close" size="small" @click="close" />
         </div>
-        <div class="modal-body" v-loading="loading">
+        <div class="modal-body" v-loading="loading" element-loading-text="正在载入结果图">
           <div class="img-grid">
             <div class="img-item" v-for="img in imageList" :key="img.key">
               <div class="img-wrapper">
@@ -101,14 +101,16 @@ function previewImage(src: string) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--tp-bg-overlay);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.12), transparent 32%),
+    var(--tp-bg-overlay);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--tp-space-6);
   animation: modalOverlayIn 0.25s var(--tp-easing);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px) saturate(1.08);
 }
 
 @keyframes modalOverlayIn {
@@ -117,7 +119,7 @@ function previewImage(src: string) {
 }
 
 .modal-content {
-  background: var(--tp-bg-card);
+  background: var(--tp-surface-cyber);
   border-radius: var(--tp-radius-xl);
   width: 100%;
   max-width: 1200px;
@@ -125,7 +127,8 @@ function previewImage(src: string) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--tp-shadow-xl);
+  box-shadow: var(--tp-shadow-xl), var(--tp-glow-cyan-sm);
+  border: 1px solid rgba(125, 211, 252, 0.22);
   animation: modalContentIn 0.35s var(--tp-easing-expo);
 }
 
@@ -163,9 +166,10 @@ function previewImage(src: string) {
 }
 
 .img-item {
-  background: var(--tp-bg-sunken);
+  background: linear-gradient(180deg, rgba(255,255,255,0.78), var(--tp-bg-sunken));
   border-radius: var(--tp-radius-md);
   overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.12);
 }
 
 .img-item:last-child:nth-child(odd) {
@@ -190,6 +194,10 @@ function previewImage(src: string) {
   align-items: center;
   justify-content: center;
   min-height: 200px;
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.03) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
 .img-preview {
@@ -202,6 +210,7 @@ function previewImage(src: string) {
 
 .img-preview:hover {
   transform: scale(1.02);
+  filter: drop-shadow(0 10px 24px rgba(26, 54, 93, 0.16));
 }
 
 .fullscreen-viewer {

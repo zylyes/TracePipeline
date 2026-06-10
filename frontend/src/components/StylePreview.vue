@@ -1,5 +1,5 @@
 <template>
-  <div class="style-preview">
+  <div class="style-preview tp-neon-edge">
     <div class="preview-header">
       <h3>预览</h3>
       <div class="overlay-controls">
@@ -12,7 +12,7 @@
 
     <div class="preview-grid">
       <div class="preview-box" v-for="(img, idx) in previewImages" :key="img.key" @click="openViewer(idx)">
-        <div class="preview-img-wrapper" v-loading="loading">
+        <div class="preview-img-wrapper" v-loading="loading" element-loading-text="正在渲染预览">
           <img v-if="img.url" :src="img.url" class="preview-img" />
           <el-empty v-else description="点击生成预览后显示" />
         </div>
@@ -175,11 +175,11 @@ watch(() => props.previewTrigger, () => {
 
 <style scoped lang="scss">
 .style-preview {
-  background: var(--tp-bg-card);
+  background: var(--tp-surface-cyber);
   border-radius: var(--tp-radius-lg);
   padding: var(--tp-space-3) var(--tp-space-4);
-  box-shadow: var(--tp-shadow-md);
-  border: 1px solid var(--tp-border-light);
+  box-shadow: var(--tp-shadow-md), inset 0 1px 0 rgba(255,255,255,0.72);
+  border: 1px solid rgba(125, 211, 252, 0.18);
   margin-top: var(--tp-space-4);
 }
 .preview-header {
@@ -201,7 +201,7 @@ watch(() => props.previewTrigger, () => {
   display: flex;
   gap: 18px;
   padding: var(--tp-space-2) var(--tp-space-4);
-  background: var(--tp-bg-sunken);
+  background: rgba(238, 240, 244, 0.74);
   border-radius: var(--tp-radius-sm);
   flex-shrink: 0;
   margin-left: auto;
@@ -217,10 +217,13 @@ watch(() => props.previewTrigger, () => {
   border-radius: var(--tp-radius-md);
   overflow: hidden;
   cursor: pointer;
-  transition: box-shadow var(--tp-duration-normal) var(--tp-easing);
+  transition: box-shadow var(--tp-duration-normal) var(--tp-easing), transform var(--tp-duration-normal) var(--tp-easing-smooth), border-color var(--tp-duration-normal);
+  background: rgba(255,255,255,0.72);
 }
 .preview-box:hover {
-  box-shadow: var(--tp-shadow-lg);
+  box-shadow: var(--tp-shadow-lg), var(--tp-glow-cyan-sm);
+  border-color: rgba(56, 189, 248, 0.24);
+  transform: translateY(-2px);
 }
 .preview-label {
   padding: var(--tp-space-2);
@@ -233,7 +236,11 @@ watch(() => props.previewTrigger, () => {
 .preview-img-wrapper {
   position: relative;
   min-height: 240px;
-  background: var(--tp-bg-card);
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.03) 1px, transparent 1px),
+    var(--tp-bg-card);
+  background-size: 22px 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,6 +250,11 @@ watch(() => props.previewTrigger, () => {
   max-height: 340px;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
+  transition: transform var(--tp-duration-normal) var(--tp-easing-smooth), filter var(--tp-duration-normal);
+}
+.preview-box:hover .preview-img {
+  transform: scale(1.015);
+  filter: drop-shadow(0 8px 20px rgba(26, 54, 93, 0.14));
 }
 @media (max-width: 900px) {
   .preview-grid {

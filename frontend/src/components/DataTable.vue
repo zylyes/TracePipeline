@@ -13,7 +13,15 @@
     <div v-else class="source-hint">原始输入数据</div>
 
     <div class="table-scroll" v-if="loading || total > 0">
-      <el-table :data="tableData" size="small" stripe style="width: 100%; height: 100%" height="100%" v-loading="loading">
+      <el-table
+        :data="tableData"
+        size="small"
+        stripe
+        style="width: 100%; height: 100%"
+        height="100%"
+        v-loading="loading"
+        element-loading-text="正在载入数据矩阵"
+      >
         <el-table-column
           v-for="col in columns"
           :key="col"
@@ -135,16 +143,28 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .data-table {
-  background: var(--tp-bg-card);
+  background: var(--tp-surface-cyber);
   border-radius: var(--tp-radius-lg);
   padding: var(--tp-space-4);
-  box-shadow: var(--tp-shadow-md);
-  border: 1px solid var(--tp-border-light);
+  box-shadow: var(--tp-shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.18);
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+.data-table::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.025) 1px, transparent 1px);
+  background-size: 26px 26px;
+  opacity: 0.8;
+  pointer-events: none;
 }
 .source-hint {
   padding: var(--tp-space-2) 0;
@@ -155,11 +175,15 @@ onMounted(() => {
   border-bottom: 1px solid var(--tp-border-light);
   margin-bottom: var(--tp-space-3);
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 .table-scroll {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 .pagination-bar {
   display: flex;
@@ -168,5 +192,7 @@ onMounted(() => {
   margin-top: var(--tp-space-3);
   flex-wrap: wrap;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 </style>

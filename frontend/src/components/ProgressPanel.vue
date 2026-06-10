@@ -1,5 +1,5 @@
 <template>
-  <div class="progress-panel tp-card">
+  <div class="progress-panel tp-card tp-neon-edge" :class="{ 'is-running': running, 'is-complete': !running && progress.total > 0 && progress.current >= progress.total }">
     <div class="progress-header">
       <div class="progress-header-left">
         <div class="progress-header-icon">
@@ -29,6 +29,10 @@
       </div>
     </div>
     <div class="progress-area">
+      <div class="progress-meta">
+        <span class="progress-chip">任务 {{ progress.current || 0 }} / {{ progress.total || 0 }}</span>
+        <span class="progress-chip" :class="{ active: running }">{{ running ? '流水线运行中' : '等待任务' }}</span>
+      </div>
       <el-progress
         :percentage="percentage"
         :stroke-width="8"
@@ -123,6 +127,10 @@ const progressColor = computed(() => {
   margin-top: var(--tp-space-4);
 }
 
+.progress-panel.is-running {
+  box-shadow: var(--tp-shadow-md), var(--tp-glow-cyan-md);
+}
+
 .progress-header {
   display: flex;
   align-items: center;
@@ -170,8 +178,8 @@ const progressColor = computed(() => {
   font-size: 14px;
   padding: 8px 22px;
   border-radius: var(--tp-radius-sm);
-  letter-spacing: 0.5px;
-  background: var(--tp-brand-accent);
+  letter-spacing: 0;
+  background: linear-gradient(135deg, var(--tp-brand-accent), var(--tp-brand-accent-dark));
   border-color: var(--tp-brand-accent);
   color: var(--tp-text-inverse);
   box-shadow: var(--tp-brand-accent-shadow-sm);
@@ -211,10 +219,11 @@ const progressColor = computed(() => {
   align-items: center;
   font-size: 14px;
   color: var(--tp-text-secondary);
-  background: var(--tp-bg-sunken);
+  background: rgba(238, 240, 244, 0.74);
   padding: 6px 12px;
   border-radius: var(--tp-radius-sm);
   border: 1px solid var(--tp-border-light);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
 }
 
 .parallel-label {
@@ -234,6 +243,7 @@ const progressColor = computed(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 22px;
 }
 
 .complete-text {
@@ -253,6 +263,37 @@ const progressColor = computed(() => {
   align-items: center;
   gap: 6px;
   color: var(--tp-brand-accent);
+  padding: 4px 10px;
+  border-radius: var(--tp-radius-full);
+  background: rgba(2, 132, 199, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.14);
+}
+
+.progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tp-space-2);
+  margin-bottom: var(--tp-space-2);
+}
+
+.progress-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--tp-radius-full);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  color: var(--tp-text-tertiary);
+  font-family: var(--tp-font-data);
+  font-size: 12px;
+}
+
+.progress-chip.active {
+  color: var(--tp-brand-accent);
+  background: rgba(2, 132, 199, 0.10);
+  box-shadow: var(--tp-glow-cyan-sm);
 }
 
 .slider-input-combo {
@@ -280,11 +321,29 @@ const progressColor = computed(() => {
 /* Element Plus 进度条样式覆盖 */
 :deep(.modern-progress .el-progress-bar__outer) {
   border-radius: var(--tp-radius-full);
-  background: var(--tp-bg-sunken);
+  background: rgba(26, 54, 93, 0.10);
+  box-shadow: inset 0 1px 4px rgba(26, 54, 93, 0.14);
+  overflow: hidden;
 }
 
 :deep(.modern-progress .el-progress-bar__inner) {
+  position: relative;
   border-radius: var(--tp-radius-full);
   transition: width 0.4s var(--tp-easing-expo);
+  background: linear-gradient(90deg, var(--tp-brand-accent-dark), var(--tp-brand-accent-light), var(--tp-geo-emerald)) !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.42);
+}
+
+.is-running :deep(.modern-progress .el-progress-bar__inner::after) {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  animation: progressEnergySweep 1.3s linear infinite;
+}
+
+@keyframes progressEnergySweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(120%); }
 }
 </style>

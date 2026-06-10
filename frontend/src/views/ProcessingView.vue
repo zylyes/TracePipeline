@@ -3,7 +3,7 @@
     <h2 class="page-title">处理</h2>
 
     <!-- 处理参数面板 -->
-    <div class="params-panel tp-card">
+    <div class="params-panel tp-card tp-neon-edge">
       <div class="params-header">
         <div class="params-header-left">
           <div class="params-icon">
@@ -46,6 +46,7 @@
     <!-- 文件列表 -->
     <FileList
       :files="files"
+      :loading="filesLoading"
       @refresh="loadFiles"
       @select="handleSelect"
       @preview="handlePreview"
@@ -61,7 +62,7 @@
     />
 
     <!-- 处理过程栏 -->
-    <div class="process-panel tp-card">
+    <div class="process-panel tp-card tp-neon-edge" :class="{ 'is-live': pipelineStore.running }">
       <div class="process-header">
         <div class="process-header-left">
           <div class="process-icon">
@@ -125,6 +126,7 @@ const cacheStore = useCacheStore()
 
 const files = ref<TraceFile[]>([])
 const selectedFiles = ref<TraceFile[]>([])
+const filesLoading = ref(false)
 const POLL_INTERVAL = 300
 
   // 处理参数（本地状态，默认从配置加载）
@@ -198,6 +200,7 @@ async function loadFiles(force = false) {
     return
   }
   isLoadingFiles = true
+  filesLoading.value = true
   try {
     if (force) {
       cacheStore.invalidateScan()
@@ -224,6 +227,7 @@ async function loadFiles(force = false) {
     }, 1000)
   } finally {
     isLoadingFiles = false
+    filesLoading.value = false
   }
 }
 
@@ -605,6 +609,10 @@ onUnmounted(() => {
   margin-top: var(--tp-space-4);
 }
 
+.process-panel.is-live {
+  box-shadow: var(--tp-shadow-md), var(--tp-glow-emerald-sm);
+}
+
 .process-header {
   display: flex;
   align-items: center;
@@ -650,12 +658,15 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: var(--tp-info-light);
+  background:
+    linear-gradient(90deg, rgba(59, 130, 246, 0.13), rgba(56, 189, 248, 0.08)),
+    var(--tp-info-light);
   border-radius: var(--tp-radius-md);
   margin-bottom: var(--tp-space-3);
   font-size: 14px;
   color: var(--tp-info);
   border: 1px solid var(--tp-info-bg);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.12), var(--tp-glow-cyan-sm);
 }
 
 .current-status .el-icon {
@@ -678,6 +689,12 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 8px;
   overflow: hidden;
+  animation: logItemIn 0.28s var(--tp-easing-expo) both;
+}
+
+@keyframes logItemIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .log-item:last-child {
@@ -710,11 +727,11 @@ onUnmounted(() => {
 }
 
 .log-info {
-  background: var(--tp-bg-sunken);
+  background: rgba(238, 240, 244, 0.72);
 }
 
 .log-success {
-  background: var(--tp-success-light);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.12), rgba(209, 250, 229, 0.72));
 }
 
 .log-success .log-message {
@@ -722,7 +739,7 @@ onUnmounted(() => {
 }
 
 .log-error {
-  background: var(--tp-danger-light);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.12), rgba(254, 226, 226, 0.76));
 }
 
 .log-error .log-message {

@@ -4,7 +4,7 @@
 
     <el-empty v-if="!loading && tableData.length === 0" description="暂无露头数据" />
 
-    <div v-else class="table-card tp-card">
+    <div v-else class="table-card tp-card tp-neon-edge">
       <table class="native-table" v-if="!loading && tableData.length">
         <thead>
           <tr>
@@ -37,10 +37,17 @@
           </tr>
         </tbody>
       </table>
-      <div v-if="loading" class="table-loading">加载中...</div>
+      <div v-if="loading" class="table-loading">
+        <span class="tp-loading-orbit"></span>
+        <div class="loading-copy">
+          <span>正在汇总多露头参数</span>
+          <span class="tp-skeleton-line"></span>
+          <span class="tp-skeleton-line short"></span>
+        </div>
+      </div>
     </div>
 
-    <div class="chart-area tp-card" v-if="tableData.length > 0">
+    <div class="chart-area tp-card tp-neon-edge" v-if="tableData.length > 0">
       <div class="chart-header">
         <div class="chart-header-left">
           <div class="chart-icon">
@@ -62,7 +69,7 @@
     </div>
 
     <!-- 所有露头图片网格展示区 -->
-    <div class="images-panel tp-card" v-if="allImages.length > 0">
+    <div class="images-panel tp-card tp-neon-edge" v-if="allImages.length > 0">
       <div class="images-panel-header">
         <div class="images-header-left">
           <div class="images-icon">
@@ -91,7 +98,10 @@
           <div class="image-label">{{ img.outcrop }} · {{ img.type }}</div>
           <div class="image-wrapper">
             <img v-if="img.src" :src="img.src" class="grid-img" loading="lazy" />
-            <div v-else class="image-placeholder">{{ img.loading ? '加载中...' : '悬停加载预览' }}</div>
+            <div v-else class="image-placeholder" :class="{ loading: img.loading }">
+              <span v-if="img.loading" class="tp-loading-orbit"></span>
+              <span>{{ img.loading ? '缩略图生成中' : '悬停加载预览' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -122,7 +132,7 @@ import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
-import { getChartColors, getEchartsFontFamily, cssVar } from '@/utils/echarts-theme'
+import { getChartColors, getEchartsFontFamily, getEchartsHeadingFont, cssVar, baseAnimationConfig, baseSeriesAnimation } from '@/utils/echarts-theme'
 import type { ComparisonRow, PipelineResult } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
@@ -288,6 +298,7 @@ function safeFloat(val: string): number | null {
 }
 
 const echartsFont = getEchartsFontFamily()
+const echartsHeadingFont = getEchartsHeadingFont()
 
 const chartColors = getChartColors()
 const GEO_C1 = chartColors[0]
@@ -307,7 +318,8 @@ const barOption = computed(() => {
   const legendTextStyle = { fontFamily: echartsFont, color: colorSecondary }
 
   const base = {
-    title: { text: '多露头参数对比', left: 'center', textStyle: { fontFamily: echartsFont, fontSize: 14, fontWeight: 600, color: colorPrimary } },
+    ...baseAnimationConfig(),
+    title: { text: '多露头参数对比', left: 'center', textStyle: { fontFamily: echartsHeadingFont, fontSize: 14, fontWeight: 600, color: colorPrimary } },
     tooltip: { trigger: 'axis', textStyle: { fontFamily: echartsFont } },
     legend: { bottom: 0, textStyle: legendTextStyle },
     grid: { left: '10%', right: '10%', bottom: '15%' },
@@ -320,9 +332,9 @@ const barOption = computed(() => {
       ...base,
       legend: { data: ['P10', 'P20', 'P21'], bottom: 0, textStyle: legendTextStyle },
       series: [
-        { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
-        { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
-        { name: 'P21', type: 'bar', data: tableData.value.map(d => safeFloat(d.p21) ?? '-'), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] } },
+        { name: 'P10', type: 'bar', data: tableData.value.map(d => safeFloat(d.p10) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'P20', type: 'bar', data: tableData.value.map(d => safeFloat(d.p20) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'P21', type: 'bar', data: tableData.value.map(d => safeFloat(d.p21) ?? '-'), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
       ],
     }
   }
@@ -332,14 +344,14 @@ const barOption = computed(() => {
       ...base,
       legend: { data: ['I型', 'II型', 'III型', '总裂隙数'], bottom: 0, textStyle: legendTextStyle },
       series: [
-        { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
-        { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
-        { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] } },
+        { name: 'I型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'II型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'III型', type: 'bar', data: tableData.value.map(d => safeFloat(d.type_ratio.split(':')[2]) ?? 0), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
         { name: '总裂隙数', type: 'bar', data: tableData.value.map(d => {
           const parts = d.type_ratio.split(':')
           const sum = (safeFloat(parts[0]) ?? 0) + (safeFloat(parts[1]) ?? 0) + (safeFloat(parts[2]) ?? 0)
           return sum
-        }), itemStyle: { color: GEO_C4, borderRadius: [3, 3, 0, 0] } },
+        }), itemStyle: { color: GEO_C4, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
       ],
     }
   }
@@ -349,20 +361,20 @@ const barOption = computed(() => {
       ...base,
       legend: { data: ['节点总数', 'X节点', 'Y节点', 'I节点'], bottom: 0, textStyle: legendTextStyle },
       series: [
-        { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
-        { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } },
-        { name: 'Y节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] } },
-        { name: 'I节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[2]) ?? 0), itemStyle: { color: GEO_C5, borderRadius: [3, 3, 0, 0] } },
+        { name: '节点总数', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_count) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'X节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[0]) ?? 0), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'Y节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[1]) ?? 0), itemStyle: { color: GEO_C3, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
+        { name: 'I节点', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_ratio.split(':')[2]) ?? 0), itemStyle: { color: GEO_C5, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
       ],
     }
   }
 
   // metric === 'length'
   const series: any[] = [
-    { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] } },
+    { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
   ]
   if (pipelineStore.lastEnableNodeRecognition) {
-    series.push({ name: '节点密度', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_density) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] } })
+    series.push({ name: '节点密度', type: 'bar', data: tableData.value.map(d => safeFloat(d.node_density) ?? '-'), itemStyle: { color: GEO_C1, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() })
   }
   return {
     ...base,
@@ -567,10 +579,34 @@ onActivated(() => {
 .native-table th:nth-child(11), .native-table td:nth-child(11) { width: 10%; } /* 节点密度 */
 
 .table-loading {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--tp-text-muted);
+  min-height: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tp-space-4);
+  color: var(--tp-brand-accent);
   font-size: 14px;
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border-radius: var(--tp-radius-md);
+}
+
+.loading-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+  font-family: var(--tp-font-heading);
+}
+
+.loading-copy .tp-skeleton-line {
+  width: 220px;
+}
+
+.loading-copy .tp-skeleton-line.short {
+  width: 140px;
 }
 
 /* ── 图表区 ── */
@@ -628,6 +664,7 @@ onActivated(() => {
 
 .chart {
   height: 300px;
+  filter: drop-shadow(0 12px 28px rgba(26, 54, 93, 0.06));
 }
 
 /* ── 图片网格 ── */
@@ -685,12 +722,13 @@ onActivated(() => {
 }
 
 .image-card {
-  background: var(--tp-bg-sunken);
+  background: linear-gradient(180deg, rgba(255,255,255,0.82), var(--tp-bg-sunken));
   border-radius: var(--tp-radius-md);
   overflow: hidden;
   cursor: zoom-in;
   transition: all var(--tp-duration-slow) var(--tp-easing-expo);
   border: 1px solid var(--tp-border-light);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
 }
 
 .image-card:hover {
@@ -719,18 +757,30 @@ onActivated(() => {
   align-items: center;
   justify-content: center;
   min-height: 120px;
+  background:
+    linear-gradient(rgba(2, 132, 199, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.025) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
 .grid-img {
   max-width: 100%;
   max-height: 160px;
   object-fit: contain;
+  transition: transform var(--tp-duration-normal) var(--tp-easing-smooth), filter var(--tp-duration-normal);
+}
+
+.image-card:hover .grid-img {
+  transform: scale(1.025);
+  filter: drop-shadow(0 8px 18px rgba(26, 54, 93, 0.16));
 }
 
 .image-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
+  gap: var(--tp-space-2);
   width: 100%;
   min-height: 96px;
   border: 1px dashed var(--tp-border-medium);
@@ -738,5 +788,24 @@ onActivated(() => {
   color: var(--tp-text-muted);
   font-size: 12px;
   background: var(--tp-bg-base);
+}
+
+.image-placeholder.loading {
+  color: var(--tp-brand-accent);
+  border-color: rgba(56, 189, 248, 0.28);
+  background: rgba(2, 132, 199, 0.06);
+}
+
+.image-placeholder .tp-loading-orbit {
+  width: 24px;
+  height: 24px;
+}
+
+.image-placeholder .tp-loading-orbit::before {
+  inset: 3px;
+}
+
+.image-placeholder .tp-loading-orbit::after {
+  inset: 9px;
 }
 </style>

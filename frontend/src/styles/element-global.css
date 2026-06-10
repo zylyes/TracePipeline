@@ -8,10 +8,11 @@
 .el-button {
   border-radius: var(--tp-radius-md);
   font-weight: 500;
-  letter-spacing: 0.3px;
+  letter-spacing: 0;
   transition: all var(--tp-duration-normal) var(--tp-easing-smooth);
   position: relative;
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 /* Subtle button ripple effect via after pseudo element */
@@ -37,16 +38,17 @@
 }
 
 .el-button--primary {
-  background: var(--tp-brand-primary);
-  border-color: var(--tp-brand-primary);
+  background: linear-gradient(135deg, var(--tp-brand-primary), var(--tp-brand-accent-dark));
+  border-color: rgba(56, 189, 248, 0.45);
   color: var(--tp-text-inverse);
+  box-shadow: var(--tp-brand-accent-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .el-button--primary:hover,
 .el-button--primary:focus {
   background: var(--tp-bg-sidebar-active);
   border-color: var(--tp-bg-sidebar-active);
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+  box-shadow: var(--tp-brand-accent-shadow-md), var(--tp-glow-cyan-sm);
   transform: translateY(-1px);
 }
 
@@ -90,6 +92,7 @@
   border-radius: var(--tp-radius-md);
   box-shadow: 0 0 0 1px var(--tp-border) inset;
   transition: all var(--tp-duration-normal);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .el-input__wrapper:hover,
@@ -120,13 +123,14 @@
   --el-table-header-text-color: var(--tp-text-primary);
   border-radius: var(--tp-radius-md);
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .el-table thead th.el-table__cell {
   font-weight: 600;
   font-size: 14px;
   color: var(--tp-text-primary);
-  background: var(--tp-bg-sunken);
+  background: linear-gradient(180deg, rgba(240, 249, 255, 0.92), var(--tp-bg-sunken));
   border-bottom: 1px solid var(--tp-border-medium);
 }
 
@@ -137,6 +141,7 @@
 
 .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
   background-color: var(--tp-bg-hover);
+  color: var(--tp-text-primary);
 }
 
 /* 表格内标签 */
@@ -149,6 +154,11 @@
   font-weight: 500;
   font-size: 14px;
   transition: all var(--tp-duration-normal);
+}
+
+.el-tabs__item:hover {
+  color: var(--tp-brand-accent);
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
 }
 
 .el-tabs__active-bar {
@@ -408,17 +418,27 @@
 
 /* ── 加载 ── */
 .el-loading-mask {
-  background: rgba(247, 248, 250, 0.8);
-  backdrop-filter: blur(6px);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.12), transparent 32%),
+    rgba(247, 248, 250, 0.78);
+  backdrop-filter: blur(8px) saturate(1.12);
+  -webkit-backdrop-filter: blur(8px) saturate(1.12);
 }
 
 .el-loading-spinner .path {
   stroke: var(--tp-brand-accent);
+  stroke-width: 3;
 }
 
 .el-loading-spinner .el-loading-text {
   color: var(--tp-brand-accent);
   font-family: var(--tp-font-body);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.el-loading-spinner .circular {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.45));
 }
 
 /* ── 分页 ── */
@@ -610,8 +630,10 @@
 
 /* ── 骨架屏 ── */
 .el-skeleton__item {
-  background: var(--tp-bg-sunken);
+  background: linear-gradient(90deg, #edf2f7 25%, #dff2fb 50%, #edf2f7 75%);
+  background-size: 200% 100%;
   border-radius: var(--tp-radius-sm);
+  animation: tp-shimmer 1.4s linear infinite;
 }
 
 /* ── 结果页 ── */

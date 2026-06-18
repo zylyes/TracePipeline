@@ -20,7 +20,7 @@
                   v-if="img.dataUrl"
                   :src="img.dataUrl"
                   class="img-preview"
-                  @click="previewImage(img.dataUrl)"
+                  @click="previewImage(img)"
                 />
                 <el-empty v-else description="图片未生成" />
               </div>
@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Close } from '@element-plus/icons-vue'
-import { loadImageBase64 } from '@/utils/image'
+import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
 
 interface ImageInfo {
   key: string
@@ -59,7 +59,9 @@ const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
 }>()
 
-const imageList = ref<Array<{ key: string; title: string; dataUrl: string }>>([])
+const GRID_THUMBNAIL_MAX_PX = 640
+
+const imageList = ref<Array<{ key: string; title: string; dataUrl: string; path: string }>>([])
 const loading = ref(false)
 const fullscreenSrc = ref('')
 
@@ -68,8 +70,10 @@ async function loadImages() {
   try {
     const list = []
     for (const img of props.images) {
-      const dataUrl = img.src ? await loadImageBase64(img.src) : ''
-      list.push({ key: img.key, title: img.title, dataUrl })
+      const path = img.src || ''
+      // 网格预览使用缩略图，减少内存占用
+      const dataUrl = path ? await loadImageThumbnail(path, GRID_THUMBNAIL_MAX_PX) : ''
+      list.push({ key: img.key, title: img.title, dataUrl, path })
     }
     imageList.value = list
   } catch (e) {
@@ -89,8 +93,14 @@ function close() {
   emit('update:visible', false)
 }
 
-function previewImage(src: string) {
-  fullscreenSrc.value = src
+async function previewImage(img: { key: string; title: string; dataUrl: string; path: string }) {
+  // 全屏查看时再加载原图
+  if (!img.path) return
+  try {
+    fullscreenSrc.value = await loadImageBase64(img.path)
+  } catch (e) {
+    console.error('加载原图失败', e)
+  }
 }
 </script>
 

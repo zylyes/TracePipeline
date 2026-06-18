@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import lru_cache
 from html import escape
 from pathlib import Path
 from typing import Any
 
+from PIL import Image as PILImage
+
+from backend.utils.cache import TTLCache
 from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.config import PROJECT_ROOT
 from trace_pipeline.geology.statistics import TraceStatisticsConfig, compute_trace_statistics
@@ -17,6 +21,7 @@ from trace_pipeline.utils.fonts import is_cjk
 logger = logging.getLogger(__name__)
 
 REPORT_DIR = PROJECT_ROOT / "reports"
+_REPORT_CACHE_TTL = 300.0
 
 _LATIN_FONT = "TimesNewRoman"
 _LATIN_FALLBACK_FONT = "Times-Roman"
@@ -32,8 +37,14 @@ def _font_candidates(kind: str) -> list[tuple[str, str]]:
         return [
             (os.path.join(fonts_dir, "times.ttf"), "Times New Roman"),
             (os.path.join(fonts_dir, "timesbd.ttf"), "Times New Roman Bold"),
-            ("/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf", "Times New Roman"),
-            ("/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf", "Liberation Serif"),
+            (
+                "/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf",
+                "Times New Roman",
+            ),
+            (
+                "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+                "Liberation Serif",
+            ),
             ("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", "DejaVu Serif"),
         ]
     if kind == "heading":
@@ -94,6 +105,7 @@ def _pdf_mixed_font_markup(text: str, *, cjk_font: str, latin_font: str) -> str:
     return "".join(blocks)
 
 
+@lru_cache(maxsize=1)
 def _find_system_font() -> tuple[str, str]:
     """跨平台字体探测：返回 (font_path, font_name)。"""
     import platform
@@ -169,6 +181,63 @@ def _find_system_font() -> tuple[str, str]:
 class ReportService:
     """生成 Word / PDF 报告。"""
 
+    def __init__(self) -> None:
+        # 缓存已生成的报告结果，避免同一配置下重复写入 DOCX/PDF
+        self._result_cache = TTLCache(ttl=_REPORT_CACHE_TTL)
+
+    @staticmethod
+    def _cache_key(outcrop: str, report_type: str, fmt: str, config: dict[str, Any]) -> str:
+        # 取影响报告内容的配置子集
+        cfg_part = (
+            config.get("input_dir", ""),
+            config.get("output_dir", ""),
+            config.get("window_strategy", "auto"),
+            config.get("min_intersections", 5),
+            config.get("rose_bin_width", 10.0),
+        )
+        return f"{outcrop}:{report_type}:{fmt}:{hash(cfg_part)}"
+
+    @staticmethod
+    def _image_mtimes(img_paths: list[str]) -> dict[str, float]:
+        mtimes: dict[str, float] = {}
+        for p in img_paths:
+            try:
+                mtimes[p] = Path(p).stat().st_mtime
+            except OSError:
+                mtimes[p] = 0.0
+        return mtimes
+
+    def _try_cached(
+        self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        key = self._cache_key(outcrop, report_type, fmt, config)
+        cached = self._result_cache.get(key)
+        if cached is None:
+            return None
+        result, img_mtimes = cached["result"], cached["img_mtimes"]
+        # 若报告引用的输出图片在缓存后被修改/删除，则失效缓存
+        for path, mtime in img_mtimes.items():
+            try:
+                if Path(path).stat().st_mtime != mtime:
+                    return None
+            except OSError:
+                return None
+        return result
+
+    def _store_cached(
+        self,
+        outcrop: str,
+        report_type: str,
+        fmt: str,
+        config: dict[str, Any],
+        result: dict[str, Any],
+        img_paths: list[str],
+    ) -> None:
+        key = self._cache_key(outcrop, report_type, fmt, config)
+        self._result_cache.set(
+            key, {"result": result, "img_mtimes": self._image_mtimes(img_paths)}
+        )
+
     def generate(
         self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]
     ) -> dict[str, Any]:
@@ -214,24 +283,40 @@ class ReportService:
             )
             return {"error": str(exc)}
 
+        ctx = self._build_report_context(outcrop, trace, statistics, report_type, config)
+        cached = self._try_cached(outcrop, report_type, fmt, config)
+        if cached is not None:
+            logger.info(
+                "报告 [%s] 命中缓存，直接返回已有结果",
+                outcrop,
+                extra={"stage": "report_cache_hit", "outcrop": outcrop},
+            )
+            return cached
+
         if fmt in ("docx", "both"):
-            docx_path = self._gen_docx(outcrop, trace, statistics, report_type, config)
-            results["docx"] = docx_path
-            if docx_path:
+            docx_result = self._gen_docx(outcrop, ctx)
+            if "error" in docx_result:
+                results["docx_error"] = docx_result["error"]
+            else:
+                results["docx"] = docx_result["path"]
                 logger.info(
                     "DOCX 报告生成: %s",
-                    docx_path,
-                    extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_path},
+                    docx_result["path"],
+                    extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_result["path"]},
                 )
         if fmt in ("pdf", "both"):
-            pdf_path = self._gen_pdf(outcrop, trace, statistics, report_type, config)
-            results["pdf"] = pdf_path
-            if pdf_path:
+            pdf_result = self._gen_pdf(outcrop, ctx)
+            if "error" in pdf_result:
+                results["pdf_error"] = pdf_result["error"]
+            else:
+                results["pdf"] = pdf_result["path"]
                 logger.info(
                     "PDF 报告生成: %s",
-                    pdf_path,
-                    extra={"stage": "report_pdf", "outcrop": outcrop, "path": pdf_path},
+                    pdf_result["path"],
+                    extra={"stage": "report_pdf", "outcrop": outcrop, "path": pdf_result["path"]},
                 )
+
+        self._store_cached(outcrop, report_type, fmt, config, results, ctx.get("img_paths", []))
 
         duration = (time.perf_counter() - start) * 1000
         logger.info(
@@ -306,9 +391,7 @@ class ReportService:
     # ------------------------------------------------------------------
     # Word
     # ------------------------------------------------------------------
-    def _gen_docx(
-        self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]
-    ) -> str:
+    def _gen_docx(self, outcrop: str, ctx: dict[str, Any]) -> dict[str, str]:
         try:
             from docx import Document
             from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -316,9 +399,8 @@ class ReportService:
             from docx.shared import Inches, Pt
         except ImportError:
             logger.warning("python-docx 未安装")
-            return ""
+            return {"error": "python-docx 未安装"}
 
-        ctx = self._build_report_context(outcrop, trace, statistics, report_type, config)
         try:
             doc = Document()
 
@@ -368,31 +450,28 @@ class ReportService:
 
             path = REPORT_DIR / f"{outcrop}_report.docx"
             doc.save(str(path))
-            return str(path.resolve())
+            return {"path": str(path.resolve())}
         except Exception as exc:
             logger.exception("DOCX 生成失败: %s", exc)
-            return ""
+            return {"error": f"DOCX 生成失败: {exc}"}
 
     # ------------------------------------------------------------------
     # PDF
     # ------------------------------------------------------------------
-    def _gen_pdf(
-        self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]
-    ) -> str:
+    def _gen_pdf(self, outcrop: str, ctx: dict[str, Any]) -> dict[str, str]:
         try:
             from reportlab.lib.enums import TA_CENTER
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
             from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
             from reportlab.pdfbase.ttfonts import TTFont
             from reportlab.platypus import Image as RLImage
             from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
         except ImportError:
             logger.warning("reportlab 未安装")
-            return ""
+            return {"error": "reportlab 未安装"}
 
-        ctx = self._build_report_context(outcrop, trace, statistics, report_type, config)
         try:
             fallback_path, _fallback_name = _find_system_font()
             fallback_candidates = [(fallback_path, "System CJK")] if fallback_path else []
@@ -461,11 +540,19 @@ class ReportService:
             if ctx["stat_lines"]:
                 story.append(Spacer(1, 12))
             for img_path in ctx["img_paths"]:
-                story.append(RLImage(img_path, width=400, height=300))
-                story.append(Spacer(1, 12))
+                try:
+                    with PILImage.open(img_path) as im:
+                        orig_w, orig_h = im.size
+                    max_width = 400
+                    width = max_width
+                    height = max_width * orig_h / orig_w if orig_w else 300
+                    story.append(RLImage(img_path, width=width, height=height))
+                    story.append(Spacer(1, 12))
+                except Exception as img_exc:
+                    logger.warning("PDF 跳过图片 %s: %s", img_path, img_exc)
 
             doc.build(story)
-            return str((REPORT_DIR / f"{outcrop}_report.pdf").resolve())
+            return {"path": str((REPORT_DIR / f"{outcrop}_report.pdf").resolve())}
         except Exception as exc:
             logger.exception("PDF 生成失败: %s", exc)
-            return ""
+            return {"error": f"PDF 生成失败: {exc}"}

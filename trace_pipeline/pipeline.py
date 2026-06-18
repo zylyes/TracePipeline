@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 import uuid
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -44,14 +45,25 @@ logger = logging.getLogger(__name__)
 __all__ = ["load_trace_data", "run_pipeline"]
 
 
-def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
-    """读取迹线 Excel 表并解析为 TraceData。"""
-    start = time.perf_counter()
-    logger.info("加载迹线数据: %s/%s", input_dir, table_stem)
-    df = read_trace_excel(input_dir, table_stem, outcrop)
+def _input_file_signature(input_dir: str, table_stem: str) -> tuple[Path, int, int]:
+    """定位输入 Excel 并返回 (path, mtime_ns, size)。"""
+    base = Path(input_dir).expanduser().resolve()
+    for ext in (".xlsx", ".xls"):
+        path = base / f"{table_stem}{ext}"
+        if path.is_file():
+            stat = path.stat()
+            return path, stat.st_mtime_ns, stat.st_size
+    raise FileNotFoundError(f"未找到输入文件: {base / table_stem}.xls/.xlsx")
 
+
+@lru_cache(maxsize=64)
+def _load_trace_data_cached(
+    input_dir: str, table_stem: str, outcrop: str, mtime_ns: int, size: int
+) -> TraceData:
+    """按文件签名缓存的 TraceData 加载器。"""
+    df = read_trace_excel(input_dir, table_stem, outcrop)
     result = compute_endpoints(df)
-    trace = TraceData(
+    return TraceData(
         scanline_azimuth=result.azimuth,
         count=result.count,
         endpoints=result.endpoints,
@@ -61,14 +73,22 @@ def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
         measured_scanline_length=result.measured_scanline_length,
         measured_outcrop_area=result.measured_outcrop_area,
     )
+
+
+def load_trace_data(input_dir: str, table_stem: str, outcrop: str) -> TraceData:
+    """读取迹线 Excel 表并解析为 TraceData（按文件签名缓存）。"""
+    start = time.perf_counter()
+    logger.info("加载迹线数据: %s/%s", input_dir, table_stem)
+    path, mtime_ns, size = _input_file_signature(input_dir, table_stem)
+    trace = _load_trace_data_cached(str(path.parent), table_stem, outcrop, mtime_ns, size)
     duration_ms = (time.perf_counter() - start) * 1000
     logger.info(
         "解析完成: %d 条迹线, 走向 %.1f°, 平均端点距离 %.2f (%.3f ms)",
-        result.count,
-        result.azimuth,
+        trace.count,
+        trace.scanline_azimuth,
         trace.mean_length,
         duration_ms,
-        extra={"stage": "load", "trace_count": result.count, "duration_ms": round(duration_ms, 3)},
+        extra={"stage": "load", "trace_count": trace.count, "duration_ms": round(duration_ms, 3)},
     )
     return trace
 

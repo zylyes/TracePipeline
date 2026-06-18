@@ -44,8 +44,8 @@
         <el-tab-pane label="原始迹线图" name="raw">
           <div class="image-viewport">
             <img
-              v-if="rawImageUrl"
-              :src="rawImageUrl"
+              v-if="rawImageThumbUrl"
+              :src="rawImageThumbUrl"
               class="plot-img"
               @click="openViewer(0)"
             />
@@ -56,8 +56,8 @@
         <el-tab-pane label="旋转迹线图" name="rotated">
           <div class="image-viewport">
             <img
-              v-if="rotatedImageUrl"
-              :src="rotatedImageUrl"
+              v-if="rotatedImageThumbUrl"
+              :src="rotatedImageThumbUrl"
               class="plot-img"
               @click="openViewer(1)"
             />
@@ -68,8 +68,8 @@
         <el-tab-pane v-if="pipelineStore.lastExportRosePlot" label="走向玫瑰图" name="rose">
           <div class="image-viewport">
             <img
-              v-if="roseImageUrl"
-              :src="roseImageUrl"
+              v-if="roseImageThumbUrl"
+              :src="roseImageThumbUrl"
               class="plot-img"
               @click="openViewer(2)"
             />
@@ -98,7 +98,7 @@ import ImageViewer from '@/components/ImageViewer.vue'
 import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
-import { loadImageBase64 } from '@/utils/image'
+import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
 
 defineOptions({ name: 'Statistics' })
 
@@ -127,13 +127,17 @@ const alertMessage = computed<string>(() => {
   return ''
 })
 
-// 图片 URL
+// 图片 URL（预览用缩略图，查看器用原图）
+const rawImageThumbUrl = ref('')
+const rotatedImageThumbUrl = ref('')
+const roseImageThumbUrl = ref('')
 const rawImageUrl = ref('')
 const rotatedImageUrl = ref('')
 const roseImageUrl = ref('')
 const rawImagePath = ref('')
 const rotatedImagePath = ref('')
 const roseImagePath = ref('')
+const PREVIEW_THUMBNAIL_MAX_PX = 640
 
 // 当前激活的 tab
 const activeImageTab = ref('raw')
@@ -185,6 +189,9 @@ async function loadStats(force = false) {
   rawImageUrl.value = ''
   rotatedImageUrl.value = ''
   roseImageUrl.value = ''
+  rawImageThumbUrl.value = ''
+  rotatedImageThumbUrl.value = ''
+  roseImageThumbUrl.value = ''
   rawImagePath.value = ''
   rotatedImagePath.value = ''
   roseImagePath.value = ''
@@ -227,6 +234,17 @@ async function loadStats(force = false) {
 type ImageTab = 'raw' | 'rotated' | 'rose'
 
 async function loadImageByTab(tab: ImageTab) {
+  // 预览卡片使用缩略图
+  if (tab === 'raw' && rawImagePath.value && !rawImageThumbUrl.value) {
+    rawImageThumbUrl.value = await loadImageThumbnail(rawImagePath.value, PREVIEW_THUMBNAIL_MAX_PX)
+  } else if (tab === 'rotated' && rotatedImagePath.value && !rotatedImageThumbUrl.value) {
+    rotatedImageThumbUrl.value = await loadImageThumbnail(rotatedImagePath.value, PREVIEW_THUMBNAIL_MAX_PX)
+  } else if (tab === 'rose' && roseImagePath.value && !roseImageThumbUrl.value) {
+    roseImageThumbUrl.value = await loadImageThumbnail(roseImagePath.value, PREVIEW_THUMBNAIL_MAX_PX)
+  }
+}
+
+async function loadFullImageByTab(tab: ImageTab) {
   if (tab === 'raw' && rawImagePath.value && !rawImageUrl.value) {
     rawImageUrl.value = await loadImageBase64(rawImagePath.value)
   } else if (tab === 'rotated' && rotatedImagePath.value && !rotatedImageUrl.value) {
@@ -247,7 +265,7 @@ watch(activeImageTab, () => {
 async function openViewer(index: number) {
   const tabs: ImageTab[] = pipelineStore.lastExportRosePlot ? ['raw', 'rotated', 'rose'] : ['raw', 'rotated']
   for (const tab of tabs) {
-    await loadImageByTab(tab)
+    await loadFullImageByTab(tab)
   }
   const images = []
   if (rawImageUrl.value) images.push({ title: '原始迹线图', src: rawImageUrl.value })

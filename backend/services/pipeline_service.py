@@ -48,10 +48,11 @@ class PipelineService:
             self._running = True
             self._queue.clear()
             self._shutdown_event.clear()
+        # 非守护线程 + 显式 shutdown()：避免主进程退出时强制中断正在写入文件/Excel 的操作
         self._worker_thread = threading.Thread(
             target=self._run_background,
             args=(validated_targets, config),
-            daemon=True,  # daemon=True 确保主进程关闭时线程不会阻止退出
+            daemon=False,
         )
         self._worker_thread.start()
         return {"status": "started", "total": len(validated_targets)}
@@ -68,8 +69,9 @@ class PipelineService:
         """优雅关闭：发送取消信号并等待后台线程完成。
 
         设置 shutdown_event 让工作线程在两个目标之间提前退出，
-        然后 join(timeout) 等待线程结束。daemon=True 确保即使
-        超时后主进程仍能退出而不会被后台线程阻塞。
+        然后 join(timeout) 等待线程结束。线程为非守护线程，确保
+        当前文件/Excel 写入完成后主进程才退出；若超时仍未完成则
+        记录警告并继续关闭流程。
         """
         if not self._running:
             return

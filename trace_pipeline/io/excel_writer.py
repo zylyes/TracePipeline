@@ -419,39 +419,40 @@ def _style_sheet(ws, df: pd.DataFrame, has_title: bool = True) -> None:
     last_col = df.shape[1]
     thin = Side(style="thin", color="D9E2F3")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center_alignment = Alignment(horizontal="center", vertical="center")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    # 表头样式
-    for row in ws.iter_rows(
-        min_row=header_row, max_row=header_row, min_col=first_col, max_col=last_col
-    ):
-        for cell in row:
-            _apply_cell_font(cell, role="heading", bold=True)
-            cell.fill = PatternFill("solid", fgColor="D9EAF7")
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            cell.border = border
+    # 表头样式（整行一次性设置）
+    header_fill = PatternFill("solid", fgColor="D9EAF7")
+    for cell in ws[header_row]:
+        _apply_cell_font(cell, role="heading", bold=True)
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = border
     ws.row_dimensions[header_row].height = 28
 
-    # 数据行样式
+    # 数据行样式：边跑循环边统计列宽，避免二次遍历整列
+    max_widths = [10] * last_col
     for row in ws.iter_rows(
         min_row=first_data_row, max_row=last_row, min_col=first_col, max_col=last_col
     ):
-        for cell in row:
+        for col_idx, cell in enumerate(row, start=0):
             cell.border = border
-            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.alignment = center_alignment
             _apply_cell_font(cell, role="body", bold=False)
-            if isinstance(cell.value, numbers.Integral):
+            value = cell.value
+            if isinstance(value, numbers.Integral):
                 cell.number_format = "0"
-            elif isinstance(cell.value, numbers.Real):
+            elif isinstance(value, numbers.Real):
                 cell.number_format = "0.0000"
+            if value is not None:
+                text_len = len(str(value))
+                if text_len > max_widths[col_idx]:
+                    max_widths[col_idx] = text_len
 
     # 列宽
     for col_idx in range(first_col, last_col + 1):
-        max_width = 10
-        for column in ws.iter_cols(min_col=col_idx, max_col=col_idx, values_only=False):
-            for cell in column:
-                if cell.value is not None:
-                    max_width = max(max_width, len(str(cell.value)))
-        width = min(28, max(10, max_width * 1.1 + 2))
+        width = min(28, max(10, max_widths[col_idx - 1] * 1.1 + 2))
         ws.column_dimensions[get_column_letter(col_idx)].width = width
 
     # 冻结窗格（冻结标题行+表头行）

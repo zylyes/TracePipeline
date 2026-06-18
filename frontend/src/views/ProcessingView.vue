@@ -532,12 +532,15 @@ onActivated(() => {
   }
 })
 
-// 监听 files 为空时自动重试（兜底：处理 KeepAlive 复用时缓存过期的情况）
-watch(() => files.value.length, (len) => {
-  if (len === 0 && !pipelineStore.running) {
-    loadFiles(false).catch(() => {})
-  }
-})
+// 输入/输出目录变更后自动刷新文件列表
+watch(
+  () => [configStore.config.input_dir, configStore.config.output_dir],
+  () => {
+    cacheStore.invalidateScan()
+    loadFiles(true).catch(() => {})
+  },
+  { deep: true }
+)
 
 onUnmounted(() => {
   stopPolling()

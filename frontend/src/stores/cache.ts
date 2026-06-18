@@ -17,15 +17,45 @@ interface CachedItem<T> {
   timestamp: number
 }
 
+const SCAN_STORE_KEY = 'tp_cache_scan'
+const COMPARISON_STORE_KEY = 'tp_cache_comparison'
+const RESULTS_STORE_KEY = 'tp_cache_results'
+
+function loadStoredItem<T>(key: string): CachedItem<T> | null {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CachedItem<T>
+    if (!parsed || typeof parsed.timestamp !== 'number' || parsed.data === undefined) {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function storeItem<T>(key: string, item: CachedItem<T> | null) {
+  try {
+    if (item) {
+      sessionStorage.setItem(key, JSON.stringify(item))
+    } else {
+      sessionStorage.removeItem(key)
+    }
+  } catch {
+    // sessionStorage 配额不足或禁用时静默降级
+  }
+}
+
 export const useCacheStore = defineStore('cache', () => {
-  // 扫描结果缓存
-  const scanResult = ref<CachedItem<any[]> | null>(null)
+  // 扫描结果缓存（页面刷新后从 sessionStorage 恢复）
+  const scanResult = ref<CachedItem<any[]> | null>(loadStoredItem<any[]>(SCAN_STORE_KEY))
   // 统计数据缓存: outcrop -> data
   const statsCache = ref<Map<string, CachedItem<any>>>(new Map())
   // 对比数据缓存
-  const comparisonCache = ref<CachedItem<any[]> | null>(null)
+  const comparisonCache = ref<CachedItem<any[]> | null>(loadStoredItem<any[]>(COMPARISON_STORE_KEY))
   // 结果列表缓存
-  const resultsCache = ref<CachedItem<any[]> | null>(null)
+  const resultsCache = ref<CachedItem<any[]> | null>(loadStoredItem<any[]>(RESULTS_STORE_KEY))
   // 图片缓存: path -> base64
   const imageCache = ref<Map<string, CachedItem<string>>>(new Map())
   const thumbnailCache = ref<Map<string, CachedItem<string>>>(new Map())
@@ -52,6 +82,7 @@ export const useCacheStore = defineStore('cache', () => {
   // --- 扫描结果 ---
   function setScan(data: any[]) {
     scanResult.value = { data, timestamp: Date.now() }
+    storeItem(SCAN_STORE_KEY, scanResult.value)
   }
 
   function getScan(): any[] | null {
@@ -84,6 +115,7 @@ export const useCacheStore = defineStore('cache', () => {
 
   function setComparison(data: any[]) {
     comparisonCache.value = { data, timestamp: Date.now() }
+    storeItem(COMPARISON_STORE_KEY, comparisonCache.value)
   }
 
   // --- 结果列表 ---
@@ -93,6 +125,7 @@ export const useCacheStore = defineStore('cache', () => {
 
   function setResults(data: any[]) {
     resultsCache.value = { data, timestamp: Date.now() }
+    storeItem(RESULTS_STORE_KEY, resultsCache.value)
   }
 
   // --- 图片 ---
@@ -255,6 +288,7 @@ export const useCacheStore = defineStore('cache', () => {
   // --- 失效 ---
   function invalidateScan() {
     scanResult.value = null
+    storeItem(SCAN_STORE_KEY, null)
   }
 
   function invalidateStats(outcrop?: string) {
@@ -267,10 +301,12 @@ export const useCacheStore = defineStore('cache', () => {
 
   function invalidateComparison() {
     comparisonCache.value = null
+    storeItem(COMPARISON_STORE_KEY, null)
   }
 
   function invalidateResults() {
     resultsCache.value = null
+    storeItem(RESULTS_STORE_KEY, null)
   }
 
   function invalidateAll() {
@@ -279,6 +315,9 @@ export const useCacheStore = defineStore('cache', () => {
     comparisonCache.value = null
     resultsCache.value = null
     invalidateImages()
+    storeItem(SCAN_STORE_KEY, null)
+    storeItem(COMPARISON_STORE_KEY, null)
+    storeItem(RESULTS_STORE_KEY, null)
   }
 
   // --- 处理完成后全量失效 ---

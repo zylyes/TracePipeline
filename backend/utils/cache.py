@@ -66,7 +66,7 @@ class TTLCache:
 
     def _evict_expired(self) -> None:
         now = time.monotonic()
-        expired = [k for k, (ts, _) in self._store.items() if now - ts > self._ttl * 2]
+        expired = [k for k, (ts, _) in self._store.items() if now - ts > self._ttl]
         for k in expired:
             del self._store[k]
 
@@ -79,8 +79,9 @@ class TTLCache:
 class DirectoryChangeDetector:
     """Detect external changes from a shallow directory content snapshot."""
 
-    def __init__(self) -> None:
+    def __init__(self, max_files: int = 5000) -> None:
         self._snapshot: tuple[Any, ...] | None = None
+        self._max_files = max(1, max_files)
 
     def has_changed(self, directory: Path) -> bool:
         """检测目录是否发生了外部变更。
@@ -97,7 +98,11 @@ class DirectoryChangeDetector:
             try:
                 dir_stat = directory.stat()
                 children: list[tuple[str, bool, int, int]] = []
-                for child in directory.iterdir():
+                for i, child in enumerate(directory.iterdir()):
+                    if i >= self._max_files:
+                        # 超大目录仅采样前 N 个文件，避免 I/O 瓶颈
+                        children.append(("__truncated__", False, 0, 0))
+                        break
                     try:
                         stat = child.stat()
                     except OSError:

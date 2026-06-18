@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -255,6 +256,22 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 文件
     # ------------------------------------------------------------------
+    def preload_fonts(self) -> dict[str, Any]:
+        """预热 matplotlib 字体缓存，减少首次绘图时的延迟。"""
+        try:
+            from trace_pipeline.plotting.style import _get_font_cache
+
+            cache = _get_font_cache()
+            return {
+                "status": "ok",
+                "cjk_serif": cache.get("cjk_serif", [])[:3],
+                "cjk_sans": cache.get("cjk_sans", [])[:3],
+                "western": cache.get("western", [])[:3],
+            }
+        except Exception as exc:
+            logger.warning("字体缓存预热失败: %s", exc)
+            return {"status": "error", "message": str(exc)}
+
     def scan_files(self, force=False) -> list[dict[str, Any]]:
         start = time.perf_counter()
         output_changed = self._check_output_changed()
@@ -524,7 +541,17 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 毕设功能（开发者选项）
     # ------------------------------------------------------------------
-    def generate_report(self, outcrop: str, report_type: str, fmt: str) -> dict[str, Any]:
+    def generate_report(
+        self, outcrop: str, report_type: str, fmt: str, save_path: str | None = None
+    ) -> dict[str, Any]:
+        logger.info(
+            "generate_report 调用: outcrop=%s type=%s fmt=%s save_path=%s",
+            outcrop,
+            report_type,
+            fmt,
+            save_path,
+            extra={"stage": "api_generate_report_call"},
+        )
         if not self._report_lock.acquire(blocking=False):
             logger.warning(
                 "generate_report 被拒绝: 已有报告任务正在运行", extra={"stage": "api_report_reject"}
@@ -532,10 +559,53 @@ class GuiApi:
             return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
             self._audit.log(
-                "generate_report", params={"outcrop": outcrop, "type": report_type, "fmt": fmt}
+                "generate_report",
+                params={
+                    "outcrop": outcrop,
+                    "type": report_type,
+                    "fmt": fmt,
+                    "save_path": save_path,
+                },
             )
             result = self._report.generate(outcrop, report_type, fmt, self._config.get())
+            logger.info(
+                "generate_report 生成结果: outcrop=%s result_keys=%s",
+                outcrop,
+                list(result.keys()),
+                extra={"stage": "api_generate_report_result", "outcrop": outcrop, "result": result},
+            )
+            if "error" in result:
+                return result
+            if save_path:
+                safe_dest = self._safe_user_selected_path(save_path)
+                if safe_dest is None:
+                    logger.warning("generate_report 拒绝越权保存路径: %s", save_path)
+                    return {"error": "保存路径越权"}
+                key = "docx" if fmt == "docx" else "pdf"
+                src_path = result.get(key)
+                if not src_path:
+                    return {"error": f"未生成 {key.upper()} 报告"}
+                src_safe = self._safe_known_path(src_path)
+                if src_safe is None or not src_safe.exists():
+                    return {"error": "报告源文件不存在或路径越权"}
+                safe_dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(src_safe), str(safe_dest))
+                copied_path = str(safe_dest.resolve())
+                logger.info(
+                    "generate_report 复制完成: %s -> %s",
+                    src_safe,
+                    safe_dest,
+                    extra={
+                        "stage": "api_generate_report_copied",
+                        "outcrop": outcrop,
+                        "path": copied_path,
+                    },
+                )
+                return {"path": str(safe_dest.resolve()), "format": key}
             return result
+        except Exception as exc:
+            logger.exception("generate_report 异常: %s", exc)
+            return {"error": f"生成报告失败: {exc}"}
         finally:
             self._report_lock.release()
 
@@ -545,6 +615,14 @@ class GuiApi:
         import zipfile
         from datetime import datetime
 
+        logger.info(
+            "generate_reports_zip 调用: targets=%s type=%s fmt=%s save_path=%s",
+            targets,
+            report_type,
+            fmt,
+            save_path,
+            extra={"stage": "api_generate_reports_zip_call"},
+        )
         # 与 generate_report 共用 _report_lock:避免并发写入同名 {outcrop}_report.docx 中间产物
         if not self._report_lock.acquire(blocking=False):
             logger.warning(
@@ -570,7 +648,8 @@ class GuiApi:
                     files.append(res["pdf"])
 
             if not files:
-                return {"error": "没有生成任何报告" + ("; ".join(errors) if errors else "")}
+                detail = "; ".join(errors)
+                return {"error": f"没有生成任何报告{( ': ' + detail) if detail else ''}"}
 
             zip_path: Path
             if save_path:
@@ -612,6 +691,9 @@ class GuiApi:
                     logger.debug("清理中间文件失败: %s → %s", f, exc)
 
             return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
+        except Exception as exc:
+            logger.exception("generate_reports_zip 异常: %s", exc)
+            return {"error": f"生成报告压缩包失败: {exc}"}
         finally:
             self._report_lock.release()
 
@@ -875,13 +957,23 @@ class GuiApi:
             )
             return ""
         try:
+            file_types: tuple[str, ...] = ()
+            if file_filter:
+                # pywebview 官方文档推荐 tuple；tuple 可避免个别版本把 list 当作无效 filter
+                file_types = (file_filter,)
             result = self._window.create_file_dialog(
                 webview.FileDialog.SAVE,
                 allow_multiple=False,
                 save_filename=default_name,
-                file_types=(file_filter,) if file_filter else (),
+                file_types=file_types,
             )
-            if isinstance(result, list) and result:
+            logger.debug(
+                "ask_save_path 原始返回值: type=%s value=%s",
+                type(result).__name__,
+                result,
+                extra={"stage": "api_ask_save_path", "raw_result": str(result)},
+            )
+            if isinstance(result, (list, tuple)) and result:
                 chosen = str(result[0])
                 self._remember_user_selected_path(chosen)
                 logger.info(

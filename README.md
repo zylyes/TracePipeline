@@ -1,6 +1,6 @@
 # 岩体节理测线坐标计算与绘图工具
 
-> **版本**: v3.9.0 | **语言**: Python >= 3.10 | **许可证**: MIT
+> **版本**: v4.0.0 | **语言**: Python >= 3.10 | **许可证**: MIT
 
 基于 Python 的岩体节理测线法数据处理与可视化系统，支持 **CLI 命令行**与**桌面 GUI（pywebview + Vue 3）**双模式。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，将 MATLAB 原型算法完整移植为工程化 Python 代码。适用于岩体节理几何特征分析。项目同时提供 **PyInstaller + Inno Setup** 一键打包能力，可生成 Windows 安装程序和免安装便携版。
 
@@ -110,7 +110,7 @@
 │       └── security.py                  # 路径遍历防护（PathSecurityChecker）
 │
 ├── frontend/                           # Vue 3 前端（42 源文件）
-│   ├── package.json                    # v3.9.0，Vue 3 + Element Plus + ECharts
+│   ├── package.json                    # v4.0.0，Vue 3 + Element Plus + ECharts
 │   ├── vite.config.ts                  # 构建到 ../backend/static
 │   ├── tsconfig.json                   # TypeScript 配置
 │   └── src/

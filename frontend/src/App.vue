@@ -155,6 +155,7 @@ import ConfigIcon from '@/components/icons/ConfigIcon.vue'
 import { useAppStore } from '@/stores/app'
 import { useConfigStore } from '@/stores/config'
 import { usePipelineStore } from '@/stores/pipeline'
+import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 
 const appVersion = __APP_VERSION__
@@ -435,6 +436,8 @@ function onResizeGripMouseDown(e: MouseEvent) {
 }
 
 // 启动步骤：真实 API 驱动进度
+const cacheStore = useCacheStore()
+
 const bootSteps: BootStep[] = [
   {
     label: '正在连接后端服务...',
@@ -453,6 +456,21 @@ const bootSteps: BootStep[] = [
           cfg.export_rose_plot ?? false
         )
       }
+    }
+  },
+  {
+    label: '正在扫描输入目录...',
+    targetProgress: 55,
+    task: async () => {
+      const files = await api.scan_files(true)
+      cacheStore.setScan(files)
+    }
+  },
+  {
+    label: '正在初始化字体缓存...',
+    targetProgress: 80,
+    task: async () => {
+      await api.preload_fonts()
     }
   },
   {
@@ -608,11 +626,11 @@ const bootSteps: BootStep[] = [
 .sidebar::after {
   content: '';
   position: absolute;
-  top: 36px;
+  top: 0;
   right: 0;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.58), transparent);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.28), rgba(56, 189, 248, 0.58) 40%, rgba(56, 189, 248, 0.58) 60%, rgba(56, 189, 248, 0.28));
   pointer-events: none;
 }
 
@@ -621,12 +639,11 @@ const bootSteps: BootStep[] = [
 }
 
 .sidebar-header {
-  height: 36px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 13px;
-  border-bottom: 1px solid rgba(125, 211, 252, 0.12);
+  padding: 0 16px;
   cursor: pointer;
   transition: justify-content padding 0.25s var(--tp-easing);
   position: relative;
@@ -635,17 +652,16 @@ const bootSteps: BootStep[] = [
 .sidebar-header::after {
   content: '';
   position: absolute;
-  bottom: -3px;
-  left: 12%;
-  right: 12%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--tp-geo-emerald, rgba(15, 118, 110, 0.5)), transparent);
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.22), transparent);
   pointer-events: none;
-  border-radius: 1px;
 }
 
 .sidebar-header:hover {
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(56, 189, 248, 0.06);
 }
 
 .sidebar.collapsed .sidebar-header {

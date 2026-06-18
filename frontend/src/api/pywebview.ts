@@ -71,7 +71,7 @@ function mockApi(): any {
     get_data: async () => ({ data: [], total: 0, columns: [] }),
     generate_preview: async () => ({ status: 'ready', paths: { raw: '', rotated: '', rose: '' }, images: [] }),
     get_logs: async () => [],
-    generate_report: async () => ({}),
+    generate_report: async (_outcrop: string, _report_type: string, _fmt: string, _save_path?: string) => ({}),
     generate_reports_zip: async () => ({ zip_path: 'output/reports/reports_20240101_120000.zip', count: 2, errors: [] }),
     get_provenance: async () => ({}),
     get_audit_log: async () => [],
@@ -80,6 +80,7 @@ function mockApi(): any {
     ask_save_path: async (_defaultName?: string, _fileFilter?: string) => 'C:\\mock\\save_path.zip',
     browse_folder: async () => 'C:\\mock\\folder',
     export_config_json: async (folder: string, content: string) => true,
+    preload_fonts: async () => ({ status: 'ok' }),
     check_webview2: async () => ({ installed: true }),
     get_image_meta: async (_path: string) => ({ path: _path, size: 0, mtime_ns: 0, ext: '' }),
     get_image: async (_path: string) => '',
@@ -111,8 +112,8 @@ export const api = {
     getApi().get_data(outcrop, section, page, page_size, source),
   generate_preview: (config: any) => getApi().generate_preview(config),
   get_logs: (tail?: number, level?: string) => getApi().get_logs(tail, level),
-  generate_report: (outcrop: string, report_type: string, fmt: string) =>
-    getApi().generate_report(outcrop, report_type, fmt),
+  generate_report: (outcrop: string, report_type: string, fmt: string, save_path?: string) =>
+    getApi().generate_report(outcrop, report_type, fmt, save_path),
   generate_reports_zip: (targets: string[], report_type: string, fmt: string, save_path?: string) =>
     getApi().generate_reports_zip(targets, report_type, fmt, save_path),
   get_provenance: (outcrop: string) => getApi().get_provenance(outcrop),
@@ -125,6 +126,7 @@ export const api = {
   get_image_meta: (path: string) => getApi().get_image_meta(path),
   get_image: (path: string) => getApi().get_image(path),
   get_image_thumbnail: (path: string, maxPx?: number) => getApi().get_image_thumbnail(path, maxPx),
+  preload_fonts: () => getApi().preload_fonts(),
   check_webview2: () => getApi().check_webview2(),
   window_minimize: () => getApi().window_minimize(),
   window_maximize: () => getApi().window_maximize(),

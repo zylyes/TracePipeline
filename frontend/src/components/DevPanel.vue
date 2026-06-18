@@ -329,6 +329,12 @@ async function loadOutcrops(force = false) {
   }
 }
 
+const reportFilters: Record<string, string> = {
+  docx: 'Word 文档 (*.docx)',
+  pdf: 'PDF 文件 (*.pdf)',
+  both: 'ZIP 压缩包 (*.zip)',
+}
+
 async function generateReport() {
   let targets: string[] = []
   if (reportScope.value === 'selected') {
@@ -345,11 +351,24 @@ async function generateReport() {
     }
   }
 
-  // 让用户选择保存位置
-  const defaultName = targets.length === 1
-    ? `report_${targets[0]}.zip`
-    : `reports_${new Date().toISOString().slice(0, 10)}.zip`
-  const savePath = await api.ask_save_path(defaultName, 'ZIP 文件 (*.zip)')
+  const fmt = reportFmt.value
+  const isSingleDirect = targets.length === 1 && fmt !== 'both'
+
+  // 单文件且格式为 docx/pdf 时直接下载；否则打包为 ZIP
+  let defaultName: string
+  let filter: string
+  if (isSingleDirect) {
+    const ext = fmt === 'docx' ? 'docx' : 'pdf'
+    defaultName = `report_${targets[0]}.${ext}`
+    filter = reportFilters[fmt]
+  } else {
+    defaultName = targets.length === 1
+      ? `report_${targets[0]}.zip`
+      : `reports_${new Date().toISOString().slice(0, 10)}.zip`
+    filter = reportFilters.both
+  }
+
+  const savePath = await api.ask_save_path(defaultName, filter)
   if (!savePath) {
     // 用户取消选择
     return
@@ -357,14 +376,36 @@ async function generateReport() {
 
   reportLoading.value = true
   try {
-    const res = await api.generate_reports_zip(targets, reportType.value, reportFmt.value, savePath)
-    if (res.error) {
-      msg.error(res.error)
-    } else if (res.zip_path) {
-      msg.success(`报告已保存: ${res.zip_path}`)
+    if (isSingleDirect) {
+      const res = await api.generate_report(targets[0], reportType.value, fmt, savePath)
+      if (res.status === 'busy') {
+        msg.warning(res.message || '已有报告任务正在运行')
+      } else if (res.error) {
+        msg.error(res.error)
+      } else if (res.docx_error || res.pdf_error) {
+        msg.error(`生成失败: ${res.docx_error || ''} ${res.pdf_error || ''}`.trim())
+      } else if (res.path) {
+        msg.success(`报告已保存: ${res.path}`)
+      } else {
+        msg.warning('未能生成报告，请检查日志')
+        console.warn('[DevPanel] generate_report 返回异常:', res)
+      }
+    } else {
+      const res = await api.generate_reports_zip(targets, reportType.value, fmt, savePath)
+      if (res.status === 'busy') {
+        msg.warning(res.message || '已有报告任务正在运行')
+      } else if (res.error) {
+        msg.error(res.error)
+      } else if (res.zip_path) {
+        msg.success(`报告已保存: ${res.zip_path}`)
+      } else {
+        msg.warning('未能生成报告压缩包，请检查日志')
+        console.warn('[DevPanel] generate_reports_zip 返回异常:', res)
+      }
     }
   } catch (e) {
-    msg.error('打包报告失败')
+    console.error('[DevPanel] 导出报告异常:', e)
+    msg.error('导出报告失败')
   } finally {
     reportLoading.value = false
   }

@@ -323,10 +323,18 @@ def generate_iss(version: str) -> Path:
     # Windows 反斜杠转义给 Inno Setup
     lang_bs = str(ISS_LANG_DIR.resolve())
 
-    # 语言文件路径：如果自定义 Languages 目录不存在，回退到 compiler: 内置
-    lang_cn = f"{lang_bs}\\ChineseSimplified.isl"
-    if not Path(lang_bs, "ChineseSimplified.isl").exists():
+    # 语言文件路径：优先使用本地文件，否则尝试 compiler: 内置，实在没有则只保留英文
+    lang_cn_local = Path(lang_bs, "ChineseSimplified.isl")
+    lang_cn_compiler = Path(ISCC_EXE.parent, "Languages", "ChineseSimplified.isl")
+    if lang_cn_local.exists():
+        lang_cn = str(lang_cn_local)
+    elif lang_cn_compiler.exists():
         lang_cn = "compiler:Languages\\ChineseSimplified.isl"
+    else:
+        lang_cn = None  # 中文语言文件不可用，仅使用英文
+
+    languages_block = f'''Name: "chinesesimplified"; MessagesFile: "{lang_cn}"
+Name: "english"; MessagesFile: "compiler:Default.isl"''' if lang_cn else 'Name: "english"; MessagesFile: "compiler:Default.isl"'
 
     files_line = (
         f'Source: "{dist_dir_bs}\\{APP_NAME}\\*"; DestDir: "{{app}}"; '
@@ -369,8 +377,7 @@ UninstallDisplayName=TracePipeline v{version}
 VersionInfoVersion={version}
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "{lang_cn}"
-Name: "english"; MessagesFile: "compiler:Default.isl"
+{languages_block}
 
 [Files]
 {files_line}

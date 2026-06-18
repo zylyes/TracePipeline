@@ -1012,7 +1012,7 @@ class GuiApi:
             result = self._window.create_file_dialog(
                 webview.FileDialog.FOLDER, allow_multiple=False
             )
-            if isinstance(result, list) and result:
+            if isinstance(result, (list, tuple)) and result:
                 chosen = str(result[0])
                 self._remember_user_selected_path(chosen)
                 logger.info(

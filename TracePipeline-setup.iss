@@ -1,6 +1,5 @@
-; Inno Setup 6 安装脚本 — TracePipeline (模板)
-; 由 scripts/package.py 运行时动态生成完整路径
-; 请勿手动编辑 OutputDir / SetupIconFile，运行 package.py 将自动填充
+; Inno Setup 6 安装脚本 — TracePipeline
+; 由 scripts/package.py 自动生成
 
 [Setup]
 AppId={{7B3F1C9A-5D2E-40F8-A61B-C8E4D9F01236}}
@@ -14,19 +13,18 @@ DefaultGroupName=TracePipeline
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-OutputDir=dist
+OutputDir=C:\Users\zyl\Desktop\code\dist
 OutputBaseFilename=TracePipeline-Setup-v4.0.0
-SetupIconFile=reference\favicon.ico
+SetupIconFile=C:\Users\zyl\Desktop\code\reference\favicon.ico
 UninstallDisplayIcon={app}\reference\favicon.ico
 UninstallDisplayName=TracePipeline v4.0.0
 VersionInfoVersion=4.0.0
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "dist\TracePipeline\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\zyl\Desktop\code\dist\TracePipeline\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\TracePipeline"; Filename: "{app}\TracePipeline.exe"; IconFilename: "{app}\reference\favicon.ico"

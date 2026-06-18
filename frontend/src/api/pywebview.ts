@@ -9,6 +9,28 @@ function getApi(): any {
   return pywebview.api
 }
 
+let _apiReady: Promise<void> | null = null
+
+function waitForApi(): Promise<void> {
+  if (_apiReady) return _apiReady
+  _apiReady = new Promise((resolve) => {
+    if (typeof pywebview !== 'undefined' && pywebview.api) {
+      resolve()
+      return
+    }
+    const onReady = () => {
+      window.removeEventListener('pywebviewready', onReady)
+      resolve()
+    }
+    window.addEventListener('pywebviewready', onReady)
+    setTimeout(() => {
+      window.removeEventListener('pywebviewready', onReady)
+      resolve()
+    }, 5000)
+  })
+  return _apiReady
+}
+
 function mockApi(): any {
   return {
     get_config: async () => ({
@@ -97,6 +119,7 @@ function mockApi(): any {
 }
 
 export const api = {
+  ready: () => waitForApi(),
   get_config: () => getApi().get_config(),
   set_config: (cfg: any) => getApi().set_config(cfg),
   reset_config: () => getApi().reset_config(),

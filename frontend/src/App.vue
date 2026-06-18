@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { msg } from '@/utils/message'
@@ -167,11 +167,25 @@ watch(sidebarCollapsed, (collapsed) => {
 }, { immediate: true })
 
 function onSplashComplete(payload: { errors: Array<{ step: string; error: string }> }) {
+  const { input_dir, output_dir } = configStore.config
+  if (input_dir) appStore.inputDir = input_dir
+  if (output_dir) appStore.outputDir = output_dir
   showSplash.value = false
   if (payload.errors.length > 0) {
     const failedSteps = payload.errors.map(e => e.step.replace(/正在|\.{3}/g, '')).join('、')
     msg.warning(`初始化未完成: ${failedSteps}，进入页面后将自动重试`)
   }
+  nextTick(async () => {
+    if (appStore.inputDir === 'input' && appStore.outputDir === 'output') {
+      try {
+        await api.ready()
+        const cfg = await api.get_config()
+        if (cfg.input_dir) appStore.inputDir = cfg.input_dir
+        if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+        configStore.hydrateConfig(cfg)
+      } catch { /* ignore */ }
+    }
+  })
 }
 
 const route = useRoute()
@@ -443,6 +457,7 @@ const bootSteps: BootStep[] = [
     label: '正在连接后端服务...',
     targetProgress: 30,
     task: async () => {
+      await api.ready()
       const cfg = await api.get_config()
       appStore.setDirs(cfg.input_dir || 'input', cfg.output_dir || 'output')
       configStore.hydrateConfig(cfg)
@@ -481,6 +496,10 @@ const bootSteps: BootStep[] = [
     }
   }
 ]
+
+// config → appStore（状态栏路径显示，immediate 确保启动时同步）
+watch(() => configStore.config.input_dir as string | undefined, (val) => { if (val) appStore.inputDir = val }, { immediate: true })
+watch(() => configStore.config.output_dir as string | undefined, (val) => { if (val) appStore.outputDir = val }, { immediate: true })
 </script>
 
 <style scoped lang="scss">

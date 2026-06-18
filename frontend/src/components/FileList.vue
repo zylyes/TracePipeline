@@ -68,7 +68,7 @@ const emit = defineEmits<{
   (e: 'run', row: TraceFile): void
 }>()
 
-const tableRef = ref<InstanceType<typeof ElTable>>()
+const tableRef = ref<any>(null)
 const selectAll = ref(false)
 
 const headerCellStyle = () => ({

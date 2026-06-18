@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import sys
+from functools import cache
 from pathlib import Path
 
 __all__ = ["get_project_root", "get_resource_root"]
 
 
-_project_root: Path | None = None
-_resource_root: Path | None = None
-
-
+@cache
 def get_project_root() -> Path:
     """推断项目根目录，兼容开发模式与 PyInstaller 打包模式。
 
@@ -21,18 +19,12 @@ def get_project_root() -> Path:
     Returns:
         项目根目录的绝对 Path。
     """
-    global _project_root  # noqa: PLW0603
-    if _project_root is not None:
-        return _project_root
-
     if getattr(sys, "frozen", False):
-        _project_root = Path(sys.executable).parent.resolve()
-    else:
-        _project_root = Path(__file__).resolve().parent.parent.parent.resolve()
-
-    return _project_root
+        return Path(sys.executable).parent.resolve()
+    return Path(__file__).resolve().parent.parent.parent.resolve()
 
 
+@cache
 def get_resource_root() -> Path:
     """推断只读资源根目录，兼容开发模式与 PyInstaller 打包模式。
 
@@ -42,17 +34,9 @@ def get_resource_root() -> Path:
     Returns:
         资源根目录的绝对 Path。
     """
-    global _resource_root  # noqa: PLW0603
-    if _resource_root is not None:
-        return _resource_root
-
     if getattr(sys, "frozen", False):
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
-            _resource_root = Path(meipass).resolve()
-        else:
-            _resource_root = Path(sys.executable).parent.resolve()
-    else:
-        _resource_root = Path(__file__).resolve().parent.parent.parent.resolve()
-
-    return _resource_root
+            return Path(meipass).resolve()
+        return Path(sys.executable).parent.resolve()
+    return Path(__file__).resolve().parent.parent.parent.resolve()

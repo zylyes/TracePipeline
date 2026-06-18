@@ -112,7 +112,7 @@ let hasInitializedData = false
 async function onOutcropChange(force = false) {
   if (!selectedOutcrop.value) return
   if (isLoadingData) {
-    console.warn('[DataView] onOutcropChange 被重复调用，已忽略')
+    console.debug('[DataView] onOutcropChange 被重复调用，已忽略')
     return
   }
   isLoadingData = true

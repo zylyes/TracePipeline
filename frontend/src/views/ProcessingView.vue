@@ -196,7 +196,7 @@ let isLoadingFiles = false
 
 async function loadFiles(force = false) {
   if (isLoadingFiles) {
-    console.warn('[ProcessingView] loadFiles 被重复调用，已忽略')
+    console.debug('[ProcessingView] loadFiles 被重复调用，已忽略')
     return
   }
   isLoadingFiles = true

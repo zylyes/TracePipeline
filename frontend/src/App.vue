@@ -9,7 +9,7 @@
     <SplashScreen
       v-if="showSplash"
       :steps="bootSteps"
-      :min-duration="2200"
+      :min-duration="1500"
       @complete="onSplashComplete"
     />
 

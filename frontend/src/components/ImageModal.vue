@@ -42,6 +42,7 @@
 import { ref, watch } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
+import { msg } from '@/utils/message'
 
 interface ImageInfo {
   key: string
@@ -77,7 +78,8 @@ async function loadImages() {
     }
     imageList.value = list
   } catch (e) {
-    console.error('加载图片失败', e)
+    console.error('加载图片缩略图失败', e)
+    msg.warning('部分图片加载失败')
   } finally {
     loading.value = false
   }
@@ -100,6 +102,7 @@ async function previewImage(img: { key: string; title: string; dataUrl: string; 
     fullscreenSrc.value = await loadImageBase64(img.path)
   } catch (e) {
     console.error('加载原图失败', e)
+    msg.warning('原图加载失败')
   }
 }
 </script>

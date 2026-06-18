@@ -235,7 +235,8 @@ async function loadBackendLogs() {
     backendLogs.value = lines || []
     loaded.value.backendLog = true
   } catch (e) {
-    console.error(e)
+    console.error('[DevPanel] 加载日志失败', e)
+    msg.error('加载后台日志失败')
   } finally {
     backendLogLoading.value = false
   }
@@ -323,7 +324,8 @@ async function loadOutcrops(force = false) {
       .map((f: any) => f.outcrop)
     loaded.value.report = true
   } catch (e) {
-    console.error(e)
+    console.error('[DevPanel] 加载露头选项失败', e)
+    msg.error('加载露头选项失败')
   } finally {
     loading.value.report = false
   }
@@ -417,7 +419,8 @@ async function loadAudit() {
     auditLogs.value = await api.get_audit_log(50)
     loaded.value.audit = true
   } catch (e) {
-    console.error(e)
+    console.error('[DevPanel] 加载审计日志失败', e)
+    msg.error('加载审计日志失败')
   } finally {
     loading.value.audit = false
   }

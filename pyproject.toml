@@ -9,7 +9,7 @@ description = "岩体节理测线坐标计算与绘图工具 — 基于 Python �
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "TracePipeline Contributors"},
+    {name = "zylyes"},
 ]
 keywords = [
     "geology",

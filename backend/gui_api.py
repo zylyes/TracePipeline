@@ -50,22 +50,31 @@ class GuiApi:
 
     内置简单的请求频率限制：对重资源操作（预览、报告生成、ZIP导出）
     使用运行锁，防止并发导致资源耗尽。
+
+    服务采用分层初始化策略：
+    - 启动必需（饥饿加载）：PathSecurityChecker, ConfigService, FileService, LogService
+    - 按需懒加载（首次访问时创建）：PipelineService, PreviewService, StatsService,
+      DataService, ReportService, AuditService
     """
 
     def __init__(self) -> None:
         import time
 
         t0 = time.perf_counter()
+        # ---- 启动必需服务（饥饿加载） ----
         self._path_checker = PathSecurityChecker(PROJECT_ROOT)
         self._config = ConfigService()
         self._file = FileService()
-        self._pipeline = PipelineService()
-        self._preview = PreviewService()
-        self._stats = StatsService()
-        self._data = DataService()
         self._log = LogService()
-        self._report = ReportService()
-        self._audit = AuditService()
+
+        # ---- 按需懒加载服务 ----
+        self._pipeline: PipelineService | None = None
+        self._preview: PreviewService | None = None
+        self._stats: StatsService | None = None
+        self._data: DataService | None = None
+        self._report: ReportService | None = None
+        self._audit: AuditService | None = None
+
         self._window: Any = None
         self._user_selected_paths: set[Path] = set()
         self._window_maximized = False
@@ -89,6 +98,43 @@ class GuiApi:
                 "duration_ms": round((time.perf_counter() - t0) * 1000, 3),
             },
         )
+
+    # ---- 懒加载属性 ----
+    @property
+    def _pipeline_svc(self) -> PipelineService:
+        if self._pipeline is None:
+            self._pipeline = PipelineService()
+        return self._pipeline
+
+    @property
+    def _preview_svc(self) -> PreviewService:
+        if self._preview is None:
+            self._preview = PreviewService()
+        return self._preview
+
+    @property
+    def _stats_svc(self) -> StatsService:
+        if self._stats is None:
+            self._stats = StatsService()
+        return self._stats
+
+    @property
+    def _data_svc(self) -> DataService:
+        if self._data is None:
+            self._data = DataService()
+        return self._data
+
+    @property
+    def _report_svc(self) -> ReportService:
+        if self._report is None:
+            self._report = ReportService()
+        return self._report
+
+    @property
+    def _audit_svc(self) -> AuditService:
+        if self._audit is None:
+            self._audit = AuditService()
+        return self._audit
 
     def set_window(self, window: Any) -> None:
         self._window = window
@@ -153,11 +199,11 @@ class GuiApi:
         input_dir = cfg.get("input_dir", "input")
         output_dir = cfg.get("output_dir", "output")
         self._file.set_dirs(input_dir, output_dir)
-        self._data.update_dirs(output_dir, input_dir)
+        self._data_svc.update_dirs(output_dir, input_dir)
 
     def _invalidate_data_caches(self) -> None:
         self._file.invalidate_cache()
-        self._stats.invalidate_cache()
+        self._stats_svc.invalidate_cache()
         self._output_detector.invalidate()
 
     def _resolve_output_dir(self) -> Path:
@@ -176,7 +222,7 @@ class GuiApi:
         if changed:
             logger.info("检测到 output 目录变更，使缓存失效", extra={"stage": "output_dir_changed"})
             self._file.invalidate_cache()
-            self._stats.invalidate_cache()
+            self._stats_svc.invalidate_cache()
         return changed
 
     # ------------------------------------------------------------------
@@ -193,7 +239,7 @@ class GuiApi:
 
     def set_config(self, config: dict[str, Any]) -> dict[str, Any]:
         start = time.perf_counter()
-        self._audit.log("set_config", params={"keys": list(config.keys())})
+        self._audit_svc.log("set_config", params={"keys": list(config.keys())})
         merged = self._config.set(config)
         self._sync_services_from_config(merged)
         self._invalidate_data_caches()
@@ -213,7 +259,7 @@ class GuiApi:
 
     def reset_config(self) -> dict[str, Any]:
         start = time.perf_counter()
-        self._audit.log("reset_config")
+        self._audit_svc.log("reset_config")
         default = self._config.reset()
         self._sync_services_from_config(default)
         self._invalidate_data_caches()
@@ -227,7 +273,7 @@ class GuiApi:
 
     def reset_processing_config(self) -> dict[str, Any]:
         start = time.perf_counter()
-        self._audit.log("reset_processing_config")
+        self._audit_svc.log("reset_processing_config")
         cfg = self._config.reset_processing()
         self._sync_services_from_config(cfg)
         self._invalidate_data_caches()
@@ -241,7 +287,7 @@ class GuiApi:
 
     def reset_style_config(self) -> dict[str, Any]:
         start = time.perf_counter()
-        self._audit.log("reset_style_config")
+        self._audit_svc.log("reset_style_config")
         cfg = self._config.reset_style()
         self._sync_services_from_config(cfg)
         self._invalidate_data_caches()
@@ -257,10 +303,16 @@ class GuiApi:
     # 文件
     # ------------------------------------------------------------------
     def preload_fonts(self) -> dict[str, Any]:
-        """预热 matplotlib 字体缓存，减少首次绘图时的延迟。"""
-        try:
-            from trace_pipeline.plotting.style import _get_font_cache
+        """预热 matplotlib 字体缓存与样式配置，减少首次绘图时的延迟。
 
+        主动调用 configure_style() 触发 matplotlib 字体扫描与 rcParams 设置，
+        而非仅读取已缓存的字体列表。这是启动画面中"准备渲染引擎"步骤的核心。
+        """
+        try:
+            from trace_pipeline.plotting.style import _get_font_cache, configure_style
+
+            # 主动触发 matplotlib 字体扫描与样式初始化
+            configure_style()
             cache = _get_font_cache()
             return {
                 "status": "ok",
@@ -279,7 +331,7 @@ class GuiApi:
         if force or output_changed:
             self._file.invalidate_cache()
             if output_changed:
-                self._stats.invalidate_cache()
+                self._stats_svc.invalidate_cache()
         results = self._file.scan()
         duration = (time.perf_counter() - start) * 1000
         pending = sum(1 for r in results if r.get("status") == "pending")
@@ -307,7 +359,7 @@ class GuiApi:
         req_id = f"api-run-{int(time.perf_counter() * 1000)}"
         with LogContext(request_id=req_id):
             start = time.perf_counter()
-            self._audit.log(
+            self._audit_svc.log(
                 "run_pipeline",
                 params={"targets": targets, "input_dir": config.get("input_dir", "")},
             )
@@ -317,8 +369,8 @@ class GuiApi:
                 self._sync_services_from_config(saved)
                 # 流水线启动前使缓存失效，确保使用最新数据
                 self._file.invalidate_cache()
-                self._stats.invalidate_cache()
-                result = self._pipeline.run(targets, saved)
+                self._stats_svc.invalidate_cache()
+                result = self._pipeline_svc.run(targets, saved)
                 duration = (time.perf_counter() - start) * 1000
                 logger.info(
                     "run_pipeline 完成 (%.3f ms)",
@@ -345,7 +397,7 @@ class GuiApi:
                 return {"status": "error", "message": str(exc)}
 
     def poll_progress(self) -> dict[str, Any] | None:
-        event = self._pipeline.poll_progress()
+        event = self._pipeline_svc.poll_progress()
         if event:
             logger.debug(
                 "进度轮询 → %s: %s",
@@ -396,7 +448,7 @@ class GuiApi:
     def get_stats(self, outcrop: str) -> dict[str, Any]:
         start = time.perf_counter()
         self._check_output_changed()
-        result = self._stats.get_stats(outcrop, self._config.get())
+        result = self._stats_svc.get_stats(outcrop, self._config.get())
         duration = (time.perf_counter() - start) * 1000
         if "error" in result:
             logger.warning(
@@ -436,7 +488,7 @@ class GuiApi:
     def get_comparison(self, outcrops: list[str]) -> list[dict[str, Any]]:
         start = time.perf_counter()
         self._check_output_changed()
-        results = self._stats.get_comparison(outcrops, self._config.get())
+        results = self._stats_svc.get_comparison(outcrops, self._config.get())
         duration = (time.perf_counter() - start) * 1000
         outcrops_str = ", ".join(outcrops[:10]) + ("..." if len(outcrops) > 10 else "")
         logger.info(
@@ -461,7 +513,7 @@ class GuiApi:
         self, outcrop: str, section: str, page: int = 1, page_size: int = 20, source: str = "output"
     ) -> dict[str, Any]:
         start = time.perf_counter()
-        result = self._data.get_data(outcrop, section, page, page_size, source)
+        result = self._data_svc.get_data(outcrop, section, page, page_size, source)
         duration = (time.perf_counter() - start) * 1000
         if "error" in result:
             logger.warning(
@@ -514,7 +566,7 @@ class GuiApi:
             return {"status": "busy", "message": "已有预览任务正在运行"}
         try:
             merged = {**self._config.get(), **config}
-            result = self._preview.generate(merged)
+            result = self._preview_svc.generate(merged)
             status = result.get("status", "unknown")
             img_count = len(result.get("images", []))
             logger.info(
@@ -558,7 +610,7 @@ class GuiApi:
             )
             return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
-            self._audit.log(
+            self._audit_svc.log(
                 "generate_report",
                 params={
                     "outcrop": outcrop,
@@ -567,7 +619,7 @@ class GuiApi:
                     "save_path": save_path,
                 },
             )
-            result = self._report.generate(outcrop, report_type, fmt, self._config.get())
+            result = self._report_svc.generate(outcrop, report_type, fmt, self._config.get())
             logger.info(
                 "generate_report 生成结果: outcrop=%s result_keys=%s",
                 outcrop,
@@ -631,14 +683,14 @@ class GuiApi:
             )
             return {"status": "busy", "message": "已有报告任务正在运行"}
         try:
-            self._audit.log(
+            self._audit_svc.log(
                 "generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt}
             )
             cfg = self._config.get()
             files = []
             errors = []
             for oc in targets:
-                res = self._report.generate(oc, report_type, fmt, cfg)
+                res = self._report_svc.generate(oc, report_type, fmt, cfg)
                 if "error" in res:
                     errors.append(f"{oc}: {res['error']}")
                     continue
@@ -699,7 +751,7 @@ class GuiApi:
 
     def get_provenance(self, outcrop: str) -> dict[str, Any]:
         """数据溯源：返回 P10/P20/P21 的计算来源链。"""
-        stats = self._stats.get_stats(outcrop, self._config.get())
+        stats = self._stats_svc.get_stats(outcrop, self._config.get())
         if "error" in stats:
             return stats
         ns = stats.get("nodes_summary", {})
@@ -729,7 +781,7 @@ class GuiApi:
         }
 
     def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
-        logs = self._audit.get(limit)
+        logs = self._audit_svc.get(limit)
         logger.debug(
             "get_audit_log → %d 条记录",
             len(logs),
@@ -1055,7 +1107,7 @@ class GuiApi:
 
             validated = validate_config(parsed)
             path.write_text(json.dumps(validated, ensure_ascii=False, indent=2), encoding="utf-8")
-            self._audit.log("export_config_json", params={"path": str(path)})
+            self._audit_svc.log("export_config_json", params={"path": str(path)})
             logger.info(
                 "export_config_json → %s",
                 path,
@@ -1077,7 +1129,7 @@ class GuiApi:
 
     def shutdown_pipeline(self) -> None:
         """应用关闭前调用，确保后台流水线优雅结束。"""
-        self._pipeline.shutdown(timeout=30.0)
+        self._pipeline_svc.shutdown(timeout=30.0)
 
     # ------------------------------------------------------------------
     # 窗口控制（无边框窗口支持）

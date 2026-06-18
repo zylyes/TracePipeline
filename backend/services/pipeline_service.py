@@ -91,7 +91,7 @@ class PipelineService:
             self._queue.append(event)
 
     def _run_background(self, targets: list[str], config: dict[str, Any]) -> None:
-        completed_results: list[dict[str, Any]] = []
+        completed_count = 0
         batch_start = time.perf_counter()
         batch_req_id = f"batch-{int(batch_start * 1000)}"
         with LogContext(request_id=batch_req_id):
@@ -128,7 +128,7 @@ class PipelineService:
                                 "current": idx - 1,
                                 "total": total,
                                 "message": "处理已被取消",
-                                "results": completed_results,
+                                "completed_count": completed_count,
                             }
                         )
                         break
@@ -189,7 +189,7 @@ class PipelineService:
                         "node_y_count": result.node_y_count,
                         "node_i_count": result.node_i_count,
                     }
-                    completed_results.append(result_dict)
+                    completed_count += 1
                     if result.status is PipelineStatus.SUCCESS:
                         logger.info(
                             "%s 处理完成 (%.3f ms)",
@@ -241,7 +241,7 @@ class PipelineService:
                     extra={
                         "stage": "batch_end",
                         "duration_ms": round(batch_duration, 3),
-                        "completed": len(completed_results),
+                        "completed": completed_count,
                     },
                 )
                 self._emit(
@@ -250,7 +250,7 @@ class PipelineService:
                         "current": total,
                         "total": total,
                         "message": "全部处理完成",
-                        "results": completed_results,
+                        "completed_count": completed_count,
                     }
                 )
             except Exception as exc:
@@ -264,9 +264,8 @@ class PipelineService:
                     {
                         "type": "error",
                         "message": f"{type(exc).__name__}: {exc}",
-                        "completed_count": len(completed_results),
+                        "completed_count": completed_count,
                         "total": len(targets),
-                        "results": completed_results,
                     }
                 )
             finally:

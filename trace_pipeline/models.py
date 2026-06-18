@@ -139,6 +139,8 @@ class TraceData:
             cached: np.ndarray = self.__dict__["_lengths"]
             return cached
         except KeyError:
+            # 缓存未命中，需计算。KeyError 是 __dict__ 访问的正常结果，
+            # 在此上下文中不是异常情况，无需日志。
             pass
         if self.count == 0:
             result = np.array([], dtype=float)

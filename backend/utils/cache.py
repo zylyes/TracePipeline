@@ -22,11 +22,15 @@ class TTLCache:
         maxsize: 最大缓存条目数，0 表示无上限。
     """
 
+    # 批量驱逐间隔：每 N 次 set 才全扫描一次过期条目
+    _EVICT_BATCH_INTERVAL = 10
+
     def __init__(self, ttl: float = 300.0, maxsize: int = 0) -> None:
         self._ttl = ttl
         self._maxsize = maxsize
         self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
         self._lock = threading.RLock()
+        self._evict_counter = 0
 
     def get(self, key: str) -> Any | None:
         """获取缓存值，过期或不存在返回 None。"""
@@ -42,11 +46,15 @@ class TTLCache:
             return value
 
     def set(self, key: str, value: Any) -> None:
-        """写入缓存，并淘汰过期/超限条目。"""
+        """写入缓存，并按批次淘汰过期/超限条目。"""
         with self._lock:
             self._store[key] = (time.monotonic(), value)
             self._store.move_to_end(key)
-            self._evict_expired()
+            # 批量驱逐：每 _EVICT_BATCH_INTERVAL 次 set 才全扫描一次
+            self._evict_counter += 1
+            if self._evict_counter >= self._EVICT_BATCH_INTERVAL:
+                self._evict_expired()
+                self._evict_counter = 0
             self._trim()
 
     def invalidate(self, key: str | None = None) -> None:

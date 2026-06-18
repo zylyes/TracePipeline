@@ -172,8 +172,8 @@ def _find_system_font() -> tuple[str, str]:
         default_font = fm.findfont(fm.FontProperties(family="sans-serif"))
         if default_font and os.path.exists(default_font):
             return default_font, "sans-serif"
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("CJK 字体检测失败: %s", exc)
 
     return "", ""
 
@@ -426,7 +426,7 @@ class ReportService:
                         east_asia="SimHei",
                     )
                 except KeyError:
-                    pass
+                    logger.debug("Word 样式 %s 不存在，跳过字体设置", "Title" if lvl == 0 else f"Heading {lvl}")
 
             def _add_para(text, style=None):
                 p = doc.add_paragraph(text, style=style)

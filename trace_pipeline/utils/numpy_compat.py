@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["to_native"]
 
@@ -42,6 +45,7 @@ def to_native(val: Any, max_depth: int = 20, _depth: int = 0) -> Any:
         if isinstance(val, pd.Series):
             return val.tolist()
     except ImportError:
+        logger.debug("pandas 未安装，跳过 pandas 类型转换")
         pass
 
     if isinstance(val, dict):

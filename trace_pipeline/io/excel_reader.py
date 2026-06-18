@@ -113,8 +113,10 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
         try:
             vals = pd.to_numeric(first_rows.iloc[:, col], errors="coerce")
             numeric_count += vals.notna().sum()
-        except Exception:
-            pass
+        except (ValueError, TypeError) as exc:
+            logger.debug(
+                "迹线表 %s 第%d列数值检测跳过: %s", path.name, col, exc
+            )
 
     total_cells = min(len(first_rows), _MAX_SKIP_ROWS) * _MIN_COLUMNS
     if total_cells > 0 and numeric_count / total_cells < 0.5:

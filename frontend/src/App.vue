@@ -85,7 +85,7 @@
         <main class="main">
           <router-view v-slot="{ Component }">
             <Transition name="page-slide" mode="out-in" class="page-wrapper">
-              <KeepAlive :include="['Intro', 'Processing', 'Statistics', 'Comparison', 'Data', 'Config']">
+              <KeepAlive :max="4">
                 <component :is="Component" />
               </KeepAlive>
             </Transition>

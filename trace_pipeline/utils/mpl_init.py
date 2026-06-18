@@ -19,5 +19,5 @@ def force_noninteractive_backend() -> None:
 
         matplotlib.use("Agg", force=True)
         logger.debug("matplotlib 后端已强制设置为 Agg")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("无法设置 matplotlib 后端为 Agg: %s，将使用默认后端", exc)

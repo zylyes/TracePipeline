@@ -195,7 +195,7 @@ class DailyRotatingJsonHandler(logging.FileHandler):
                     num = int(f.stem.split("_")[-1])
                     seq = max(seq, num)
                 except ValueError:
-                    pass
+                    logger.debug("日志文件序号解析跳过: %s", f.name)
         return _LOG_SEQ_FMT.format(prefix=_LOG_FILE_PREFIX, seq=seq + 1)
 
     def _archive_old_days(self) -> None:

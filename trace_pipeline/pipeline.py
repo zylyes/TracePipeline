@@ -9,8 +9,10 @@ import logging
 import threading
 import time
 import uuid
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -125,6 +127,104 @@ def _handle_pipeline_error(
         error_type=error_type,
         error_traceback=tb,
     )
+
+
+def _run_plot_stage(
+    cfg: RunConfig,
+    trace: TraceData,
+    rotated: np.ndarray,
+    rotated_north_angle: float,
+    statistics_lines: Sequence[str],
+    statistics: Any,
+    raw_circle_windows: Sequence[Any],
+    rotated_circle_windows: Sequence[Any],
+    raw_hull_overlay: Any,
+    rotated_hull_overlay: Any,
+    raw_node_overlays: Sequence[Any],
+    rotated_node_overlays: Sequence[Any],
+    output_dir: Path,
+) -> tuple[str, str, str]:
+    """阶段 5：绘制原始迹线图、旋转迹线图、玫瑰图。"""
+    from trace_pipeline.plotting.style import apply_style_overrides
+
+    with apply_style_overrides(cfg.style):
+        logger.debug(
+            "  5.1 绘制原始迹线图: %s (dpi=%d)",
+            cfg.outcrop, cfg.trace_dpi,
+            extra={"stage": "plot_substep", "substep": "raw"},
+        )
+        raw_plot_start = time.perf_counter()
+        raw_plot = render_trace_plot(
+            trace.endpoints,
+            "原始迹线图",
+            str(output_dir),
+            f"{cfg.outcrop}_raw(n={trace.count}).png",
+            dpi=cfg.trace_dpi,
+            statistics_lines=statistics_lines,
+            circle_windows=raw_circle_windows,
+            hull_overlay=raw_hull_overlay,
+            area_source=statistics.outcrop_area_source,
+            node_overlays=raw_node_overlays if cfg.show_node_overlay else None,
+            style=cfg.style,
+        )
+        raw_plot_duration = (time.perf_counter() - raw_plot_start) * 1000
+        logger.info(
+            "原始迹线图绘制完成: %s (%.3f ms)", cfg.outcrop, raw_plot_duration,
+            extra={"stage": "plot_raw", "outcrop": cfg.outcrop, "path": raw_plot,
+                   "dpi": cfg.trace_dpi, "duration_ms": round(raw_plot_duration, 3)},
+        )
+
+        logger.debug(
+            "  5.2 绘制旋转迹线图: %s (dpi=%d)",
+            cfg.outcrop, cfg.rotated_trace_dpi,
+            extra={"stage": "plot_substep", "substep": "rotated"},
+        )
+        rotated_plot_start = time.perf_counter()
+        rot_plot = render_trace_plot(
+            rotated,
+            f"旋转迹线图（测线走向={trace.scanline_azimuth:.1f}°）",
+            str(output_dir),
+            f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
+            dpi=cfg.rotated_trace_dpi,
+            north_angle_deg=rotated_north_angle,
+            statistics_lines=statistics_lines,
+            circle_windows=rotated_circle_windows,
+            hull_overlay=rotated_hull_overlay,
+            area_source=statistics.outcrop_area_source,
+            node_overlays=rotated_node_overlays if cfg.show_node_overlay else None,
+            style=cfg.style,
+        )
+        rotated_plot_duration = (time.perf_counter() - rotated_plot_start) * 1000
+        logger.info(
+            "旋转迹线图绘制完成: %s (%.3f ms)", cfg.outcrop, rotated_plot_duration,
+            extra={"stage": "plot_rotated", "outcrop": cfg.outcrop, "path": rot_plot,
+                   "dpi": cfg.rotated_trace_dpi, "duration_ms": round(rotated_plot_duration, 3)},
+        )
+
+        rose_plot = ""
+        if cfg.export_rose_plot:
+            logger.debug(
+                "  5.3 绘制玫瑰图: %s (bin=%.1f°, dpi=%d)",
+                cfg.outcrop, cfg.rose_bin_width, cfg.rose_dpi,
+                extra={"stage": "plot_substep", "substep": "rose"},
+            )
+            rose_plot_start = time.perf_counter()
+            rose_plot = render_rose_plot(
+                trace.joint_strikes,
+                f"产状玫瑰花瓣图（数量={trace.count}，分箱={cfg.rose_bin_width}°）",
+                str(output_dir),
+                f"{cfg.outcrop}_rose(bin={cfg.rose_bin_width}).png",
+                bin_width=cfg.rose_bin_width,
+                dpi=cfg.rose_dpi,
+            )
+            rose_plot_duration = (time.perf_counter() - rose_plot_start) * 1000
+            logger.info(
+                "玫瑰图导出至: %s (%.3f ms)", rose_plot, rose_plot_duration,
+                extra={"stage": "plot_rose", "outcrop": cfg.outcrop, "rose_path": rose_plot,
+                       "dpi": cfg.rose_dpi, "duration_ms": round(rose_plot_duration, 3)},
+            )
+
+    return raw_plot, rot_plot, rose_plot
 
 
 def run_pipeline(cfg: RunConfig) -> RunResult:
@@ -289,110 +389,14 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
 
             # ---- 5. 绘制图片 ----
             t0 = time.perf_counter()
-            from trace_pipeline.plotting.style import apply_style_overrides
-
-            with apply_style_overrides(cfg.style):
-                logger.debug(
-                    "  5.1 绘制原始迹线图: %s (dpi=%d)",
-                    cfg.outcrop,
-                    cfg.trace_dpi,
-                    extra={"stage": "plot_substep", "substep": "raw"},
-                )
-                raw_plot_start = time.perf_counter()
-                raw_plot = render_trace_plot(
-                    trace.endpoints,
-                    "原始迹线图",
-                    str(output_dir),
-                    f"{cfg.outcrop}_raw(n={trace.count}).png",
-                    dpi=cfg.trace_dpi,
-                    statistics_lines=statistics_lines,
-                    circle_windows=raw_circle_windows,
-                    hull_overlay=raw_hull_overlay,
-                    area_source=statistics.outcrop_area_source,
-                    node_overlays=raw_node_overlays if cfg.show_node_overlay else None,
-                    style=cfg.style,
-                )
-                raw_plot_duration = (time.perf_counter() - raw_plot_start) * 1000
-                logger.info(
-                    "原始迹线图绘制完成: %s (%.3f ms)",
-                    cfg.outcrop,
-                    raw_plot_duration,
-                    extra={
-                        "stage": "plot_raw",
-                        "outcrop": cfg.outcrop,
-                        "path": raw_plot,
-                        "dpi": cfg.trace_dpi,
-                        "duration_ms": round(raw_plot_duration, 3),
-                    },
-                )
-                logger.debug(
-                    "  5.2 绘制旋转迹线图: %s (dpi=%d)",
-                    cfg.outcrop,
-                    cfg.rotated_trace_dpi,
-                    extra={"stage": "plot_substep", "substep": "rotated"},
-                )
-
-                rotated_plot_start = time.perf_counter()
-                rot_plot = render_trace_plot(
-                    rotated,
-                    f"旋转迹线图（测线走向={trace.scanline_azimuth:.1f}°）",
-                    str(output_dir),
-                    f"{cfg.outcrop}_rotated(strike={trace.scanline_azimuth:.1f}).png",
-                    dpi=cfg.rotated_trace_dpi,
-                    north_angle_deg=rotated_north_angle,
-                    statistics_lines=statistics_lines,
-                    circle_windows=rotated_circle_windows,
-                    hull_overlay=rotated_hull_overlay,
-                    area_source=statistics.outcrop_area_source,
-                    node_overlays=rotated_node_overlays if cfg.show_node_overlay else None,
-                    style=cfg.style,
-                )
-                rotated_plot_duration = (time.perf_counter() - rotated_plot_start) * 1000
-                logger.info(
-                    "旋转迹线图绘制完成: %s (%.3f ms)",
-                    cfg.outcrop,
-                    rotated_plot_duration,
-                    extra={
-                        "stage": "plot_rotated",
-                        "outcrop": cfg.outcrop,
-                        "path": rot_plot,
-                        "dpi": cfg.rotated_trace_dpi,
-                        "duration_ms": round(rotated_plot_duration, 3),
-                    },
-                )
-
-                rose_plot = ""
-                if cfg.export_rose_plot:
-                    logger.debug(
-                        "  5.3 绘制玫瑰图: %s (bin=%.1f°, dpi=%d)",
-                        cfg.outcrop,
-                        cfg.rose_bin_width,
-                        cfg.rose_dpi,
-                        extra={"stage": "plot_substep", "substep": "rose"},
-                    )
-                    rose_plot_start = time.perf_counter()
-                    rose_plot = render_rose_plot(
-                        trace.joint_strikes,
-                        f"产状玫瑰花瓣图（数量={trace.count}，分箱={cfg.rose_bin_width}°）",
-                        str(output_dir),
-                        f"{cfg.outcrop}_rose(bin={cfg.rose_bin_width}).png",
-                        bin_width=cfg.rose_bin_width,
-                        dpi=cfg.rose_dpi,
-                    )
-                    rose_plot_duration = (time.perf_counter() - rose_plot_start) * 1000
-                    logger.info(
-                        "玫瑰图导出至: %s (%.3f ms)",
-                        rose_plot,
-                        rose_plot_duration,
-                        extra={
-                            "stage": "plot_rose",
-                            "outcrop": cfg.outcrop,
-                            "rose_path": rose_plot,
-                            "dpi": cfg.rose_dpi,
-                            "duration_ms": round(rose_plot_duration, 3),
-                        },
-                    )
-
+            raw_plot, rot_plot, rose_plot = _run_plot_stage(
+                cfg, trace, rotated, rotated_north_angle,
+                statistics_lines, statistics,
+                raw_circle_windows, rotated_circle_windows,
+                raw_hull_overlay, rotated_hull_overlay,
+                raw_node_overlays, rotated_node_overlays,
+                output_dir,
+            )
             plot_duration = (time.perf_counter() - t0) * 1000
             logger.info(
                 "绘图完成: %s (%.3f ms)",

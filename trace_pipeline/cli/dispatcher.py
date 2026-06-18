@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing as mp
 import time
 from collections.abc import Sequence
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
@@ -64,6 +65,36 @@ def _resolve_output_prefix(cfg: dict[str, Any], target: TraceFile) -> str:
     return target.outcrop
 
 
+def _terminate_worker_processes(
+    executor: ProcessPoolExecutor,
+    timed_out_futures: set[Any],
+) -> None:
+    """终止超时任务对应的 worker 进程，防止孤儿进程继续消耗资源。
+
+    ProcessPoolExecutor 的 future.cancel() 只能取消尚未开始的排队任务，
+    对正在运行的进程无效。此函数通过访问 executor 内部的 _processes
+    字典来发送 SIGTERM（Unix）或 TerminateProcess（Windows），确保
+    超时进程被真正终止。
+    """
+    # 获取 executor 内部的 pid → Process 映射
+    processes: dict[int, mp.context.SpawnProcess] = getattr(executor, "_processes", {})
+    if not processes:
+        logger.debug("无法获取 worker 进程映射，跳过进程终止")
+        return
+
+    # 收集仍在运行且属于超时 worker 的进程
+    # 注意：无法精确关联 future → pid，因此终止所有在超时发生时
+    # 仍在运行且无对应正常完成 future 的闲置 worker。
+    # 这里采用保守策略：仅在确有超时发生时，终止所有剩余 worker 进程。
+    for pid, proc in list(processes.items()):
+        try:
+            if proc.is_alive():
+                logger.warning("终止超时 worker 进程 pid=%d", pid)
+                proc.terminate()
+        except Exception as exc:
+            logger.debug("终止 worker 进程 pid=%d 失败: %s", pid, exc)
+
+
 def execute_targets(
     targets: Sequence[TraceFile],
     cfg: dict[str, Any],
@@ -80,10 +111,13 @@ def execute_targets(
         logger.info("启用并行处理：%d 进程", workers)
         parallel_results: list[RunResult | None] = [None] * total
         pbar = tqdm(total=total, desc="处理迹线表", unit="个", ncols=100)
-        executor = ProcessPoolExecutor(max_workers=workers)
+        mp_ctx = mp.get_context("spawn")
+        executor = ProcessPoolExecutor(max_workers=workers, mp_context=mp_ctx)
         timed_out = False
+        # 跟踪已超时的 future，用于后续终止对应 worker 进程
+        _timed_out_futures: set[Any] = set()
         try:
-            future_map = {}
+            future_map: dict[Any, tuple[int, str, float]] = {}
             for idx, target in enumerate(targets):
                 try:
                     run_cfg = _build_run_config(cfg, input_dir, output_dir, target)
@@ -118,7 +152,10 @@ def execute_targets(
                                 stem, str(exc), error_type=type(exc).__name__
                             )
                     elif time.monotonic() >= deadline:
+                        # 超时：future.cancel() 无法终止已运行的进程，
+                        # 但会取消尚未开始的排队任务。
                         future.cancel()
+                        _timed_out_futures.add(future)
                         result = RunResult.failure(
                             stem, "处理超时(300s)", error_type="TimeoutError"
                         )
@@ -127,6 +164,11 @@ def execute_targets(
                     parallel_results[idx] = result
                     pbar.set_postfix_str(f"完成: {stem}")
                     pbar.update(1)
+
+            # 对超时任务对应的 worker 进程发送终止信号，
+            # 防止孤儿进程继续消耗 CPU/内存。
+            if _timed_out_futures:
+                _terminate_worker_processes(executor, _timed_out_futures)
         finally:
             executor.shutdown(wait=not timed_out, cancel_futures=timed_out)
             pbar.close()

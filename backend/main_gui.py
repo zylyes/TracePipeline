@@ -23,6 +23,7 @@ def get_screen_size() -> tuple[int, int]:
         height = ctypes.windll.user32.GetSystemMetrics(1)  # SM_CYSCREEN
         return width, height
     except Exception:
+        # ctypes 调用失败（非 Windows 或权限不足），降级到 tkinter
         pass
 
     # 回退方案：tkinter（几乎所有 Python 环境都有）
@@ -36,6 +37,7 @@ def get_screen_size() -> tuple[int, int]:
         root.destroy()
         return width, height
     except Exception:
+        # tkinter 不可用（无头环境），降级到硬编码默认值
         pass
 
     # 终极回退：返回常用默认值
@@ -92,14 +94,7 @@ def main() -> None:
         },
     )
 
-    start = time.perf_counter()
-    api = GuiApi()
-    logger.info(
-        "GuiApi 初始化完成 (%.3f ms)",
-        (time.perf_counter() - start) * 1000,
-        extra={"stage": "gui_api_init"},
-    )
-
+    # P2: 先检查 WebView2 是否安装，避免在缺失时浪费 Service 初始化时间
     checker = WebView2Checker()
 
     if not checker.is_installed():
@@ -130,12 +125,20 @@ def main() -> None:
             height=h,
             x=x,
             y=y,
-            js_api=api,
+            js_api=None,  # GuiApi 未初始化，无需绑定 API
             frameless=True,
             easy_drag=True,
         )
         webview.start(debug=False)
         return
+
+    start = time.perf_counter()
+    api = GuiApi()
+    logger.info(
+        "GuiApi 初始化完成 (%.3f ms)",
+        (time.perf_counter() - start) * 1000,
+        extra={"stage": "gui_api_init"},
+    )
 
     # 确定入口文件
     index_html = STATIC_DIR / "index.html"

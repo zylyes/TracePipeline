@@ -97,11 +97,15 @@ export const useCacheStore = defineStore('cache', () => {
       statsCache.value.delete(outcrop)
       return null
     }
+    // LRU: 命中时将条目移动到 Map 末尾（delete + set 模拟 move_to_end）
+    statsCache.value.delete(outcrop)
+    statsCache.value.set(outcrop, item)
     return item.data
   }
 
   function setStats(outcrop: string, data: any) {
-    if (statsCache.value.size >= STATS_MAX_COUNT) {
+    if (statsCache.value.size >= STATS_MAX_COUNT && !statsCache.value.has(outcrop)) {
+      // Map 的 keys() 按插入顺序迭代，第一个即为最久未使用
       const firstKey = statsCache.value.keys().next().value
       if (firstKey !== undefined) statsCache.value.delete(firstKey)
     }

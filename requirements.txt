@@ -1,6 +1,6 @@
 # Core dependencies for trace-pipeline
 # Auto-generated from pyproject.toml — DO NOT EDIT MANUALLY
-# Generated on 2026-06-18 13:56:33
+# Generated on 2026-06-18 17:50:10
 # Install with: pip install -r requirements.txt
 
 numpy>=1.24

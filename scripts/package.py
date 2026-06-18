@@ -37,10 +37,10 @@ ICON_FILE = PROJECT_ROOT / "reference" / "favicon.ico"
 VENV_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
 _iscc = os.environ.get("ISCC_EXE", "")
 _7z = os.environ.get("SEVEN_ZIP", "")
-ISCC_EXE = Path(_iscc) if _iscc else Path("D:/Inno Setup 6/ISCC.exe")
-ISS_LANG_DIR = ISCC_EXE.parent / "Languages" if _iscc else Path("D:/Inno Setup 6/Languages")
-SEVEN_ZIP = Path(_7z) if _7z else Path("C:/Program Files/7-Zip/7z.exe")
-SFX_MODULE = SEVEN_ZIP.parent / "7z.sfx" if _7z else Path("C:/Program Files/7-Zip/7z.sfx")
+ISCC_EXE = Path(_iscc) if _iscc else Path(shutil.which("ISCC.exe") or "")
+ISS_LANG_DIR = ISCC_EXE.parent / "Languages"
+SEVEN_ZIP = Path(_7z) if _7z else Path(shutil.which("7z.exe") or "")
+SFX_MODULE = SEVEN_ZIP.parent / "7z.sfx"
 
 # 输出目录名
 APP_NAME = "TracePipeline"

@@ -34,6 +34,15 @@ export interface PipelineProgress {
   message: string
 }
 
+export interface ReportProgress {
+  type: 'progress' | 'complete' | 'error'
+  step?: string
+  message?: string
+  current?: number
+  total?: number
+  outcrop?: string
+}
+
 export interface StatsData {
   outcrop: string
   scanline_azimuth: number

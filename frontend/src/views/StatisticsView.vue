@@ -8,6 +8,30 @@
       <el-button :icon="Document" :loading="exportLoading" @click="exportReport" size="small" type="primary" plain>导出统计报告</el-button>
     </div>
 
+    <!-- 报告导出进度条 -->
+    <div v-if="reportProgressVisible" class="report-progress-area">
+      <el-progress
+        :percentage="reportProgressPercent"
+        :stroke-width="8"
+        :status="reportProgressStatus"
+        :color="reportProgressColor"
+      />
+      <div class="report-progress-message">
+        <template v-if="reportProgress.type === 'complete'">
+          <el-icon :size="14" style="color: var(--tp-success)"><CircleCheck /></el-icon>
+          <span class="tp-success-text">报告已生成</span>
+        </template>
+        <template v-else-if="reportProgress.type === 'error'">
+          <el-icon :size="14" style="color: var(--tp-error)"><WarningFilled /></el-icon>
+          <span class="tp-error-text">{{ reportProgress.message || '生成失败' }}</span>
+        </template>
+        <template v-else>
+          <el-icon class="tp-rotate" :size="12" style="color: var(--tp-brand-accent)"><Loading /></el-icon>
+          <span>{{ reportProgress.message }}</span>
+        </template>
+      </div>
+    </div>
+
     <!-- 统计警告 -->
     <el-alert
       v-if="alertMessage"
@@ -89,7 +113,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onActivated, watch } from 'vue'
-import { Document, Picture } from '@element-plus/icons-vue'
+import { Document, Picture, CircleCheck, Loading, WarningFilled } from '@element-plus/icons-vue'
 import { msg } from '@/utils/message'
 import StatCards from '@/components/StatCards.vue'
 import HistogramChart from '@/components/HistogramChart.vue'
@@ -99,6 +123,7 @@ import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
 import { loadImageBase64, loadImageThumbnail } from '@/utils/image'
+import type { ReportProgress } from '@/types'
 
 defineOptions({ name: 'Statistics' })
 
@@ -278,12 +303,80 @@ async function openViewer(index: number) {
 
 const exportLoading = ref(false)
 
+// 报告导出进度
+const reportProgressVisible = ref(false)
+const reportProgress = ref<ReportProgress>({ type: 'progress', message: '' })
+let reportPollTimer: number | null = null
+const POLL_INTERVAL = 300
+
+const reportProgressPercent = computed(() => {
+  const p = reportProgress.value
+  if (p.type === 'complete') return 100
+  if (p.type === 'error') return 100
+  if (p.total && p.current) {
+    return Math.round((p.current / p.total) * 100)
+  }
+  switch (p.step) {
+    case 'loading': return 10
+    case 'stats': return 30
+    case 'docx': return 60
+    case 'pdf': return 90
+    case 'zip': return 95
+    default: return 0
+  }
+})
+
+const reportProgressStatus = computed(() => {
+  if (reportProgress.value.type === 'complete') return 'success' as const
+  if (reportProgress.value.type === 'error') return 'exception' as const
+  return undefined
+})
+
+const reportProgressColor = computed(() => {
+  if (reportProgress.value.type === 'complete') return 'var(--tp-success)'
+  if (reportProgress.value.type === 'error') return 'var(--tp-error)'
+  return 'var(--tp-brand-accent)'
+})
+
+function startReportProgressPolling() {
+  stopReportProgressPolling()
+  reportPollTimer = window.setTimeout(async function pollTick() {
+    try {
+      const evt = await api.poll_report_progress()
+      if (evt) {
+        reportProgress.value = evt as ReportProgress
+        if (evt.type === 'complete' || evt.type === 'error') {
+          setTimeout(() => { reportProgressVisible.value = false }, 2000)
+          return
+        }
+      }
+      if (reportPollTimer !== null) {
+        reportPollTimer = window.setTimeout(pollTick, POLL_INTERVAL)
+      }
+    } catch {
+      if (reportPollTimer !== null) {
+        reportPollTimer = window.setTimeout(pollTick, POLL_INTERVAL)
+      }
+    }
+  }, POLL_INTERVAL)
+}
+
+function stopReportProgressPolling() {
+  if (reportPollTimer !== null) {
+    clearTimeout(reportPollTimer)
+    reportPollTimer = null
+  }
+}
+
 async function exportReport() {
   if (!selectedOutcrop.value) {
     msg.warning('请先选择一个露头')
     return
   }
   exportLoading.value = true
+  reportProgressVisible.value = true
+  reportProgress.value = { type: 'progress', message: '正在准备导出...' }
+  startReportProgressPolling()
   try {
     const res = await api.generate_report(selectedOutcrop.value, 'full', 'both')
     if (res.error) {
@@ -303,6 +396,7 @@ async function exportReport() {
     console.error(e)
   } finally {
     exportLoading.value = false
+    // Progress complete/error events handled in polling (auto-hides after 2s)
   }
 }
 
@@ -488,5 +582,31 @@ onActivated(() => {
 .plot-img:hover {
   transform: scale(1.012);
   filter: drop-shadow(0 8px 24px rgba(26, 54, 93, 0.16));
+}
+
+/* 报告导出进度条 */
+.report-progress-area {
+  margin: var(--tp-space-3) 0;
+  padding: var(--tp-space-3);
+  border-radius: var(--tp-radius-sm);
+  background: rgba(238, 240, 244, 0.74);
+  border: 1px solid var(--tp-border-light);
+}
+.report-progress-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--tp-space-2);
+  font-size: 13px;
+  color: var(--tp-text-secondary);
+  min-height: 22px;
+}
+.tp-success-text {
+  color: var(--tp-success);
+  font-weight: 500;
+}
+.tp-error-text {
+  color: var(--tp-error);
+  font-weight: 500;
 }
 </style>

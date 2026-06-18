@@ -65,6 +65,33 @@
               </el-button>
             </el-form-item>
           </el-form>
+          <!-- 报告导出进度条 -->
+          <div v-if="reportProgressVisible" class="report-progress-area">
+            <el-progress
+              :percentage="reportProgressPercent"
+              :stroke-width="8"
+              :status="reportProgressStatus"
+              :color="reportProgressColor"
+              class="modern-progress"
+            />
+            <div class="report-progress-message">
+              <template v-if="reportProgress.type === 'complete'">
+                <el-icon :size="14" style="color: var(--tp-success)"><CircleCheck /></el-icon>
+                <span class="tp-success-text">报告已生成</span>
+              </template>
+              <template v-else-if="reportProgress.type === 'error'">
+                <el-icon :size="14" style="color: var(--tp-error)"><WarningFilled /></el-icon>
+                <span class="tp-error-text">{{ reportProgress.message || '生成失败' }}</span>
+              </template>
+              <template v-else>
+                <el-icon class="tp-rotate" :size="12" style="color: var(--tp-brand-accent)"><Loading /></el-icon>
+                <span>{{ reportProgress.message }}</span>
+                <span v-if="reportProgress.total" class="report-progress-batch">
+                  ({{ reportProgress.current }} / {{ reportProgress.total }})
+                </span>
+              </template>
+            </div>
+          </div>
         </div>
       </el-collapse-item>
 
@@ -177,12 +204,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { ElMessageBox } from 'element-plus'
+import { CircleCheck, Loading, WarningFilled } from '@element-plus/icons-vue'
 import { msg } from '@/utils/message'
 import { api } from '@/api/pywebview'
 import { useConfigStore } from '@/stores/config'
 import { useCacheStore } from '@/stores/cache'
+import type { ReportProgress } from '@/types'
 
 const emit = defineEmits<{
   (e: 'saved'): void
@@ -195,9 +224,80 @@ const cacheStore = useCacheStore()
 const activeNames = ref<string[]>([])
 const reportScope = ref('selected')
 const reportType = ref('full')
-const reportFmt = ref('docx')
-const reportLoading = ref(false)
-const outcropOptions = ref<string[]>([])
+	const reportFmt = ref('docx')
+	const reportLoading = ref(false)
+	// 报告导出进度
+	const reportProgressVisible = ref(false)
+	const reportProgress = ref<ReportProgress>({ type: 'progress', message: '' })
+	let reportPollTimer: number | null = null
+
+	const POLL_INTERVAL = 300
+
+	const reportProgressPercent = computed(() => {
+	  const p = reportProgress.value
+	  if (p.type === 'complete') return 100
+	  if (p.type === 'error') return 100
+	  if (p.total && p.current) {
+	    return Math.round((p.current / p.total) * 100)
+	  }
+	  // 基于步骤估算: loading=10%, stats=30%, docx=60%, pdf=90%
+	  switch (p.step) {
+	    case 'loading': return 10
+	    case 'stats': return 30
+	    case 'docx': return 60
+	    case 'pdf': return 90
+	    case 'zip': return 95
+	    default: return 0
+	  }
+	})
+
+	const reportProgressStatus = computed(() => {
+	  if (reportProgress.value.type === 'complete') return 'success' as const
+	  if (reportProgress.value.type === 'error') return 'exception' as const
+	  return undefined
+	})
+
+	const reportProgressColor = computed(() => {
+	  if (reportProgress.value.type === 'complete') return 'var(--tp-success)'
+	  if (reportProgress.value.type === 'error') return 'var(--tp-error)'
+	  return 'var(--tp-brand-accent)'
+	})
+
+	function startReportProgressPolling() {
+	  stopReportProgressPolling()
+	  reportPollTimer = window.setTimeout(async function pollTick() {
+	    try {
+	      const evt = await api.poll_report_progress()
+	      if (evt) {
+	        reportProgress.value = evt as ReportProgress
+	        if (evt.type === 'complete' || evt.type === 'error') {
+	          // Keep progress visible a bit longer to show completion state
+	          setTimeout(() => {
+	            reportProgressVisible.value = false
+	          }, 2000)
+	          return
+	        }
+	      }
+	      if (reportPollTimer !== null) {
+	        reportPollTimer = window.setTimeout(pollTick, POLL_INTERVAL)
+	      }
+	    } catch {
+	      // ignore poll errors
+	      if (reportPollTimer !== null) {
+	        reportPollTimer = window.setTimeout(pollTick, POLL_INTERVAL)
+	      }
+	    }
+	  }, POLL_INTERVAL)
+	}
+
+	function stopReportProgressPolling() {
+	  if (reportPollTimer !== null) {
+	    clearTimeout(reportPollTimer)
+	    reportPollTimer = null
+	  }
+	}
+
+	const outcropOptions = ref<string[]>([])
 const selectedOutcrops = ref<string[]>([])
 const auditLogs = ref<any[]>([])
 const advanced = ref({
@@ -377,6 +477,9 @@ async function generateReport() {
   }
 
   reportLoading.value = true
+  reportProgressVisible.value = true
+  reportProgress.value = { type: 'progress', message: '正在准备导出...' }
+  startReportProgressPolling()
   try {
     if (isSingleDirect) {
       const res = await api.generate_report(targets[0], reportType.value, fmt, savePath)
@@ -410,6 +513,7 @@ async function generateReport() {
     msg.error('导出报告失败')
   } finally {
     reportLoading.value = false
+    // 停止轮询（但已完成事件已在 startReportProgressPolling 中处理完成，2s 后隐藏）
   }
 }
 
@@ -560,6 +664,47 @@ onActivated(() => {
 .report-action {
   margin-top: var(--tp-space-1);
   margin-bottom: 0 !important;
+}
+
+/* 报告导出进度条 */
+.report-progress-area {
+  margin-top: var(--tp-space-3);
+  padding: var(--tp-space-3);
+  border-radius: var(--tp-radius-sm);
+  background: rgba(238, 240, 244, 0.74);
+  border: 1px solid var(--tp-border-light);
+}
+.report-progress-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--tp-space-2);
+  font-size: 13px;
+  color: var(--tp-text-secondary);
+  min-height: 22px;
+}
+.report-progress-batch {
+  font-family: var(--tp-font-data);
+  color: var(--tp-text-tertiary);
+  margin-left: 4px;
+}
+.tp-success-text {
+  color: var(--tp-success);
+  font-weight: 500;
+}
+.tp-error-text {
+  color: var(--tp-error);
+  font-weight: 500;
+}
+:deep(.report-progress-area .el-progress-bar__outer) {
+  border-radius: var(--tp-radius-full);
+  background: rgba(26, 54, 93, 0.10);
+  box-shadow: inset 0 1px 4px rgba(26, 54, 93, 0.14);
+  overflow: hidden;
+}
+:deep(.report-progress-area .el-progress-bar__inner) {
+  border-radius: var(--tp-radius-full);
+  transition: width 0.4s var(--tp-easing-expo);
 }
 
 /* 高级配置紧凑网格 */

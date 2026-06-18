@@ -191,6 +191,7 @@ export const api = {
     getApi().generate_report(outcrop, report_type, fmt, save_path),
   generate_reports_zip: (targets: string[], report_type: string, fmt: string, save_path?: string) =>
     getApi().generate_reports_zip(targets, report_type, fmt, save_path),
+  poll_report_progress: () => getApi().poll_report_progress(),
   get_provenance: (outcrop: string) => getApi().get_provenance(outcrop),
   get_audit_log: (limit?: number) => getApi().get_audit_log(limit),
   open_external: (url: string) => getApi().open_external(url),

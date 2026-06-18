@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from functools import lru_cache
 from html import escape
 from pathlib import Path
@@ -239,9 +240,18 @@ class ReportService:
         )
 
     def generate(
-        self, outcrop: str, report_type: str, fmt: str, config: dict[str, Any]
+        self,
+        outcrop: str,
+        report_type: str,
+        fmt: str,
+        config: dict[str, Any],
+        progress_callback: Callable[[str, str], None] | None = None,
     ) -> dict[str, Any]:
-        """生成报告并返回文件路径。"""
+        """生成报告并返回文件路径。
+
+        progress_callback(step, message) 用于向调用方报告进度。step 取值:
+          "loading", "stats", "docx", "pdf", "done"
+        """
         try:
             validate_outcrop_name(outcrop)
         except ValueError as exc:
@@ -268,11 +278,15 @@ class ReportService:
             },
         )
         try:
+            if progress_callback:
+                progress_callback("loading", "正在加载迹线数据...")
             trace = load_trace_data(input_dir, table_stem, outcrop)
             stats_config = TraceStatisticsConfig(
                 window_strategy=config.get("window_strategy", "auto"),
                 min_intersections=config.get("min_intersections", 5),
             )
+            if progress_callback:
+                progress_callback("stats", "正在计算统计量...")
             statistics = compute_trace_statistics(trace, stats_config)
         except Exception as exc:
             logger.warning(
@@ -291,9 +305,13 @@ class ReportService:
                 outcrop,
                 extra={"stage": "report_cache_hit", "outcrop": outcrop},
             )
+            if progress_callback:
+                progress_callback("done", "命中缓存，直接返回")
             return cached
 
         if fmt in ("docx", "both"):
+            if progress_callback:
+                progress_callback("docx", "正在生成 DOCX...")
             docx_result = self._gen_docx(outcrop, ctx)
             if "error" in docx_result:
                 results["docx_error"] = docx_result["error"]
@@ -305,6 +323,8 @@ class ReportService:
                     extra={"stage": "report_docx", "outcrop": outcrop, "path": docx_result["path"]},
                 )
         if fmt in ("pdf", "both"):
+            if progress_callback:
+                progress_callback("pdf", "正在生成 PDF...")
             pdf_result = self._gen_pdf(outcrop, ctx)
             if "error" in pdf_result:
                 results["pdf_error"] = pdf_result["error"]
@@ -317,6 +337,9 @@ class ReportService:
                 )
 
         self._store_cached(outcrop, report_type, fmt, config, results, ctx.get("img_paths", []))
+
+        if progress_callback:
+            progress_callback("done", "报告生成完毕")
 
         duration = (time.perf_counter() - start) * 1000
         logger.info(

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -81,6 +82,9 @@ class GuiApi:
         # 重资源操作的运行锁（线程安全）
         self._preview_lock = threading.Lock()
         self._report_lock = threading.Lock()
+        # 报告导出进度队列（线程安全，前端轮询）
+        self._report_progress_queue: deque[dict[str, Any]] = deque()
+        self._report_progress_lock = threading.Lock()
         # output 目录变更检测器
         self._output_detector = DirectoryChangeDetector()
         self._sync_services_from_config(self._config.get())
@@ -593,6 +597,11 @@ class GuiApi:
     # ------------------------------------------------------------------
     # 毕设功能（开发者选项）
     # ------------------------------------------------------------------
+    def poll_report_progress(self) -> dict[str, Any] | None:
+        """前端轮询报告导出进度，非阻塞。"""
+        with self._report_progress_lock:
+            return self._report_progress_queue.popleft() if self._report_progress_queue else None
+
     def generate_report(
         self, outcrop: str, report_type: str, fmt: str, save_path: str | None = None
     ) -> dict[str, Any]:
@@ -619,7 +628,25 @@ class GuiApi:
                     "save_path": save_path,
                 },
             )
-            result = self._report_svc.generate(outcrop, report_type, fmt, self._config.get())
+            # 清空上次的进度队列
+            with self._report_progress_lock:
+                self._report_progress_queue.clear()
+
+            def _report_progress(step: str, message: str) -> None:
+                with self._report_progress_lock:
+                    self._report_progress_queue.append({
+                        "type": "progress",
+                        "step": step,
+                        "message": message,
+                        "outcrop": outcrop,
+                    })
+
+            result = self._report_svc.generate(
+                outcrop, report_type, fmt, self._config.get(),
+                progress_callback=_report_progress,
+            )
+            with self._report_progress_lock:
+                self._report_progress_queue.append({"type": "complete"})
             logger.info(
                 "generate_report 生成结果: outcrop=%s result_keys=%s",
                 outcrop,
@@ -657,6 +684,8 @@ class GuiApi:
             return result
         except Exception as exc:
             logger.exception("generate_report 异常: %s", exc)
+            with self._report_progress_lock:
+                self._report_progress_queue.append({"type": "error", "message": str(exc)})
             return {"error": f"生成报告失败: {exc}"}
         finally:
             self._report_lock.release()
@@ -686,11 +715,32 @@ class GuiApi:
             self._audit_svc.log(
                 "generate_reports_zip", params={"targets": targets, "type": report_type, "fmt": fmt}
             )
+            # 清空上次的进度队列
+            with self._report_progress_lock:
+                self._report_progress_queue.clear()
+
+            total = len(targets)
             cfg = self._config.get()
             files = []
             errors = []
-            for oc in targets:
-                res = self._report_svc.generate(oc, report_type, fmt, cfg)
+
+            for idx, oc in enumerate(targets, 1):
+                # 为每个露头创建进度闭包
+                def _make_progress(outcrop_name: str, current: int) -> Any:
+                    def _cb(step: str, message: str) -> None:
+                        with self._report_progress_lock:
+                            self._report_progress_queue.append({
+                                "type": "progress",
+                                "step": step,
+                                "message": message,
+                                "outcrop": outcrop_name,
+                                "current": current,
+                                "total": total,
+                            })
+                    return _cb
+
+                progress_cb = _make_progress(oc, idx)
+                res = self._report_svc.generate(oc, report_type, fmt, cfg, progress_callback=progress_cb)
                 if "error" in res:
                     errors.append(f"{oc}: {res['error']}")
                     continue
@@ -702,6 +752,14 @@ class GuiApi:
             if not files:
                 detail = "; ".join(errors)
                 return {"error": f"没有生成任何报告{( ': ' + detail) if detail else ''}"}
+
+            # 打包 ZIP
+            with self._report_progress_lock:
+                self._report_progress_queue.append({
+                    "type": "progress",
+                    "step": "zip",
+                    "message": "正在打包 ZIP 压缩包...",
+                })
 
             zip_path: Path
             if save_path:
@@ -745,8 +803,12 @@ class GuiApi:
             return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
         except Exception as exc:
             logger.exception("generate_reports_zip 异常: %s", exc)
+            with self._report_progress_lock:
+                self._report_progress_queue.append({"type": "error", "message": str(exc)})
             return {"error": f"生成报告压缩包失败: {exc}"}
         finally:
+            with self._report_progress_lock:
+                self._report_progress_queue.append({"type": "complete"})
             self._report_lock.release()
 
     def get_provenance(self, outcrop: str) -> dict[str, Any]:

@@ -1,3 +1,27 @@
+/**
+ * 前端多层缓存 Store。
+ *
+ * ## 缓存层级
+ *
+ * | 缓存 | TTL | 存储 | 淘汰策略 |
+ * |------|-----|------|----------|
+ * | scan | 30s | sessionStorage | TTL |
+ * | stats | 5min | Memory (Map) | LRU (max 100) |
+ * | comparison | 5min | sessionStorage | TTL |
+ * | results | 5s | sessionStorage | TTL |
+ * | image | 10min | Memory (Map) | LRU + char budget (max 50/80M) |
+ * | thumbnail | 10min | Memory (Map) | LRU + char budget (max 120/30M) |
+ *
+ * ## LRU 实现
+ *
+ * 统计缓存使用 Map 的插入顺序模拟 LRU：
+ * - `getStats` 命中时执行 delete+set 将条目移到末尾
+ * - `setStats` 超限时淘汰 `keys().next()`（最久未使用）
+ *
+ * 图片缓存通过遍历找最旧 timestamp 实现 O(n) LRU。
+ *
+ * @module cacheStore
+ */
 import { defineStore } from 'pinia'
 import { ref, computed, type Ref } from 'vue'
 

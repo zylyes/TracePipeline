@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/version-4.1.1-brightgreen" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.1.2-brightgreen" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
 </p>
@@ -22,21 +22,48 @@
 
 ---
 
+## 目录
+
+- [简介](#-简介)
+- [技术栈与系统架构](#-技术栈与系统架构)
+- [快速开始](#-快速开始)
+- [功能特性](#-功能特性)
+- [安装指南](#-安装指南)
+- [输入数据格式](#-输入数据格式)
+- [CLI 用法](#️-cli-用法)
+- [GUI 桌面应用](#️-gui-桌面应用)
+- [配置](#️-配置)
+- [Python API](#-python-api)
+- [数据处理原理](#-数据处理原理)
+- [打包分发](#-打包分发)
+- [项目结构](#-项目结构)
+- [开发](#-开发)
+- [常见问题](#-常见问题)
+- [贡献](#-贡献)
+- [版本历史](#-版本历史)
+- [许可证](#-许可证)
+- [致谢](#-致谢)
+
+---
+
 ## 📖 简介
 
-TracePipeline 是一套面向岩体节理几何特征分析的专业工具。以北山沙枣园花岗岩体 8 个露头（O76-O83）的 172 条节理迹线为数据基础，实现了从原始测线记录到统计指标、可视化图表的全流程自动化处理。
+TracePipeline 是一套面向岩体节理几何特征分析的专业工具。以野外实测节理迹线数据为基础，实现了从原始测线记录到统计指标、可视化图表的全流程自动化处理。
 
 **核心流水线**：综合法复数向量化端点计算 → 坐标平移与旋转标准化 → I/II/III 型自动分类 → 测线长度估算 → 凸包/缓冲凸包露头面积 → 圆形取样窗法 4 策略自适应 → P10/P20/P21 密度统计 → Mauldon 迹长估计 → 窗口一致性校验 → 节点识别（I/Y/X 拓扑分类）→ 多工作表 Excel 导出 → 迹线图与玫瑰图。
 
 ### ✨ 亮点
 
 - 🎯 **双模式**：CLI 一键批量处理 + 桌面 GUI 交互式操作
-- 🚀 **向量化计算**：NumPy 广播 + 复数运算，8 露头串行处理约 30-60 秒
+- 🚀 **向量化计算**：NumPy 广播 + 复数运算，批量处理约 30-60 秒
 - 🧪 **高精度**：与 MATLAB 原版端点坐标误差 < 1e-10 m（浮点精度级）
 - 📊 **丰富统计**：P10/P20/P21 四级回退、4 策略圆窗自适应、Mauldon 迹长估计
 - 🔬 **节点识别**：I/Y/X 型拓扑节点自动识别（空间网格聚类 + 并查集）
-- 📦 **一键打包**：PyInstaller + Inno Setup + 7-Zip 生成 Windows 安装包
+- 🖥️ **桌面 GUI**：Vue 3 + Element Plus + ECharts 交互式仪表板，6 页面视图
+- 📄 **报告导出**：Word/PDF 一键生成，含统计汇总与图表内嵌
+- 📦 **一键打包**：PyInstaller + Inno Setup + 7-Zip 生成 Windows 安装包与便携版
 - 🛡️ **安全可靠**：输入校验、路径遍历防护、结构化日志全链路追踪
+- 🧪 **完善测试**：Python pytest + Vitest 前端测试，核心模块覆盖
 
 ---
 
@@ -58,17 +85,57 @@ TracePipeline 是一套面向岩体节理几何特征分析的专业工具。以
 | 组件 | 选型 | 说明 |
 |------|------|------|
 | 桌面容器 | pywebview 5.x | Windows WebView2 嵌入，无 Electron 体积开销 |
-| 前端框架 | Vue 3.4 + TypeScript 5.4 | Composition API, Pinia 状态管理 |
+| 前端框架 | Vue 3.4 + TypeScript 5.4 | Composition API，Pinia 状态管理 |
 | UI 库 | Element Plus 2.x | 企业级 Vue 3 组件库 |
 | 图表 | ECharts 5.x + vue-echarts | 直方图、饼图、柱状图对比 |
-| 数值计算 | NumPy 1.24+ | 广播 + 复数向量化，8 露头串行 30-60s |
+| 数值计算 | NumPy 1.24+ | 广播 + 复数向量化，批量串行 30-60s |
 | 绘图 | matplotlib 3.7+ | 迹线图（600 DPI）、玫瑰图、LaTeX 统计框 |
+| 科学计算 | scipy 1.10+ | 空间算法（KDTree 等） |
+| 几何计算 | shapely 2.0+ | 缓冲区、几何求交 |
 | 打包 | PyInstaller + Inno Setup + 7-Zip | 安装版 + 便携版一链生成 |
 | 日志 | 自定义 JSON Lines + contextvars | 按日轮转，30 天保留，request_id 全链路追踪 |
+| 测试 | pytest + vitest | 后端单元测试 + 前端组件/Store 测试 |
+
+### 数据流
+
+```
+┌──────────────┐    ┌─────────────────┐    ┌──────────────────┐
+│  .xls/.xlsx  │───▶│  excel_reader   │───▶│ compute_endpoints│
+│  输入文件     │    │  (pandas 引擎)   │    │  (复数向量化)     │
+└──────────────┘    └─────────────────┘    └────────┬─────────┘
+                                                    │
+                    ┌─────────────────────────────────┘
+                    ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    run_pipeline() 五阶段流水线                  │
+│                                                              │
+│  ① 加载 ──▶ ② 坐标变换+统计 ──▶ ③ 节点识别 ──▶ ④ Excel导出   │
+│                                                    │         │
+│                                        ┌───────────┘         │
+│                                        ▼                     │
+│                          ⑤ 绘图：迹线图 + 旋转图 + 玫瑰图       │
+└──────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌──────────────────────────────────────┐
+│  输出产物                             │
+│  • *_traces.xlsx  (多工作表)          │
+│  • *_raw(n=N).png (原始迹线图)        │
+│  • *_rotated(strike=X).png (旋转迹线图)│
+│  • *_rose(bin=X).png (玫瑰图)         │
+└──────────────────────────────────────┘
+```
 
 ---
 
 ## 🚀 快速开始
+
+### 前置要求
+
+- **Python** >= 3.10（推荐 3.11）
+- **Node.js** >= 18（仅 GUI 前端构建需要）
+- **Windows 10/11**（GUI 依赖 WebView2 Runtime，Win11 已内置）
+- **pip** >= 21.0
 
 ### 安装
 
@@ -97,7 +164,7 @@ python -m trace_pipeline
 python run_gui.py
 ```
 
-> **CLI 模式**输出：`output/` 目录为每个露头生成迹线图（原始 + 旋转）+ 多工作表 Excel 文件；可选导出玫瑰图与节点覆盖层。输出数量因 `export_rose_plot` 和 `enable_node_recognition` 设置而异。加 `-p 4` 启用 4 线程并行。
+> **CLI 模式**输出：`output/` 目录为每个露头生成迹线图（原始 + 旋转）+ 多工作表 Excel 文件；可选导出玫瑰图与节点覆盖层。加 `-p 4` 启用 4 进程并行。
 
 ---
 
@@ -116,8 +183,11 @@ python run_gui.py
 | 📋 **Excel 导出** | 多工作表格式（6-9 sheet），含基本信息、裂隙情况、坐标、节点统计等 |
 | 🖥️ **桌面 GUI** | pywebview + Vue 3 + Element Plus + ECharts，6 页面视图，4 级缓存 |
 | 📄 **报告导出** | Word/PDF 一键生成，含统计汇总 + 图表内嵌 |
+| 📊 **多露头对比** | 统计指标对比表格 + 柱状图 + 图片网格 |
+| 🔍 **数据溯源** | P10/P20/P21 计算来源链追溯（实测/凸包/圆窗等效） |
 | 📦 **一键打包** | PyInstaller + Inno Setup + 7-Zip SFX，安装版 + 便携版 |
 | 📝 **结构化日志** | JSON Lines 格式，按日轮转，request_id 全链路追踪，30 天保留 |
+| 🛡️ **安全防护** | 路径遍历防护、外部域名白名单、图片格式安全校验、配置字段类型强制转换 |
 
 ---
 
@@ -125,39 +195,43 @@ python run_gui.py
 
 ### 系统要求
 
-- **Python** >= 3.10
-- **Node.js** >= 18（仅 GUI 前端构建需要）
-- **Windows WebView2 Runtime**（GUI 依赖，Windows 11 已内置）
-- **pip** >= 21.0
+| 组件 | 最低版本 | 说明 |
+|------|---------|------|
+| Windows | 10 (1809+) / 11 | GUI 模式必需；CLI 模式理论跨平台 |
+| Python | 3.10 | 3.11 推荐（性能最优），支持 3.12 |
+| Node.js | 18 LTS | 仅 GUI 前端构建时需要 |
+| WebView2 Runtime | 任意 | Win11 已内置；Win10 自动推送或手动安装 |
+| 内存 | 2 GB | CLI 模式；GUI 模式建议 4 GB |
+| 磁盘 | 500 MB | 含依赖；打包产物约 150-250 MB |
 
-### 依赖
+### 依赖清单
 
-**核心依赖**（CLI 模式必需）：
+**核心依赖**（CLI 与 GUI 模式通用）：
 
-| 包 | 用途 |
-|---|---|
-| `numpy>=1.24` | 向量化数值计算 |
-| `pandas>=2.0` | Excel 表格读写 |
-| `matplotlib>=3.7` | 迹线图与玫瑰图绘制 |
-| `openpyxl>=3.1` | .xlsx 读写引擎 |
-| `xlrd>=2.0` | .xls 读写引擎 |
-| `Pillow>=9.0` | 图像处理 |
-| `tqdm>=4.67` | 命令行进度条 |
+| 包 | 最低版本 | 用途 |
+|---|---|---|
+| `numpy` | 1.24 | 向量化数值计算 |
+| `pandas` | 2.0 | Excel 表格读写 |
+| `matplotlib` | 3.7 | 迹线图与玫瑰图绘制 |
+| `openpyxl` | 3.1 | .xlsx 读写引擎 |
+| `xlrd` | 2.0 | .xls 读写引擎 |
+| `Pillow` | 9.0 | 图像处理与缩略图 |
+| `scipy` | 1.10 | 空间算法（KDTree） |
+| `shapely` | 2.0 | 几何缓冲区与求交 |
+| `tqdm` | 4.67 | 命令行进度条 |
 
-**GUI 依赖**（仅在桌面模式需要）：
+**GUI 附加依赖**：
 
-| 包 | 用途 |
-|---|---|
-| `pywebview>=5.0` | 桌面 GUI 容器（WebView2 嵌入） |
-| `python-docx>=1.0` | Word 报告导出 |
-| `reportlab>=4.0` | PDF 报告导出 |
-
-> `scipy>=1.10` 和 `shapely>=2.0` 为间接依赖/未来功能预留，当前核心计算（凸包、缓冲区、几何求交）均使用自定义纯 NumPy 实现。
+| 包 | 最低版本 | 用途 |
+|---|---|---|
+| `pywebview` | 5.0 | 桌面 GUI 容器（WebView2 嵌入） |
+| `python-docx` | 1.0 | Word 报告导出 |
+| `reportlab` | 4.0 | PDF 报告导出 |
 
 ### 安装方式
 
 ```bash
-# 方式一：venv（推荐）
+# 方式一：venv（推荐，全功能）
 python -m venv .venv
 .venv\Scripts\Activate.ps1      # Windows PowerShell
 # 或 source .venv/bin/activate  # Linux/macOS
@@ -165,9 +239,9 @@ pip install -e .
 
 # 方式二：仅 CLI 模式（无需 GUI 依赖）
 pip install -e . --no-deps      # 跳过所有依赖
-pip install numpy pandas matplotlib openpyxl xlrd Pillow tqdm
+pip install numpy pandas matplotlib openpyxl xlrd Pillow scipy shapely tqdm
 
-# 方式三：含开发依赖
+# 方式三：含开发依赖（代码检查 + 测试）
 pip install -e ".[dev]"
 
 # 方式四：conda / mamba
@@ -175,7 +249,7 @@ conda create -n trace python=3.11 -y
 conda activate trace
 pip install -e .
 
-# 方式五：uv（快速）
+# 方式五：uv（快速依赖解析）
 uv sync
 uv run trace-pipeline
 ```
@@ -184,11 +258,45 @@ uv run trace-pipeline
 
 ```bash
 cd frontend
-npm install
-npm run build
+npm install            # 安装前端依赖（首次约 2-5 分钟）
+npm run build          # 生产构建 → backend/static/
 cd ..
-python run_gui.py
+python run_gui.py      # 启动桌面应用
 ```
+
+> **提示**：开发时可使用 `npm run dev` 启动 Vite 热重载开发服务器，在浏览器中独立调试前端界面（自动使用 mock 数据，无需 Python 后端）。
+
+---
+
+## 📥 输入数据格式
+
+### 文件命名
+
+输入文件需放置在 `input/` 目录下（可在 `config.json` 中自定义），文件名格式为：
+
+```
+{露头编号}_process.xls   或   {露头编号}_process.xlsx
+```
+
+例如：`X01_process.xls`、`X02_process.xlsx`
+
+程序会自动扫描 `input/` 目录下所有匹配 `*_process.xls*` 模式的文件。
+
+### Excel 工作表结构
+
+每个 Excel 文件应包含一个以露头编号命名的工作表（如 "X01"、"X02"），表中至少需要 7 列原始测线记录数据：
+
+| 列 | 参数 | 含义 |
+|----|------|------|
+| 1 (A) | r₁ | 迹线起点沿测线的位置偏移（m） |
+| 2 (B) | r₂ | 测线交点到测线某个端点的距离（m） |
+| 3 (C) | r₃ | 辅助方向参数 |
+| 4 (D) | r₄ | 起点至迹线左端的距离（m） |
+| 5 (E) | r₅ | 起点至迹线右端的距离（m） |
+| 6 (F) | r₆ | 测线交点到测线某个端点的距离（m） |
+| 7 (G) | r₇ | 辅助方向参数 |
+
+> **注意**：数据行从第一行开始（无表头），前 7 列必须为数值型。仅记录迹长 > 30 cm 的结构面。
 
 ---
 
@@ -201,12 +309,11 @@ python run_trace_pipeline.py              # 批量处理全部露头
 # 等效注册入口
 trace-pipeline                            # 若已 pip install -e .
 python -m trace_pipeline                  # 模块方式运行
-python -m trace_pipeline.cli.main         # 直接调用 CLI 模块
 
 python run_trace_pipeline.py -l           # 列出可用文件
 python run_trace_pipeline.py -n           # 试运行（预览目标）
 python run_trace_pipeline.py -I           # 交互式选择目标
-python run_trace_pipeline.py -p 4         # 4 线程并行处理
+python run_trace_pipeline.py -p 4         # 4 进程并行处理
 ```
 
 ### 完整参数
@@ -217,7 +324,7 @@ python run_trace_pipeline.py -p 4         # 4 线程并行处理
 | `--output` | `-o` | 输出目录（覆盖 `output_dir`） |
 | `--config` | `-c` | 自定义 JSON 配置文件路径 |
 | `--single` | `-s` | 单文件模式 |
-| `--parallel` | `-p` | 并行线程数（0=串行） |
+| `--parallel` | `-p` | 并行进程数（0=串行，默认） |
 | `--list` | `-l` | 列出发现的文件后退出 |
 | `--interactive` | `-I` | 交互式选择处理目标 |
 | `--dry-run` | `-n` | 试运行，不实际执行 |
@@ -235,8 +342,11 @@ python run_trace_pipeline.py --no-rose
 # 单文件 + 自定义配置
 python run_trace_pipeline.py -s -c my_config.json
 
-# 指定圆窗策略 + 并行
+# 指定圆窗策略 + 4 并行进程
 python run_trace_pipeline.py --window-strategy hybrid -p 4
+
+# 高 DPI 玫瑰图输出
+python run_trace_pipeline.py --rose-bin 5 --rose-dpi 1200
 ```
 
 ---
@@ -262,15 +372,16 @@ python run_gui.py
 
 ### 缓存架构
 
-| 缓存项 | 前端 TTL | 后端 TTL | 说明 |
-|--------|---------|---------|------|
-| 文件扫描 | 30s | 30s | 目录变更检测 |
-| 统计数据 | 5min | 5min | 含 SHA-256 配置指纹 |
-| 对比数据 | 5min | — | 复用统计缓存 |
-| 结果列表 | 5s | — | 轮询间隔 |
-| 样式预览 | — | 配置 MD5 哈希 | 基于样式 dict 内容 |
-| 图片 | 10min | — | 内存 Map 缓存 |
-| Excel 数据 | 5min | 5min | 按切片分页缓存 |
+| 缓存项 | 前端 TTL | 后端 TTL | 存储方式 | 说明 |
+|--------|---------|---------|----------|------|
+| 文件扫描 | 30s | 30s | sessionStorage | 目录变更检测 |
+| 统计数据 | 5min | 5min | 内存 Map (LRU) | 含 SHA-256 配置指纹 |
+| 对比数据 | 5min | — | sessionStorage | 复用统计缓存 |
+| 结果列表 | 5s | — | sessionStorage | 轮询间隔，快速感知外部删除 |
+| 样式预览 | — | 配置 MD5 哈希 | 文件系统 | 基于样式 dict 内容 |
+| 图片 | 10min | — | 内存 Map (LRU) | ≤50 条目 / 80MB |
+| 缩略图 | 10min | — | 内存 Map (LRU) | ≤120 条目 / 30MB |
+| Excel 数据 | 5min | 5min | 后端 TTLCache | 按切片分页缓存 |
 
 ---
 
@@ -280,11 +391,12 @@ python run_gui.py
 
 ```json
 {
+  "_comment": "TracePipeline 配置模板。复制为 config.json 后修改。所有字段均有默认值。",
   "input_dir":                "input",
   "output_dir":               "output",
   "output_prefix":            "Outcrop",
-  "table_stem":               "O76_process",
-  "outcrop":                  "O76",
+  "table_stem":               "X01_process",
+  "outcrop":                  "X01",
   "process_all":              true,
   "export_rose_plot":         false,
   "rose_bin_width":           10.0,
@@ -304,68 +416,82 @@ python run_gui.py
 }
 ```
 
+### 配置项说明
+
 | 配置键 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `input_dir` | string | `"input"` | 输入目录（含 `*_process.xls*`） |
 | `output_dir` | string | `"output"` | 输出目录 |
-| `output_prefix` | string | `"Outcrop"` | 输出文件名前缀 |
-| `table_stem` | string | `"O76_process"` | 单文件模式下的表名主干 |
-| `outcrop` | string | `"O76"` | 单文件模式下的露头名 |
+| `output_prefix` | string | `"Outcrop"` | 输出文件名前缀（批量模式下被 outcrop 覆盖） |
+| `table_stem` | string | `"X01_process"` | 单文件模式下的表名主干（不含扩展名） |
+| `outcrop` | string | `"X01"` | 单文件模式下的露头名（同时也是 Sheet 名） |
 | `process_all` | bool | `true` | 是否批量处理全部露头 |
 | `window_strategy` | string | `"auto"` | 圆窗策略：`auto`/`tangent`/`hybrid`/`concentric` |
-| `auto_density_threshold` | float | `5.0` | auto 策略的密度阈值 |
-| `tangent_window_count` | int | `3` | tangent 策略窗口数 |
+| `auto_density_threshold` | float | `5.0` | auto 策略的粗估面密度阈值 |
+| `tangent_window_count` | int | `3` | tangent 策略每侧切圆数量 |
 | `min_intersections` | int | `5` | 圆窗最小交切数（低于此值窗口无效） |
 | `enable_node_recognition` | bool | `false` | 是否启用节点识别 |
 | `node_merge_tolerance` | float | `0.01` | 节点合并容差（m） |
 | `show_node_overlay` | bool | `true` | 是否在迹线图上绘制节点覆盖层 |
-| `node_label_mode` | string | `"type"` | 节点标注模式：`none`/`type`/`id` |
+| `node_label_mode` | string | `"type"` | 节点标注模式：`"none"`/`"type"`/`"id"` |
 | `export_rose_plot` | bool | `false` | 是否导出玫瑰图 |
 | `rose_bin_width` | float | `10.0` | 玫瑰图分箱宽度（度） |
 | `rose_dpi` | int | `600` | 玫瑰图分辨率 |
-| `trace_dpi` | int | `600` | 迹线图分辨率 |
+| `trace_dpi` | int | `600` | 原始迹线图分辨率 |
 | `rotated_trace_dpi` | int | `600` | 旋转迹线图分辨率 |
-| `style` | dict | `{}` | 自定义绘图样式覆盖 |
-| `is_dev_mode` | bool | `false` | GUI 开发者模式 |
+| `style` | dict | `{}` | 自定义绘图样式覆盖（颜色、字体、线宽等） |
+| `is_dev_mode` | bool | `false` | GUI 开发者模式（显示调试面板） |
 
 ---
 
 ## 🐍 Python API
 
-除 CLI 和 GUI 外，`trace_pipeline` 可作为 Python 库在代码中调用：
+除 CLI 和 GUI 外，`trace_pipeline` 可作为 Python 库在代码中调用。所有公开 API 通过 `trace_pipeline` 包的 `__all__` 导出，支持惰性导入（`import trace_pipeline` 不会触发 matplotlib 初始化）。
+
+### 主要导出
 
 ```python
 from trace_pipeline import (
-    run_pipeline,             # 核心流水线
-    load_trace_data,          # 数据加载
-    TraceData,                # 数据模型
-    RunConfig,                # 运行配置
-    RunResult,                # 运行结果
-    compute_trace_statistics, # 统计计算
-    TraceStatistics,          # 统计结果
-    find_trace_tables,        # 文件发现
+    run_pipeline,              # 核心流水线
+    load_trace_data,           # 数据加载（带文件签名缓存）
+    TraceData,                 # 不可变数据模型
+    RunConfig,                 # 运行配置（frozen dataclass）
+    RunResult,                 # 运行结果（frozen dataclass）
+    compute_trace_statistics,  # 统计计算
+    TraceStatistics,           # 统计结果
+    TraceStatisticsConfig,     # 统计配置
+    find_trace_tables,         # 文件发现
+    load_config,               # 配置加载
+    apply_cli_overrides,       # CLI 参数覆盖
+    configure_style,           # matplotlib 样式配置
+    print_pipeline_results,    # 结果格式化输出
+    CircleWindowDiagnostic,    # 圆窗诊断信息
+    format_statistics_box_lines, # 统计框文本行
 )
 ```
 
 ### 完整流水线
 
 ```python
-from trace_pipeline import load_config, RunConfig, run_pipeline
+from trace_pipeline import load_config, RunConfig, run_pipeline, RunResult
 
 cfg_dict = load_config("config.json")
 config = RunConfig(
     input_dir="input",
     output_dir="output",
     output_prefix="Outcrop",
-    table_stem="O76_process",
-    outcrop="O76",
+    table_stem="X01_process",
+    outcrop="X01",
     window_strategy="auto",
+    min_intersections=5,
 )
 
-result = run_pipeline(config)
+result: RunResult = run_pipeline(config)
 print(result.status)          # PipelineStatus.SUCCESS
-print(result.excel_path)      # Excel 输出路径
-print(result.raw_plot_path)   # 迹线图路径
+print(result.excel_path)      # output/Outcrop_traces.xlsx
+print(result.raw_plot_path)   # output/X01_raw(n=19).png
+print(result.rotated_plot_path)
+print(result.trace_count)     # 19
 ```
 
 ### 单独统计计算
@@ -373,13 +499,16 @@ print(result.raw_plot_path)   # 迹线图路径
 ```python
 from trace_pipeline import load_trace_data, compute_trace_statistics, TraceStatisticsConfig
 
-trace = load_trace_data("input", "O76_process", "O76")
+trace = load_trace_data("input", "X01_process", "X01")
 stats_config = TraceStatisticsConfig(window_strategy="hybrid")
 stats = compute_trace_statistics(trace, stats_config)
 
-print(f"P10 = {stats.p10:.4f} m⁻¹")
-print(f"P20 = {stats.p20:.4f} m⁻²")
-print(f"P21 = {stats.p21:.4f} m⁻¹")
+print(f"P10 = {stats.p10:.4f} m⁻¹")          # 线密度
+print(f"P20 = {stats.p20:.4f} m⁻²")          # 面密度
+print(f"P21 = {stats.p21:.4f} m⁻¹")          # 面累计长度密度
+print(f"平均迹长 = {stats.mean_trace_length:.4f} m")
+print(f"面积来源 = {stats.outcrop_area_source}")  # measured/hull/buffered/circular
+print(f"圆窗策略 = {stats.window_strategy}")       # tangent/hybrid/concentric
 ```
 
 ### 节点识别
@@ -442,6 +571,12 @@ print(f"节点密度: {density:.4f} 个/m²")
 
 全部计算通过 NumPy 复数向量化一次性完成 N 条迹线的转换，时间复杂度 O(N)。
 
+### 坐标变换
+
+1. **平移至第一象限**：所有端点平移至 x≥0, y≥0 区域
+2. **旋转标准化**：绕原点旋转使测线方向与 x 轴对齐
+3. **再次平移**：确保旋转后坐标仍为正
+
 ### 迹线统计指标
 
 | 指标 | 含义 | 计算方法 |
@@ -460,11 +595,17 @@ print(f"节点密度: {density:.4f} 个/m²")
 | **tangent** | 沿测线均布 k 个相切圆 | 大间距、稀疏迹线 |
 | **hybrid** | 3 切点 × 2 侧 × 3 半径缩放比，最多 18 窗口 | 中等密度 |
 | **concentric** | 测线中点同心圆，多半径 | 高密度 |
-| **auto** | 三种策略 6 因子加权评分，自动选择最优 | 默认推荐 |
+| **auto** | 三种策略 6 因子加权评分，自动选择最优 | **默认推荐** |
 
 ### 节点识别
 
-启用 `enable_node_recognition: true` 后，通过空间网格聚类 + 并查集算法，自动识别 I/Y/X 型拓扑节点。合并容差自适应于数据尺度。
+启用 `enable_node_recognition: true` 后，通过空间网格聚类 + 并查集算法，自动识别 I/Y/X 型拓扑节点：
+
+- **I 型节点**：单迹线端点孤立（度=1）
+- **Y 型节点**：三条迹线交汇（度=3）
+- **X 型节点**：四条迹线交汇（度=4）
+
+合并容差 `node_merge_tolerance` 自适应于数据尺度，默认 0.01 m。
 
 ---
 
@@ -475,7 +616,9 @@ print(f"节点密度: {density:.4f} 个/m²")
 ```bash
 python scripts/package.py                # 完整打包（安装版 + 便携版）
 python scripts/package.py --skip-portable # 仅安装版
-python scripts/package.py --skip-frontend # 跳过前端构建
+python scripts/package.py --skip-installer# 仅便携版
+python scripts/package.py --skip-frontend # 跳过前端构建（假设已构建）
+python scripts/package.py --gen-requirements # 仅生成 requirements.txt
 ```
 
 ### 打包工具链
@@ -483,155 +626,137 @@ python scripts/package.py --skip-frontend # 跳过前端构建
 | 工具 | 用途 | 发现方式 |
 |------|------|----------|
 | PyInstaller | Python 应用打包 | `.venv/Scripts/pyinstaller.exe` |
-| Inno Setup 6 | 生成 Windows 安装程序 | 环境变量 `ISCC_EXE` 或系统 PATH |
-| 7-Zip | 生成自解压便携版 | 环境变量 `SEVEN_ZIP` 或系统 PATH |
+| Inno Setup 6 | 生成 Windows 安装程序 | 环境变量 `ISCC_EXE` 或系统 PATH；`--iscc-path` 覆盖 |
+| 7-Zip | 生成自解压便携版 | 环境变量 `SEVEN_ZIP` 或系统 PATH；`--seven-zip-path` 覆盖 |
 
 ### 打包流程
 
 | 步骤 | 工具 | 产物 |
 |------|------|------|
+| 需求文件 | 正则解析 pyproject.toml | `requirements.txt` |
 | 前端构建 | `npm run build` | `backend/static/` |
-| 应用打包 | PyInstaller | `dist/TracePipeline/` |
+| 应用打包 | PyInstaller | `dist/TracePipeline/`（约 150-250 MB） |
 | 安装程序 | Inno Setup 6 | `dist/TracePipeline-Setup-v{version}.exe` |
 | 便携版 | 7-Zip SFX | `dist/TracePipeline-Portable-v{version}.exe` |
 
+> **注意**：打包前需确保 `backend/static/index.html` 存在（前端已构建）。PyInstaller 打包步骤可能需要 3-10 分钟，取决于系统性能。
+
 ---
 
-## 🧪 开发
-
-### 开发工具
-
-```bash
-pip install -e ".[dev]"
-
-# 代码检查
-ruff check .
-
-# 类型检查
-mypy trace_pipeline/
-
-# 测试
-pytest
-
-# 测试 + 覆盖率
-pytest --cov --cov-report=term --cov-report=html
-```
-
-| 工具 | 配置位置 | 要点 |
-|------|----------|------|
-| ruff | `pyproject.toml [tool.ruff]` | Python 3.10, 100 列行宽 |
-| mypy | `pyproject.toml [tool.mypy]` | Python 3.10, warn_return_any |
-| pytest | `pyproject.toml [tool.pytest]` | testpaths = `tests/` |
-
-### 项目结构
+## 📁 项目结构
 
 ```
 .
-├── trace_pipeline/          # 核心计算包（51 .py 文件）
-│   ├── __init__.py          # 包入口，延迟导入，__all__ 定义
-│   ├── models.py            # 数据模型（TraceData, RunConfig, RunResult）
-│   ├── config.py            # 配置加载、路径解析、CLI 覆盖合并
-│   ├── pipeline.py          # 单目标全流程编排（5 阶段）
-│   ├── reporting.py         # 终端结果表格与摘要输出
-│   ├── validation.py        # 标量类型强制转换
-│   ├── geology/             # 地质/几何算法（纯函数）
-│   │   ├── angles.py        # 角度转换（倾向→走向、方位角→笛卡尔）
-│   │   ├── endpoints.py     # 综合法复数向量化端点计算
-│   │   ├── statistics.py    # P10/P20/P21 密度统计、迹线分类
-│   │   ├── transforms.py    # 坐标平移、旋转与标准化
-│   │   ├── _convex_hull.py  # Andrew 单调链凸包、鞋带公式面积
-│   │   ├── _circle_window.py# 圆窗交切计数（批量向量化）
-│   │   ├── _window_strategies.py  # tangent/hybrid/concentric 布局
-│   │   ├── _window_scoring.py     # auto 策略 6 因子加权评分
-│   │   ├── _stat_types.py   # TraceStatisticsConfig, TraceStatistics
-│   │   └── _stat_format.py  # 统计信息格式化
-│   ├── analysis/            # 节点识别分析
-│   │   ├── models.py        # NodeRecognitionConfig, NodeAnalysis
-│   │   └── nodes.py         # recognize_trace_nodes (网格聚类+并查集)
-│   ├── geometry/            # 几何原语
-│   │   └── segments.py      # 线段求交、共线、点到线距离
-│   ├── io/                  # I/O 层
-│   │   ├── discovery.py     # find_trace_tables（文件发现）
-│   │   ├── excel_reader.py  # read_trace_excel（引擎/表名回退）
-│   │   └── excel_writer.py  # write_excel_multi_sheets（多工作表导出）
-│   ├── plotting/            # 绘图层
-│   │   ├── style.py         # matplotlib 全局样式 + CJK 字体配置
-│   │   ├── trace_plot.py    # render_trace_plot（迹线图）
-│   │   ├── rose_plot.py     # render_rose_plot（玫瑰图）
-│   │   ├── preview_plot.py  # render_preview_*（样式预览）
-│   │   ├── overlays.py      # 凸包/圆窗/节点覆盖层
-│   │   ├── _helpers.py      # 图形创建、指北针、边界计算
-│   │   └── _layout.py       # 布局、统计框、图例、比例尺
-│   ├── logging/             # 结构化日志系统
-│   │   ├── core.py          # JsonFormatter, DailyRotatingJsonHandler
-│   │   └── context.py       # LogContext, request_id 传播, timed 装饰器
-│   ├── cli/                 # 命令行入口
-│   │   ├── main.py          # CLI 入口（配置→发现→调度→报告）
-│   │   ├── args.py          # argparse 参数定义
-│   │   ├── dispatcher.py    # 批量/单文件目标选择与串行/并行执行
-│   │   ├── interactive.py   # 交互式文件选择（范围解析）
-│   │   └── logging_setup.py # 日志兼容层
-│   └── utils/               # 工具函数
-│       ├── paths.py         # PyInstaller 感知的路径解析
-│       ├── output_paths.py  # 输出图片查找
-│       ├── numpy_compat.py  # NumPy → Python 原生类型转换
-│       ├── mpl_init.py      # 强制非交互式 backend
-│       ├── fonts.py         # CJK 字符检测
-│       └── formatting.py    # 文件大小格式化
-├── backend/                 # GUI 后端（pywebview）
-│   ├── main_gui.py          # pywebview 启动器、窗口管理
-│   ├── gui_api.py           # JS Bridge API（38 个方法）
-│   ├── webview2_checker.py  # WebView2 Runtime 检测
-│   ├── services/            # 9 个后端服务
-│   │   ├── config_service.py   # 配置读写（原子保存）
-│   │   ├── file_service.py     # 文件扫描（TTLCache 30s）
-│   │   ├── pipeline_service.py # 后台流水线执行（线程+队列）
-│   │   ├── stats_service.py    # 统计计算（TTLCache 5min）
-│   │   ├── data_service.py     # Excel 数据分页读取
-│   │   ├── preview_service.py  # 样式预览生成（MD5 缓存）
-│   │   ├── report_service.py   # Word/PDF 报告导出
-│   │   ├── audit_service.py    # 用户操作审计日志
-│   │   └── log_service.py      # 结构化日志读取
-│   └── utils/               # 后端工具
-│       ├── cache.py         # TTLCache + 目录变更检测
-│       ├── security.py      # 路径遍历防护、Windows 设备名拦截
-│       └── path_utils.py    # 露头名校验、错误响应格式化
-├── frontend/                # Vue 3 前端（TypeScript）
+├── trace_pipeline/              # 核心计算包（51 个 .py 文件）
+│   ├── __init__.py              # 包入口，惰性导入，__all__ 定义
+│   ├── __main__.py              # python -m trace_pipeline 入口
+│   ├── models.py                # 数据模型（TraceData, RunConfig, RunResult）
+│   ├── config.py                # 配置加载、路径解析、CLI 覆盖合并
+│   ├── pipeline.py              # 单目标全流程编排（5 阶段）
+│   ├── reporting.py             # 终端结果表格与摘要输出
+│   ├── validation.py            # 标量类型强制转换
+│   ├── geology/                 # 地质/几何算法（纯函数）
+│   │   ├── angles.py            # 角度转换（倾向→走向、方位角→笛卡尔）
+│   │   ├── endpoints.py         # 综合法复数向量化端点计算
+│   │   ├── statistics.py        # P10/P20/P21 密度统计、迹线分类
+│   │   ├── transforms.py        # 坐标平移、旋转与标准化
+│   │   ├── _convex_hull.py      # Andrew 单调链凸包、鞋带公式面积
+│   │   ├── _circle_window.py    # 圆窗交切计数（批量向量化）
+│   │   ├── _window_strategies.py# tangent/hybrid/concentric 布局
+│   │   ├── _window_scoring.py   # auto 策略 6 因子加权评分
+│   │   ├── _stat_types.py       # TraceStatisticsConfig, TraceStatistics
+│   │   └── _stat_format.py      # 统计信息格式化
+│   ├── analysis/                # 节点识别分析
+│   │   ├── models.py            # NodeRecognitionConfig, NodeAnalysis
+│   │   └── nodes.py             # recognize_trace_nodes (网格聚类+并查集)
+│   ├── geometry/                # 几何原语
+│   │   └── segments.py          # 线段求交、共线、点到线距离
+│   ├── io/                      # I/O 层
+│   │   ├── discovery.py         # find_trace_tables（文件发现）
+│   │   ├── excel_reader.py      # read_trace_excel（引擎/表名回退）
+│   │   └── excel_writer.py      # write_excel_multi_sheets（多工作表导出）
+│   ├── plotting/                # 绘图层
+│   │   ├── style.py             # matplotlib 全局样式 + CJK 字体配置
+│   │   ├── trace_plot.py        # render_trace_plot（迹线图）
+│   │   ├── rose_plot.py         # render_rose_plot（玫瑰图）
+│   │   ├── preview_plot.py      # render_preview_*（样式预览）
+│   │   ├── overlays.py          # 凸包/圆窗/节点覆盖层
+│   │   ├── _helpers.py          # 图形创建、指北针、边界计算
+│   │   └── _layout.py           # 布局、统计框、图例、比例尺
+│   ├── logging/                 # 结构化日志系统
+│   │   ├── core.py              # JsonFormatter, DailyRotatingJsonHandler
+│   │   └── context.py           # LogContext, request_id 传播, timed 装饰器
+│   ├── cli/                     # 命令行入口
+│   │   ├── main.py              # CLI 入口（配置→发现→调度→报告）
+│   │   ├── args.py              # argparse 参数定义
+│   │   ├── dispatcher.py        # 批量/单文件目标选择与串行/并行执行
+│   │   ├── interactive.py       # 交互式文件选择（范围解析）
+│   │   └── logging_setup.py     # 日志兼容层
+│   └── utils/                   # 工具函数
+│       ├── paths.py             # PyInstaller 感知的路径解析
+│       ├── output_paths.py      # 输出图片查找
+│       ├── numpy_compat.py      # NumPy → Python 原生类型转换
+│       ├── mpl_init.py          # 强制非交互式 backend
+│       ├── fonts.py             # CJK 字符检测
+│       └── formatting.py        # 文件大小格式化
+├── backend/                     # GUI 后端（pywebview，17 个 .py 文件）
+│   ├── main_gui.py              # pywebview 启动器、窗口管理
+│   ├── gui_api.py               # JS Bridge API（38 个公开方法）
+│   ├── webview2_checker.py      # WebView2 Runtime 检测
+│   ├── services/                # 9 个后端服务
+│   │   ├── config_service.py    # 配置读写（原子保存）
+│   │   ├── file_service.py      # 文件扫描（TTLCache 30s）
+│   │   ├── pipeline_service.py  # 后台流水线执行（线程+队列）
+│   │   ├── stats_service.py     # 统计计算（TTLCache 5min + SHA-256 指纹）
+│   │   ├── data_service.py      # Excel 数据分页读取
+│   │   ├── preview_service.py   # 样式预览生成（MD5 缓存）
+│   │   ├── report_service.py    # Word/PDF 报告导出
+│   │   ├── audit_service.py     # 用户操作审计日志
+│   │   └── log_service.py       # 结构化日志读取
+│   └── utils/                   # 后端工具
+│       ├── cache.py             # TTLCache + 目录变更检测
+│       ├── security.py          # 路径遍历防护、Windows 设备名拦截
+│       └── path_utils.py        # 露头名校验、错误响应格式化
+├── frontend/                    # Vue 3 前端（TypeScript + Sass）
 │   └── src/
-│       ├── App.vue          # 根组件（侧边栏 + 标题栏 + 状态栏）
-│       ├── views/           # 6 页面视图
-│       │   ├── IntroView.vue       # 首页引导
-│       │   ├── ProcessingView.vue  # 文件选择 + 流水线处理
-│       │   ├── StatisticsView.vue  # 单露头统计仪表板
-│       │   ├── ComparisonView.vue  # 多露头对比
-│       │   ├── DataView.vue        # 原始数据浏览
-│       │   └── ConfigView.vue      # 全局配置 + 样式预览
-│       ├── components/      # 13 个功能组件 + 6 个图标组件
+│       ├── App.vue              # 根组件（侧边栏 + 标题栏 + 状态栏）
+│       ├── views/               # 6 页面视图
+│       │   ├── IntroView.vue    # 首页引导
+│       │   ├── ProcessingView.vue # 文件选择 + 流水线处理
+│       │   ├── StatisticsView.vue # 单露头统计仪表板
+│       │   ├── ComparisonView.vue # 多露头对比
+│       │   ├── DataView.vue     # 原始数据浏览
+│       │   └── ConfigView.vue   # 全局配置 + 样式预览
+│       ├── components/          # 13 个功能组件 + 6 个图标组件
 │       │   ├── SplashScreen.vue, FileList.vue, ProgressPanel.vue
 │       │   ├── StatCards.vue, HistogramChart.vue, PieChart.vue
 │       │   ├── ImageViewer.vue, ImageModal.vue, StylePreview.vue
 │       │   ├── ConfigForm.vue, DevPanel.vue, DataTable.vue, GeoIcon.vue
 │       │   └── icons/ (HomeIcon, ProcessIcon, StatsIcon, CompareIcon, DataIcon, ConfigIcon)
-│       ├── stores/          # Pinia 状态管理（app, config, cache, pipeline）
-│       ├── api/             # pywebview JS Bridge 封装
-│       ├── utils/           # 前端工具（消息、图片、格式化、ECharts 主题）
-│       └── styles/          # 设计令牌、字体、Element Plus 覆盖
-├── tests/                   # pytest 单元测试（20 个文件）
+│       ├── stores/              # Pinia 状态管理（app, config, cache, pipeline）
+│       ├── api/                 # pywebview JS Bridge 封装（含 mock 回退）
+│       ├── utils/               # 前端工具（消息、图片、格式化、ECharts 主题）
+│       ├── types/               # TypeScript 类型定义
+│       └── styles/              # 设计令牌、字体、Element Plus 覆盖
+├── tests/                       # Python 单元测试（pytest）
+│   ├── conftest.py              # 共享 fixtures
+│   ├── test_plotting.py         # 绘图冒烟测试
+│   └── test_report_service.py   # 报告服务单元测试
+├── frontend/tests/              # 前端单元测试（vitest）
+│   └── stores/
+│       ├── pipeline.test.ts     # 流水线 store 测试
+│       └── cache.test.ts        # 缓存 store 测试
 ├── scripts/
-│   └── package.py           # 一键打包流水线（reqs → 前端 → PyInstaller → Inno Setup → 7-Zip）
-├── reference/               # 参考资料
-│   ├── matlab/              # MATLAB 原版算法代码
-│   ├── 论文/                # 毕业设计文档
-│   ├── 文献/                # 学术参考论文
-│   ├── 图件/                # 论文插图
-│   └── 地质背景/            # 地质数据与背景资料
-├── config.example.json      # 配置模板
-├── pyproject.toml           # 项目元数据与构建配置
-├── requirements.txt         # 依赖声明（自动生成）
-├── run_trace_pipeline.py    # CLI 入口脚本
-├── run_gui.py               # GUI 入口脚本
-├── TracePipeline.spec       # PyInstaller 打包配置
-└── TracePipeline-setup.iss  # Inno Setup 安装程序模板
+│   └── package.py               # 一键打包流水线（reqs → 前端 → PyInstaller → Inno Setup → 7-Zip）
+├── reference/                   # 参考资料（算法原型、学术文献、图件等）
+├── config.example.json          # 配置模板
+├── pyproject.toml               # 项目元数据与构建配置
+├── requirements.txt             # 依赖声明（从 pyproject.toml 自动生成）
+├── TracePipeline.spec           # PyInstaller 打包配置
+├── TracePipeline-setup.iss      # Inno Setup 安装程序模板
+├── run_trace_pipeline.py        # CLI 入口脚本
+├── run_gui.py                   # GUI 入口脚本
+└── README.md                    # 本文件
 ```
 
 ### 设计理念
@@ -640,8 +765,8 @@ pytest --cov --cov-report=term --cov-report=html
 
 | 原则 | 说明 |
 |------|------|
-| **不可变数据模型** | 核心数据类使用 `frozen=True`，NumPy 数组设为只读 |
-| **纯函数计算** | `geology/` 子包全部为纯函数，接收数组返回数组 |
+| **不可变数据模型** | 核心数据类使用 `frozen=True`，NumPy 数组设为只读（`writeable=False`） |
+| **纯函数计算** | `geology/` 子包全部为纯函数，接收数组返回数组，无副作用 |
 | **向量化优先** | NumPy 广播 + 复数运算替代 for 循环；布尔 mask 替代 if-else |
 | **惰性导入** | matplotlib 延迟加载，`import trace_pipeline` 不触发绘图初始化 |
 | **私有模块拆分** | 大模块委托 6 个 `_*.py` 单一职责模块，每个 50-350 行 |
@@ -649,22 +774,88 @@ pytest --cov --cov-report=term --cov-report=html
 
 ---
 
+## 🧪 开发
+
+### 开发环境搭建
+
+```bash
+# 安装含开发依赖
+pip install -e ".[dev]"
+
+# 前端开发（浏览器热重载模式，使用 mock 数据）
+cd frontend
+npm install
+npm run dev          # 启动 Vite 开发服务器
+```
+
+### 代码质量
+
+```bash
+# 代码检查（ruff）
+ruff check .
+
+# 类型检查（mypy）
+mypy trace_pipeline/
+
+# 后端测试
+pytest                              # 运行所有测试
+pytest --cov --cov-report=term      # 含覆盖率报告
+pytest --cov --cov-report=html      # HTML 覆盖率报告
+
+# 前端测试
+cd frontend
+npm run typecheck    # TypeScript 类型检查
+npm run test         # vitest 运行
+npm run test:watch   # vitest 监视模式
+```
+
+### 工具配置
+
+| 工具 | 配置位置 | 要点 |
+|------|----------|------|
+| ruff | `pyproject.toml [tool.ruff]` | Python 3.10, 100 列行宽 |
+| mypy | `pyproject.toml [tool.mypy]` | Python 3.10, warn_return_any |
+| pytest | `pyproject.toml [tool.pytest]` | testpaths = `tests/` |
+| coverage | `pyproject.toml [tool.coverage.run]` | source = `trace_pipeline`, `backend` |
+| vitest | `frontend/vitest.config.ts` | jsdom 环境 |
+
+---
+
 ## ❓ 常见问题
+
+### 安装与运行
 
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| 迹线图中文字符显示为方块 | 系统缺少 CJK 字体 | 安装宋体/黑体；程序已内置多级回退链 |
+| 迹线图中文字符显示为方块 | 系统缺少 CJK 字体 | 安装宋体/黑体；程序已内置多级字体回退链 |
 | `ModuleNotFoundError: openpyxl` | 未安装依赖 | `pip install -e .` |
 | 发现 0 个迹线表文件 | 文件名不以 `_process` 结尾 | 重命名为 `{露头}_process.xls(x)` |
-| "工作表不存在" 错误 | Sheet 名与露头编号不一致 | 确保 Sheet 名为 O76/O77… |
-| P20/P21 显示 NaN | 迹线数过少（< 3）导致凸包退化 | 正常兜底行为 |
+| "工作表不存在" 错误 | Sheet 名与露头编号不一致 | 确保 Sheet 名与文件名中的露头编号一致 |
 | GUI 启动白屏 | 前端未构建 | `cd frontend && npm install && npm run build` |
-| GUI 提示 WebView2 缺失 | 系统未安装 WebView2 Runtime | 点击提示链接下载安装 |
-| 仅需 CLI 功能，不想装 GUI 依赖 | `pyproject.toml` 统一声明了全部依赖 | 使用 `pip install --no-deps` 后手动安装核心依赖（见安装方式二） |
+| GUI 提示 WebView2 缺失 | 系统未安装 WebView2 Runtime | 点击提示链接下载安装；Win10 可通过 Windows Update 获取 |
+| 仅需 CLI 功能，不想装 GUI 依赖 | `pyproject.toml` 统一声明了全部依赖 | 使用 `pip install --no-deps` 后手动安装核心依赖 |
 | `.xls` 文件读取报错或不完整 | `xlrd>=2.0` 仅支持 `.xls`，不支持 `.xlsx` | 将 `.xlsx` 文件另存为 `.xls` 格式，或确保 `openpyxl` 已安装 |
-| 并行处理时内存占用过高 | `ProcessPoolExecutor` 每个子进程独立加载依赖 | 降低 `-p` 线程数；串行模式（`-p 0`）内存占用最低 |
+
+### 运行时
+
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| P20/P21 显示 NaN | 迹线数过少（< 3）导致凸包退化 | 正常兜底行为，可尝试手动指定面积 |
+| 并行处理时内存占用过高 | ProcessPoolExecutor 子进程独立加载依赖 | 降低 `-p` 参数；串行模式（`-p 0` 或不传）内存最低 |
 | 打包后运行提示找不到字体 | PyInstaller 未打包系统字体 | 确保目标系统已安装宋体/黑体等 CJK 字体 |
-| 节点识别未生成覆盖层 | `show_node_overlay` 为 `false` 或 `enable_node_recognition` 未开启 | 检查 `config.json` 中两项均设为 `true` |
+| 节点识别未生成覆盖层 | `show_node_overlay` 为 false 或节点识别未开启 | 设置 `enable_node_recognition: true` 且 `show_node_overlay: true` |
+| Excel 写入权限错误 | 输出文件被 Excel/WPS 打开占用 | 关闭正在查看的输出文件后重试 |
+| matplotlib 后端警告 | 交互式后端与多线程冲突 | 程序已强制使用 Agg 后端，此警告可忽略 |
+| 前端图片不显示 | output 目录无对应图片文件 | 先运行流水线生成图片；检查 `output_dir` 配置 |
+
+### 性能
+
+| 场景 | 预期耗时 | 建议 |
+|------|---------|------|
+| 单目标串行 | 3-8 秒 | 默认配置，内存占用最低 |
+| 8 目标串行 | 30-60 秒 | `python run_trace_pipeline.py` |
+| 8 目标 4 并行 | 15-30 秒 | `python run_trace_pipeline.py -p 4` |
+| 首次 GUI 冷启动 | 3-8 秒 | 含字体缓存预热；后续启动 < 2 秒 |
 
 ---
 
@@ -672,7 +863,29 @@ pytest --cov --cov-report=term --cov-report=html
 
 欢迎各种形式的贡献！请查阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解开发环境搭建、代码规范和提交流程。
 
+### 贡献流程
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 确保代码通过检查 (`ruff check . && mypy trace_pipeline/ && pytest`)
+4. 提交变更 (`git commit -m 'feat: add amazing feature'`)
+5. 推送到分支 (`git push origin feature/amazing-feature`)
+6. 创建 Pull Request
+
 本项目遵循 [贡献者行为准则](CODE_OF_CONDUCT.md)。
+
+---
+
+## 📋 版本历史
+
+详见 [CHANGELOG.md](CHANGELOG.md) 和 [GitHub Releases](https://github.com/zylyes/TracePipeline/releases)。
+
+| 版本 | 日期 | 主要变更 |
+|------|------|----------|
+| v4.1.2 | 2026-06 | 当前版本 |
+| v4.1.1 | - | 文档更新与架构说明完善 |
+| v4.1.0 | - | 重构绘图阶段，优化服务启动与缓存性能 |
+| v4.0.0 | - | 公开发布：完整 CLI + GUI 双模式 |
 
 ---
 
@@ -687,4 +900,4 @@ pytest --cov --cov-report=term --cov-report=html
 - MATLAB 原版算法为本项目的理论基础
 - [Mauldon (1998)](https://doi.org/10.1016/S0148-9062(98)00007-2) 圆形取样窗平均迹长估计
 - [Laslett (1982)](https://doi.org/10.1007/BF01032939) 圆形取样窗法
-- 北山沙枣园花岗岩体野外数据采集团队
+- 所有为本项目做出贡献的开发者

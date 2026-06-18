@@ -1,3 +1,11 @@
+/**
+ * 流水线执行状态 Store。
+ *
+ * 管理后台批处理的运行状态、进度和结果列表。
+ * 持久化用户上次运行的节点识别/玫瑰图偏好到 localStorage。
+ *
+ * @module pipelineStore
+ */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { PipelineResult } from '@/types'

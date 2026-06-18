@@ -1,9 +1,34 @@
-// Python API 封装（通过 pywebview 暴露的 JS API）
+/**
+ * Python 后端 API 封装层。
+ *
+ * ## 架构
+ *
+ * 前端通过 `pywebview.api` 调用后端 `GuiApi` 类暴露的方法。
+ * 本模块负责：
+ * - **就绪等待** (`waitForApi`): 轮询 `pywebviewready` 事件，确保 API 可用后再放行调用
+ * - **开发回退** (`mockApi`): 在浏览器环境（`pywebview` 未定义）自动使用 mock 数据
+ * - **类型安全出口** (`api` 对象): 为每个后端方法提供带默认参数的 TypeScript 包装
+ *
+ * ## 调用约定
+ *
+ * - 所有方法均为 async，返回 Promise
+ * - 后端异常会以 rejected Promise 形式抛出，由调用方 catch 处理
+ * - 参数类型应与 `GuiApi` 方法签名保持一致
+ *
+ * @module pywebview
+ */
+
+/** pywebview 注入的全局对象，仅在桌面端 WebView2 环境中存在 */
 declare const pywebview: any
 
+/**
+ * 获取实际 API 对象。
+ *
+ * - 桌面环境：返回 `pywebview.api`（GuiApi 实例暴露的 JS 桥接方法）
+ * - 浏览器/开发环境：返回 mockApi() 提供的假数据
+ */
 function getApi(): any {
   if (typeof pywebview === 'undefined' || !pywebview.api) {
-    // 开发环境回退：返回 mock
     return mockApi()
   }
   return pywebview.api
@@ -11,6 +36,14 @@ function getApi(): any {
 
 let _apiReady: Promise<void> | null = null
 
+/**
+ * 等待后端 API 就绪。
+ *
+ * 监听 `pywebviewready` 事件（pywebview 在 WebView2 加载完成后触发），
+ * 若 5 秒内未收到事件则超时放行（允许 mock 模式继续运行）。
+ *
+ * @returns 在后端就绪或超时后 resolve 的 Promise
+ */
 function waitForApi(): Promise<void> {
   if (_apiReady) return _apiReady
   _apiReady = new Promise((resolve) => {
@@ -31,6 +64,12 @@ function waitForApi(): Promise<void> {
   return _apiReady
 }
 
+/**
+ * 开发环境 mock API。
+ *
+ * 提供与 `GuiApi` 相同的方法签名但返回假数据，
+ * 允许前端在浏览器中独立开发调试，无需启动 Python 后端。
+ */
 function mockApi(): any {
   return {
     get_config: async () => ({
@@ -118,6 +157,19 @@ function mockApi(): any {
   }
 }
 
+/**
+ * 后端 API 调用入口。
+ *
+ * 每个方法对应 `GuiApi` 的同名 public 方法。
+ * 所有调用在首次调用 `ready()` 之后才会真正发起（确保后端已就绪）。
+ *
+ * @example
+ * ```ts
+ * import { api } from '@/api/pywebview'
+ * await api.ready()
+ * const cfg = await api.get_config()
+ * ```
+ */
 export const api = {
   ready: () => waitForApi(),
   get_config: () => getApi().get_config(),

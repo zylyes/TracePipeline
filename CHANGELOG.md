@@ -6,6 +6,44 @@
 
 ---
 
+## [4.2.0] - 2026-06-18
+
+### 新增
+- 报告导出新增实时进度反馈（前端进度条 + 后端 SSE 推送）
+- 新增前后端测试框架（pytest + vitest）与单元测试
+- 提取绘图阶段为独立服务，优化模块职责分离
+- 前后端分层缓存架构（30s ~ 10min TTL）
+
+### 变更
+- 重构服务启动流程，优化缓存性能与目录同步机制
+- 重写 README 技术架构文档，补充 LICENSE/CONTRIBUTING/CODE_OF_CONDUCT
+- 更新作者信息为 zylyes
+- WebView2 Runtime 自动检测与下载引导
+- 打包流水线：PyInstaller + Inno Setup + 7-Zip SFX 一键生成
+
+### 优化
+- 应用初始化流程与目录同步机制优化
+- 路径安全性与线程安全性增强
+- 字体缓存预热优化
+
+---
+
+## [4.1.0] ~ [4.1.3] - 2026-06 期间迭代
+
+### 新增
+- 报告生成功能增强（Word/PDF 一键导出）
+- 图片缓存与预取、后端图片元数据接口
+- 应用初始化流程与目录同步机制
+- Inno Setup 安装脚本
+
+### 优化
+- 路径安全加固、报告导出锁定机制
+- 线程锁增强重型资源操作安全性
+- PDF 字体改进与排版美化
+- 多项稳定性修复
+
+---
+
 ## [4.0.0] - 2026-06-17
 
 ### 新增
@@ -146,6 +184,7 @@
 
 ---
 
+[4.2.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.0
 [4.0.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.0.0
 [3.9.0]: https://github.com/zylyes/TracePipeline/releases/tag/v3.9.0
 [3.8.2]: https://github.com/zylyes/TracePipeline/releases/tag/v3.8.2

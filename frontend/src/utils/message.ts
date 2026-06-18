@@ -74,7 +74,7 @@ export function showMessage(options: MessageOptions, duration?: number): Message
   const opts = getOptionObj(options)
   opts.duration = 0
 
-  const handler = ElMessage(opts)
+  const handler = ElMessage(opts as any)
 
   const tracked: TrackedMessage = {
     handler,

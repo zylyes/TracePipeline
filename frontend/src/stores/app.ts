@@ -20,8 +20,8 @@ function saveSettings(data: any) {
 const initial = loadSettings()
 
 export const useAppStore = defineStore('app', () => {
-  const inputDir = ref(initial.inputDir || 'input')
-  const outputDir = ref(initial.outputDir || 'output')
+  const inputDir = ref('input')
+  const outputDir = ref('output')
   const currentPage = ref(initial.currentPage || 'processing')
   const isDevMode = ref(false)
   const lastOperationTime = ref(initial.lastOperationTime || '')
@@ -39,7 +39,7 @@ export const useAppStore = defineStore('app', () => {
     lastOperationTime.value = action ? `${action} (${timeStr})` : timeStr
   }
 
-  watch([inputDir, outputDir, currentPage], () => {
+  watch([currentPage], () => {
     saveSettings({
       inputDir: inputDir.value,
       outputDir: outputDir.value,

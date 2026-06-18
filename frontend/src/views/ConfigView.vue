@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { msg } from '@/utils/message'
 import { Refresh, Download, RefreshRight, Setting, Upload } from '@element-plus/icons-vue'
@@ -230,6 +230,16 @@ function onStyleChange(val: ConfigData) {
   styleConfig.value = { ...val }
   previewTrigger.value += 1
 }
+
+watch(
+  () => configStore.config.input_dir as string | undefined,
+  (val) => { if (val) appStore.inputDir = val },
+)
+
+watch(
+  () => configStore.config.output_dir as string | undefined,
+  (val) => { if (val) appStore.outputDir = val },
+)
 
 onMounted(async () => {
   await loadConfig()

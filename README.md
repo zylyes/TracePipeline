@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/zylyes/TracePipeline/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.2.0-brightgreen" alt="Version"></a>
+  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.2.1-brightgreen" alt="Version"></a>
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/GUI-Vue_3_|_Element_Plus_|_ECharts-4FC08D?logo=vuedotframework" alt="GUI">
@@ -817,7 +817,7 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 TracePipeline/
 │
 ├── trace_pipeline/                 # 🔧 核心计算包 (51 个 .py 文件)
-│   ├── __init__.py                 #   包入口，惰性导入，__all__ 定义 (v4.2.0)
+│   ├── __init__.py                 #   包入口，惰性导入，__all__ 定义 (v4.2.1)
 │   ├── __main__.py                 #   python -m trace_pipeline 入口
 │   ├── models.py                   #   数据模型 (TraceData, RunConfig, RunResult)
 │   ├── config.py                   #   配置加载、路径解析、CLI 覆盖合并
@@ -1186,6 +1186,7 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 | 版本 | 日期 | 里程碑 |
 |:-----|:-----|:-------|
+| v4.2.1 | 2026-06 | 缓存性能优化、幂等样式配置、资源泄漏修复 |
 | v4.2.0 | 2026-06 | 报告实时进度、测试框架、绘图解耦、启动优化 |
 | v4.0.0 | 2026-06 | 公开发布：CLI + GUI 双模式，6 页面视图，一键打包 |
 | v3.2.0 | 2026-05 | 节点识别 (I/Y/X)，前端样式重构 |

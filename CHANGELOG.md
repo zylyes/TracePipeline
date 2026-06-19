@@ -6,6 +6,16 @@
 
 ---
 
+## [4.2.1] - 2026-06-19
+
+### 优化
+- 字符串缓存追踪 O(n) → O(1) 运行时字符计数，减少 GC 压力
+- `configure_style()` 幂等化 + double-checked locking，避免重复配置
+- `TraceData.__post_init__` 使用 `np.asarray` 替代 `np.array(copy=True)`，消除不必要拷贝
+
+### 修复
+- `get_image_thumbnail` BytesIO 未使用 context manager 导致的资源泄漏
+
 ## [4.2.0] - 2026-06-18
 
 ### 新增

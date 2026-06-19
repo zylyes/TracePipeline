@@ -87,6 +87,8 @@ export const useCacheStore = defineStore('cache', () => {
   const imageCacheMisses = ref(0)
   const thumbnailCacheHits = ref(0)
   const thumbnailCacheMisses = ref(0)
+  const imageCacheChars = ref(0)
+  const thumbnailCacheChars = ref(0)
 
   const isScanValid = computed(() => {
     if (!scanResult.value) return false
@@ -213,18 +215,17 @@ export const useCacheStore = defineStore('cache', () => {
     )
   }
 
-  function getStringCacheChars(cache: Map<string, CachedItem<string>>): number {
-    let total = 0
-    for (const item of cache.values()) total += item.data.length
-    return total
+  function getStringCacheChars(_cache: Map<string, CachedItem<string>>, runningTotal: Ref<number>): number {
+    return runningTotal.value
   }
 
   function pruneStringCache(
     cache: Map<string, CachedItem<string>>,
+    runningTotal: Ref<number>,
     maxChars: number,
     protectedKey?: string
   ) {
-    while (cache.size > 1 && getStringCacheChars(cache) > maxChars) {
+    while (cache.size > 1 && runningTotal.value > maxChars) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
       for (const [k, v] of cache.entries()) {
@@ -235,18 +236,30 @@ export const useCacheStore = defineStore('cache', () => {
         }
       }
       if (oldestKey === null) break
+      const removed = cache.get(oldestKey)
+      if (removed) runningTotal.value -= removed.data.length
       cache.delete(oldestKey)
     }
   }
 
   function setCachedString(
     cache: Map<string, CachedItem<string>>,
+    runningTotal: Ref<number>,
     key: string,
     data: string,
     maxCount: number,
     maxChars: number
   ) {
-    // LRU 淘汰：超过最大条目时删除最旧的记录
+    // 主动清理同路径（不含 query string）的旧版本条目
+    const baseKey = key.split('?')[0]
+    for (const [k, v] of cache.entries()) {
+      if (k.startsWith(baseKey + '?') || (k === baseKey && k !== key)) {
+        runningTotal.value -= v.data.length
+        cache.delete(k)
+      }
+    }
+
+    // 计数淘汰：超过最大条目时删除最旧的记录
     if (cache.size >= maxCount && !cache.has(key)) {
       let oldestKey: string | null = null
       let oldestTime = Infinity
@@ -257,16 +270,22 @@ export const useCacheStore = defineStore('cache', () => {
         }
       }
       if (oldestKey !== null) {
+        const removed = cache.get(oldestKey)
+        if (removed) runningTotal.value -= removed.data.length
         cache.delete(oldestKey)
       }
     }
+    const oldItem = cache.get(key)
+    if (oldItem) runningTotal.value -= oldItem.data.length
     cache.set(key, { data, timestamp: Date.now() })
-    pruneStringCache(cache, maxChars, key)
+    runningTotal.value += data.length
+    pruneStringCache(cache, runningTotal, maxChars, key)
   }
 
   function setImage(path: string, data: string, version?: string | number | null) {
     setCachedString(
       imageCache.value,
+      imageCacheChars,
       imageKey(path, version),
       data,
       IMAGE_MAX_COUNT,
@@ -282,6 +301,7 @@ export const useCacheStore = defineStore('cache', () => {
   ) {
     setCachedString(
       thumbnailCache.value,
+      thumbnailCacheChars,
       imageKey(path, version, 'thumbnail', maxPx),
       data,
       THUMBNAIL_MAX_COUNT,
@@ -292,12 +312,12 @@ export const useCacheStore = defineStore('cache', () => {
   function getImageCacheStats() {
     return {
       count: imageCache.value.size,
-      chars: getStringCacheChars(imageCache.value),
+      chars: getStringCacheChars(imageCache.value, imageCacheChars),
       maxChars: IMAGE_MAX_CHARS,
       hits: imageCacheHits.value,
       misses: imageCacheMisses.value,
       thumbnailCount: thumbnailCache.value.size,
-      thumbnailChars: getStringCacheChars(thumbnailCache.value),
+      thumbnailChars: getStringCacheChars(thumbnailCache.value, thumbnailCacheChars),
       thumbnailMaxChars: THUMBNAIL_MAX_CHARS,
       thumbnailHits: thumbnailCacheHits.value,
       thumbnailMisses: thumbnailCacheMisses.value,
@@ -307,10 +327,13 @@ export const useCacheStore = defineStore('cache', () => {
   function invalidateImages() {
     imageCache.value.clear()
     thumbnailCache.value.clear()
+    imageCacheChars.value = 0
+    thumbnailCacheChars.value = 0
   }
 
   function invalidateThumbnails() {
     thumbnailCache.value.clear()
+    thumbnailCacheChars.value = 0
   }
 
   // --- 失效 ---

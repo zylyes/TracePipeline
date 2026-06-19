@@ -65,10 +65,10 @@ class TraceData:
     measured_outcrop_area: float | None = None
 
     def __post_init__(self) -> None:
-        endpoints = np.array(self.endpoints, dtype=float, copy=True)
-        joint_strikes = np.array(self.joint_strikes, dtype=float, copy=True)
-        segment_lengths = np.array(self.segment_lengths, dtype=float, copy=True)
-        scanline_positions = np.array(self.scanline_positions, dtype=float, copy=True)
+        endpoints = np.asarray(self.endpoints, dtype=float)
+        joint_strikes = np.asarray(self.joint_strikes, dtype=float)
+        segment_lengths = np.asarray(self.segment_lengths, dtype=float)
+        scanline_positions = np.asarray(self.scanline_positions, dtype=float)
         object.__setattr__(self, "endpoints", endpoints)
         object.__setattr__(self, "joint_strikes", joint_strikes)
         object.__setattr__(self, "segment_lengths", segment_lengths)

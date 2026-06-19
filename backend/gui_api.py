@@ -1034,9 +1034,9 @@ class GuiApi:
                 has_alpha = img.mode in {"RGBA", "LA"} or "transparency" in img.info
                 if img.mode not in {"RGB", "RGBA"}:
                     img = img.convert("RGBA" if has_alpha else "RGB")
-                output = BytesIO()
-                img.save(output, format="PNG", optimize=True)
-            data = output.getvalue()
+                with BytesIO() as output:
+                    img.save(output, format="PNG", optimize=True)
+                    data = output.getvalue()
             b64 = base64.b64encode(data).decode("utf-8")
             logger.debug(
                 "get_image_thumbnail → %s (%d -> %d bytes)",

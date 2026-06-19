@@ -16,7 +16,7 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Any
 
-__version__ = "4.2.0"
+__version__ = "4.2.1"
 
 from .config import (
     DEFAULT_CONFIG,

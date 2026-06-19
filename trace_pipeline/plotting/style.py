@@ -38,6 +38,7 @@ _STYLE_CONSTANTS: dict[str, tuple[str, str]] = {
 _FONT_SIZE_KEYS = ("title_font_size", "heading_font_size", "label_font_size", "tick_font_size")
 
 _STYLE_LOCK = threading.Lock()
+_STYLE_CONFIGURED = False
 
 WESTERN_PRIMARY_FONT = "Times New Roman"
 CJK_PRIMARY_FONT = "SimSun"
@@ -178,61 +179,68 @@ def apply_axis_text_fonts(ax: Axes) -> None:
 
 def configure_style() -> None:
     """配置 matplotlib 全局样式以支持中文显示并符合论文规范（幂等）。"""
-    cache = _get_font_cache()
-    available_cjk_serif = cache["cjk_serif"]
-    available_cjk_sans = cache["cjk_sans"]
-    available_western = cache["western"]
+    global _STYLE_CONFIGURED
+    if _STYLE_CONFIGURED:
+        return
+    with _STYLE_LOCK:
+        if _STYLE_CONFIGURED:  # double-check 避免竞态
+            return
+        cache = _get_font_cache()
+        available_cjk_serif = cache["cjk_serif"]
+        available_cjk_sans = cache["cjk_sans"]
+        available_western = cache["western"]
 
-    font_family_list = _preferred_font_stack(
-        available_western,
-        available_cjk_serif,
-        available_cjk_sans,
-    )
-    matplotlib.rcParams["font.family"] = font_family_list
-    matplotlib.rcParams["font.serif"] = font_family_list
-    matplotlib.rcParams["font.sans-serif"] = _dedupe_fonts(
-        [
-            CJK_PRIMARY_FONT,
-            *available_cjk_sans,
-            *available_cjk_serif,
-            "sans-serif",
-        ]
-    )
+        font_family_list = _preferred_font_stack(
+            available_western,
+            available_cjk_serif,
+            available_cjk_sans,
+        )
+        matplotlib.rcParams["font.family"] = font_family_list
+        matplotlib.rcParams["font.serif"] = font_family_list
+        matplotlib.rcParams["font.sans-serif"] = _dedupe_fonts(
+            [
+                CJK_PRIMARY_FONT,
+                *available_cjk_sans,
+                *available_cjk_serif,
+                "sans-serif",
+            ]
+        )
 
-    if WESTERN_PRIMARY_FONT not in available_western:
-        logger.warning("未检测到 %s，英文和数字将使用可用衬线字体回退。", WESTERN_PRIMARY_FONT)
-    if CJK_PRIMARY_FONT not in available_cjk_serif:
-        logger.warning("未检测到 %s，中文将使用可用 CJK 字体回退。", CJK_PRIMARY_FONT)
+        if WESTERN_PRIMARY_FONT not in available_western:
+            logger.warning("未检测到 %s，英文和数字将使用可用衬线字体回退。", WESTERN_PRIMARY_FONT)
+        if CJK_PRIMARY_FONT not in available_cjk_serif:
+            logger.warning("未检测到 %s，中文将使用可用 CJK 字体回退。", CJK_PRIMARY_FONT)
 
-    # 数学文本中的英文、数字和单位显式使用 Times New Roman。
-    matplotlib.rcParams["mathtext.fontset"] = "custom"
-    matplotlib.rcParams["mathtext.rm"] = WESTERN_PRIMARY_FONT
-    matplotlib.rcParams["mathtext.it"] = f"{WESTERN_PRIMARY_FONT}:italic"
-    matplotlib.rcParams["mathtext.bf"] = f"{WESTERN_PRIMARY_FONT}:bold"
-    matplotlib.rcParams["mathtext.sf"] = WESTERN_PRIMARY_FONT
-    matplotlib.rcParams["mathtext.default"] = "regular"
+        # 数学文本中的英文、数字和单位显式使用 Times New Roman。
+        matplotlib.rcParams["mathtext.fontset"] = "custom"
+        matplotlib.rcParams["mathtext.rm"] = WESTERN_PRIMARY_FONT
+        matplotlib.rcParams["mathtext.it"] = f"{WESTERN_PRIMARY_FONT}:italic"
+        matplotlib.rcParams["mathtext.bf"] = f"{WESTERN_PRIMARY_FONT}:bold"
+        matplotlib.rcParams["mathtext.sf"] = WESTERN_PRIMARY_FONT
+        matplotlib.rcParams["mathtext.default"] = "regular"
 
-    # 论文常用全局设置
-    matplotlib.rcParams["axes.unicode_minus"] = False
-    matplotlib.rcParams["font.size"] = 8.5
-    matplotlib.rcParams["axes.linewidth"] = 0.7
-    matplotlib.rcParams["xtick.major.width"] = 0.55
-    matplotlib.rcParams["ytick.major.width"] = 0.55
-    matplotlib.rcParams["xtick.major.size"] = 3.0
-    matplotlib.rcParams["ytick.major.size"] = 3.0
-    matplotlib.rcParams["xtick.labelsize"] = 8.0
-    matplotlib.rcParams["ytick.labelsize"] = 8.0
-    matplotlib.rcParams["lines.linewidth"] = 0.85
-    matplotlib.rcParams["lines.markersize"] = 3.5
-    matplotlib.rcParams["figure.dpi"] = 300
-    matplotlib.rcParams["savefig.dpi"] = 300
-    matplotlib.rcParams["savefig.facecolor"] = "white"
+        # 论文常用全局设置
+        matplotlib.rcParams["axes.unicode_minus"] = False
+        matplotlib.rcParams["font.size"] = 8.5
+        matplotlib.rcParams["axes.linewidth"] = 0.7
+        matplotlib.rcParams["xtick.major.width"] = 0.55
+        matplotlib.rcParams["ytick.major.width"] = 0.55
+        matplotlib.rcParams["xtick.major.size"] = 3.0
+        matplotlib.rcParams["ytick.major.size"] = 3.0
+        matplotlib.rcParams["xtick.labelsize"] = 8.0
+        matplotlib.rcParams["ytick.labelsize"] = 8.0
+        matplotlib.rcParams["lines.linewidth"] = 0.85
+        matplotlib.rcParams["lines.markersize"] = 3.5
+        matplotlib.rcParams["figure.dpi"] = 300
+        matplotlib.rcParams["savefig.dpi"] = 300
+        matplotlib.rcParams["savefig.facecolor"] = "white"
 
-    # 标题默认使用黑体（与前端字体规范一致）
-    matplotlib.rcParams["axes.titleweight"] = "bold"
-    matplotlib.rcParams["figure.titleweight"] = "bold"
+        # 标题默认使用黑体（与前端字体规范一致）
+        matplotlib.rcParams["axes.titleweight"] = "bold"
+        matplotlib.rcParams["figure.titleweight"] = "bold"
 
-    logger.debug("matplotlib 全局样式已配置（论文风格）")
+        logger.debug("matplotlib 全局样式已配置（论文风格）")
+        _STYLE_CONFIGURED = True
 
 
 @contextmanager

@@ -5,7 +5,7 @@
 <h1 align="center">TracePipeline</h1>
 
 <p align="center">
-  <strong>岩体节理测线坐标计算与绘图工具<br>Rock Joint Scanline Coordinate Computation &amp; Visualization Toolkit</strong>
+  <strong>岩体节理测线坐标计算与绘图工具<br>Rock Joint Scanline Coordinate Computation & Visualization Toolkit</strong>
 </p>
 
 <p align="center">
@@ -93,26 +93,26 @@ python run_gui.py
 
 ### 1.1 核心特性
 
-| 特性 | 说明 |
-|:-----|:-----|
-| 🔢 **综合法端点计算** | 从 r₁–r₇ 测线记录经复数向量化推导端点坐标，一维→二维空间还原，与 MATLAB 原版误差 < 10⁻¹⁰ m |
-| 🔄 **坐标变换流水线** | 平移正象限 → 走向角旋转 → 再平移的规范化流程，自动处理坐标系对齐 |
-| 📐 **迹线分类与统计** | I/II/III 型自动分类，P₁₀/P₂₀/P₂₁ 密度统计（实测优先四级回退），Mauldon 平均迹长估计 |
-| 🎯 **圆窗四策略** | `tangent` / `hybrid` / `concentric` / `auto` 四策略，`auto` 模式 6 因子加权评分自动选择 |
-| 🏔️ **面积四级回退** | 实测面积 → 凸包 (Andrew 单调链) → 缓冲凸包 → 圆窗等效面积，确保统计指标始终可计算 |
-| 🔗 **节点拓扑识别** | I/Y/X 型拓扑节点自动识别，空间网格聚类 + 并查集 + 自适应合并容差 |
-| 🖼️ **高精度绘图** | 600 DPI 迹线图（比例尺、指北针、LaTeX 统计框、凸包/圆窗/节点覆盖层、自动避让） |
-| 🌹 **玫瑰图** | 节理走向统计玫瑰图，可自定义分箱宽度 (5°–30°) 与 DPI |
-| 📋 **Excel 多工作表导出** | 6–9 个 Sheet：基本信息、裂隙情况、计算数据、端点坐标、节点统计等 |
-| 🖥️ **桌面 GUI** | Vue 3 + Element Plus + ECharts 交互式仪表板，6 页面视图，4 级缓存体系 |
-| 📄 **报告导出** | Word / PDF 一键生成，含统计汇总与图表内嵌，支持批量 ZIP 打包 |
-| 📊 **多露头对比** | 统计指标对比表格 + 柱状图 + 图片网格，便于跨露头分析 |
-| 🔍 **数据溯源** | P₁₀/P₂₀/P₂₁ 计算来源链追溯（实测/凸包/圆窗等效），审计友好 |
-| 📦 **一键打包** | PyInstaller + Inno Setup + 7-Zip SFX 生成 Windows 安装版与便携版 |
-| 📝 **结构化日志** | JSON Lines 格式，按日轮转，`request_id` 全链路追踪，30 天保留 |
-| 🛡️ **深度安全防护** | 路径遍历防护（含 URL 递归解码防双重编码）、外部域名白名单、图片格式/大小校验、配置字段类型强制转换、GuiApiInterface 类型安全桥接、原子配置保存 |
-| 🛡️ **类型安全桥接** | GuiApiInterface (36 方法签名) + TypeScript 严格类型，vue-tsc 零错误，前后端类型精确匹配 |
-| 🧪 **完善测试** | 后端 pytest 23 个测试文件 + 前端 Vitest 组件/Store 测试 |
+| 特性                           | 说明                                                                                                                                           |
+| :----------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔢**综合法端点计算**     | 从 r₁–r₇ 测线记录经复数向量化推导端点坐标，一维→二维空间还原，与 MATLAB 原版误差 < 10⁻¹⁰ m                                              |
+| 🔄**坐标变换流水线**     | 平移正象限 → 走向角旋转 → 再平移的规范化流程，自动处理坐标系对齐                                                                             |
+| 📐**迹线分类与统计**     | I/II/III 型自动分类，P₁₀/P₂₀/P₂₁ 密度统计（实测优先四级回退），Mauldon 平均迹长估计                                                      |
+| 🎯**圆窗四策略**         | `tangent` / `hybrid` / `concentric` / `auto` 四策略，`auto` 模式 6 因子加权评分自动选择                                              |
+| 🏔️**面积四级回退**     | 实测面积 → 凸包 (Andrew 单调链) → 缓冲凸包 → 圆窗等效面积，确保统计指标始终可计算                                                           |
+| 🔗**节点拓扑识别**       | I/Y/X 型拓扑节点自动识别，空间网格聚类 + 并查集 + 自适应合并容差                                                                               |
+| 🖼️**高精度绘图**       | 600 DPI 迹线图（比例尺、指北针、LaTeX 统计框、凸包/圆窗/节点覆盖层、自动避让）                                                                 |
+| 🌹**玫瑰图**             | 节理走向统计玫瑰图，可自定义分箱宽度 (5°–30°) 与 DPI                                                                                        |
+| 📋**Excel 多工作表导出** | 6–9 个 Sheet：基本信息、裂隙情况、计算数据、端点坐标、节点统计等                                                                              |
+| 🖥️**桌面 GUI**         | Vue 3 + Element Plus + ECharts 交互式仪表板，6 页面视图，4 级缓存体系                                                                          |
+| 📄**报告导出**           | Word / PDF 一键生成，含统计汇总与图表内嵌，支持批量 ZIP 打包                                                                                   |
+| 📊**多露头对比**         | 统计指标对比表格 + 柱状图 + 图片网格，便于跨露头分析                                                                                           |
+| 🔍**数据溯源**           | P₁₀/P₂₀/P₂₁ 计算来源链追溯（实测/凸包/圆窗等效），审计友好                                                                               |
+| 📦**一键打包**           | PyInstaller + Inno Setup + 7-Zip SFX 生成 Windows 安装版与便携版                                                                               |
+| 📝**结构化日志**         | JSON Lines 格式，按日轮转，`request_id` 全链路追踪，30 天保留                                                                                |
+| 🛡️**深度安全防护**     | 路径遍历防护（含 URL 递归解码防双重编码）、外部域名白名单、图片格式/大小校验、配置字段类型强制转换、GuiApiInterface 类型安全桥接、原子配置保存 |
+| 🛡️**类型安全桥接**     | GuiApiInterface (36 方法签名) + TypeScript 严格类型，vue-tsc 零错误，前后端类型精确匹配                                                        |
+| 🧪**完善测试**           | 后端 pytest 23 个测试文件 + 前端 Vitest 组件/Store 测试                                                                                        |
 
 ### 1.2 处理管线
 
@@ -129,13 +129,13 @@ Excel 读取      坐标归一化+旋转        I/Y/X 拓扑识别    多工作�
 
 **产出物**（每个露头）：
 
-| 产物 | 文件命名 | 说明 |
-|:-----|:---------|:-----|
-| 多工作表 Excel | `{露头}_traces.xlsx` | 6–9 个 Sheet，含完整计算结果 |
-| 原始迹线图 | `{露头}_raw(n=N).png` | 原始坐标系下的迹线分布 |
-| 旋转迹线图 | `{露头}_rotated(strike=X).png` | 测线方向对齐 x 轴后的标准化视图 |
-| 玫瑰图 | `{露头}_rose(bin=X).png` | 节理走向统计玫瑰图（可选） |
-| 报告 | `reports/{露头}_report.pdf/.docx` | Word/PDF 综合报告（可选） |
+| 产物           | 文件命名                            | 说明                            |
+| :------------- | :---------------------------------- | :------------------------------ |
+| 多工作表 Excel | `{露头}_traces.xlsx`              | 6–9 个 Sheet，含完整计算结果   |
+| 原始迹线图     | `{露头}_raw(n=N).png`             | 原始坐标系下的迹线分布          |
+| 旋转迹线图     | `{露头}_rotated(strike=X).png`    | 测线方向对齐 x 轴后的标准化视图 |
+| 玫瑰图         | `{露头}_rose(bin=X).png`          | 节理走向统计玫瑰图（可选）      |
+| 报告           | `reports/{露头}_report.pdf/.docx` | Word/PDF 综合报告（可选）       |
 
 ### 1.3 效果展示
 
@@ -144,14 +144,14 @@ Excel 读取      坐标归一化+旋转        I/Y/X 拓扑识别    多工作�
 
 #### GUI 桌面应用界面
 
-| 页面 | 说明 |
-|:-----|:-----|
-| 🏠 首页 | 项目介绍、功能卡片、快速入门引导 |
-| ⚙️ 处理 | 文件选择 → 参数配置 → 进度监控 → 结果查看 |
-| 📊 统计 | 单露头统计仪表板：卡片 + 直方图 + 饼图 + 迹线图 + 玫瑰图 |
-| 📈 对比 | 多露头对比表格 + 柱状图 + 图片网格 |
-| 📋 数据 | 原始数据浏览：输入/输出切换 + 9 区 Excel 分页 |
-| 🔧 配置 | 全局设置 + 样式预览 + 开发者面板 |
+| 页面      | 说明                                                     |
+| :-------- | :------------------------------------------------------- |
+| 🏠 首页   | 项目介绍、功能卡片、快速入门引导                         |
+| ⚙️ 处理 | 文件选择 → 参数配置 → 进度监控 → 结果查看             |
+| 📊 统计   | 单露头统计仪表板：卡片 + 直方图 + 饼图 + 迹线图 + 玫瑰图 |
+| 📈 对比   | 多露头对比表格 + 柱状图 + 图片网格                       |
+| 📋 数据   | 原始数据浏览：输入/输出切换 + 9 区 Excel 分页            |
+| 🔧 配置   | 全局设置 + 样式预览 + 开发者面板                         |
 
 #### 输出产物示例
 
@@ -219,20 +219,20 @@ graph TB
 
 ### 2.2 技术选型
 
-| 组件 | 选型 | 版本 | 说明 |
-|:-----|:-----|:-----|:-----|
-| 桌面容器 | pywebview | ≥5.0 | Windows WebView2 嵌入，无 Electron 体积开销 |
-| 前端框架 | Vue 3 + TypeScript | 3.4 / 5.4 | Composition API，Pinia 状态管理 |
-| UI 组件库 | Element Plus | 2.x | 企业级 Vue 3 组件库 |
-| 图表 | ECharts + vue-echarts | 5.x | 直方图、饼图、柱状图对比 |
-| 数值计算 | NumPy | ≥1.24 | 广播 + 复数向量化 |
-| 绘图引擎 | matplotlib | ≥3.7 | 迹线图 (600 DPI)、玫瑰图、LaTeX 统计框 |
-| 空间算法 | scipy | ≥1.10 | KDTree 等空间索引 |
-| 几何计算 | shapely | ≥2.0 | 缓冲区、几何求交 |
-| 打包 | PyInstaller + Inno Setup + 7-Zip | — | 安装版 + 便携版一链生成 |
-| 日志 | 自定义 JSON Lines + contextvars | — | 按日轮转，30 天保留 |
-| 测试 | pytest + vitest | — | 后端 23 文件 + 前端组件测试 |
-| 代码质量 | ruff + mypy | — | Python 3.10，行宽 100 |
+| 组件      | 选型                             | 版本      | 说明                                        |
+| :-------- | :------------------------------- | :-------- | :------------------------------------------ |
+| 桌面容器  | pywebview                        | ≥5.0     | Windows WebView2 嵌入，无 Electron 体积开销 |
+| 前端框架  | Vue 3 + TypeScript               | 3.4 / 5.4 | Composition API，Pinia 状态管理             |
+| UI 组件库 | Element Plus                     | 2.x       | 企业级 Vue 3 组件库                         |
+| 图表      | ECharts + vue-echarts            | 5.x       | 直方图、饼图、柱状图对比                    |
+| 数值计算  | NumPy                            | ≥1.24    | 广播 + 复数向量化                           |
+| 绘图引擎  | matplotlib                       | ≥3.7     | 迹线图 (600 DPI)、玫瑰图、LaTeX 统计框      |
+| 空间算法  | scipy                            | ≥1.10    | KDTree 等空间索引                           |
+| 几何计算  | shapely                          | ≥2.0     | 缓冲区、几何求交                            |
+| 打包      | PyInstaller + Inno Setup + 7-Zip | —        | 安装版 + 便携版一链生成                     |
+| 日志      | 自定义 JSON Lines + contextvars  | —        | 按日轮转，30 天保留                         |
+| 测试      | pytest + vitest                  | —        | 后端 23 文件 + 前端组件测试                 |
+| 代码质量  | ruff + mypy                      | —        | Python 3.10，行宽 100                       |
 
 ### 2.3 数据流
 
@@ -267,15 +267,15 @@ graph TB
 
 ### 2.4 设计原则
 
-| 原则 | 说明 |
-|:-----|:-----|
-| **不可变数据模型** | 核心数据类 `frozen=True`，NumPy 数组 `writeable=False`，防止意外修改 |
-| **纯函数计算** | `geology/` 子包全部为纯函数，接收数组返回数组，无状态、无副作用 |
-| **向量化优先** | NumPy 广播 + 复数运算替代 for 循环；布尔 mask 替代 if-else 分支 |
-| **惰性导入** | `__getattr__` 延迟加载 matplotlib/绘图模块，`import trace_pipeline` 无副作用 |
-| **私有模块拆分** | 大模块委托 `_*.py` 单一职责子模块，每个 50–350 行 |
-| **结构化日志** | JSON Lines + 按日轮转 + `contextvars` 传播 `request_id` |
-| **异常安全** | 统一错误处理路径，优雅降级，文件占用/权限异常友好提示 |
+| 原则                     | 说明                                                                             |
+| :----------------------- | :------------------------------------------------------------------------------- |
+| **不可变数据模型** | 核心数据类 `frozen=True`，NumPy 数组 `writeable=False`，防止意外修改         |
+| **纯函数计算**     | `geology/` 子包全部为纯函数，接收数组返回数组，无状态、无副作用                |
+| **向量化优先**     | NumPy 广播 + 复数运算替代 for 循环；布尔 mask 替代 if-else 分支                  |
+| **惰性导入**       | `__getattr__` 延迟加载 matplotlib/绘图模块，`import trace_pipeline` 无副作用 |
+| **私有模块拆分**   | 大模块委托 `_*.py` 单一职责子模块，每个 50–350 行                             |
+| **结构化日志**     | JSON Lines + 按日轮转 +`contextvars` 传播 `request_id`                       |
+| **异常安全**       | 统一错误处理路径，优雅降级，文件占用/权限异常友好提示                            |
 
 ---
 
@@ -283,38 +283,38 @@ graph TB
 
 ### 系统要求
 
-| 组件 | 最低要求 | 说明 |
-|:-----|:---------|:-----|
-| 操作系统 | Windows 10 (1809+) / 11 | GUI 模式必需；CLI 模式理论跨平台 |
-| Python | 3.10+ | 推荐 3.11（性能最优），支持 3.12 |
-| Node.js | 18 LTS | 仅 GUI 前端构建时需要 |
-| WebView2 Runtime | 任意版本 | Win11 已内置；Win10 自动推送或[手动安装](https://developer.microsoft.com/microsoft-edge/webview2/) |
-| 内存 | 2 GB (CLI) / 4 GB (GUI) | 并行处理时建议 ≥4 GB |
-| 磁盘 | 500 MB | 含依赖；打包产物约 150–250 MB |
+| 组件             | 最低要求                | 说明                                                                                            |
+| :--------------- | :---------------------- | :---------------------------------------------------------------------------------------------- |
+| 操作系统         | Windows 10 (1809+) / 11 | GUI 模式必需；CLI 模式理论跨平台                                                                |
+| Python           | 3.10+                   | 推荐 3.11（性能最优），支持 3.12                                                                |
+| Node.js          | 18 LTS                  | 仅 GUI 前端构建时需要                                                                           |
+| WebView2 Runtime | 任意版本                | Win11 已内置；Win10 自动推送或[手动安装](https://developer.microsoft.com/microsoft-edge/webview2/) |
+| 内存             | 2 GB (CLI) / 4 GB (GUI) | 并行处理时建议 ≥4 GB                                                                           |
+| 磁盘             | 500 MB                  | 含依赖；打包产物约 150–250 MB                                                                  |
 
 ### 运行时依赖
 
 **核心依赖**（CLI 与 GUI 通用）：
 
-| 包 | 版本 | 用途 |
-|:---|:-----|:-----|
-| `numpy` | ≥1.24 | 向量化数值计算 |
-| `pandas` | ≥2.0 | Excel 表格读写 |
-| `matplotlib` | ≥3.7 | 迹线图与玫瑰图绘制 |
-| `openpyxl` | ≥3.1 | `.xlsx` 读写引擎 |
-| `xlrd` | ≥2.0 | `.xls` 读写引擎 |
-| `Pillow` | ≥9.0 | 图像处理与缩略图生成 |
-| `scipy` | ≥1.10 | 空间算法 (KDTree) |
-| `shapely` | ≥2.0 | 几何缓冲区与求交 |
-| `tqdm` | ≥4.67 | CLI 进度条 |
+| 包             | 版本   | 用途                 |
+| :------------- | :----- | :------------------- |
+| `numpy`      | ≥1.24 | 向量化数值计算       |
+| `pandas`     | ≥2.0  | Excel 表格读写       |
+| `matplotlib` | ≥3.7  | 迹线图与玫瑰图绘制   |
+| `openpyxl`   | ≥3.1  | `.xlsx` 读写引擎   |
+| `xlrd`       | ≥2.0  | `.xls` 读写引擎    |
+| `Pillow`     | ≥9.0  | 图像处理与缩略图生成 |
+| `scipy`      | ≥1.10 | 空间算法 (KDTree)    |
+| `shapely`    | ≥2.0  | 几何缓冲区与求交     |
+| `tqdm`       | ≥4.67 | CLI 进度条           |
 
 **GUI 附加依赖**：
 
-| 包 | 版本 | 用途 |
-|:---|:-----|:-----|
-| `pywebview` | ≥5.0 | 桌面 GUI 容器 (WebView2) |
-| `python-docx` | ≥1.0 | Word 报告导出 |
-| `reportlab` | ≥4.0 | PDF 报告导出 |
+| 包              | 版本  | 用途                     |
+| :-------------- | :---- | :----------------------- |
+| `pywebview`   | ≥5.0 | 桌面 GUI 容器 (WebView2) |
+| `python-docx` | ≥1.0 | Word 报告导出            |
+| `reportlab`   | ≥4.0 | PDF 报告导出             |
 
 ---
 
@@ -443,29 +443,29 @@ cp config.example.json config.json
 
 ### 配置项详表
 
-| 配置键 | 类型 | 默认值 | 说明 |
-|:-------|:-----|:-------|:-----|
-| `input_dir` | `string` | `"input"` | 输入目录路径（含 `*_process.xls*` 文件） |
-| `output_dir` | `string` | `"output"` | 输出目录路径 |
-| `output_prefix` | `string` | `"Outcrop"` | 输出文件前缀（批量模式下被露头名覆盖） |
-| `table_stem` | `string` | `"O76_process"` | 单文件模式下的文件名主干（不含扩展名） |
-| `outcrop` | `string` | `"O76"` | 单文件模式下的露头标识（也是 Excel Sheet 名） |
-| `process_all` | `bool` | `true` | 是否批量处理 `input_dir` 下所有文件 |
-| `export_rose_plot` | `bool` | `false` | 是否导出玫瑰图 |
-| `rose_bin_width` | `float` | `10.0` | 玫瑰图分箱宽度（度），范围 (0, 180] |
-| `rose_dpi` | `int` | `600` | 玫瑰图分辨率 |
-| `trace_dpi` | `int` | `600` | 原始迹线图分辨率 |
-| `rotated_trace_dpi` | `int` | `600` | 旋转迹线图分辨率 |
-| `window_strategy` | `string` | `"auto"` | 圆窗策略：`auto` / `tangent` / `hybrid` / `concentric` |
-| `auto_density_threshold` | `float` | `5.0` | `auto` 策略粗估面密度阈值 |
-| `tangent_window_count` | `int` | `3` | `tangent` 策略每侧切圆数量 |
-| `min_intersections` | `int` | `5` | 圆窗最小交切数（低于此值窗口无效） |
-| `style` | `dict` | `{}` | 自定义绘图样式覆盖（见下方详表） |
-| `enable_node_recognition` | `bool` | `false` | 是否启用节点拓扑识别 |
-| `node_merge_tolerance` | `float` | `0.01` | 节点合并容差（m） |
-| `show_node_overlay` | `bool` | `true` | 是否在迹线图上绘制节点覆盖层 |
-| `node_label_mode` | `string` | `"type"` | 节点标注模式：`"none"` / `"type"` / `"id"` |
-| `is_dev_mode` | `bool` | `false` | GUI 开发者模式（显示调试面板） |
+| 配置键                      | 类型       | 默认值            | 说明                                                           |
+| :-------------------------- | :--------- | :---------------- | :------------------------------------------------------------- |
+| `input_dir`               | `string` | `"input"`       | 输入目录路径（含 `*_process.xls*` 文件）                     |
+| `output_dir`              | `string` | `"output"`      | 输出目录路径                                                   |
+| `output_prefix`           | `string` | `"Outcrop"`     | 输出文件前缀（批量模式下被露头名覆盖）                         |
+| `table_stem`              | `string` | `"O76_process"` | 单文件模式下的文件名主干（不含扩展名）                         |
+| `outcrop`                 | `string` | `"O76"`         | 单文件模式下的露头标识（也是 Excel Sheet 名）                  |
+| `process_all`             | `bool`   | `true`          | 是否批量处理 `input_dir` 下所有文件                          |
+| `export_rose_plot`        | `bool`   | `false`         | 是否导出玫瑰图                                                 |
+| `rose_bin_width`          | `float`  | `10.0`          | 玫瑰图分箱宽度（度），范围 (0, 180]                            |
+| `rose_dpi`                | `int`    | `600`           | 玫瑰图分辨率                                                   |
+| `trace_dpi`               | `int`    | `600`           | 原始迹线图分辨率                                               |
+| `rotated_trace_dpi`       | `int`    | `600`           | 旋转迹线图分辨率                                               |
+| `window_strategy`         | `string` | `"auto"`        | 圆窗策略：`auto` / `tangent` / `hybrid` / `concentric` |
+| `auto_density_threshold`  | `float`  | `5.0`           | `auto` 策略粗估面密度阈值                                    |
+| `tangent_window_count`    | `int`    | `3`             | `tangent` 策略每侧切圆数量                                   |
+| `min_intersections`       | `int`    | `5`             | 圆窗最小交切数（低于此值窗口无效）                             |
+| `style`                   | `dict`   | `{}`            | 自定义绘图样式覆盖（见下方详表）                               |
+| `enable_node_recognition` | `bool`   | `false`         | 是否启用节点拓扑识别                                           |
+| `node_merge_tolerance`    | `float`  | `0.01`          | 节点合并容差（m）                                              |
+| `show_node_overlay`       | `bool`   | `true`          | 是否在迹线图上绘制节点覆盖层                                   |
+| `node_label_mode`         | `string` | `"type"`        | 节点标注模式：`"none"` / `"type"` / `"id"`               |
+| `is_dev_mode`             | `bool`   | `false`         | GUI 开发者模式（显示调试面板）                                 |
 
 > **CLI 覆盖**：命令行参数可覆盖配置文件中的对应字段（如 `--rose-bin 5` 覆盖 `rose_bin_width`）。
 
@@ -473,19 +473,19 @@ cp config.example.json config.json
 
 `style` 字典用于覆盖默认的 matplotlib 绘图样式，支持以下键：
 
-| 键 | 类型 | 说明 | 示例值 |
-|:---|:-----|:-----|:-------|
-| `trace_color` | `string` | 迹线颜色 | `"#1f77b4"` |
-| `scanline_color` | `string` | 测线颜色 | `"#d62728"` |
-| `hull_color` | `string` | 凸包边界颜色 | `"#2ca02c"` |
-| `window_color` | `string` | 圆窗边界颜色 | `"#ff7f0e"` |
-| `node_color` | `string` | 节点标记颜色 | `"#9467bd"` |
-| `background_color` | `string` | 图片背景色 | `"#ffffff"` |
-| `line_width` | `float` | 迹线线宽 | `1.2` |
-| `font_family` | `string` | 字体族 | `"sans-serif"` |
-| `font_size` | `int` | 统计框字号 | `8` |
-| `node_style` | `string` | 节点样式预设 | `"default"` |
-| `show_grid` | `bool` | 是否显示网格 | `true` |
+| 键                   | 类型       | 说明         | 示例值           |
+| :------------------- | :--------- | :----------- | :--------------- |
+| `trace_color`      | `string` | 迹线颜色     | `"#1f77b4"`    |
+| `scanline_color`   | `string` | 测线颜色     | `"#d62728"`    |
+| `hull_color`       | `string` | 凸包边界颜色 | `"#2ca02c"`    |
+| `window_color`     | `string` | 圆窗边界颜色 | `"#ff7f0e"`    |
+| `node_color`       | `string` | 节点标记颜色 | `"#9467bd"`    |
+| `background_color` | `string` | 图片背景色   | `"#ffffff"`    |
+| `line_width`       | `float`  | 迹线线宽     | `1.2`          |
+| `font_family`      | `string` | 字体族       | `"sans-serif"` |
+| `font_size`        | `int`    | 统计框字号   | `8`            |
+| `node_style`       | `string` | 节点样式预设 | `"default"`    |
+| `show_grid`        | `bool`   | 是否显示网格 | `true`         |
 
 示例：
 
@@ -522,24 +522,24 @@ cp config.example.json config.json
 
 **表头行（Row 1）**：
 
-| 列 (1-indexed) | 参数 | 含义 | 类型 |
-|:---------------|:-----|:-----|:-----|
-| H (8) | 测线走向 | 测线走向方位角 (°)，值域 [0, 360) | 数值 |
-| I (9) | 迹线条数 | 需解析的迹线总条数 N | 正整数 |
-| L (12) | 实测测线长度 | 实测测线长度 (m，可选) | 数值 |
-| M (13) | 实测露头面积 | 实测露头面积 (m²，可选) | 数值 |
+| 列 (1-indexed) | 参数         | 含义                               | 类型   |
+| :------------- | :----------- | :--------------------------------- | :----- |
+| H (8)          | 测线走向     | 测线走向方位角 (°)，值域 [0, 360) | 数值   |
+| I (9)          | 迹线条数     | 需解析的迹线总条数 N               | 正整数 |
+| L (12)         | 实测测线长度 | 实测测线长度 (m，可选)             | 数值   |
+| M (13)         | 实测露头面积 | 实测露头面积 (m²，可选)           | 数值   |
 
 **数据行（Row 2 起，共 N 行）**：
 
-| 列 (1-indexed) | 参数 | 含义 | 要求 |
-|:---------------|:-----|:-----|:-----|
-| A (1) | r₁ | 沿测线位移 (m) | 数值 |
-| B (2) | r₂ | 垂直测线位移 (m) | 数值 |
-| C (3) | 倾向 | 节理倾向方位角 (°) | 数值 |
-| D (4) | r₄ | 左侧迹长 1 (m) | 数值 |
-| E (5) | r₅ | 左侧迹长 2 (m) | 数值 |
-| F (6) | r₆ | 右侧迹长 1 (m) | 数值 |
-| G (7) | r₇ | 右侧迹长 2 (m) | 数值 |
+| 列 (1-indexed) | 参数 | 含义                | 要求 |
+| :------------- | :--- | :------------------ | :--- |
+| A (1)          | r₁  | 沿测线位移 (m)      | 数值 |
+| B (2)          | r₂  | 垂直测线位移 (m)    | 数值 |
+| C (3)          | 倾向 | 节理倾向方位角 (°) | 数值 |
+| D (4)          | r₄  | 左侧迹长 1 (m)      | 数值 |
+| E (5)          | r₅  | 左侧迹长 2 (m)      | 数值 |
+| F (6)          | r₆  | 右侧迹长 1 (m)      | 数值 |
+| G (7)          | r₇  | 右侧迹长 2 (m)      | 数值 |
 
 > **注意事项**：
 >
@@ -580,27 +580,27 @@ python run_trace_pipeline.py --rose-bin 5 --rose-dpi 1200
 
 #### 完整 CLI 参数
 
-| 参数 | 简写 | 说明 |
-|:-----|:-----|:-----|
-| `--input DIR` | `-i` | 输入目录（覆盖 `input_dir`） |
-| `--output DIR` | `-o` | 输出目录（覆盖 `output_dir`） |
-| `--config PATH` | `-c` | 自定义 JSON 配置文件路径 |
-| `--single` | `-s` | 单文件模式：仅处理 `table_stem` 指定的文件 |
-| `--parallel N` | `-p` | 并行进程数（0 = 串行，默认） |
-| `--list` | `-l` | 列出发现的文件后退出 |
-| `--interactive` | `-I` | 交互式选择处理目标 |
-| `--dry-run` | `-n` | 试运行，不实际执行 |
-| `--no-rose` | — | 跳过玫瑰图导出 |
-| `--rose-bin W` | — | 玫瑰图分箱宽度（度） |
-| `--rose-dpi DPI` | — | 玫瑰图分辨率 |
-| `--window-strategy S` | — | 圆窗策略：`auto` / `tangent` / `hybrid` / `concentric` |
+| 参数                    | 简写   | 说明                                                           |
+| :---------------------- | :----- | :------------------------------------------------------------- |
+| `--input DIR`         | `-i` | 输入目录（覆盖 `input_dir`）                                 |
+| `--output DIR`        | `-o` | 输出目录（覆盖 `output_dir`）                                |
+| `--config PATH`       | `-c` | 自定义 JSON 配置文件路径                                       |
+| `--single`            | `-s` | 单文件模式：仅处理 `table_stem` 指定的文件                   |
+| `--parallel N`        | `-p` | 并行进程数（0 = 串行，默认）                                   |
+| `--list`              | `-l` | 列出发现的文件后退出                                           |
+| `--interactive`       | `-I` | 交互式选择处理目标                                             |
+| `--dry-run`           | `-n` | 试运行，不实际执行                                             |
+| `--no-rose`           | —     | 跳过玫瑰图导出                                                 |
+| `--rose-bin W`        | —     | 玫瑰图分箱宽度（度）                                           |
+| `--rose-dpi DPI`      | —     | 玫瑰图分辨率                                                   |
+| `--window-strategy S` | —     | 圆窗策略：`auto` / `tangent` / `hybrid` / `concentric` |
 
 #### 性能参考
 
-| 场景 | 预期耗时 | 推荐命令 |
-|:-----|:---------|:---------|
-| 单目标串行 | 3–8 秒 | `python run_trace_pipeline.py -s` |
-| 8 目标串行 | 30–60 秒 | `python run_trace_pipeline.py` |
+| 场景          | 预期耗时  | 推荐命令                              |
+| :------------ | :-------- | :------------------------------------ |
+| 单目标串行    | 3–8 秒   | `python run_trace_pipeline.py -s`   |
+| 8 目标串行    | 30–60 秒 | `python run_trace_pipeline.py`      |
 | 8 目标 4 并行 | 15–30 秒 | `python run_trace_pipeline.py -p 4` |
 
 ### 6.3 GUI 桌面应用
@@ -619,27 +619,27 @@ python run_gui.py
 
 #### 界面架构
 
-| 页面 | 路由 | 功能 |
-|:-----|:-----|:-----|
-| 🏠 首页 | `/` | 项目介绍、功能卡片、快速入门引导 |
-| ⚙️ 处理 | `/processing` | 文件选择 → 参数配置 → 进度监控 → 结果查看 |
-| 📊 统计 | `/statistics` | 单露头统计仪表板：卡片 + 直方图 + 饼图 + 迹线图 + 玫瑰图 |
-| 📈 对比 | `/comparison` | 多露头对比表格 + 柱状图 + 图片网格 |
-| 📋 数据 | `/data` | 原始数据浏览：输入/输出切换 + 9 区 Excel 分页 |
-| 🔧 配置 | `/config` | 全局设置 + 样式预览 + 开发者面板 |
+| 页面      | 路由            | 功能                                                     |
+| :-------- | :-------------- | :------------------------------------------------------- |
+| 🏠 首页   | `/`           | 项目介绍、功能卡片、快速入门引导                         |
+| ⚙️ 处理 | `/processing` | 文件选择 → 参数配置 → 进度监控 → 结果查看             |
+| 📊 统计   | `/statistics` | 单露头统计仪表板：卡片 + 直方图 + 饼图 + 迹线图 + 玫瑰图 |
+| 📈 对比   | `/comparison` | 多露头对比表格 + 柱状图 + 图片网格                       |
+| 📋 数据   | `/data`       | 原始数据浏览：输入/输出切换 + 9 区 Excel 分页            |
+| 🔧 配置   | `/config`     | 全局设置 + 样式预览 + 开发者面板                         |
 
 #### 缓存体系
 
-| 缓存项 | TTL | 存储方式 |
-|:-------|:----|:---------|
-| 文件扫描 | 30s | 后端 TTLCache + 目录变更检测 |
-| 统计数据 | 5min | 后端 LRU (SHA-256 配置指纹) |
-| 图片 | 10min | 后端 LRU (≤50 条目 / 80 MB) |
-| 缩略图 | 10min | 后端 LRU (≤120 条目 / 30 MB) |
-| Excel 数据 | 5min | 后端 TTLCache |
-| 样式预览 | 配置 MD5 | 文件系统缓存 |
-| 结果列表 | 5s | 前端 sessionStorage |
-| 对比数据 | 5min | 前端 sessionStorage |
+| 缓存项     | TTL      | 存储方式                      |
+| :--------- | :------- | :---------------------------- |
+| 文件扫描   | 30s      | 后端 TTLCache + 目录变更检测  |
+| 统计数据   | 5min     | 后端 LRU (SHA-256 配置指纹)   |
+| 图片       | 10min    | 后端 LRU (≤50 条目 / 80 MB)  |
+| 缩略图     | 10min    | 后端 LRU (≤120 条目 / 30 MB) |
+| Excel 数据 | 5min     | 后端 TTLCache                 |
+| 样式预览   | 配置 MD5 | 文件系统缓存                  |
+| 结果列表   | 5s       | 前端 sessionStorage           |
+| 对比数据   | 5min     | 前端 sessionStorage           |
 
 ### 6.4 Python API 编程接口
 
@@ -754,21 +754,21 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 
 #### 打包工具链
 
-| 工具 | 用途 | 发现方式 |
-|:-----|:-----|:---------|
-| PyInstaller | Python 应用打包 | `.venv/Scripts/pyinstaller.exe` |
-| Inno Setup 6 | 生成 Windows 安装程序 | 环境变量 `ISCC_EXE` 或系统 PATH |
-| 7-Zip | 生成自解压便携版 | 环境变量 `SEVEN_ZIP` 或系统 PATH |
+| 工具         | 用途                  | 发现方式                           |
+| :----------- | :-------------------- | :--------------------------------- |
+| PyInstaller  | Python 应用打包       | `.venv/Scripts/pyinstaller.exe`  |
+| Inno Setup 6 | 生成 Windows 安装程序 | 环境变量 `ISCC_EXE` 或系统 PATH  |
+| 7-Zip        | 生成自解压便携版      | 环境变量 `SEVEN_ZIP` 或系统 PATH |
 
 #### 打包流程
 
-| 步骤 | 工具 | 产物 |
-|:-----|:-----|:-----|
-| 依赖声明 | 正则解析 `pyproject.toml` | `requirements.txt` |
-| 前端构建 | `npm run build` | `backend/static/` |
-| 应用打包 | PyInstaller | `dist/TracePipeline/` (~150–250 MB) |
-| 安装程序 | Inno Setup 6 | `dist/TracePipeline-Setup-v{version}.exe` |
-| 便携版 | 7-Zip SFX | `dist/TracePipeline-Portable-v{version}.exe` |
+| 步骤     | 工具                        | 产物                                           |
+| :------- | :-------------------------- | :--------------------------------------------- |
+| 依赖声明 | 正则解析 `pyproject.toml` | `requirements.txt`                           |
+| 前端构建 | `npm run build`           | `backend/static/`                            |
+| 应用打包 | PyInstaller                 | `dist/TracePipeline/` (~150–250 MB)         |
+| 安装程序 | Inno Setup 6                | `dist/TracePipeline-Setup-v{version}.exe`    |
+| 便携版   | 7-Zip SFX                   | `dist/TracePipeline-Portable-v{version}.exe` |
 
 > 打包前确保 `backend/static/index.html` 存在（前端已构建）。PyInstaller 步骤约需 3–10 分钟。
 
@@ -780,21 +780,21 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 
 根据迹线与测线的相互关系，将节理迹线分为三种类型：
 
-| 类型 | 名称 | 判定条件 | 特征 |
-|:-----|:-----|:---------|:-----|
-| **I 型** | 相交型 | 迹线直接穿过测线 | 双侧均有迹线延伸 (r₅ ≠ 0, r₇ ≠ 0) |
-| **II 型** | 延长相交型 | 迹线延长线穿过测线 | 仅单侧有迹线延伸 (仅一侧非零) |
-| **III 型** | 不相交型 | 迹线及延长线均不穿过测线 | 过迹线起点作测线垂线定位 |
+| 类型             | 名称       | 判定条件                 | 特征                                  |
+| :--------------- | :--------- | :----------------------- | :------------------------------------ |
+| **I 型**   | 相交型     | 迹线直接穿过测线         | 双侧均有迹线延伸 (r₅ ≠ 0, r₇ ≠ 0) |
+| **II 型**  | 延长相交型 | 迹线延长线穿过测线       | 仅单侧有迹线延伸 (仅一侧非零)         |
+| **III 型** | 不相交型   | 迹线及延长线均不穿过测线 | 过迹线起点作测线垂线定位              |
 
 ### 7.2 复平面端点坐标算法
 
 在复平面中构建测线局部坐标系。测线方向单位向量 **v** = e^{iθ}，根据 r₅, r₇ 的取值自动判别三种计算情形：
 
-| 情形 | 条件 | 计算方式 |
-|:-----|:-----|:---------|
-| 仅左侧 | r₅ ≠ 0, r₇ = 0 | Z₀ + r₂·**v**⟂ᴸ + r₄·**v**ₛ → 起点 + r₅·**v**ₛ |
-| 仅右侧 | r₅ = 0, r₇ ≠ 0 | Z₀ + r₂·**v**⟂ᴿ + r₆·**v**ₛ → 起点 + r₇·**v**ₛ |
-| 双侧 | r₅ ≠ 0, r₇ ≠ 0 | 分开计算左右端点 |
+| 情形   | 条件               | 计算方式                                                                     |
+| :----- | :----------------- | :--------------------------------------------------------------------------- |
+| 仅左侧 | r₅ ≠ 0, r₇ = 0  | Z₀ + r₂·**v**⟂ᴸ + r₄·**v**ₛ → 起点 + r₅·**v**ₛ |
+| 仅右侧 | r₅ = 0, r₇ ≠ 0  | Z₀ + r₂·**v**⟂ᴿ + r₆·**v**ₛ → 起点 + r₇·**v**ₛ |
+| 双侧   | r₅ ≠ 0, r₇ ≠ 0 | 分开计算左右端点                                                             |
 
 全部计算通过 NumPy 复数向量化一次性完成 N 条迹线的转换，时间复杂度 O(N)。与 MATLAB 原版端点坐标误差 < 10⁻¹⁰ m。
 
@@ -806,12 +806,12 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 
 ### 7.4 统计指标定义
 
-| 指标 | 含义 | 计算方法 |
-|:-----|:-----|:---------|
-| **P₁₀** | 线密度 (m⁻¹) | 迹线数 / 测线长度 |
-| **P₂₀** | 面密度 (m⁻²) | 迹线数 / 有效面积 |
-| **P₂₁** | 面累计长度密度 (m⁻¹) | 累计迹长 / 有效面积 |
-| **平均迹长** | 平均迹线长度 (m) | 三级回退：测段 (r₅+r₇) → 端点欧氏距离 → 圆窗 Mauldon L_est |
+| 指标               | 含义                   | 计算方法                                                       |
+| :----------------- | :--------------------- | :------------------------------------------------------------- |
+| **P₁₀**    | 线密度 (m⁻¹)         | 迹线数 / 测线长度                                              |
+| **P₂₀**    | 面密度 (m⁻²)         | 迹线数 / 有效面积                                              |
+| **P₂₁**    | 面累计长度密度 (m⁻¹) | 累计迹长 / 有效面积                                            |
+| **平均迹长** | 平均迹线长度 (m)       | 三级回退：测段 (r₅+r₇) → 端点欧氏距离 → 圆窗 Mauldon L_est |
 
 **面积回退链**：
 
@@ -823,12 +823,12 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 
 ### 7.5 圆形取样窗策略
 
-| 策略 | 窗口布置 | 适用场景 |
-|:-----|:---------|:---------|
-| `tangent` | 沿测线均布 k 个相切圆 | 大间距、稀疏迹线 |
-| `hybrid` | 3 切点 × 2 侧 × 3 半径缩放比，最多 18 窗口 | 中等密度 |
-| `concentric` | 测线中点同心圆，多半径 | 高密度 |
-| `auto` | 三种策略 6 因子加权评分，自动选择最优 | **默认推荐** |
+| 策略           | 窗口布置                                     | 适用场景           |
+| :------------- | :------------------------------------------- | :----------------- |
+| `tangent`    | 沿测线均布 k 个相切圆                        | 大间距、稀疏迹线   |
+| `hybrid`     | 3 切点 × 2 侧 × 3 半径缩放比，最多 18 窗口 | 中等密度           |
+| `concentric` | 测线中点同心圆，多半径                       | 高密度             |
+| `auto`       | 三种策略 6 因子加权评分，自动选择最优        | **默认推荐** |
 
 `auto` 模式的 6 因子评分包括：窗口有效率、交切数均值、交切数 CV、有效窗口比例、覆盖密度、策略偏好权重。
 
@@ -1039,13 +1039,13 @@ npm run test:watch                        # vitest 监视模式
 
 #### 工具配置
 
-| 工具 | 配置文件 | 关键设置 |
-|:-----|:---------|:---------|
-| ruff | `pyproject.toml [tool.ruff]` | Python 3.10, 行宽 100, 规则 E/F/I/N/UP/B/SIM |
-| mypy | `pyproject.toml [tool.mypy]` | Python 3.10, `warn_return_any=true` |
-| pytest | `pyproject.toml [tool.pytest]` | `testpaths = ["tests"]` |
-| coverage | `pyproject.toml [tool.coverage.run]` | `source = ["trace_pipeline", "backend"]` |
-| vitest | `frontend/vitest.config.ts` | jsdom 环境 |
+| 工具     | 配置文件                               | 关键设置                                     |
+| :------- | :------------------------------------- | :------------------------------------------- |
+| ruff     | `pyproject.toml [tool.ruff]`         | Python 3.10, 行宽 100, 规则 E/F/I/N/UP/B/SIM |
+| mypy     | `pyproject.toml [tool.mypy]`         | Python 3.10,`warn_return_any=true`         |
+| pytest   | `pyproject.toml [tool.pytest]`       | `testpaths = ["tests"]`                    |
+| coverage | `pyproject.toml [tool.coverage.run]` | `source = ["trace_pipeline", "backend"]`   |
+| vitest   | `frontend/vitest.config.ts`          | jsdom 环境                                   |
 
 ### 9.3 贡献流程
 
@@ -1067,14 +1067,14 @@ npm run test:watch                        # vitest 监视模式
 
 #### 分支命名规范
 
-| 前缀 | 用途 | 示例 |
-|:-----|:-----|:-----|
-| `feat/` | 新功能 | `feat/node-clustering` |
-| `fix/` | Bug 修复 | `fix/excel-lock-error` |
-| `docs/` | 文档更新 | `docs/api-reference` |
-| `refactor/` | 重构 | `refactor/cache-layer` |
-| `test/` | 测试 | `test/edge-cases` |
-| `chore/` | 构建/工具 | `chore/update-deps` |
+| 前缀          | 用途      | 示例                     |
+| :------------ | :-------- | :----------------------- |
+| `feat/`     | 新功能    | `feat/node-clustering` |
+| `fix/`      | Bug 修复  | `fix/excel-lock-error` |
+| `docs/`     | 文档更新  | `docs/api-reference`   |
+| `refactor/` | 重构      | `refactor/cache-layer` |
+| `test/`     | 测试      | `test/edge-cases`      |
+| `chore/`    | 构建/工具 | `chore/update-deps`    |
 
 #### Commit Message 格式
 
@@ -1217,19 +1217,19 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 ### 版本历史
 
-| 版本 | 日期 | 里程碑 |
-|:-----|:-----|:-------|
-| v4.2.5 | 2026-06 | 类型安全加固（25+ any→具体类型）、GuiApiInterface、shell=True 消除 |
+| 版本   | 日期    | 里程碑                                                                  |
+| :----- | :------ | :---------------------------------------------------------------------- |
+| v4.2.5 | 2026-06 | 类型安全加固（25+ any→具体类型）、GuiApiInterface、shell=True 消除     |
 | v4.2.4 | 2026-06 | 安全重构：GuiApiInterface(36方法)、shell=True→shutil.which、异常精确化 |
-| v4.2.3 | 2026-06 | 前端类型安全：4 接口定义、14处 any 替换、catch(e:any)→unknown |
-| v4.2.2 | 2026-06 | 错误处理强化：合并图片调用、清理调试残留、空 catch→错误日志 |
-| v4.2.1 | 2026-06 | 缓存性能优化（O(1)字符计数）、幂等样式配置、资源泄漏修复 |
-| v4.2.0 | 2026-06 | 报告实时进度、测试框架、绘图解耦、启动优化 |
-| v4.0.0 | 2026-06 | 公开发布：CLI + GUI 双模式，6 页面视图，一键打包 |
-| v3.2.0 | 2026-05 | 节点识别 (I/Y/X)，前端样式重构 |
-| v2.3.1 | 2026-04 | GUI 首次引入，结构化日志，缓存机制 |
-| v2.0.0 | 2026-03 | 圆窗四策略，凸包面积，P₁₀/P₂₀/P₂₁，节点识别 |
-| v1.0.0 | 2026-02 | MATLAB 算法移植，CLI，Excel 导出，迹线图绘制 |
+| v4.2.3 | 2026-06 | 前端类型安全：4 接口定义、14处 any 替换、catch(e:any)→unknown          |
+| v4.2.2 | 2026-06 | 错误处理强化：合并图片调用、清理调试残留、空 catch→错误日志            |
+| v4.2.1 | 2026-06 | 缓存性能优化（O(1)字符计数）、幂等样式配置、资源泄漏修复                |
+| v4.2.0 | 2026-06 | 报告实时进度、测试框架、绘图解耦、启动优化                              |
+| v4.0.0 | 2026-06 | 公开发布：CLI + GUI 双模式，6 页面视图，一键打包                        |
+| v3.2.0 | 2026-05 | 节点识别 (I/Y/X)，前端样式重构                                          |
+| v2.3.1 | 2026-04 | GUI 首次引入，结构化日志，缓存机制                                      |
+| v2.0.0 | 2026-03 | 圆窗四策略，凸包面积，P₁₀/P₂₀/P₂₁，节点识别                       |
+| v1.0.0 | 2026-02 | MATLAB 算法移植，CLI，Excel 导出，迹线图绘制                            |
 
 完整记录见 [CHANGELOG.md](CHANGELOG.md) 和 [GitHub Releases](https://github.com/zylyes/TracePipeline/releases)。
 

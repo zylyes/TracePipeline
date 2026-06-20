@@ -498,18 +498,20 @@ const bootSteps: BootStep[] = [
     }
   },
   {
-    label: '正在扫描输入目录...',
-    targetProgress: 55,
+    // 步骤 2+3 合并：文件扫描与字体预热并行执行
+    // 字体预热不依赖文件扫描结果，两者可并行以减少启动耗时
+    label: '正在扫描文件和初始化字体...',
+    targetProgress: 90,
     task: async () => {
-      const files = (await api.scan_files(true)) as any[]
-      cacheStore.setScan(files)
-    }
-  },
-  {
-    label: '正在初始化字体缓存...',
-    targetProgress: 80,
-    task: async () => {
-      await (api.preload_fonts() as Promise<unknown>)
+      await Promise.all([
+        (async () => {
+          const files = (await api.scan_files(true)) as any[]
+          cacheStore.setScan(files)
+        })(),
+        (api.preload_fonts() as Promise<unknown>).catch(() => {
+          /* 字体预热失败不阻塞启动，首次绘图时懒初始化 */
+        })
+      ])
     }
   },
   {

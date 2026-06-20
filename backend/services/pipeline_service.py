@@ -199,6 +199,8 @@ class PipelineService:
                         outcrop, table_stem, idx, item_start = future_to_info[future]
                         try:
                             result = future.result()
+                        except (MemoryError, SystemExit, KeyboardInterrupt):
+                            raise  # 关键异常不吞没，向上传播
                         except Exception as exc:
                             result = RunResult.failure(
                                 table_stem=table_stem,
@@ -298,6 +300,8 @@ class PipelineService:
                         "completed_count": completed_count,
                     }
                 )
+            except (MemoryError, SystemExit, KeyboardInterrupt):
+                raise  # 关键异常不吞没，向上传播
             except Exception as exc:
                 batch_duration = (time.perf_counter() - batch_start) * 1000
                 logger.exception(

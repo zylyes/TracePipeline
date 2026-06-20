@@ -185,7 +185,7 @@ class ReportService:
 
     def __init__(self) -> None:
         # 缓存已生成的报告结果，避免同一配置下重复写入 DOCX/PDF
-        self._result_cache = TTLCache(ttl=_REPORT_CACHE_TTL)
+        self._result_cache = TTLCache(ttl=_REPORT_CACHE_TTL, maxsize=32)
 
     @staticmethod
     def _cache_key(outcrop: str, report_type: str, fmt: str, config: dict[str, Any]) -> str:

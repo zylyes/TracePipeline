@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import multiprocessing
 import os
 import shutil
 import sys
@@ -170,9 +171,14 @@ class DailyRotatingJsonHandler(logging.FileHandler):
         self._max_bytes = max_bytes
 
         # 自动打包旧日志（加锁保护竞态）
-        with self._ARCHIVE_LOCK:
-            self._archive_old_days()
-            self._cleanup_old_archives()
+        # 注意：threading.Lock 不能跨进程同步。在 ProcessPoolExecutor spawn 模式下，
+        # 子进程（worker）使用独立的 worker_{pid}.jsonl 文件，不应操作主日志目录的
+        # 归档（打包 zip、删除原始目录），否则多个 worker 同时归档会产生竞态条件，
+        # 可能导致日志数据丢失。因此仅主进程执行归档和清理操作。
+        if multiprocessing.current_process().name == "MainProcess":
+            with self._ARCHIVE_LOCK:
+                self._archive_old_days()
+                self._cleanup_old_archives()
 
         # 确定文件名
         if filename is None:
@@ -424,6 +430,9 @@ def setup_worker_logging(log_dir: str | Path | None = None) -> logging.Logger:
 
     pid = os.getpid()
     filename = _WORKER_FILE_FMT.format(pid=pid)
+    # 创建 handler 时不会触发归档操作：__init__ 中通过判断
+    # multiprocessing.current_process().name 跳过归档，因为
+    # threading.Lock 不跨进程，子进程不应操作主日志目录的 zip 打包。
     handler = DailyRotatingJsonHandler(log_dir=log_dir, filename=filename)
     handler.setLevel(logging.DEBUG)
     pkg_logger.addHandler(handler)

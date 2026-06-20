@@ -122,6 +122,8 @@ class DataService:
                 },
             )
             return error_response(f"工作表 '{sheet_name}' 不存在，请重新处理该露头以生成新格式文件")
+        except (MemoryError, KeyboardInterrupt, SystemExit):
+            raise  # 关键异常不吞没，向上传播
         except Exception as exc:
             logger.warning(
                 "get_data [%s/%s] 失败: %s",
@@ -201,6 +203,8 @@ class DataService:
         except (ValueError, OSError):
             try:
                 df = pd.read_excel(path, header=None)
+            except (MemoryError, KeyboardInterrupt, SystemExit):
+                raise  # 关键异常不吞没，向上传播
             except Exception as exc:
                 return error_response(str(exc))
 

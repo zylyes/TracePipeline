@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/zylyes/TracePipeline/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.3.0-brightgreen" alt="Version"></a>
+  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.3.1-brightgreen" alt="Version"></a>
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/GUI-Vue_3_|_Element_Plus_|_ECharts-4FC08D?logo=vuedotframework" alt="GUI">
@@ -1222,6 +1222,7 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 | 版本   | 日期    | 里程碑                                                                  |
 | :----- | :------ | :---------------------------------------------------------------------- |
+| v4.3.1 | 2026-06 | 性能与安全优化：多进程日志竞态修复、图片缓存、节点批量绘制、启动并行化 |
 | v4.3.0 | 2026-06 | 全面代码审计：6 项致命缺陷修复 + 12 项严重缺陷修复 + 前端性能优化      |
 | v4.2.7 | 2026-06 | 进度条平滑插值动画（requestAnimationFrame 驱动）                       |
 | v4.2.6 | 2026-06 | GUI/CLI 并行处理支持（ProcessPoolExecutor）、--force-parallel 参数     |

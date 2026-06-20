@@ -7,6 +7,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple
+from collections import defaultdict
 
 import numpy as np
 from matplotlib.patches import Circle, Polygon
@@ -347,19 +348,37 @@ def _add_node_overlays(
     node_overlays: Sequence[NodeOverlay],
     style: dict[str, Any] | None = None,
 ) -> None:
-    """在数据轴上绘制节点符号（不标注文字）。"""
+    """在数据轴上绘制节点符号（不标注文字），按节点类型分组批量 scatter 以提升性能。"""
     if not node_overlays:
         return
     node_ms = _resolve_node_style(style or {})
+
+    # 按节点类型分组
+    grouped: dict[str, list[tuple[float, float]]] = defaultdict(list)
     for node in node_overlays:
-        ms = node_ms.get(node.node_type, node_ms["I"])
-        ax.plot(
-            node.x,
-            node.y,
-            linestyle="none",
-            markersize=4,
+        grouped[node.node_type].append((node.x, node.y))
+
+    # 批量绘制每种类型
+    for ntype, points in grouped.items():
+        if not points:
+            continue
+        xs, ys = zip(*points)
+        ms = node_ms.get(ntype, node_ms["I"])
+
+        # 将 plot 样式参数映射为 scatter 兼容参数
+        # scatter 的 s = markersize**2，markersize=4 → s=16
+        # plot 的 markerfacecolor → scatter 的 facecolors
+        # plot 的 markeredgecolor → scatter 的 edgecolors
+        # plot 的 markeredgewidth → scatter 的 linewidths
+        ax.scatter(
+            xs,
+            ys,
+            marker=ms.get("marker", "o"),
+            s=16,  # markersize=4 → s=4**2=16
+            facecolors=ms.get("markerfacecolor", "#4CAF50"),
+            edgecolors=ms.get("markeredgecolor", "black"),
+            linewidths=ms.get("markeredgewidth", 0.8),
             zorder=_TRACE_ZORDER + 2,
-            **ms,
         )
 
 

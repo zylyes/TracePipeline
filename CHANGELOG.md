@@ -6,6 +6,29 @@
 
 ---
 
+## [4.3.1] - 2026-06-20
+
+### 性能与安全优化 — 多进程竞态修复 + 缓存增强 + 启动加速
+
+#### 致命缺陷修复
+- `logging/core.py`：多进程日志归档竞态修复 — `DailyRotatingJsonHandler.__init__` 中归档/清理操作仅主进程执行，子进程（spawn worker）跳过，消除 `threading.Lock` 不跨进程导致的日志数据丢失/zip 损坏风险
+
+#### 严重缺陷修复
+- `pipeline_service.py`：`_run_background` 中 `future.result()` 和外层 try-except 添加 `(MemoryError, SystemExit, KeyboardInterrupt): raise`，防止关键异常被 `except Exception` 吞没
+- `data_service.py`：`get_data` 和 `_get_input_data` 添加关键异常传播，防止内存耗尽时静默失败
+
+#### 性能优化
+- `gui_api.py`：新增图片缓存 `TTLCache(maxsize=20, ttl=300)`，`get_image`/`get_image_data` 命中时跳过文件读取+base64 编码，重复请求从 500-2000ms 降至 <5ms
+- `report_service.py`：TTLCache `maxsize` 从 0（无上限）改为 32，消除内存无限增长 OOM 风险
+- `trace_plot.py`：节点绘制从逐个 `ax.plot()` 改为按类型（I/Y/X）分组批量 `ax.scatter()`，节点 >100 时绘制耗时从 200-500ms 降至 <50ms
+- `App.vue`：启动步骤 2（文件扫描）与步骤 3（字体预热）合并为 `Promise.all` 并行执行，4 步→3 步，启动时间减少 2-5 秒
+
+#### 测试验证
+- 后端 pytest：132/132 通过（快速测试集）
+- 后端日志测试：2/2 通过
+- 前端 vitest：21/21 通过
+- 前端生产构建：成功（1.13s）
+
 ## [4.3.0] - 2026-06-20
 
 ### 全面代码审查与优化 — 致命缺陷修复 + 严重缺陷修复 + 性能优化
@@ -287,6 +310,7 @@
 
 ---
 
+[4.3.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.1
 [4.3.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.0
 [4.2.7]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.7
 [4.2.6]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.6

@@ -29,7 +29,7 @@ from backend.services.pipeline_service import PipelineService
 from backend.services.preview_service import PreviewService
 from backend.services.report_service import REPORT_DIR, ReportService
 from backend.services.stats_service import StatsService
-from backend.utils.cache import DirectoryChangeDetector
+from backend.utils.cache import DirectoryChangeDetector, TTLCache
 from backend.utils.security import PathSecurityChecker
 from trace_pipeline.logging import LogContext
 from trace_pipeline.utils.paths import get_project_root
@@ -87,6 +87,8 @@ class GuiApi:
         self._report_progress_lock = threading.Lock()
         # output 目录变更检测器
         self._output_detector = DirectoryChangeDetector()
+        # 图片缓存：最多缓存 20 张，TTL 300 秒
+        self._image_cache: TTLCache = TTLCache(maxsize=20, ttl=300)
         self._sync_services_from_config(self._config.get())
         cfg = self._config.get()
         logger.info(
@@ -209,6 +211,7 @@ class GuiApi:
         self._file.invalidate_cache()
         self._stats_svc.invalidate_cache()
         self._output_detector.invalidate()
+        self._image_cache.invalidate()
 
     def _resolve_output_dir(self) -> Path:
         out_dir = Path(self._config.get().get("output_dir", "output"))
@@ -1007,21 +1010,32 @@ class GuiApi:
             if resolved is None:
                 return {}
             p, stat, ext = resolved
+            cache_key = f"{p}:{stat.st_mtime_ns}:{stat.st_size}"
+            cached = self._image_cache.get(cache_key)
+            if cached is not None:
+                logger.debug(
+                    "get_image_data 缓存命中 → %s",
+                    path,
+                    extra={"stage": "api_get_image_data_cache_hit", "path": path},
+                )
+                return cached
             with open(p, "rb") as f:
                 data = f.read()
             mime = self._IMAGE_MIME_TYPES[ext]
             b64 = base64.b64encode(data).decode("utf-8")
+            result = {
+                "data": f"data:{mime};base64,{b64}",
+                "mtime_ns": stat.st_mtime_ns,
+                "size": stat.st_size,
+            }
+            self._image_cache.set(cache_key, result)
             logger.debug(
                 "get_image_data → %s (%d bytes)",
                 path,
                 len(data),
                 extra={"stage": "api_get_image_data", "path": path, "size_bytes": len(data)},
             )
-            return {
-                "data": f"data:{mime};base64,{b64}",
-                "mtime_ns": stat.st_mtime_ns,
-                "size": stat.st_size,
-            }
+            return result
         except Exception as exc:
             logger.warning(
                 "读取图片数据失败: %s → %s",
@@ -1038,18 +1052,29 @@ class GuiApi:
             resolved = self._safe_image_path(path, "api_get_image")
             if resolved is None:
                 return ""
-            p, _, ext = resolved
+            p, stat, ext = resolved
+            cache_key = f"{p}:{stat.st_mtime_ns}:{stat.st_size}"
+            cached = self._image_cache.get(cache_key)
+            if cached is not None:
+                logger.debug(
+                    "get_image 缓存命中 → %s",
+                    path,
+                    extra={"stage": "api_get_image_cache_hit", "path": path},
+                )
+                return cached
             with open(p, "rb") as f:
                 data = f.read()
             mime = self._IMAGE_MIME_TYPES[ext]
             b64 = base64.b64encode(data).decode("utf-8")
+            result = f"data:{mime};base64,{b64}"
+            self._image_cache.set(cache_key, result)
             logger.debug(
                 "get_image → %s (%d bytes)",
                 path,
                 len(data),
                 extra={"stage": "api_get_image", "path": path, "size_bytes": len(data)},
             )
-            return f"data:{mime};base64,{b64}"
+            return result
         except Exception as exc:
             logger.warning(
                 "读取图片失败: %s → %s",

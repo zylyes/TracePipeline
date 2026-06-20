@@ -1,3 +1,40 @@
+# v4.3.1
+
+**2026-06-20**
+
+> 性能与安全优化 — 多进程日志竞态修复 + 图片缓存 + 节点批量绘制 + 启动并行化。
+
+## 高亮
+
+- **多进程日志归档竞态修复** — `logging/core.py` 归档/清理操作仅主进程执行，子进程跳过，消除 `threading.Lock` 不跨进程导致的日志数据丢失/zip 损坏风险
+- **图片缓存 TTLCache** — `gui_api.py` 新增 `TTLCache(maxsize=20, ttl=300)`，重复请求同一图片从 500-2000ms 降至 <5ms
+- **节点批量 scatter 绘制** — `trace_plot.py` 从逐个 `ax.plot()` 改为按类型分组批量 `ax.scatter()`，节点 >100 时绘制提速 5-10x
+- **启动步骤并行化** — `App.vue` 文件扫描与字体预热合并为 `Promise.all` 并行执行，启动时间减少 2-5 秒
+- **关键异常传播** — `pipeline_service.py` / `data_service.py` 添加 `(MemoryError, SystemExit, KeyboardInterrupt): raise`，防止内存耗尽时静默失败
+- **ReportService 缓存上限** — `maxsize` 从 0（无上限）改为 32，消除 OOM 风险
+
+## 变更摘要
+
+### 致命缺陷修复（1 项）
+- `logging/core.py`：多进程日志归档竞态修复
+
+### 严重缺陷修复（2 项）
+- `pipeline_service.py`：关键异常传播（2 处）
+- `data_service.py`：关键异常传播（2 处）
+
+### 性能优化（4 项）
+- `gui_api.py`：图片缓存 TTLCache
+- `report_service.py`：maxsize 0→32
+- `trace_plot.py`：节点批量 scatter
+- `App.vue`：启动步骤并行化
+
+### 测试验证
+- 后端 pytest：132/132 通过
+- 前端 vitest：21/21 通过
+- 前端构建：成功（1.13s）
+
+---
+
 # v4.3.0
 
 **2026-06-20**

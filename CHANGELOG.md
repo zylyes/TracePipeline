@@ -6,6 +6,14 @@
 
 ---
 
+## [4.2.7] - 2026-06-20
+
+### 优化
+- `ProgressPanel.vue` 进度条平滑插值动画：`requestAnimationFrame` 驱动的追赶插值 + 等待期间蠕动效果，消除"长时间不动→突然跳变"的卡顿体验；CSS `transition` 从 `0.4s expo` 调整为 `0.15s linear` 配合逐帧更新
+
+### 修复
+- `ProgressPanel.vue` 重复运行进度条不归零：新运行启动时重置 `displayPercentage` 为 0
+
 ## [4.2.6] - 2026-06-20
 
 ### 新增

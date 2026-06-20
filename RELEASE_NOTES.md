@@ -1,3 +1,20 @@
+# v4.2.7
+
+**2026-06-20**
+
+> 进度条体验优化。
+
+## 高亮
+
+- **进度条平滑动画** — `requestAnimationFrame` 驱动的追赶插值 + 蠕动效果，消除文件级粒度上报导致的"长时间不动→突然跳变"卡顿
+- **重复运行修复** — 新运行启动时重置显示进度，避免残留上次的 100%
+
+## 变更摘要
+
+- `ProgressPanel.vue`：新增 `displayPercentage` 插值动画（追赶比例 0.12/帧 + 蠕动 0.015%/帧），CSS `transition` 调整为 `0.15s linear`；`watch(running)` 中重置 `displayPercentage` 为 0
+
+---
+
 # v4.2.6
 
 **2026-06-20**

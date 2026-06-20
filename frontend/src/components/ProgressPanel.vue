@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { VideoPlay, CircleCheck, Loading } from '@element-plus/icons-vue'
 
 const props = defineProps<{
@@ -79,10 +79,76 @@ const maxParallel = Math.max(4, Math.min((navigator.hardwareConcurrency || 4) * 
 // 由父组件通过 v-model:parallel 管理，值来自 configStore.parallel_workers
 const parallel = defineModel<number>('parallel', { default: 0 })
 
-const percentage = computed(() => {
+// ── 平滑进度插值 ──────────────────────────────────────────────
+// 后端只在每个文件完成时上报一次进度（文件级粒度），
+// 导致进度条长时间不动然后突然跳变。
+// 这里在前端做插值动画：用 requestAnimationFrame 让显示值
+// 平滑追赶真实进度，并在等待期间缓慢"蠕动"向下一个步进点靠近，
+// 营造持续处理中的视觉效果。
+const REAL_TO_DISPLAY_SPEED = 0.12   // 每帧追赶真实进度的比例（≈200ms 追上）
+const CREEP_SPEED = 0.015            // 等待期间每帧蠕动量（百分比/帧）
+const CREEP_GAP = 0.8                // 蠕动到距下一个步进点多近时停止（百分比）
+
+const targetPercentage = computed(() => {
   if (!props.progress.total) return 0
-  return Math.round((props.progress.current / props.progress.total) * 100)
+  return (props.progress.current / props.progress.total) * 100
 })
+
+const displayPercentage = ref(0)
+let rafId: number | null = null
+
+function tickAnimation() {
+  const target = targetPercentage.value
+  const current = displayPercentage.value
+
+  if (current < target) {
+    // 追赶真实进度：按比例插值，越接近越慢
+    displayPercentage.value = current + (target - current) * REAL_TO_DISPLAY_SPEED
+    // 防止因浮点误差永远追不上
+    if (Math.abs(displayPercentage.value - target) < 0.05) {
+      displayPercentage.value = target
+    }
+  } else if (props.running && target < 100) {
+    // 已追上真实进度但仍在运行：向下一个整数步进点蠕动
+    const nextStep = target + (100 / props.progress.total)
+    const creepCeiling = nextStep - CREEP_GAP
+    if (current < creepCeiling) {
+      displayPercentage.value = Math.min(current + CREEP_SPEED, creepCeiling)
+    }
+  }
+
+  rafId = requestAnimationFrame(tickAnimation)
+}
+
+// 运行状态变化时启动/停止动画
+watch(
+  () => props.running,
+  (running) => {
+    if (running) {
+      displayPercentage.value = 0  // 新运行开始时重置，避免残留上次的 100%
+      if (rafId === null) {
+        rafId = requestAnimationFrame(tickAnimation)
+      }
+    }
+  },
+  { immediate: true }
+)
+
+// 任务完成时立即跳到 100%
+watch(targetPercentage, (val) => {
+  if (val >= 100 && !props.running) {
+    displayPercentage.value = 100
+  }
+})
+
+onUnmounted(() => {
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+})
+
+const percentage = computed(() => Math.round(displayPercentage.value))
 
 const progressStatus = computed(() => {
   return undefined
@@ -305,7 +371,7 @@ const progressColor = computed(() => {
 :deep(.modern-progress .el-progress-bar__inner) {
   position: relative;
   border-radius: var(--tp-radius-full);
-  transition: width 0.4s var(--tp-easing-expo);
+  transition: width 0.15s linear;
   background: linear-gradient(90deg, var(--tp-brand-accent-dark), var(--tp-brand-accent-light), var(--tp-geo-emerald)) !important;
   box-shadow: 0 0 16px rgba(56, 189, 248, 0.42);
 }

@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 from backend.services import pipeline_service as pipeline_module
 from backend.services.pipeline_service import PipelineService
 from trace_pipeline.models import RunResult
+
+
+class _ThreadPoolExecutor(ThreadPoolExecutor):
+    """适配 ProcessPoolExecutor 接口，忽略 mp_context 参数。"""
+    def __init__(self, max_workers=None, mp_context=None, **kwargs):
+        super().__init__(max_workers=max_workers, **kwargs)
 
 
 def test_run_rejects_invalid_target(tmp_path) -> None:
@@ -27,6 +35,7 @@ def test_background_result_uses_frontend_image_fields(tmp_path, monkeypatch) -> 
             rose_plot_path="rose.png",
         )
 
+    monkeypatch.setattr(pipeline_module, "ProcessPoolExecutor", _ThreadPoolExecutor)
     monkeypatch.setattr(pipeline_module, "run_pipeline", fake_run_pipeline)
 
     service._run_background(["O76"], {"input_dir": str(tmp_path), "output_dir": str(tmp_path)})

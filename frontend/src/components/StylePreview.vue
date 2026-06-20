@@ -123,14 +123,14 @@ async function doGenerate() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const res = await api.generate_preview({
+    const res = (await api.generate_preview({
       style: { ...props.styleConfig },
       show_hull: showHull.value,
       show_circles: showCircles.value,
       show_nodes: showNodes.value,
-    })
+    })) as Record<string, unknown>
     if (res.status === 'ready') {
-      const images = res.images || []
+      const images = (res.images || []) as any[]
       for (const img of previewImages.value) {
         const match = images.find((item: any) => item.key === img.key)
         if (match && match.path) {
@@ -144,7 +144,7 @@ async function doGenerate() {
         }
       }
     } else if (res.status === 'error') {
-      errorMsg.value = res.message || '预览生成失败'
+      errorMsg.value = (res.message as string) || '预览生成失败'
       for (const img of previewImages.value) {
         img.path = ''
         img.url = ''

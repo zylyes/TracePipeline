@@ -62,12 +62,12 @@ const fileInputRef = ref<HTMLInputElement>()
 async function reloadConfig() {
   try {
     const cfg = await configStore.loadConfig()
-    form.value = { ...cfg }
+    form.value = { ...(cfg as Record<string, any>) }
     if (cfg.style && typeof cfg.style === 'object') {
-      styleConfig.value = { ...styleConfig.value, ...cfg.style }
+      styleConfig.value = { ...styleConfig.value, ...(cfg.style as Record<string, any>) }
     }
-    if (cfg.input_dir) appStore.inputDir = cfg.input_dir
-    if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+    if (cfg.input_dir) appStore.inputDir = cfg.input_dir as string
+    if (cfg.output_dir) appStore.outputDir = cfg.output_dir as string
     msg.success('配置已重新加载')
   } catch (e) {
     msg.error('重新加载配置失败')
@@ -82,9 +82,9 @@ async function saveStyleConfig() {
     const payload = {
       style: { ...styleConfig.value },
     }
-    const saved = await configStore.saveConfig(payload)
+    const saved = (await configStore.saveConfig(payload)) as Record<string, any>
     if (saved.style && typeof saved.style === 'object') {
-      styleConfig.value = { ...saved.style }
+      styleConfig.value = { ...(saved.style as Record<string, any>) }
     }
     msg.success('样式设置已保存')
   } catch (e) {
@@ -111,10 +111,10 @@ async function resetProcessingConfig() {
     return
   }
   try {
-    const cfg = await configStore.resetProcessingConfig()
+    const cfg = (await configStore.resetProcessingConfig()) as Record<string, any>
     form.value = { ...cfg }
-    if (cfg.input_dir) appStore.inputDir = cfg.input_dir
-    if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+    if (cfg.input_dir) appStore.inputDir = cfg.input_dir as string
+    if (cfg.output_dir) appStore.outputDir = cfg.output_dir as string
     msg.success('处理参数已重置为默认')
   } catch (e) {
     msg.error('重置处理参数失败')
@@ -140,10 +140,10 @@ async function resetStyleConfig() {
     return
   }
   try {
-    const cfg = await configStore.resetStyleConfig()
+    const cfg = (await configStore.resetStyleConfig()) as Record<string, any>
     styleConfig.value = { ...DEFAULT_STYLE }
     if (cfg.style && typeof cfg.style === 'object') {
-      styleConfig.value = { ...styleConfig.value, ...cfg.style }
+      styleConfig.value = { ...styleConfig.value, ...(cfg.style as Record<string, any>) }
     }
     previewTrigger.value += 1
     msg.success('样式设置已重置为默认')
@@ -171,15 +171,15 @@ async function resetAllConfig() {
     return
   }
   try {
-    const cfg = await configStore.resetConfig()
+    const cfg = (await configStore.resetConfig()) as Record<string, any>
     form.value = { ...cfg }
     styleConfig.value = { ...DEFAULT_STYLE }
     if (cfg.style && typeof cfg.style === 'object') {
-      styleConfig.value = { ...styleConfig.value, ...cfg.style }
+      styleConfig.value = { ...styleConfig.value, ...(cfg.style as Record<string, any>) }
     }
     previewTrigger.value += 1
-    if (cfg.input_dir) appStore.inputDir = cfg.input_dir
-    if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+    if (cfg.input_dir) appStore.inputDir = cfg.input_dir as string
+    if (cfg.output_dir) appStore.outputDir = cfg.output_dir as string
     msg.success('已恢复所有默认配置')
   } catch (e) {
     msg.error('重置失败')
@@ -209,14 +209,14 @@ async function importJSON(event: Event) {
   try {
     const text = await file.text()
     const imported = JSON.parse(text)
-    const saved = await configStore.saveConfig(imported)
+    const saved = (await configStore.saveConfig(imported)) as Record<string, any>
     form.value = { ...saved }
     if (saved.style && typeof saved.style === 'object') {
-      styleConfig.value = { ...DEFAULT_STYLE, ...saved.style }
+      styleConfig.value = { ...DEFAULT_STYLE, ...(saved.style as Record<string, any>) }
       previewTrigger.value += 1
     }
-    if (saved.input_dir) appStore.inputDir = saved.input_dir
-    if (saved.output_dir) appStore.outputDir = saved.output_dir
+    if (saved.input_dir) appStore.inputDir = saved.input_dir as string
+    if (saved.output_dir) appStore.outputDir = saved.output_dir as string
     msg.success(`已导入配置: ${file.name}`)
   } catch (e) {
     msg.error('导入失败：无效的 JSON 文件')

@@ -198,7 +198,7 @@ class DataService:
 
         try:
             df = pd.read_excel(path, sheet_name=outcrop, header=None)
-        except Exception:
+        except (ValueError, OSError):
             try:
                 df = pd.read_excel(path, header=None)
             except Exception as exc:

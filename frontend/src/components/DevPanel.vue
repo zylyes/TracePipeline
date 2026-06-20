@@ -267,9 +267,9 @@ const reportType = ref('full')
 	  stopReportProgressPolling()
 	  reportPollTimer = window.setTimeout(async function pollTick() {
 	    try {
-	      const evt = await api.poll_report_progress()
-	      if (evt) {
-	        reportProgress.value = evt as ReportProgress
+      const evt = (await api.poll_report_progress()) as Record<string, unknown> | null
+      if (evt) {
+	        reportProgress.value = evt as unknown as ReportProgress
 	        if (evt.type === 'complete' || evt.type === 'error') {
 	          // Keep progress visible a bit longer to show completion state
 	          setTimeout(() => {
@@ -418,7 +418,7 @@ async function loadOutcrops(force = false) {
   if (loaded.value.report && !force) return
   loading.value.report = true
   try {
-    const files = await api.scan_files(force)
+    const files = (await api.scan_files(force)) as any[]
     outcropOptions.value = files
       .filter((f: any) => f.status === 'completed')
       .map((f: any) => f.outcrop)
@@ -482,27 +482,27 @@ async function generateReport() {
   startReportProgressPolling()
   try {
     if (isSingleDirect) {
-      const res = await api.generate_report(targets[0], reportType.value, fmt, savePath)
+      const res = (await api.generate_report(targets[0], reportType.value, fmt, savePath)) as Record<string, unknown>
       if (res.status === 'busy') {
-        msg.warning(res.message || '已有报告任务正在运行')
+        msg.warning((res.message as string) || '已有报告任务正在运行')
       } else if (res.error) {
-        msg.error(res.error)
+        msg.error(res.error as string)
       } else if (res.docx_error || res.pdf_error) {
-        msg.error(`生成失败: ${res.docx_error || ''} ${res.pdf_error || ''}`.trim())
+        msg.error(`生成失败: ${(res.docx_error as string) || ''} ${(res.pdf_error as string) || ''}`.trim())
       } else if (res.path) {
-        msg.success(`报告已保存: ${res.path}`)
+        msg.success(`报告已保存: ${res.path as string}`)
       } else {
         msg.warning('未能生成报告，请检查日志')
         console.warn('[DevPanel] generate_report 返回异常:', res)
       }
     } else {
-      const res = await api.generate_reports_zip(targets, reportType.value, fmt, savePath)
+      const res = (await api.generate_reports_zip(targets, reportType.value, fmt, savePath)) as Record<string, unknown>
       if (res.status === 'busy') {
-        msg.warning(res.message || '已有报告任务正在运行')
+        msg.warning((res.message as string) || '已有报告任务正在运行')
       } else if (res.error) {
-        msg.error(res.error)
+        msg.error(res.error as string)
       } else if (res.zip_path) {
-        msg.success(`报告已保存: ${res.zip_path}`)
+        msg.success(`报告已保存: ${res.zip_path as string}`)
       } else {
         msg.warning('未能生成报告压缩包，请检查日志')
         console.warn('[DevPanel] generate_reports_zip 返回异常:', res)
@@ -520,7 +520,7 @@ async function generateReport() {
 async function loadAudit() {
   loading.value.audit = true
   try {
-    auditLogs.value = await api.get_audit_log(50)
+    auditLogs.value = (await api.get_audit_log(50)) as any[]
     loaded.value.audit = true
   } catch (e) {
     console.error('[DevPanel] 加载审计日志失败', e)

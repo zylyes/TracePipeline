@@ -31,35 +31,35 @@ interface ScanEntry {
 
 /** GuiApi 暴露给前端的 JS Bridge 方法签名 */
 interface GuiApiInterface {
-  get_config(): Promise<Record<string, unknown>>
-  set_config(cfg: Record<string, unknown>): Promise<Record<string, unknown>>
-  reset_config(): Promise<Record<string, unknown>>
-  reset_processing_config(): Promise<Record<string, unknown>>
-  reset_style_config(): Promise<Record<string, unknown>>
-  scan_files(force?: boolean): Promise<ScanEntry[]>
-  run_pipeline(targets: string[], config: Record<string, unknown>): Promise<{ status: string; total?: number; message?: string }>
-  poll_progress(): Promise<Record<string, unknown> | null>
-  get_results(): Promise<Record<string, unknown>[]>
-  get_stats(outcrop: string): Promise<Record<string, unknown>>
-  get_comparison(outcrops: string[]): Promise<Record<string, unknown>[]>
-  get_data(outcrop: string, section: string, page: number, page_size: number, source?: string): Promise<Record<string, unknown>>
-  generate_preview(config: Record<string, unknown>): Promise<Record<string, unknown>>
+  get_config(): Promise<unknown>
+  set_config(cfg: Record<string, unknown>): Promise<unknown>
+  reset_config(): Promise<unknown>
+  reset_processing_config(): Promise<unknown>
+  reset_style_config(): Promise<unknown>
+  scan_files(force?: boolean): Promise<unknown>
+  run_pipeline(targets: string[], config: Record<string, unknown>): Promise<unknown>
+  poll_progress(): Promise<unknown>
+  get_results(): Promise<unknown>
+  get_stats(outcrop: string): Promise<unknown>
+  get_comparison(outcrops: string[]): Promise<unknown>
+  get_data(outcrop: string, section: string, page: number, page_size: number, source?: string): Promise<unknown>
+  generate_preview(config: Record<string, unknown>): Promise<unknown>
   get_logs(tail?: number, level?: string): Promise<string[]>
-  generate_report(outcrop: string, report_type: string, fmt: string, save_path?: string): Promise<Record<string, unknown>>
-  generate_reports_zip(targets: string[], report_type: string, fmt: string, save_path?: string): Promise<Record<string, unknown>>
-  poll_report_progress(): Promise<Record<string, unknown> | null>
-  get_provenance(outcrop: string): Promise<Record<string, unknown>>
-  get_audit_log(limit?: number): Promise<Record<string, unknown>[]>
+  generate_report(outcrop: string, report_type: string, fmt: string, save_path?: string): Promise<unknown>
+  generate_reports_zip(targets: string[], report_type: string, fmt: string, save_path?: string): Promise<unknown>
+  poll_report_progress(): Promise<unknown>
+  get_provenance(outcrop: string): Promise<unknown>
+  get_audit_log(limit?: number): Promise<unknown>
   open_external(url: string): Promise<boolean>
   open_directory(path: string): Promise<boolean>
   browse_folder(): Promise<string>
   ask_save_path(defaultName?: string, fileFilter?: string): Promise<string>
   export_config_json(folder: string, content: string): Promise<boolean>
-  get_image_meta(path: string): Promise<Record<string, unknown>>
+  get_image_meta(path: string): Promise<unknown>
   get_image_data(path: string): Promise<{ data?: string; mtime_ns?: number; size?: number }>
   get_image(path: string): Promise<string>
   get_image_thumbnail(path: string, maxPx?: number): Promise<string>
-  preload_fonts(): Promise<Record<string, unknown>>
+  preload_fonts(): Promise<unknown>
   check_webview2(): Promise<{ installed: boolean }>
   window_minimize(): Promise<boolean>
   window_maximize(): Promise<boolean>
@@ -185,6 +185,7 @@ function mockApi(): GuiApiInterface {
     generate_report: async (_outcrop: string, _report_type: string, _fmt: string, _save_path?: string) => ({}),
     generate_reports_zip: async () => ({ zip_path: 'output/reports/reports_20240101_120000.zip', count: 2, errors: [] }),
     get_provenance: async () => ({}),
+    poll_report_progress: async () => null as unknown as Record<string, unknown>,
     get_audit_log: async () => [],
     open_external: async (_url: string) => true,
     open_directory: async () => true,
@@ -202,7 +203,7 @@ function mockApi(): GuiApiInterface {
     window_resize: async (_w: number, _h: number) => true,
     window_close: async () => true,
     window_move_by: async (_dx: number, _dy: number) => true,
-    window_position: async () => ({ x: 0, y: 0 }),
+    window_position: async () => ({ x: 0, y: 0 }) as { x: number; y: number },
     window_move_to: async (_x: number, _y: number) => true,
     window_is_maximized: async () => false,
   }

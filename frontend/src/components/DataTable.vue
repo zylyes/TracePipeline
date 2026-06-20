@@ -91,17 +91,17 @@ async function loadData() {
   try {
     const src = props.source || 'output'
     const section = src === 'output' ? (SECTION_MAP[activeTab.value] || activeTab.value) : activeTab.value
-    const res = await api.get_data(props.outcrop, section, page.value, pageSize.value, src)
+    const res = (await api.get_data(props.outcrop, section, page.value, pageSize.value, src)) as Record<string, any>
     if (res.error) {
-      msg.error(res.error)
+      msg.error(res.error as string)
       tableData.value = []
       columns.value = []
       total.value = 0
       return
     }
-    tableData.value = res.data || []
-    columns.value = res.columns || []
-    total.value = res.total || 0
+    tableData.value = (res.data || []) as any[]
+    columns.value = (res.columns || []) as any[]
+    total.value = (res.total || 0) as number
   } catch (e) {
     msg.error('加载数据失败')
   } finally {

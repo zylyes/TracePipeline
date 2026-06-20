@@ -24,7 +24,7 @@ export async function loadImageBase64(path: string): Promise<string> {
   let version: string | null = null
 
   try {
-    const meta = await api.get_image_meta(cleanPath)
+    const meta = (await api.get_image_meta(cleanPath)) as ImageMeta | null
     version = imageVersion(meta)
   } catch (_err: unknown) {
     version = null
@@ -58,7 +58,7 @@ export async function loadImageThumbnail(path: string, maxPx = 480): Promise<str
   let version: string | null = null
 
   try {
-    const meta = await api.get_image_meta(cleanPath)
+    const meta = (await api.get_image_meta(cleanPath)) as ImageMeta | null
     version = imageVersion(meta)
   } catch (_err: unknown) {
     version = null

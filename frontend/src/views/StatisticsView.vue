@@ -180,8 +180,8 @@ async function loadOutcrops(force = false) {
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
-      files = await api.scan_files(force)
-      cacheStore.setScan(files!)
+      files = (await api.scan_files(force)) as any[]
+      cacheStore.setScan(files)
     }
     outcrops.value = files!.map((f: any) => f.outcrop)
     if (outcrops.value.length && !selectedOutcrop.value) {
@@ -222,11 +222,11 @@ async function loadStats(force = false) {
   try {
     let res = force ? null : cacheStore.getStats(selectedOutcrop.value)
     if (!res) {
-      const fetched = await api.get_stats(selectedOutcrop.value)
+      const fetched = (await api.get_stats(selectedOutcrop.value)) as any
       if (fetched && !fetched.error) {
-        cacheStore.setStats(selectedOutcrop.value, fetched as any)
+        cacheStore.setStats(selectedOutcrop.value, fetched)
       }
-      res = fetched as any
+      res = fetched
     }
     if (res?.error) {
       msg.error(String(res.error))
@@ -237,10 +237,10 @@ async function loadStats(force = false) {
     // 扫描 output 目录获取图片路径（结果列表也走缓存）
     let results = force ? null : cacheStore.getResults()
     if (!results) {
-      results = await api.get_results()
-      cacheStore.setResults(results!)
+      results = (await api.get_results()) as any[]
+      cacheStore.setResults(results)
     }
-    const match = results!.find((r: any) => r.outcrop === selectedOutcrop.value)
+    const match = (results as any[]).find((r: any) => r.outcrop === selectedOutcrop.value)
     if (match) {
       rawImagePath.value = match.raw_plot || ''
       rotatedImagePath.value = match.rotated_plot || ''
@@ -341,9 +341,9 @@ function startReportProgressPolling() {
   stopReportProgressPolling()
   reportPollTimer = window.setTimeout(async function pollTick() {
     try {
-      const evt = await api.poll_report_progress()
+      const evt = (await api.poll_report_progress()) as Record<string, unknown> | null
       if (evt) {
-        reportProgress.value = evt as ReportProgress
+        reportProgress.value = evt as unknown as ReportProgress
         if (evt.type === 'complete' || evt.type === 'error') {
           setTimeout(() => { reportProgressVisible.value = false }, 2000)
           return
@@ -377,14 +377,14 @@ async function exportReport() {
   reportProgress.value = { type: 'progress', message: '正在准备导出...' }
   startReportProgressPolling()
   try {
-    const res = await api.generate_report(selectedOutcrop.value, 'full', 'both')
+    const res = (await api.generate_report(selectedOutcrop.value, 'full', 'both')) as Record<string, unknown>
     if (res.error) {
-      msg.error(res.error)
+      msg.error(res.error as string)
       return
     }
     const paths: string[] = []
-    if (res.docx) paths.push(res.docx)
-    if (res.pdf) paths.push(res.pdf)
+    if (res.docx) paths.push(res.docx as string)
+    if (res.pdf) paths.push(res.pdf as string)
     if (paths.length) {
       msg.success(`统计报告已导出: ${paths.join(', ')}`)
     } else {

@@ -395,8 +395,8 @@ async function loadComparison(force = false) {
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
-      files = await api.scan_files(force)
-      cacheStore.setScan(files!)
+      files = (await api.scan_files(force)) as any[]
+      cacheStore.setScan(files)
     }
     const outcrops = files!.map((f: any) => f.outcrop)
     if (outcrops.length === 0) {
@@ -407,10 +407,10 @@ async function loadComparison(force = false) {
 
     let data = force ? null : cacheStore.getComparison()
     if (!data) {
-      data = await api.get_comparison(outcrops)
-      cacheStore.setComparison(data!)
+      data = (await api.get_comparison(outcrops)) as any[]
+      cacheStore.setComparison(data)
     }
-    tableData.value = data!.map((d: any) => {
+    tableData.value = (data as any[]).map((d: any) => {
       const ns = d.nodes_summary || {}
       const nodeCount = ns.node_count ?? 0
       const outcropArea = d.outcrop_area ?? 0
@@ -433,11 +433,11 @@ async function loadComparison(force = false) {
     // 只保存图片路径；缩略图按需懒加载，避免一次性 base64 加载所有结果图。
     let results = force ? null : cacheStore.getResults()
     if (!results) {
-      results = await api.get_results()
-      cacheStore.setResults(results!)
+      results = (await api.get_results()) as any[]
+      cacheStore.setResults(results)
     }
     const images: GridImage[] = []
-    for (const result of results!) {
+    for (const result of results as any[]) {
       if (result.raw_plot) {
         try {
           images.push({

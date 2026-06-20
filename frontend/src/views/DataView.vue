@@ -81,8 +81,8 @@ async function loadOutcrops(force = false) {
   try {
     let files = force ? null : cacheStore.getScan()
     if (!files) {
-      files = await api.scan_files(force)
-      cacheStore.setScan(files!)
+      files = (await api.scan_files(force)) as any[]
+      cacheStore.setScan(files)
     }
     outcrops.value = files!.map((f: any) => f.outcrop)
 
@@ -123,12 +123,12 @@ async function onOutcropChange(force = false) {
   try {
     let stats = force ? null : cacheStore.getStats(selectedOutcrop.value)
     if (!stats) {
-      const fetched = await api.get_stats(selectedOutcrop.value)
+      const fetched = (await api.get_stats(selectedOutcrop.value)) as any
       if (fetched && !fetched.error) {
         cacheStore.setStats(selectedOutcrop.value, fetched as any)
-        stats = fetched as any
+        stats = fetched
       } else {
-        stats = fetched as any
+        stats = fetched
       }
     }
     basicInfo.value = stats as StatsData | null

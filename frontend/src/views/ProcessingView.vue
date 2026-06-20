@@ -207,10 +207,10 @@ async function loadFiles(force = false) {
     // 优先使用缓存，但仅当非强制刷新且缓存有效时
     let data = (!force) ? cacheStore.getScan() : null
     if (!data) {
-      data = await api.scan_files(force)
-      cacheStore.setScan(data!)
+      data = (await api.scan_files(force)) as any[]
+      cacheStore.setScan(data)
     }
-    files.value = data!.map((f: any) => ({
+    files.value = (data as any[]).map((f: any) => ({
       stem: f.stem,
       outcrop: f.outcrop,
       path: f.path,
@@ -251,7 +251,7 @@ async function handleOpenImage(row: TraceFile) {
 
   // 缓存未命中，扫描 output 目录
   try {
-    const all = await api.get_results()
+    const all = (await api.get_results()) as any[]
     const found = all.find((r: any) => r.outcrop === row.outcrop)
     if (found) {
       const result: PipelineResult = {
@@ -344,12 +344,12 @@ async function startPipeline() {
     await configStore.saveConfig(runConfig)
 
     // 再启动流水线
-    const res = await api.run_pipeline(targets, runConfig)
+    const res = (await api.run_pipeline(targets, runConfig)) as { status: string; total?: number; message?: string }
 
     if (res.status === 'started') {
       pipelineStore.running = true
       appStore.pipelineStatus = 'running'
-      pipelineStore.progress.total = res.total
+      pipelineStore.progress.total = res.total ?? 1
       startPolling()
       appStore.updateLastOperation('启动流水线')
     } else if (res.status === 'error') {

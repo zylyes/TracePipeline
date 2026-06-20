@@ -14,7 +14,7 @@ export const useConfigStore = defineStore('config', () => {
   async function loadConfig() {
     loading.value = true
     try {
-      const cfg = await api.get_config()
+      const cfg = (await api.get_config()) as Record<string, any>
       config.value = { ...cfg }
       return cfg
     } finally {
@@ -25,7 +25,7 @@ export const useConfigStore = defineStore('config', () => {
   async function saveConfig(payload: Record<string, any>) {
     loading.value = true
     try {
-      const saved = await api.set_config(payload)
+      const saved = (await api.set_config(payload)) as Record<string, any>
       config.value = { ...saved }
       invalidateCaches()
       return saved
@@ -37,7 +37,7 @@ export const useConfigStore = defineStore('config', () => {
   async function resetConfig() {
     loading.value = true
     try {
-      const cfg = await api.reset_config()
+      const cfg = (await api.reset_config()) as Record<string, any>
       config.value = { ...cfg }
       invalidateCaches()
       return cfg
@@ -49,7 +49,7 @@ export const useConfigStore = defineStore('config', () => {
   async function resetProcessingConfig() {
     loading.value = true
     try {
-      const cfg = await api.reset_processing_config()
+      const cfg = (await api.reset_processing_config()) as Record<string, any>
       config.value = { ...cfg }
       invalidateCaches()
       return cfg
@@ -61,7 +61,7 @@ export const useConfigStore = defineStore('config', () => {
   async function resetStyleConfig() {
     loading.value = true
     try {
-      const cfg = await api.reset_style_config()
+      const cfg = (await api.reset_style_config()) as Record<string, any>
       config.value = { ...cfg }
       invalidateCaches()
       return cfg

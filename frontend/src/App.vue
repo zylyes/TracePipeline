@@ -179,9 +179,9 @@ function onSplashComplete(payload: { errors: Array<{ step: string; error: string
     if (appStore.inputDir === 'input' && appStore.outputDir === 'output') {
       try {
         await api.ready()
-        const cfg = await api.get_config()
-        if (cfg.input_dir) appStore.inputDir = cfg.input_dir
-        if (cfg.output_dir) appStore.outputDir = cfg.output_dir
+        const cfg = (await api.get_config()) as Record<string, unknown>
+        if (cfg.input_dir) appStore.inputDir = cfg.input_dir as string
+        if (cfg.output_dir) appStore.outputDir = cfg.output_dir as string
         configStore.hydrateConfig(cfg)
       } catch { /* ignore */ }
     }
@@ -458,8 +458,8 @@ const bootSteps: BootStep[] = [
     targetProgress: 30,
     task: async () => {
       await api.ready()
-      const cfg = await api.get_config()
-      appStore.setDirs(cfg.input_dir || 'input', cfg.output_dir || 'output')
+      const cfg = (await api.get_config()) as Record<string, unknown>
+      appStore.setDirs((cfg.input_dir as string) || 'input', (cfg.output_dir as string) || 'output')
       configStore.hydrateConfig(cfg)
 
       const pipelineStore = usePipelineStore()
@@ -467,8 +467,8 @@ const bootSteps: BootStep[] = [
       const hasStoredNode = localStorage.getItem('tp_last_enable_node_recognition') !== null
       if (!hasStoredRose || !hasStoredNode) {
         pipelineStore.setLastRunConfig(
-          cfg.enable_node_recognition ?? false,
-          cfg.export_rose_plot ?? false
+          (cfg.enable_node_recognition as boolean) ?? false,
+          (cfg.export_rose_plot as boolean) ?? false
         )
       }
     }
@@ -477,7 +477,7 @@ const bootSteps: BootStep[] = [
     label: '正在扫描输入目录...',
     targetProgress: 55,
     task: async () => {
-      const files = await api.scan_files(true)
+      const files = (await api.scan_files(true)) as any[]
       cacheStore.setScan(files)
     }
   },
@@ -485,7 +485,7 @@ const bootSteps: BootStep[] = [
     label: '正在初始化字体缓存...',
     targetProgress: 80,
     task: async () => {
-      await api.preload_fonts()
+      await (api.preload_fonts() as Promise<unknown>)
     }
   },
   {

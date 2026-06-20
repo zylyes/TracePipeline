@@ -80,7 +80,7 @@ def _register_pdf_font(pdfmetrics, ttfont_cls, font_name: str, candidates, fallb
         try:
             pdfmetrics.registerFont(ttfont_cls(font_name, font_path))
             return font_name
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             logger.warning("注册字体 %s (%s) 失败: %s", label, font_path, exc)
     return fallback
 

@@ -401,6 +401,19 @@ class GuiApi:
                     },
                 )
                 return {"status": "error", "message": str(exc)}
+            except Exception as exc:
+                duration = (time.perf_counter() - start) * 1000
+                logger.exception(
+                    "run_pipeline 内部异常: %s (%.3f ms)",
+                    exc,
+                    duration,
+                    extra={
+                        "stage": "api_run_pipeline",
+                        "error": str(exc),
+                        "duration_ms": round(duration, 3),
+                    },
+                )
+                return {"status": "error", "message": f"内部错误: {exc}"}
 
     def poll_progress(self) -> dict[str, Any] | None:
         event = self._pipeline_svc.poll_progress()

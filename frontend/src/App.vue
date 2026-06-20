@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { msg } from '@/utils/message'
@@ -157,6 +157,9 @@ import { useConfigStore } from '@/stores/config'
 import { usePipelineStore } from '@/stores/pipeline'
 import { useCacheStore } from '@/stores/cache'
 import { api } from '@/api/pywebview'
+
+// 跟踪当前活跃的 document 事件监听器清理函数
+let _activeCleanup: (() => void) | null = null
 
 const appVersion = __APP_VERSION__
 const showSplash = ref(true)
@@ -282,10 +285,17 @@ function onTitleBarMouseDown(e: MouseEvent) {
       isDragging.value = false
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseup', onMouseUp)
+      _activeCleanup = null
     }
 
+    // 清理之前可能残留的监听器
+    if (_activeCleanup) _activeCleanup()
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
+    _activeCleanup = () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
   })
 }
 
@@ -397,10 +407,17 @@ function onContainerMouseDown(e: MouseEvent) {
       isResizing.value = false
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseup', onMouseUp)
+      _activeCleanup = null
     }
 
+    // 清理之前可能残留的监听器
+    if (_activeCleanup) _activeCleanup()
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
+    _activeCleanup = () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
   })
 }
 
@@ -442,10 +459,17 @@ function onResizeGripMouseDown(e: MouseEvent) {
       isResizing.value = false
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseup', onMouseUp)
+      _activeCleanup = null
     }
 
+    // 清理之前可能残留的监听器
+    if (_activeCleanup) _activeCleanup()
     document.addEventListener('mousemove', onMouseMove)
     document.addEventListener('mouseup', onMouseUp)
+    _activeCleanup = () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
   })
 }
 
@@ -500,6 +524,14 @@ const bootSteps: BootStep[] = [
 // config → appStore（状态栏路径显示，immediate 确保启动时同步）
 watch(() => configStore.config.input_dir as string | undefined, (val) => { if (val) appStore.inputDir = val }, { immediate: true })
 watch(() => configStore.config.output_dir as string | undefined, (val) => { if (val) appStore.outputDir = val }, { immediate: true })
+
+// 组件卸载时清理可能残留的 document 事件监听器
+onUnmounted(() => {
+  if (_activeCleanup) {
+    _activeCleanup()
+    _activeCleanup = null
+  }
+})
 </script>
 
 <style scoped lang="scss">

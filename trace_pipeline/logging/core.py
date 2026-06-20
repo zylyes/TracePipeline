@@ -276,6 +276,8 @@ class DailyRotatingJsonHandler(logging.FileHandler):
         """同目录内分片：run_001.jsonl -> run_001_part_1.jsonl。
 
         调用方须持有 _ARCHIVE_LOCK，确保 close→rename→open 原子性。
+        使用 Path.replace() 替代 rename()，确保在 Windows 上目标文件
+        已存在时也能原子覆盖。
         """
         self.close()
         base = self._log_path.stem
@@ -285,7 +287,12 @@ class DailyRotatingJsonHandler(logging.FileHandler):
             if not candidate.exists():
                 break
             part += 1
-        self._log_path.rename(candidate)
+        try:
+            self._log_path.replace(candidate)
+        except OSError as exc:
+            logging.getLogger(__name__).warning(
+                "日志分片重命名失败 %s → %s: %s", self._log_path, candidate, exc
+            )
         self._log_path = self._day_dir / f"{base}.jsonl"
         self.baseFilename = str(self._log_path)
         self.stream = self._open()

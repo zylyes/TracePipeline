@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from collections.abc import Callable
@@ -196,7 +197,9 @@ class ReportService:
             config.get("min_intersections", 5),
             config.get("rose_bin_width", 10.0),
         )
-        return f"{outcrop}:{report_type}:{fmt}:{hash(cfg_part)}"
+        # 使用稳定哈希（sha256）避免 PYTHONHASHSEED 随机化导致进程重启后缓存全部失效
+        cfg_hash = hashlib.sha256(repr(cfg_part).encode()).hexdigest()[:16]
+        return f"{outcrop}:{report_type}:{fmt}:{cfg_hash}"
 
     @staticmethod
     def _image_mtimes(img_paths: list[str]) -> dict[str, float]:

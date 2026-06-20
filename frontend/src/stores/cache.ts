@@ -225,7 +225,9 @@ export const useCacheStore = defineStore('cache', () => {
       misses.value += 1
       return null
     }
-    item.timestamp = Date.now()
+    // LRU: 不可变更新，delete + set 将条目移到 Map 末尾
+    cache.delete(key)
+    cache.set(key, { data: item.data, timestamp: Date.now() })
     hits.value += 1
     return item.data
   }
@@ -263,16 +265,9 @@ export const useCacheStore = defineStore('cache', () => {
     protectedKey?: string
   ) {
     while (cache.size > 1 && runningTotal.value > maxChars) {
-      let oldestKey: string | null = null
-      let oldestTime = Infinity
-      for (const [k, v] of cache.entries()) {
-        if (k === protectedKey) continue
-        if (v.timestamp < oldestTime) {
-          oldestTime = v.timestamp
-          oldestKey = k
-        }
-      }
-      if (oldestKey === null) break
+      // Map 按插入顺序迭代，第一个即为最久未访问（LRU）
+      const oldestKey = cache.keys().next().value
+      if (oldestKey === undefined || oldestKey === protectedKey) break
       const removed = cache.get(oldestKey)
       if (removed) runningTotal.value -= removed.data.length
       cache.delete(oldestKey)
@@ -296,17 +291,10 @@ export const useCacheStore = defineStore('cache', () => {
       }
     }
 
-    // 计数淘汰：超过最大条目时删除最旧的记录
+    // 计数淘汰：超过最大条目时删除最久未访问的记录（Map 第一个）
     if (cache.size >= maxCount && !cache.has(key)) {
-      let oldestKey: string | null = null
-      let oldestTime = Infinity
-      for (const [k, v] of cache.entries()) {
-        if (v.timestamp < oldestTime) {
-          oldestTime = v.timestamp
-          oldestKey = k
-        }
-      }
-      if (oldestKey !== null) {
+      const oldestKey = cache.keys().next().value
+      if (oldestKey !== undefined) {
         const removed = cache.get(oldestKey)
         if (removed) runningTotal.value -= removed.data.length
         cache.delete(oldestKey)

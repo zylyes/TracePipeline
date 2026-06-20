@@ -20,5 +20,6 @@
   "node_merge_tolerance": 0.01,
   "show_node_overlay": true,
   "node_label_mode": "type",
+  "parallel_workers": 0,
   "is_dev_mode": false
 }

@@ -6,6 +6,9 @@ interface ImageMeta {
   size?: number
 }
 
+/** 正在进行的图片加载请求，用于并发去重 */
+const _loadingPromises = new Map<string, Promise<string>>()
+
 function cleanImagePath(path: string): string {
   return path.replace(/^file:\/+(.*)$/, '$1')
 }
@@ -19,6 +22,21 @@ export async function loadImageBase64(path: string): Promise<string> {
   if (!path) return ''
   if (path.startsWith('data:')) return path
 
+  // 并发去重：如果同一图片正在加载，复用现有 Promise
+  const dedupKey = `full:${path}`
+  const existing = _loadingPromises.get(dedupKey)
+  if (existing) return existing
+
+  const promise = _loadImageBase64Impl(path)
+  _loadingPromises.set(dedupKey, promise)
+  try {
+    return await promise
+  } finally {
+    _loadingPromises.delete(dedupKey)
+  }
+}
+
+async function _loadImageBase64Impl(path: string): Promise<string> {
   const cacheStore = useCacheStore()
   const cleanPath = cleanImagePath(path)
   let version: string | null = null
@@ -53,6 +71,21 @@ export async function loadImageThumbnail(path: string, maxPx = 480): Promise<str
   if (!path) return ''
   if (path.startsWith('data:')) return path
 
+  // 并发去重
+  const dedupKey = `thumb:${path}:${maxPx}`
+  const existing = _loadingPromises.get(dedupKey)
+  if (existing) return existing
+
+  const promise = _loadImageThumbnailImpl(path, maxPx)
+  _loadingPromises.set(dedupKey, promise)
+  try {
+    return await promise
+  } finally {
+    _loadingPromises.delete(dedupKey)
+  }
+}
+
+async function _loadImageThumbnailImpl(path: string, maxPx: number): Promise<string> {
   const cacheStore = useCacheStore()
   const cleanPath = cleanImagePath(path)
   let version: string | null = null

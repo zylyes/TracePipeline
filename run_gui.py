@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import ctypes
+import logging
 import multiprocessing
 import sys
+import traceback
 from contextlib import suppress
 
 from trace_pipeline.utils.mpl_init import force_noninteractive_backend
@@ -39,5 +41,19 @@ if __name__ == "__main__":
     from backend.main_gui import main  # noqa: E402
     from trace_pipeline.config import ensure_workspace_dirs  # noqa: E402
 
-    ensure_workspace_dirs()
-    main()
+    try:
+        ensure_workspace_dirs()
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception:
+        try:
+            logging.exception("TracePipeline GUI 启动失败")
+        except Exception:
+            print(traceback.format_exc(), file=sys.stderr)
+        error_msg = "TracePipeline 启动失败，请检查配置或环境。"
+        try:
+            ctypes.windll.user32.MessageBoxW(0, error_msg, "TracePipeline 启动失败", 0x10)
+        except Exception:
+            pass
+        sys.exit(1)

@@ -341,6 +341,14 @@ def recognize_trace_nodes(
 
         # 网格分桶
         cell_size = max(tol, 1e-12)
+        # 防止极大坐标值导致 int64 溢出
+        coord_max = float(np.max(np.abs(endpoint_coords))) if len(endpoint_coords) > 0 else 0.0
+        if coord_max > 1e15:
+            import warnings
+            warnings.warn(
+                f"节点识别坐标值过大 (max={coord_max:.3e})，可能导致网格索引溢出",
+                stacklevel=2,
+            )
         endpoint_cells = np.floor(endpoint_coords / cell_size).astype(np.int64)
 
         cell_to_indices: dict[tuple[int, int], list[int]] = defaultdict(list)

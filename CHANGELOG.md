@@ -6,6 +6,39 @@
 
 ---
 
+## [4.3.0] - 2026-06-20
+
+### 全面代码审查与优化 — 致命缺陷修复 + 严重缺陷修复 + 性能优化
+
+#### 致命缺陷修复（阶段一）
+- `run_gui.py` / `run_trace_pipeline.py`：添加全局异常捕获，`KeyboardInterrupt` 静默退出，其他异常记录日志 + 用户友好提示（GUI 弹出 MessageBoxW，CLI 输出 stderr）
+- `gui_api.py`：`run_pipeline` 方法在 `except ValueError` 之后添加 `except Exception` 兜底，统一返回 `{"status": "error", "message": ...}`，防止异常穿透到 pywebview 调用栈
+- `output_paths.py`：新增 `_safe_glob_pattern()` 辅助函数，使用 `glob.escape()` 转义字面字符后恢复 `*` 通配符，修复 glob 模式中括号 `()` 在 Linux 上被解释为字符集导致文件匹配失败
+- `dispatcher.py`：`_terminate_worker_processes` 从访问 `executor._processes` 私有属性改为使用 `mp.active_children()` 公开 API
+- `report_service.py`：缓存键从 Python 内置 `hash()` 改为 `hashlib.sha256` 稳定哈希，修复 `PYTHONHASHSEED` 随机化导致进程重启后缓存全部失效
+- `config.example.json`：补充 `parallel_workers` 字段（默认 0=自动 CPU 数）
+
+#### 严重缺陷修复（阶段二）
+- `models.py`：`TraceData.lengths` 缓存从直接操作 `__dict__` 改为 `object.__setattr__` 标准模式，消除 CPython 实现细节依赖
+- `logging/core.py`：`_rotate` 中 `Path.rename()` 改为 `Path.replace()` 原子覆盖 + try/except 竞态保护
+- `data_service.py`：`float(val)` 转换包裹 try/except，转换失败 fallback 到 `str(val)`
+- `audit_service.py`：审计日志从仅查当天改为扫描最近 3 天（目录 + zip 归档），新增 `_scan_day_dir` 和 `_scan_zip_file` 方法
+- `cache.py`：TTLCache 批量驱逐间隔从 10 改为 3，减少过期条目驻留
+- `nodes.py`：网格分桶前添加坐标值范围检查，超 1e15 发出警告防止 int64 溢出
+
+#### 前端严重缺陷修复
+- `cache.ts`：`getCachedString` 改为 delete+set 不可变更新，消除 Vue 响应式副作用；`pruneStringCache` 和 `setCachedString` LRU 淘汰从 O(n) 遍历改为 O(1) `keys().next()`
+- `App.vue`：三处拖拽/resize 的 document 事件监听器添加 `onUnmounted` 清理 + `_activeCleanup` 跟踪，修复内存泄漏
+- `pywebview.ts`：`GuiApiInterface` 所有 `Promise<unknown>` 替换为具体返回类型（`ConfigData`/`PipelineResult[]`/`StatsData` 等），新增 10 个辅助接口，消除调用方 `as any` 转型
+- `image.ts`：添加 `_loadingPromises` Map 实现并发请求去重，相同图片同时请求时复用同一 Promise
+- `StylePreview.vue`：移除不必要的 `as Record<string, unknown>` 断言，适配类型安全改进
+
+#### 测试验证
+- 后端 pytest：52/52 通过
+- 前端 vue-tsc 类型检查：零错误
+- 前端 vitest：21/21 通过
+- 前端生产构建：成功
+
 ## [4.2.7] - 2026-06-20
 
 ### 优化

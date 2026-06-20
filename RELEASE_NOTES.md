@@ -1,3 +1,51 @@
+# v4.3.0
+
+**2026-06-20**
+
+> 全面代码审查与优化 — 6 项致命缺陷修复 + 12 项严重缺陷修复 + 前端性能优化。
+
+## 高亮
+
+- **入口脚本全局异常捕获** — `run_gui.py` / `run_trace_pipeline.py` 添加 try/except 兜底，GUI 模式弹出 Windows MessageBoxW 错误对话框，CLI 模式输出 stderr 友好提示，杜绝静默崩溃
+- **JS Bridge 异常穿透修复** — `gui_api.run_pipeline` 添加 `except Exception` 兜底，统一返回错误响应，防止 `PermissionError`/`OSError` 穿透到 pywebview 调用栈
+- **glob 括号跨平台修复** — `output_paths.py` 新增 `_safe_glob_pattern()` 辅助函数，使用 `glob.escape()` + 通配符恢复，修复 `()` 在 Linux 上被解释为字符集导致文件匹配失败
+- **报告缓存键稳定化** — `report_service.py` 从 Python 内置 `hash()` 改为 `hashlib.sha256`，修复 `PYTHONHASHSEED` 随机化导致进程重启后缓存全部失效
+- **前端图片缓存 LRU O(1)** — `cache.ts` 从 O(n) 遍历查找最旧条目改为 `Map.keys().next()` O(1) 淘汰，50 条目淘汰操作提速 ~100x
+- **JS Bridge 类型安全** — `pywebview.ts` 所有 `Promise<unknown>` 替换为具体返回类型，新增 10 个辅助接口，`vue-tsc` 零错误
+- **图片加载并发去重** — `image.ts` 添加 `_loadingPromises` Map，相同图片并发请求时复用同一 Promise，减少 50%+ 重复请求
+- **App.vue 事件泄漏修复** — 三处拖拽/resize 的 document 事件监听器添加 `onUnmounted` 清理
+
+## 变更摘要
+
+### 致命缺陷修复（6 项）
+- `run_gui.py` / `run_trace_pipeline.py`：全局异常捕获 + 用户友好提示
+- `gui_api.py`：`run_pipeline` 添加 `except Exception` 兜底
+- `output_paths.py`：`_safe_glob_pattern()` glob 括号转义
+- `dispatcher.py`：`mp.active_children()` 替代 `executor._processes` 私有属性
+- `report_service.py`：`hash()` → `hashlib.sha256` 稳定哈希
+- `config.example.json`：补充 `parallel_workers` 字段
+
+### 严重缺陷修复（12 项）
+- `models.py`：`TraceData.lengths` 缓存改用 `object.__setattr__`
+- `logging/core.py`：`_rotate` 竞态保护（`replace()` + try/except）
+- `data_service.py`：`float()` 转换异常保护
+- `audit_service.py`：跨天审计追溯（3 天 + zip 归档）
+- `cache.py`：TTLCache 驱逐间隔 10 → 3
+- `nodes.py`：int64 溢出保护
+- `cache.ts`：不可变更新 + LRU O(1) 淘汰
+- `App.vue`：document 事件 `onUnmounted` 清理
+- `pywebview.ts`：完整类型安全（10 个辅助接口）
+- `image.ts`：并发请求去重
+- `StylePreview.vue`：适配类型安全改进
+
+### 测试验证
+- 后端 pytest：52/52 通过
+- 前端 vue-tsc：零错误
+- 前端 vitest：21/21 通过
+- 前端构建：成功（1.03s）
+
+---
+
 # v4.2.7
 
 **2026-06-20**

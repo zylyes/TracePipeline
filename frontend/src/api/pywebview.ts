@@ -21,7 +21,19 @@
 /** pywebview 注入的全局对象，仅在桌面端 WebView2 环境中存在 */
 declare const pywebview: any
 
-/** 文件扫描结果条目（与 stores/cache.ts 中的定义一致） */
+import type {
+  TraceFile,
+  PipelineResult,
+  PipelineProgress,
+  ReportProgress,
+  StatsData,
+  ConfigData,
+  DataPageResult,
+  PlotOverlay,
+  ComparisonRow,
+} from '@/types'
+
+/** 文件扫描结果条目 */
 interface ScanEntry {
   stem: string
   outcrop: string
@@ -29,44 +41,108 @@ interface ScanEntry {
   status: 'completed' | 'pending'
 }
 
+/** 图片元数据 */
+interface ImageMeta {
+  path?: string
+  size?: number
+  mtime_ns?: number
+  ext?: string
+}
+
+/** 图片数据响应 */
+interface ImageDataResponse {
+  data?: string
+  mtime_ns?: number
+  size?: number
+}
+
+/** 窗口位置 */
+interface WindowPosition {
+  x: number
+  y: number
+}
+
+/** WebView2 检测结果 */
+interface WebView2CheckResult {
+  installed: boolean
+}
+
+/** 预览生成结果 */
+interface PreviewResult {
+  status: string
+  paths?: Record<string, string>
+  images?: Array<{ key: string; label: string; path: string }>
+  message?: string
+}
+
+/** 报告生成结果 */
+interface ReportResult {
+  status?: string
+  path?: string
+  message?: string
+  zip_path?: string
+  count?: number
+  errors?: string[]
+}
+
+/** 审计日志条目 */
+interface AuditEntry {
+  timestamp: string
+  action: string
+  params: Record<string, unknown>
+  result: string
+}
+
+/** 数据溯源 */
+interface ProvenanceData {
+  [key: string]: unknown
+}
+
+/** 通用 API 响应 */
+interface ApiResponse {
+  status: string
+  message?: string
+  [key: string]: unknown
+}
+
 /** GuiApi 暴露给前端的 JS Bridge 方法签名 */
 interface GuiApiInterface {
-  get_config(): Promise<unknown>
-  set_config(cfg: Record<string, unknown>): Promise<unknown>
-  reset_config(): Promise<unknown>
-  reset_processing_config(): Promise<unknown>
-  reset_style_config(): Promise<unknown>
-  scan_files(force?: boolean): Promise<unknown>
-  run_pipeline(targets: string[], config: Record<string, unknown>): Promise<unknown>
-  poll_progress(): Promise<unknown>
-  get_results(): Promise<unknown>
-  get_stats(outcrop: string): Promise<unknown>
-  get_comparison(outcrops: string[]): Promise<unknown>
-  get_data(outcrop: string, section: string, page: number, page_size: number, source?: string): Promise<unknown>
-  generate_preview(config: Record<string, unknown>): Promise<unknown>
+  get_config(): Promise<ConfigData>
+  set_config(cfg: Record<string, unknown>): Promise<ConfigData>
+  reset_config(): Promise<ConfigData>
+  reset_processing_config(): Promise<Partial<ConfigData>>
+  reset_style_config(): Promise<Partial<ConfigData>>
+  scan_files(force?: boolean): Promise<ScanEntry[]>
+  run_pipeline(targets: string[], config: Record<string, unknown>): Promise<ApiResponse>
+  poll_progress(): Promise<PipelineProgress | null>
+  get_results(): Promise<PipelineResult[]>
+  get_stats(outcrop: string): Promise<StatsData>
+  get_comparison(outcrops: string[]): Promise<ComparisonRow[]>
+  get_data(outcrop: string, section: string, page: number, page_size: number, source?: string): Promise<DataPageResult>
+  generate_preview(config: Record<string, unknown>): Promise<PreviewResult>
   get_logs(tail?: number, level?: string): Promise<string[]>
-  generate_report(outcrop: string, report_type: string, fmt: string, save_path?: string): Promise<unknown>
-  generate_reports_zip(targets: string[], report_type: string, fmt: string, save_path?: string): Promise<unknown>
-  poll_report_progress(): Promise<unknown>
-  get_provenance(outcrop: string): Promise<unknown>
-  get_audit_log(limit?: number): Promise<unknown>
+  generate_report(outcrop: string, report_type: string, fmt: string, save_path?: string): Promise<ReportResult>
+  generate_reports_zip(targets: string[], report_type: string, fmt: string, save_path?: string): Promise<ReportResult>
+  poll_report_progress(): Promise<ReportProgress | null>
+  get_provenance(outcrop: string): Promise<ProvenanceData>
+  get_audit_log(limit?: number): Promise<AuditEntry[]>
   open_external(url: string): Promise<boolean>
   open_directory(path: string): Promise<boolean>
   browse_folder(): Promise<string>
   ask_save_path(defaultName?: string, fileFilter?: string): Promise<string>
   export_config_json(folder: string, content: string): Promise<boolean>
-  get_image_meta(path: string): Promise<unknown>
-  get_image_data(path: string): Promise<{ data?: string; mtime_ns?: number; size?: number }>
+  get_image_meta(path: string): Promise<ImageMeta | null>
+  get_image_data(path: string): Promise<ImageDataResponse>
   get_image(path: string): Promise<string>
   get_image_thumbnail(path: string, maxPx?: number): Promise<string>
   preload_fonts(): Promise<unknown>
-  check_webview2(): Promise<{ installed: boolean }>
+  check_webview2(): Promise<WebView2CheckResult>
   window_minimize(): Promise<boolean>
   window_maximize(): Promise<boolean>
   window_resize(w: number, h: number): Promise<boolean>
   window_close(): Promise<boolean>
   window_move_by(dx: number, dy: number): Promise<boolean>
-  window_position(): Promise<{ x: number; y: number }>
+  window_position(): Promise<WindowPosition>
   window_move_to(x: number, y: number): Promise<boolean>
   window_is_maximized(): Promise<boolean>
 }
@@ -185,7 +261,7 @@ function mockApi(): GuiApiInterface {
     generate_report: async (_outcrop: string, _report_type: string, _fmt: string, _save_path?: string) => ({}),
     generate_reports_zip: async () => ({ zip_path: 'output/reports/reports_20240101_120000.zip', count: 2, errors: [] }),
     get_provenance: async () => ({}),
-    poll_report_progress: async () => null as unknown as Record<string, unknown>,
+    poll_report_progress: async () => null,
     get_audit_log: async () => [],
     open_external: async (_url: string) => true,
     open_directory: async () => true,
@@ -203,7 +279,7 @@ function mockApi(): GuiApiInterface {
     window_resize: async (_w: number, _h: number) => true,
     window_close: async () => true,
     window_move_by: async (_dx: number, _dy: number) => true,
-    window_position: async () => ({ x: 0, y: 0 }) as { x: number; y: number },
+    window_position: async () => ({ x: 0, y: 0 }),
     window_move_to: async (_x: number, _y: number) => true,
     window_is_maximized: async () => false,
   }

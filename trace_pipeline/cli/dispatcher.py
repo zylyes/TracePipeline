@@ -9,6 +9,8 @@ from collections.abc import Sequence
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 from tqdm import tqdm
 
 from ..config import DEFAULT_CONFIG
@@ -72,27 +74,21 @@ def _terminate_worker_processes(
     """终止超时任务对应的 worker 进程，防止孤儿进程继续消耗资源。
 
     ProcessPoolExecutor 的 future.cancel() 只能取消尚未开始的排队任务，
-    对正在运行的进程无效。此函数通过访问 executor 内部的 _processes
-    字典来发送 SIGTERM（Unix）或 TerminateProcess（Windows），确保
-    超时进程被真正终止。
+    对正在运行的进程无效。此函数使用 multiprocessing.active_children()
+    公开 API 获取活跃子进程并发送终止信号，确保超时进程被真正终止。
     """
-    # 获取 executor 内部的 pid → Process 映射
-    processes: dict[int, mp.context.SpawnProcess] = getattr(executor, "_processes", {})
-    if not processes:
-        logger.debug("无法获取 worker 进程映射，跳过进程终止")
+    children = mp.active_children()
+    if not children:
+        logger.debug("无活跃 worker 进程，跳过终止")
         return
 
-    # 收集仍在运行且属于超时 worker 的进程
-    # 注意：无法精确关联 future → pid，因此终止所有在超时发生时
-    # 仍在运行且无对应正常完成 future 的闲置 worker。
-    # 这里采用保守策略：仅在确有超时发生时，终止所有剩余 worker 进程。
-    for pid, proc in list(processes.items()):
+    for proc in children:
         try:
             if proc.is_alive():
-                logger.warning("终止超时 worker 进程 pid=%d", pid)
+                logger.warning("终止超时 worker 进程 pid=%d", proc.pid)
                 proc.terminate()
         except Exception as exc:
-            logger.debug("终止 worker 进程 pid=%d 失败: %s", pid, exc)
+            logger.debug("终止 worker 进程 pid=%s 失败: %s", getattr(proc, "pid", "?"), exc)
 
 
 def _should_use_serial(targets: Sequence[TraceFile], workers: int) -> bool:

@@ -23,7 +23,7 @@ class TTLCache:
     """
 
     # 批量驱逐间隔：每 N 次 set 才全扫描一次过期条目
-    _EVICT_BATCH_INTERVAL = 10
+    _EVICT_BATCH_INTERVAL = 3
 
     def __init__(self, ttl: float = 300.0, maxsize: int = 0) -> None:
         self._ttl = ttl

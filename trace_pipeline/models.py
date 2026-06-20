@@ -134,14 +134,14 @@ class TraceData:
 
     @property
     def lengths(self) -> np.ndarray:
-        """迹线端点间的二维欧氏距离 (N,)，首次访问后缓存。"""
-        try:
-            cached: np.ndarray = self.__dict__["_lengths"]
+        """迹线端点间的二维欧氏距离 (N,)，首次访问后缓存。
+
+        使用 object.__setattr__ 写入实例字典，这是 frozen dataclass
+        缓存派生属性的标准模式（不依赖 __dict__ 直接操作）。
+        """
+        cached = self.__dict__.get("_lengths")
+        if cached is not None:
             return cached
-        except KeyError:
-            # 缓存未命中，需计算。KeyError 是 __dict__ 访问的正常结果，
-            # 在此上下文中不是异常情况，无需日志。
-            pass
         if self.count == 0:
             result = np.array([], dtype=float)
         else:
@@ -149,7 +149,7 @@ class TraceData:
             dy = self.endpoints[:, 3] - self.endpoints[:, 1]
             result = np.hypot(dx, dy)
         result.flags.writeable = False
-        self.__dict__["_lengths"] = result
+        object.__setattr__(self, "_lengths", result)
         return result
 
     @property

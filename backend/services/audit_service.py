@@ -9,7 +9,8 @@ from __future__ import annotations
 import json
 import logging
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from trace_pipeline.utils.paths import get_project_root
@@ -51,12 +52,30 @@ class AuditService:
             return list(self._buffer)[:limit]
 
         log_dir = _PROJECT_ROOT / "logs"
-        today = datetime.now().strftime("%Y-%m-%d")
-        day_dir = log_dir / today
-        if not day_dir.is_dir():
-            return []
-
         records: list[dict[str, Any]] = []
+
+        # 扫描最近 3 天的日志（当天目录 + 前 2 天的目录或 zip 归档）
+        now = datetime.now()
+        for days_ago in range(3):
+            day = now - timedelta(days=days_ago)
+            day_str = day.strftime("%Y-%m-%d")
+            day_dir = log_dir / day_str
+            if day_dir.is_dir():
+                self._scan_day_dir(day_dir, records, limit)
+            # 也检查 zip 归档
+            zip_path = log_dir / f"{day_str}.zip"
+            if zip_path.exists():
+                self._scan_zip_file(zip_path, records, limit)
+            if len(records) >= limit:
+                break
+
+        return records[:limit]
+
+    @staticmethod
+    def _scan_day_dir(
+        day_dir: Path, records: list[dict[str, Any]], limit: int
+    ) -> None:
+        """扫描单天日志目录中的审计记录。"""
         for f in sorted(day_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True):
             try:
                 with f.open("r", encoding="utf-8") as fh:
@@ -83,4 +102,40 @@ class AuditService:
             if len(records) >= limit:
                 break
 
-        return records[:limit]
+    @staticmethod
+    def _scan_zip_file(
+        zip_path: Path, records: list[dict[str, Any]], limit: int
+    ) -> None:
+        """扫描 zip 归档中的审计记录。"""
+        import zipfile
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                for name in zf.namelist():
+                    if not name.endswith(".jsonl"):
+                        continue
+                    try:
+                        content = zf.read(name).decode("utf-8", errors="replace")
+                    except (OSError, zipfile.BadZipFile):
+                        continue
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if rec.get("event_type") == "audit" or (
+                            rec.get("extra", {}).get("event_type") == "audit"
+                        ):
+                            audit_rec: dict[str, Any] = {
+                                "timestamp": rec.get("timestamp", ""),
+                                "action": rec.get("extra", {}).get("action", ""),
+                                "params": rec.get("extra", {}).get("params", {}),
+                                "result": rec.get("extra", {}).get("result", ""),
+                            }
+                            records.append(audit_rec)
+                    if len(records) >= limit:
+                        break
+        except (OSError, zipfile.BadZipFile):
+            pass

@@ -218,11 +218,13 @@ class DataService:
                 if j >= len(row):
                     break
                 val = row.iloc[j]
-                record[h] = (
-                    float(val)
-                    if pd.notna(val) and isinstance(val, (int, float, np.integer))
-                    else (str(val) if pd.notna(val) else "")
-                )
+                if pd.notna(val) and isinstance(val, (int, float, np.integer)):
+                    try:
+                        record[h] = float(val)
+                    except (ValueError, TypeError):
+                        record[h] = str(val)
+                else:
+                    record[h] = str(val) if pd.notna(val) else ""
             if record:
                 data.append(record)
 

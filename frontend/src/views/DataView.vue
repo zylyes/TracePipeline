@@ -123,12 +123,15 @@ async function onOutcropChange(force = false) {
   try {
     let stats = force ? null : cacheStore.getStats(selectedOutcrop.value)
     if (!stats) {
-      stats = await api.get_stats(selectedOutcrop.value)
-      if (!stats.error) {
-        cacheStore.setStats(selectedOutcrop.value, stats)
+      const fetched = await api.get_stats(selectedOutcrop.value)
+      if (fetched && !fetched.error) {
+        cacheStore.setStats(selectedOutcrop.value, fetched as any)
+        stats = fetched as any
+      } else {
+        stats = fetched as any
       }
     }
-    basicInfo.value = stats
+    basicInfo.value = stats as StatsData | null
   } catch (e) {
     console.error(e)
     msg.error('加载统计数据失败')

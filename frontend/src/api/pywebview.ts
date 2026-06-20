@@ -21,13 +21,63 @@
 /** pywebview 注入的全局对象，仅在桌面端 WebView2 环境中存在 */
 declare const pywebview: any
 
+/** 文件扫描结果条目（与 stores/cache.ts 中的定义一致） */
+interface ScanEntry {
+  stem: string
+  outcrop: string
+  path: string
+  status: 'completed' | 'pending'
+}
+
+/** GuiApi 暴露给前端的 JS Bridge 方法签名 */
+interface GuiApiInterface {
+  get_config(): Promise<Record<string, unknown>>
+  set_config(cfg: Record<string, unknown>): Promise<Record<string, unknown>>
+  reset_config(): Promise<Record<string, unknown>>
+  reset_processing_config(): Promise<Record<string, unknown>>
+  reset_style_config(): Promise<Record<string, unknown>>
+  scan_files(force?: boolean): Promise<ScanEntry[]>
+  run_pipeline(targets: string[], config: Record<string, unknown>): Promise<{ status: string; total?: number; message?: string }>
+  poll_progress(): Promise<Record<string, unknown> | null>
+  get_results(): Promise<Record<string, unknown>[]>
+  get_stats(outcrop: string): Promise<Record<string, unknown>>
+  get_comparison(outcrops: string[]): Promise<Record<string, unknown>[]>
+  get_data(outcrop: string, section: string, page: number, page_size: number, source?: string): Promise<Record<string, unknown>>
+  generate_preview(config: Record<string, unknown>): Promise<Record<string, unknown>>
+  get_logs(tail?: number, level?: string): Promise<string[]>
+  generate_report(outcrop: string, report_type: string, fmt: string, save_path?: string): Promise<Record<string, unknown>>
+  generate_reports_zip(targets: string[], report_type: string, fmt: string, save_path?: string): Promise<Record<string, unknown>>
+  poll_report_progress(): Promise<Record<string, unknown> | null>
+  get_provenance(outcrop: string): Promise<Record<string, unknown>>
+  get_audit_log(limit?: number): Promise<Record<string, unknown>[]>
+  open_external(url: string): Promise<boolean>
+  open_directory(path: string): Promise<boolean>
+  browse_folder(): Promise<string>
+  ask_save_path(defaultName?: string, fileFilter?: string): Promise<string>
+  export_config_json(folder: string, content: string): Promise<boolean>
+  get_image_meta(path: string): Promise<Record<string, unknown>>
+  get_image_data(path: string): Promise<{ data?: string; mtime_ns?: number; size?: number }>
+  get_image(path: string): Promise<string>
+  get_image_thumbnail(path: string, maxPx?: number): Promise<string>
+  preload_fonts(): Promise<Record<string, unknown>>
+  check_webview2(): Promise<{ installed: boolean }>
+  window_minimize(): Promise<boolean>
+  window_maximize(): Promise<boolean>
+  window_resize(w: number, h: number): Promise<boolean>
+  window_close(): Promise<boolean>
+  window_move_by(dx: number, dy: number): Promise<boolean>
+  window_position(): Promise<{ x: number; y: number }>
+  window_move_to(x: number, y: number): Promise<boolean>
+  window_is_maximized(): Promise<boolean>
+}
+
 /**
  * 获取实际 API 对象。
  *
  * - 桌面环境：返回 `pywebview.api`（GuiApi 实例暴露的 JS 桥接方法）
  * - 浏览器/开发环境：返回 mockApi() 提供的假数据
  */
-function getApi(): any {
+function getApi(): GuiApiInterface {
   if (typeof pywebview === 'undefined' || !pywebview.api) {
     return mockApi()
   }
@@ -70,7 +120,7 @@ function waitForApi(): Promise<void> {
  * 提供与 `GuiApi` 相同的方法签名但返回假数据，
  * 允许前端在浏览器中独立开发调试，无需启动 Python 后端。
  */
-function mockApi(): any {
+function mockApi(): GuiApiInterface {
   return {
     get_config: async () => ({
       input_dir: 'input',
@@ -89,7 +139,7 @@ function mockApi(): any {
       show_node_overlay: true,
       node_label_mode: 'type',
     }),
-    set_config: async (cfg: any) => cfg,
+    set_config: async (cfg: Record<string, unknown>) => cfg,
     reset_config: async () => ({}),
     reset_processing_config: async () => ({
       process_all: true,
@@ -174,19 +224,19 @@ function mockApi(): any {
 export const api = {
   ready: () => waitForApi(),
   get_config: () => getApi().get_config(),
-  set_config: (cfg: any) => getApi().set_config(cfg),
+  set_config: (cfg: Record<string, unknown>) => getApi().set_config(cfg),
   reset_config: () => getApi().reset_config(),
   reset_processing_config: () => getApi().reset_processing_config(),
   reset_style_config: () => getApi().reset_style_config(),
   scan_files: (force?: boolean) => getApi().scan_files(force),
-  run_pipeline: (targets: string[], config: any) => getApi().run_pipeline(targets, config),
+  run_pipeline: (targets: string[], config: Record<string, unknown>) => getApi().run_pipeline(targets, config),
   poll_progress: () => getApi().poll_progress(),
   get_results: () => getApi().get_results(),
   get_stats: (outcrop: string) => getApi().get_stats(outcrop),
   get_comparison: (outcrops: string[]) => getApi().get_comparison(outcrops),
   get_data: (outcrop: string, section: string, page: number, page_size: number, source?: string) =>
     getApi().get_data(outcrop, section, page, page_size, source),
-  generate_preview: (config: any) => getApi().generate_preview(config),
+  generate_preview: (config: Record<string, unknown>) => getApi().generate_preview(config),
   get_logs: (tail?: number, level?: string) => getApi().get_logs(tail, level),
   generate_report: (outcrop: string, report_type: string, fmt: string, save_path?: string) =>
     getApi().generate_report(outcrop, report_type, fmt, save_path),

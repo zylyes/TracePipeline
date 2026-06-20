@@ -132,8 +132,9 @@ class ConfigService:
                 encoding="utf-8",
             )
             tmp_path.replace(self._path)
-        except Exception:
-            # 清理临时文件，避免残留
+        except (PermissionError, OSError, TypeError) as exc:
+            # 清理临时文件，避免残留；记录写入异常
+            logger.warning("配置写入失败: %s — %s", self._path, exc)
             with suppress(OSError):
                 tmp_path.unlink(missing_ok=True)
             raise

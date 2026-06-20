@@ -116,6 +116,17 @@ export interface ConfigData {
   window_strategy?: string
   auto_density_threshold?: number
   tangent_window_count?: number
+  hull_fill_alpha?: number
+  circle_window_fill_alpha?: number
+  trace_line_color?: string
+  hull_line_color?: string
+  circle_window_line_color?: string
+  rose_bar_color?: string
+  rose_bar_edge?: string
+  rose_grid_color?: string
+  trace_line_width?: number
+  title_font_size?: number
+  node_style?: string
   style?: Record<string, unknown>
   [key: string]: unknown
 }

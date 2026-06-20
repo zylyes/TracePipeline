@@ -78,15 +78,12 @@ def run(cmd: list[str], *, desc: str = "", cwd: Path | None = None) -> int:
     """运行命令并实时打印输出。返回退出码。"""
     label = f"  {desc}" if desc else ""
     info(f"执行: {' '.join(cmd)}{label}")
-    # Windows 上使用 shell=True 以正确处理 .cmd/.bat 文件
-    shell_mode = sys.platform == "win32"
     proc = subprocess.run(
         cmd,
         cwd=str(cwd) if cwd else None,
         stdout=sys.stdout,
         stderr=sys.stderr,
         stdin=subprocess.DEVNULL,
-        shell=shell_mode,
     )
     if proc.returncode != 0:
         error(f"命令失败，退出码: {proc.returncode}")

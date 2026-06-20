@@ -222,16 +222,17 @@ async function loadStats(force = false) {
   try {
     let res = force ? null : cacheStore.getStats(selectedOutcrop.value)
     if (!res) {
-      res = await api.get_stats(selectedOutcrop.value)
-      if (!res.error) {
-        cacheStore.setStats(selectedOutcrop.value, res)
+      const fetched = await api.get_stats(selectedOutcrop.value)
+      if (fetched && !fetched.error) {
+        cacheStore.setStats(selectedOutcrop.value, fetched as any)
       }
+      res = fetched as any
     }
-    if (res.error) {
-      msg.error(res.error)
+    if (res?.error) {
+      msg.error(String(res.error))
       return
     }
-    stats.value = res
+    stats.value = res ?? {}
 
     // 扫描 output 目录获取图片路径（结果列表也走缓存）
     let results = force ? null : cacheStore.getResults()

@@ -152,7 +152,7 @@ async function doGenerate() {
       }
     }
   } catch (e: unknown) {
-    errorMsg.value = e?.message || '预览生成失败'
+    errorMsg.value = (e instanceof Error ? e.message : String(e)) || '预览生成失败'
     for (const img of previewImages.value) {
       img.path = ''
       img.url = ''

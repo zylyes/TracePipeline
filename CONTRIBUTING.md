@@ -81,9 +81,11 @@ python run_gui.py
 
 ### 前端
 
-- 使用 TypeScript
+- 使用 TypeScript（严格模式，`vue-tsc --noEmit` 零错误）
 - 遵循 Vue 3 Composition API 风格
-- 使用 ESLint + Prettier（配置在 `frontend/` 中）
+- 使用 Pinia 状态管理 + Vue Router 路由
+- API 层通过 `GuiApiInterface` 类型桥接确保前后端类型一致
+- `any` 类型禁止使用，统一使用 `unknown` 或具体接口类型
 
 ## 提交指南
 
@@ -131,6 +133,15 @@ pytest --cov --cov-report=term --cov-report=html
 
 # 运行特定测试文件
 pytest tests/test_angles.py
+```
+
+### 前端测试
+
+```bash
+cd frontend
+npm run typecheck          # TypeScript 类型检查
+npm run test               # vitest 运行
+npm run test:watch         # vitest 监视模式
 ```
 
 测试文件位于 `tests/` 目录，覆盖核心计算模块、I/O 层、GUI 服务等。

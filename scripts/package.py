@@ -38,9 +38,25 @@ VENV_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
 _iscc = os.environ.get("ISCC_EXE", "")
 _7z = os.environ.get("SEVEN_ZIP", "")
 ISCC_EXE = Path(_iscc) if _iscc else Path(shutil.which("ISCC.exe") or "")
+# 回退到已知安装路径（shutil.which 在 venv 环境下可能找不到）
+if not ISCC_EXE.is_file():
+    for fallback in (Path(r"D:\Inno Setup 6\ISCC.exe"),):
+        if fallback.is_file():
+            ISCC_EXE = fallback
+            break
 ISS_LANG_DIR = ISCC_EXE.parent / "Languages"
 SEVEN_ZIP = Path(_7z) if _7z else Path(shutil.which("7z.exe") or "")
+if not SEVEN_ZIP.is_file():
+    for fallback in (Path(r"D:\7-Zip\7z.exe"),):
+        if fallback.is_file():
+            SEVEN_ZIP = fallback
+            break
 SFX_MODULE = SEVEN_ZIP.parent / "7z.sfx"
+if not SFX_MODULE.is_file():
+    for fallback in (Path(r"D:\7-Zip\7z.sfx"),):
+        if fallback.is_file():
+            SFX_MODULE = fallback
+            break
 
 # 输出目录名
 APP_NAME = "TracePipeline"
@@ -222,7 +238,7 @@ def check_prerequisites(
     # Inno Setup 6
     _iscc = iscc_path or ISCC_EXE
     if not skip_installer:
-        if not _iscc.exists():
+        if not _iscc.is_file():
             warn(f"未找到 Inno Setup 6 编译器: {_iscc}")
         else:
             info(f"Inno Setup 6: {_iscc}")
@@ -230,7 +246,7 @@ def check_prerequisites(
     # 7-Zip（便捷版需要）
     _se7z = seven_zip_path or SEVEN_ZIP
     if not skip_portable:
-        if not _se7z.exists():
+        if not _se7z.is_file():
             warn(f"未找到 7-Zip: {_se7z}，便捷版将不可用")
         elif not (_se7z.parent / "7z.sfx").exists():
             warn(f"未找到 7-Zip SFX 模块: {_se7z.parent / '7z.sfx'}，便捷版将不可用")
@@ -408,7 +424,7 @@ Type: files; Name: "{{app}}\\config.json"
 
 def run_inno_setup(iss_path: Path) -> bool:
     """调用 Inno Setup 6 编译器生成安装程序。"""
-    if not ISCC_EXE.exists():
+    if not ISCC_EXE.is_file():
         error(f"Inno Setup 6 编译器不存在: {ISCC_EXE}")
         return False
 

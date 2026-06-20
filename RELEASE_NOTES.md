@@ -1,3 +1,36 @@
+# v4.3.2
+
+**2026-06-20**
+
+> 代码质量与防御性编程 — 7 项一般缺陷修复。
+
+## 高亮
+
+- **配置保存临时文件残留修复** — `config_service._save()` 任何异常都清理临时文件，防止磁盘残留
+- **样式覆盖锁一致性** — `apply_style_overlays` orig 捕获→修改→恢复整个生命周期在同一锁临界区内
+- **哈希算法统一** — `preview_service.py` 从 MD5 改为 SHA-256，与全项目一致
+- **日志 tail 内存限制** — `_tail_lines` 缓冲区上限 2MB，超限截断并告警
+- **消息 badge DOM 查询回退** — 双重 rAF 后追加 setTimeout 递增延迟重试
+
+## 变更摘要
+
+### 严重缺陷修复（1 项）
+- `preview_service.py`：MD5 → SHA-256 哈希统一
+
+### 一般缺陷修复（6 项）
+- `config_service.py`：临时文件清理 + 配置重置防御性检查
+- `style.py`：apply_style_overrides 锁结构修复
+- `gui_api.py`：force 参数 bool() 转换
+- `log_service.py`：tail 缓冲区 2MB 上限
+- `message.ts`：DOM 查询 setTimeout 回退
+
+### 测试验证
+- 后端 pytest：132/132 通过
+- 前端 vitest：21/21 通过
+- 前端构建：成功（1.12s）
+
+---
+
 # v4.3.1
 
 **2026-06-20**

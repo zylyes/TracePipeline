@@ -6,6 +6,30 @@
 
 ---
 
+## [4.3.2] - 2026-06-20
+
+### 代码质量与防御性编程 — 一般缺陷修复
+
+#### 严重缺陷修复
+- `preview_service.py`：缓存键哈希从 `hashlib.md5` 统一为 `hashlib.sha256`（截取前 16 位），与 `stats_service.py`、`report_service.py` 保持一致
+
+#### 一般缺陷修复
+- `config_service.py`：`_save()` 原子写入异常时临时文件残留修复 — `json.dumps` 移入 try 块，异常捕获扩展为 `Exception`，确保任何失败都清理临时文件
+- `config_service.py`：`reset_processing()` 添加 `key in DEFAULT_CONFIG` 防御性检查，避免 `PROCESSING_KEYS` 与 `DEFAULT_CONFIG` 不同步时 KeyError
+- `style.py`：`apply_style_overrides` 锁结构修复 — 从两个独立 `with _STYLE_LOCK` 块改为 `acquire()/release()` 单次获取模式，确保 orig 捕获→修改→恢复整个生命周期在同一锁临界区内
+- `gui_api.py`：`scan_files` 方法添加 `force = bool(force)` 显式转换，防止 JS bridge 传入字符串 `"true"` 被误判
+- `log_service.py`：`_tail_lines` 添加 `_MAX_TAIL_BUFFER = 2MB` 缓冲区上限，超限时截断保留最后 2MB 数据并记录 warning
+- `message.ts`：双重 `requestAnimationFrame` DOM 查询添加 `setTimeout` 递增延迟重试回退（50ms/100ms/200ms，最多 3 次）
+
+#### 版本号同步
+- `TracePipeline-setup.iss`：AppVersion/OutputBaseFilename/UninstallDisplayName/VersionInfoVersion 同步至 4.3.1
+- `frontend/package-lock.json`：版本号同步至 4.3.1
+
+#### 测试验证
+- 后端 pytest：132/132 通过
+- 前端 vitest：21/21 通过
+- 前端生产构建：成功（1.12s）
+
 ## [4.3.1] - 2026-06-20
 
 ### 性能与安全优化 — 多进程竞态修复 + 缓存增强 + 启动加速
@@ -310,6 +334,7 @@
 
 ---
 
+[4.3.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.2
 [4.3.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.1
 [4.3.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.0
 [4.2.7]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.7

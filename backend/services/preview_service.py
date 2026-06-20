@@ -31,7 +31,7 @@ def _hash_config(config: dict[str, Any]) -> str:
     keys = ("style", "show_hull", "show_circles", "show_nodes")
     payload = {k: config.get(k) for k in keys}
     normalized = json.dumps(payload, sort_keys=True, ensure_ascii=False)
-    return hashlib.md5(normalized.encode("utf-8")).hexdigest()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
 
 
 class PreviewService:

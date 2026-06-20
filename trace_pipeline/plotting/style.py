@@ -254,31 +254,33 @@ def apply_style_overrides(style: dict[str, Any]) -> Generator[None, None, None]:
     from trace_pipeline.plotting import rose_plot as rp  # noqa: PLC0415
     from trace_pipeline.plotting import trace_plot as tp  # noqa: PLC0415
 
+    _STYLE_LOCK.acquire()
     orig: dict[str, Any] = {}
     try:
-        with _STYLE_LOCK:
-            # 保存与覆盖
-            for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
-                mod = tp if mod_name == "trace_plot" else rp
-                if hasattr(mod, attr):
-                    orig[key] = getattr(mod, attr)
-                if key in style:
-                    setattr(mod, attr, style[key])
+        # 保存与覆盖
+        for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
+            mod = tp if mod_name == "trace_plot" else rp
+            if hasattr(mod, attr):
+                orig[key] = getattr(mod, attr)
+            if key in style:
+                setattr(mod, attr, style[key])
 
-            # 字号覆盖（向后兼容 global_font_size）
-            _font_size = style.get("label_font_size")
-            if _font_size is None:
-                _font_size = style.get("global_font_size")
-            if _font_size is not None:
-                orig["_rc_font_size"] = matplotlib.rcParams.get("font.size")
-                matplotlib.rcParams["font.size"] = float(_font_size)
+        # 字号覆盖（向后兼容 global_font_size）
+        _font_size = style.get("label_font_size")
+        if _font_size is None:
+            _font_size = style.get("global_font_size")
+        if _font_size is not None:
+            orig["_rc_font_size"] = matplotlib.rcParams.get("font.size")
+            matplotlib.rcParams["font.size"] = float(_font_size)
 
-            yield
+        yield
     finally:
-        with _STYLE_LOCK:
+        try:
             for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
                 mod = tp if mod_name == "trace_plot" else rp
                 if key in orig:
                     setattr(mod, attr, orig[key])
             if "_rc_font_size" in orig:
                 matplotlib.rcParams["font.size"] = orig["_rc_font_size"]
+        finally:
+            _STYLE_LOCK.release()

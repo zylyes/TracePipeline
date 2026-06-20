@@ -16,6 +16,7 @@ _PROJECT_ROOT = get_project_root()
 _MAX_LOG_FILES = 3
 _MAX_FILE_SIZE = 10 * 1024 * 1024
 _READ_CHUNK = 65536
+_MAX_TAIL_BUFFER = 2 * 1024 * 1024  # 2MB
 
 
 def _tail_lines(path: Path, max_lines: int) -> list[str]:
@@ -31,6 +32,10 @@ def _tail_lines(path: Path, max_lines: int) -> list[str]:
             fh.seek(pos)
             chunk = fh.read(read_size)
             buf[:0] = chunk
+            if len(buf) > _MAX_TAIL_BUFFER:
+                buf = buf[-_MAX_TAIL_BUFFER:]
+                logger.warning("日志 tail 读取超过缓冲区上限 %d 字节，已截断", _MAX_TAIL_BUFFER)
+                break
             while True:
                 nl = buf.rfind(b"\n")
                 if nl == -1:

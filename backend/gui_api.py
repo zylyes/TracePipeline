@@ -332,6 +332,7 @@ class GuiApi:
             return {"status": "error", "message": str(exc)}
 
     def scan_files(self, force=False) -> list[dict[str, Any]]:
+        force = bool(force)
         start = time.perf_counter()
         output_changed = self._check_output_changed()
         # 强制刷新或 output 变更时先使后端缓存失效，确保返回最新数据

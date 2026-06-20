@@ -6,7 +6,6 @@ import copy
 import json
 import logging
 import threading
-from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -112,7 +111,8 @@ class ConfigService:
         """仅重置处理参数为默认值，保留路径和样式。"""
         with self._lock:
             for key in PROCESSING_KEYS:
-                self._config[key] = DEFAULT_CONFIG[key]
+                if key in DEFAULT_CONFIG:
+                    self._config[key] = DEFAULT_CONFIG[key]
             self._config = validate_config(self._config)
             self._save()
             return self._config
@@ -127,16 +127,17 @@ class ConfigService:
 
     def _save(self) -> None:
         """将当前配置原子写入 JSON 文件（先写临时文件再替换，防止写入中断损坏配置）。"""
-        tmp_path = self._path.with_suffix(self._path.suffix + ".tmp")
+        tmp_path = self._path.with_suffix(".tmp")
         try:
-            tmp_path.write_text(
-                json.dumps(self._config, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            content = json.dumps(self._config, ensure_ascii=False, indent=2)
+            tmp_path.write_text(content, encoding="utf-8")
             tmp_path.replace(self._path)
-        except (PermissionError, OSError, TypeError) as exc:
-            # 清理临时文件，避免残留；记录写入异常
-            logger.warning("配置写入失败: %s — %s", self._path, exc)
-            with suppress(OSError):
-                tmp_path.unlink(missing_ok=True)
+        except Exception:
+            # 任何异常（含 json.dumps TypeError、write_text OSError、replace PermissionError 等）
+            # 均清理临时文件，避免残留
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
             raise

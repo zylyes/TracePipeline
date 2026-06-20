@@ -102,6 +102,21 @@ export function showMessage(options: MessageOptions, duration?: number): Message
 
   requestAnimationFrame(() => requestAnimationFrame(checkEl))
 
+  // 回退：如果双重 rAF 后仍未找到 DOM，使用 setTimeout 递增延迟重试（最多 3 次）
+  let retries = 0
+  const maxRetries = 3
+  const delays = [50, 100, 200]
+  const retryFindBadge = () => {
+    if (tracked.el || retries >= maxRetries) return
+    const delay = delays[retries] || 200
+    retries++
+    setTimeout(() => {
+      checkEl()
+      retryFindBadge()
+    }, delay)
+  }
+  retryFindBadge()
+
   const dur = duration ?? 3000
   if (dur > 0) {
     tracked.timer = setTimeout(() => {

@@ -1,3 +1,27 @@
+# v4.2.6
+
+**2026-06-20**
+
+> GUI/CLI 双端并行处理支持，性能与用户体验双提升。
+
+## 高亮
+
+- **GUI 并行处理** — `ProcessPoolExecutor` (spawn) 替代逐目标串行执行，新增 `parallel_workers` 配置项（0=自动/cpu_count, 1=单进程串行, >1=自定义），多目标场景提速显著
+- **CLI `--force-parallel`** — 目标数 ≤2 时自动切换串行（避免进程创建开销），可通过此参数强制并行
+- **配置一致性增强** — `config_service.set()` 与 `gui_api.run_pipeline()` 增加 `reload()` 刷新，确保外部修改不被内存旧值覆盖
+- **前端事件消费优化** — 轮询改为 while 循环一次性消费所有在途事件，防止进度条卡顿和事件积压
+
+## 变更摘要
+
+- `pipeline_service.py`：移除 `_EXECUTION_LOCK`，改用 `ProcessPoolExecutor`，支持关闭信号提前中止、`cancel_futures` 子进程清理
+- `ProgressPanel.vue`：并行滑块控制权上移至父组件，移除 localStorage 持久化逻辑
+- `ProcessingView.vue`：`parallelWorkers` 与 `configStore` 双向同步，轮询消费改为 while 循环
+- `run_gui.py`：`multiprocessing.freeze_support()` 确保子进程不重复执行 GUI 初始化
+- `config.py`：`parallel_workers` 字段加入 `DEFAULT_CONFIG` / `ConfigDict`
+- `cli/args.py` + `cli/dispatcher.py`：新增 `--force-parallel` 参数与 `_should_use_serial()` 启发式判断
+
+---
+
 # v4.2.5
 
 **2026-06-20**

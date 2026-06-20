@@ -7,11 +7,16 @@
 from __future__ import annotations
 
 import ctypes
+import multiprocessing
 import sys
 from contextlib import suppress
 
 from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 from trace_pipeline.utils.paths import get_project_root
+
+# freeze_support() 必须在任何 spawn 子进程创建之前调用，
+# 确保子进程不会重复执行 GUI 初始化代码（webview、DPI 等）
+multiprocessing.freeze_support()
 
 # 在导入任何 GUI 库之前设置 DPI 感知，确保获取正确的屏幕物理像素
 # Per-Monitor V2 是 Windows 10 1607+ 推荐方案，支持多显示器不同 DPI
@@ -30,9 +35,9 @@ PROJECT_ROOT = get_project_root()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.main_gui import main  # noqa: E402
-from trace_pipeline.config import ensure_workspace_dirs  # noqa: E402
-
 if __name__ == "__main__":
+    from backend.main_gui import main  # noqa: E402
+    from trace_pipeline.config import ensure_workspace_dirs  # noqa: E402
+
     ensure_workspace_dirs()
     main()

@@ -52,6 +52,7 @@ class ConfigDict(TypedDict, total=False):
     is_dev_mode: bool
     min_intersections: int
     node_label_mode: str
+    parallel_workers: int
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -76,6 +77,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "show_node_overlay": True,
     "is_dev_mode": False,
     "node_label_mode": "type",
+    "parallel_workers": 0,
 }
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "outcrop")

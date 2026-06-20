@@ -386,7 +386,6 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 (time.perf_counter() - t0) * 1000,
                 extra={"stage": "export_excel", "excel_path": str(excel_path)},
             )
-
             # ---- 5. 绘制图片 ----
             t0 = time.perf_counter()
             raw_plot, rot_plot, rose_plot = _run_plot_stage(

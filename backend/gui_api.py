@@ -368,6 +368,8 @@ class GuiApi:
                 params={"targets": targets, "input_dir": config.get("input_dir", "")},
             )
             try:
+                # 刷新配置，确保 read parallel_workers 等外部设置的最新值
+                self._config.reload()
                 merged = {**self._config.get(), **config}
                 saved = self._config.set(merged)
                 self._sync_services_from_config(saved)

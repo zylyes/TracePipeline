@@ -58,6 +58,11 @@ def parse_args() -> argparse.Namespace:
         help="并行处理线程数（默认 0=串行，设为 0 或 1 为串行）",
     )
     parser.add_argument(
+        "--force-parallel",
+        action="store_true",
+        help="强制并行模式：当目标数较少时默认自动降级为串行，设置此参数可强制使用并行",
+    )
+    parser.add_argument(
         "--interactive", "-I", action="store_true", help="交互模式：列出文件后由用户选择处理目标"
     )
     parser.add_argument("--list", "-l", action="store_true", help="列出发现的迹线表文件后退出")

@@ -6,6 +6,20 @@
 
 ---
 
+## [4.2.6] - 2026-06-20
+
+### 新增
+- GUI 并行处理：`ProcessPoolExecutor` (spawn) 替代串行逐目标处理，`parallel_workers` 配置项（0=自动, 1=串行, >1=指定进程数）
+- CLI `--force-parallel` 参数：目标数 ≤2 时自动降级串行，可通过此参数强制并行
+- `config_service.set()` / `gui_api.run_pipeline()` 增加配置重载，确保外部磁盘变更不被内存旧值覆盖
+
+### 变更
+- `pipeline_service.py` 移除 `_EXECUTION_LOCK`，改用 `ProcessPoolExecutor` 并行调度
+- `ProgressPanel.vue` 并行滑块管理权上移至 `ProcessingView`，移除 localStorage 持久化逻辑，默认值 1 → 0
+- `ProcessingView.vue` 轮询改为 while 循环一次性消费所有在途事件，防止事件积压
+- `run_gui.py` 添加 `multiprocessing.freeze_support()`，将 GUI 导入移至 `__main__` 守卫内
+- `config.py` 新增 `parallel_workers` 配置字段（默认 0）
+
 ## [4.2.1] - 2026-06-19
 
 ### 优化

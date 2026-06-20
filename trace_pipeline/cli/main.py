@@ -100,6 +100,7 @@ def main() -> None:
         output_dir,
         workers=args.parallel,
         logger=logger,
+        force_parallel=args.force_parallel,
     )
 
     # ---- 7. 汇总 ----

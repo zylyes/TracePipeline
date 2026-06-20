@@ -93,6 +93,8 @@ class ConfigService:
     def set(self, cfg: dict[str, Any]) -> dict[str, Any]:
         """合并新配置，校验后写回磁盘。"""
         with self._lock:
+            # 刷新磁盘最新值，避免外部修改被内存旧值覆盖
+            self.reload()
             merged = {**self._config, **cfg}
             self._config = validate_config(merged)
             self._save()

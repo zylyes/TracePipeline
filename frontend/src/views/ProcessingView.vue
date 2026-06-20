@@ -58,6 +58,7 @@
     <ProgressPanel
       :running="pipelineStore.running"
       :progress="pipelineStore.progress"
+      v-model:parallel="parallelWorkers"
       @run="startPipeline"
     />
 
@@ -159,6 +160,26 @@ const currentStatus = ref('')
 const logListRef = ref<HTMLDivElement>()
 const MAX_LOGS = 50
 const startTime = ref(0)
+
+// 并行进程数（双向绑定：ProgressPanel 滑块 ↔ configStore.parallel_workers）
+const parallelWorkers = ref<number>(0)
+
+// 从 configStore 同步到 parallelWorkers（外部变更如配置加载/重置时生效）
+watch(() => configStore.config?.parallel_workers, (val) => {
+  if (val !== undefined && val !== null) {
+    const num = Number(val)
+    if (Number.isFinite(num) && num !== parallelWorkers.value) {
+      parallelWorkers.value = num
+    }
+  }
+}, { immediate: true })
+
+// 从 parallelWorkers 同步到 configStore（用户拖动滑块时写入）
+watch(parallelWorkers, (val) => {
+  if (configStore.config && configStore.config.parallel_workers !== val) {
+    configStore.config.parallel_workers = val
+  }
+})
 
 function addLog(type: ProcessLog['type'], message: string) {
   const now = new Date()
@@ -336,7 +357,7 @@ async function startPipeline() {
   )
 
   // 合并本地参数和全局配置，先保存再启动，保证后端事实源一致
-  const runConfig = { ...configStore.config, ...params.value }
+  const runConfig: Record<string, any> = { ...configStore.config, ...params.value }
   addLog('info', `运行参数: 玫瑰图=${params.value.export_rose_plot ? '是' : '否'}, 节点识别=${params.value.enable_node_recognition ? '是' : '否'}, 玫瑰DPI=${params.value.rose_dpi}, 分箱=${params.value.rose_bin_width}°, 迹线DPI=${params.value.trace_dpi}, 旋转图DPI=${params.value.rotated_trace_dpi}`)
 
   try {
@@ -387,9 +408,11 @@ function scheduleNextPoll(delay: number) {
 async function runPollTick() {
   if (pollStopped) return
   try {
-    const evt = await api.poll_progress()
+    let evt
+    while (!pollStopped && (evt = await api.poll_progress())) {
+      handlePollEvent(evt)
+    }
     pollErrorCount = 0
-    if (!pollStopped && evt) handlePollEvent(evt)
   } catch (e) {
     pollErrorCount++
     if (pollErrorCount >= MAX_POLL_ERRORS) {
@@ -401,7 +424,6 @@ async function runPollTick() {
       return
     }
   }
-  // 仅在上一次请求完成后才调度下一次,避免并发在途请求
   scheduleNextPoll(POLL_INTERVAL)
 }
 

@@ -95,6 +95,15 @@ def _terminate_worker_processes(
             logger.debug("终止 worker 进程 pid=%d 失败: %s", pid, exc)
 
 
+def _should_use_serial(targets: Sequence[TraceFile], workers: int) -> bool:
+    """判断串行是否可能比并行更快。
+
+    Windows spawn 创建进程的 overhead 约 1-3 秒/进程，
+    当目标数很少时，串行总耗时通常更短。
+    """
+    return len(targets) <= 2
+
+
 def execute_targets(
     targets: Sequence[TraceFile],
     cfg: dict[str, Any],
@@ -102,10 +111,16 @@ def execute_targets(
     output_dir: str,
     workers: int,
     logger: logging.Logger,
+    force_parallel: bool = False,
 ) -> list[RunResult]:
     """执行目标列表，支持串/并行模式，返回结果列表。"""
     total = len(targets)
     parallel = workers > 1
+
+    if parallel and not force_parallel and _should_use_serial(targets, workers):
+        logger.info("目标数较少（%d个），自动切换为串行模式以避免进程创建开销", total)
+        logger.info("提示：使用 --force-parallel 可强制并行")
+        parallel = False
 
     if parallel:
         logger.info("启用并行处理：%d 进程", workers)

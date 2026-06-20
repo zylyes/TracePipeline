@@ -8,19 +8,16 @@ import time
 from collections import deque
 from typing import Any
 
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.config import resolve_io_paths
 from trace_pipeline.logging import LogContext
-from trace_pipeline.models import PipelineStatus, RunConfig
+from trace_pipeline.models import PipelineStatus, RunConfig, RunResult
 from trace_pipeline.pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
-
-# 保护 matplotlib 全局状态，防止并发绘制时竞争。
-# 注意：Agg 后端本身线程安全，但 configure_style 使用线程局部上下文管理器，
-# 且 PyInstaller 打包环境下 matplotlib 字体缓存非线程安全，因此保留全局锁。
-# 若需并行处理多个目标，可改为 per-target 锁 + 预初始化字体缓存。
-_EXECUTION_LOCK = threading.Lock()
 
 
 class PipelineService:
@@ -116,123 +113,171 @@ class PipelineService:
                     }
                 )
 
+                # 检查关闭信号，在提交任务之前提前退出
+                if self._shutdown_event.is_set():
+                    logger.info("收到关闭信号，取消本次处理")
+                    self._emit(
+                        {
+                            "type": "complete",
+                            "current": 0,
+                            "total": total,
+                            "message": "处理已被取消",
+                            "completed_count": 0,
+                        }
+                    )
+                    return
+
+                # 构建任务配置（不在此处发进度，避免一次性刷到 100%）
+                task_configs: list[tuple[str, str, int]] = []
                 for idx, outcrop in enumerate(targets, 1):
-                    # 检查关闭信号，在两个目标之间提前退出
-                    if self._shutdown_event.is_set():
-                        logger.info(
-                            "收到关闭信号，停止处理剩余目标（已完成 %d/%d）", idx - 1, total
-                        )
-                        self._emit(
+                    table_stem = f"{outcrop}_process"
+                    task_configs.append((outcrop, table_stem, idx))
+
+                # 使用 multiprocessing 并行执行
+                # parallel_workers: 0=自动(cpu_count), 1=单进程串行, >1=指定进程数
+                requested = int(config.get("parallel_workers", 0) or 0)
+                if requested <= 0:
+                    workers = min(len(task_configs), mp.cpu_count())
+                elif requested == 1:
+                    workers = 1  # 1 个进程 = 串行（但仍在独立进程中）
+                else:
+                    workers = min(len(task_configs), requested)
+                ctx = mp.get_context("spawn")
+                logger.info(
+                    "并行执行: %d 个工作进程，%d 个目标 (配置=%d)",
+                    workers,
+                    total,
+                    requested,
+                    extra={"stage": "parallel_start", "workers": workers, "total": total, "requested": requested},
+                )
+                self._emit(
+                    {
+                        "type": "progress",
+                        "current": 0,
+                        "total": total,
+                        "filename": "",
+                        "message": f"并行处理中（{workers} 进程）...",
+                    }
+                )
+                with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as executor:
+                    future_to_info: dict[Any, tuple[str, str, int, float]] = {}
+                    for outcrop, table_stem, idx in task_configs:
+                        cfg = RunConfig.from_mapping(
                             {
-                                "type": "complete",
-                                "current": idx - 1,
-                                "total": total,
-                                "message": "处理已被取消",
-                                "completed_count": completed_count,
+                                **config,
+                                "input_dir": in_path,
+                                "output_dir": out_path,
+                                "table_stem": table_stem,
+                                "outcrop": outcrop,
+                                "output_prefix": outcrop,
                             }
                         )
-                        break
-                    table_stem = f"{outcrop}_process"
-                    item_start = time.perf_counter()
-                    logger.info(
-                        "正在处理: %s (%d/%d)",
-                        outcrop,
-                        idx,
-                        total,
-                        extra={
-                            "stage": "item_start",
-                            "outcrop": outcrop,
-                            "idx": idx,
-                            "total": total,
-                        },
-                    )
-                    self._emit(
-                        {
-                            "type": "progress",
-                            "current": idx,
-                            "total": total,
-                            "filename": table_stem,
-                            "message": f"正在处理 {outcrop}...",
-                        }
-                    )
+                        item_start = time.perf_counter()
+                        future = executor.submit(run_pipeline, cfg)
+                        future_to_info[future] = (outcrop, table_stem, idx, item_start)
 
-                    cfg = RunConfig.from_mapping(
-                        {
-                            **config,
-                            "input_dir": in_path,
-                            "output_dir": out_path,
-                            "table_stem": table_stem,
-                            "outcrop": outcrop,
-                            "output_prefix": outcrop,
-                        }
-                    )
+                    for future in as_completed(future_to_info):
+                        # 检查关闭信号
+                        if self._shutdown_event.is_set():
+                            logger.info(
+                                "收到关闭信号，停止处理剩余目标（已完成 %d/%d）",
+                                completed_count,
+                                total,
+                            )
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            self._emit(
+                                {
+                                    "type": "complete",
+                                    "current": completed_count,
+                                    "total": total,
+                                    "message": "处理已被取消",
+                                    "completed_count": completed_count,
+                                }
+                            )
+                            return
 
-                    with _EXECUTION_LOCK:
-                        result = run_pipeline(cfg)
-                    item_duration = (time.perf_counter() - item_start) * 1000
-                    result_dict = {
-                        "outcrop": outcrop,
-                        "status": result.status.value,
-                        "trace_count": result.trace_count,
-                        "mean_length": result.mean_length,
-                        "scanline_azimuth": result.scanline_azimuth,
-                        "excel_path": result.excel_path,
-                        "raw_plot": result.raw_plot_path,
-                        "rotated_plot": result.rotated_plot_path,
-                        "rose_plot": result.rose_plot_path,
-                        "window_strategy": result.window_strategy,
-                        "area_source": result.area_source,
-                        "error": result.error,
-                        "error_type": result.error_type,
-                        "node_count": result.node_count,
-                        "node_x_count": result.node_x_count,
-                        "node_y_count": result.node_y_count,
-                        "node_i_count": result.node_i_count,
-                    }
-                    completed_count += 1
-                    if result.status is PipelineStatus.SUCCESS:
-                        logger.info(
-                            "%s 处理完成 (%.3f ms)",
-                            outcrop,
-                            item_duration,
-                            extra={
-                                "stage": "item_end",
-                                "outcrop": outcrop,
-                                "duration_ms": round(item_duration, 3),
-                            },
-                        )
-                    else:
-                        logger.error(
-                            "%s 处理失败 [%s]: %s (%.3f ms)",
-                            outcrop,
-                            result.error_type,
-                            result.error,
-                            item_duration,
-                            extra={
-                                "stage": "item_end",
-                                "outcrop": outcrop,
-                                "error": result.error,
-                                "error_type": result.error_type,
-                                "duration_ms": round(item_duration, 3),
-                            },
-                        )
-                    fail_hint = ""
-                    if result.error_type == "PermissionError":
-                        fail_hint = "（文件被占用，请关闭 Excel/WPS 后重试）"
-                    elif result.error_type == "FileNotFoundError":
-                        fail_hint = "（输入文件不存在）"
-                    self._emit(
-                        {
-                            "type": "file_complete",
-                            "current": idx,
-                            "total": total,
-                            "filename": table_stem,
-                            "message": f"{outcrop} 处理完成"
-                            if result.status is PipelineStatus.SUCCESS
-                            else f"{outcrop} 处理失败{fail_hint}",
-                            "result": result_dict,
+                        outcrop, table_stem, idx, item_start = future_to_info[future]
+                        try:
+                            result = future.result()
+                        except Exception as exc:
+                            result = RunResult.failure(
+                                table_stem=table_stem,
+                                error=str(exc),
+                                error_type=type(exc).__name__,
+                            )
+                        item_duration = (time.perf_counter() - item_start) * 1000
+                        result_dict = {
+                            "outcrop": outcrop,
+                            "status": result.status.value,
+                            "trace_count": result.trace_count,
+                            "mean_length": result.mean_length,
+                            "scanline_azimuth": result.scanline_azimuth,
+                            "excel_path": result.excel_path,
+                            "raw_plot": result.raw_plot_path,
+                            "rotated_plot": result.rotated_plot_path,
+                            "rose_plot": result.rose_plot_path,
+                            "window_strategy": result.window_strategy,
+                            "area_source": result.area_source,
+                            "error": result.error,
+                            "error_type": result.error_type,
+                            "node_count": result.node_count,
+                            "node_x_count": result.node_x_count,
+                            "node_y_count": result.node_y_count,
+                            "node_i_count": result.node_i_count,
                         }
-                    )
+                        completed_count += 1
+                        self._emit(
+                            {
+                                "type": "progress",
+                                "current": completed_count,
+                                "total": total,
+                                "filename": table_stem,
+                                "message": f"{outcrop} 处理完成 ({completed_count}/{total})",
+                            }
+                        )
+                        if result.status is PipelineStatus.SUCCESS:
+                            logger.info(
+                                "%s 处理完成 (%.3f ms)",
+                                outcrop,
+                                item_duration,
+                                extra={
+                                    "stage": "item_end",
+                                    "outcrop": outcrop,
+                                    "duration_ms": round(item_duration, 3),
+                                },
+                            )
+                        else:
+                            logger.error(
+                                "%s 处理失败 [%s]: %s (%.3f ms)",
+                                outcrop,
+                                result.error_type,
+                                result.error,
+                                item_duration,
+                                extra={
+                                    "stage": "item_end",
+                                    "outcrop": outcrop,
+                                    "error": result.error,
+                                    "error_type": result.error_type,
+                                    "duration_ms": round(item_duration, 3),
+                                },
+                            )
+                        fail_hint = ""
+                        if result.error_type == "PermissionError":
+                            fail_hint = "（文件被占用，请关闭 Excel/WPS 后重试）"
+                        elif result.error_type == "FileNotFoundError":
+                            fail_hint = "（输入文件不存在）"
+                        self._emit(
+                            {
+                                "type": "file_complete",
+                                "current": completed_count,
+                                "total": total,
+                                "filename": table_stem,
+                                "message": f"{outcrop} 处理完成"
+                                if result.status is PipelineStatus.SUCCESS
+                                else f"{outcrop} 处理失败{fail_hint}",
+                                "result": result_dict,
+                            }
+                        )
 
                 batch_duration = (time.perf_counter() - batch_start) * 1000
                 logger.info(

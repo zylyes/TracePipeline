@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/zylyes/TracePipeline/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.2.5-brightgreen" alt="Version"></a>
+  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.2.6-brightgreen" alt="Version"></a>
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/GUI-Vue_3_|_Element_Plus_|_ECharts-4FC08D?logo=vuedotframework" alt="GUI">

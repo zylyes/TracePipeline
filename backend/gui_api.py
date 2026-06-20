@@ -985,6 +985,37 @@ class GuiApi:
             )
             return {}
 
+    def get_image_data(self, path: str) -> dict[str, Any]:
+        """返回图片 base64 data URL 及文件元数据（单次调用替代 meta+image）。"""
+        try:
+            resolved = self._safe_image_path(path, "api_get_image_data")
+            if resolved is None:
+                return {}
+            p, stat, ext = resolved
+            with open(p, "rb") as f:
+                data = f.read()
+            mime = self._IMAGE_MIME_TYPES[ext]
+            b64 = base64.b64encode(data).decode("utf-8")
+            logger.debug(
+                "get_image_data → %s (%d bytes)",
+                path,
+                len(data),
+                extra={"stage": "api_get_image_data", "path": path, "size_bytes": len(data)},
+            )
+            return {
+                "data": f"data:{mime};base64,{b64}",
+                "mtime_ns": stat.st_mtime_ns,
+                "size": stat.st_size,
+            }
+        except Exception as exc:
+            logger.warning(
+                "读取图片数据失败: %s → %s",
+                path,
+                exc,
+                extra={"stage": "api_get_image_data", "path": path, "error": str(exc)},
+            )
+            return {}
+
     def get_image(self, path: str) -> str:
         """读取图片文件并返回 base64 data URL。限制在项目根目录内，单文件上限 5MB。"""
         try:

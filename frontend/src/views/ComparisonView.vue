@@ -388,7 +388,6 @@ let hasInitializedComparison = false
 
 async function loadComparison(force = false) {
   if (isLoadingComparison) {
-    console.debug('[ComparisonView] loadComparison 被重复调用，已忽略')
     return
   }
   isLoadingComparison = true

@@ -174,7 +174,6 @@ const viewerInitialIndex = ref(0)
 
 async function loadOutcrops(force = false) {
   if (isLoadingOutcrops) {
-    console.debug('[StatisticsView] loadOutcrops 被重复调用，已忽略')
     return
   }
   isLoadingOutcrops = true
@@ -205,7 +204,6 @@ let hasInitializedStats = false
 async function loadStats(force = false) {
   if (!selectedOutcrop.value) return
   if (isLoadingStats) {
-    console.debug('[StatisticsView] loadStats 被重复调用，已忽略')
     return
   }
   isLoadingStats = true

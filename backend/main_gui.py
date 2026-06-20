@@ -24,7 +24,7 @@ def get_screen_size() -> tuple[int, int]:
         return width, height
     except Exception:
         # ctypes 调用失败（非 Windows 或权限不足），降级到 tkinter
-        pass
+        logger.debug("ctypes GetSystemMetrics 失败，降级到 tkinter 获取屏幕尺寸", exc_info=True)
 
     # 回退方案：tkinter（几乎所有 Python 环境都有）
     try:
@@ -38,7 +38,7 @@ def get_screen_size() -> tuple[int, int]:
         return width, height
     except Exception:
         # tkinter 不可用（无头环境），降级到硬编码默认值
-        pass
+        logger.debug("tkinter 屏幕尺寸获取失败，使用默认值 1920x1080", exc_info=True)
 
     # 终极回退：返回常用默认值
     return 1920, 1080

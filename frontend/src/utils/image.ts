@@ -34,11 +34,16 @@ export async function loadImageBase64(path: string): Promise<string> {
   if (cached) return cached
 
   try {
-    const base64 = await api.get_image(cleanPath)
-    if (base64) {
-      cacheStore.setImage(path, base64, version)
+    const result = await api.get_image_data(cleanPath)
+    if (result && result.data) {
+      const data = result.data as string
+      if (result.mtime_ns && result.size) {
+        version = `${result.mtime_ns}-${result.size}`
+      }
+      cacheStore.setImage(path, data, version)
+      return data
     }
-    return base64 || ''
+    return ''
   } catch {
     return ''
   }

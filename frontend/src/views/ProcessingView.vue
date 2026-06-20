@@ -196,7 +196,6 @@ let isLoadingFiles = false
 
 async function loadFiles(force = false) {
   if (isLoadingFiles) {
-    console.debug('[ProcessingView] loadFiles 被重复调用，已忽略')
     return
   }
   isLoadingFiles = true
@@ -217,13 +216,13 @@ async function loadFiles(force = false) {
       path: f.path,
       status: f.status === 'completed' ? 'completed' : 'pending',
     })) as TraceFile[]
-  } catch (e: any) {
+  } catch (e: unknown) {
     const errMsg = e?.message || String(e) || '未知错误'
     msg.error(`扫描文件失败: ${errMsg}`)
     console.error('[ProcessingView] loadFiles error:', e)
     // 失败后延迟 1s 自动重试一次
     setTimeout(() => {
-      loadFiles(true).catch(() => {})
+      loadFiles(true).catch((e: unknown) => { console.error('[ProcessingView] 自动重试失败:', e) })
     }, 1000)
   } finally {
     isLoadingFiles = false
@@ -526,9 +525,9 @@ onMounted(async () => {
 // KeepAlive 激活时只在缓存过期或本地列表为空时刷新，避免首次激活重复扫描。
 onActivated(() => {
   if (!cacheStore.isScanValid) {
-    loadFiles(true).catch(() => {})
+    loadFiles(true).catch((e: unknown) => { console.error('[ProcessingView] keepAlive刷新失败:', e) })
   } else if (files.value.length === 0) {
-    loadFiles(false).catch(() => {})
+    loadFiles(false).catch((e: unknown) => { console.error('[ProcessingView] keepAlive首次加载失败:', e) })
   }
 })
 
@@ -537,7 +536,7 @@ watch(
   () => [configStore.config.input_dir, configStore.config.output_dir],
   () => {
     cacheStore.invalidateScan()
-    loadFiles(true).catch(() => {})
+    loadFiles(true).catch((e: unknown) => { console.error('[ProcessingView] 目录变更刷新失败:', e) })
   },
   { deep: true }
 )

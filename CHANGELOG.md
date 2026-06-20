@@ -287,6 +287,9 @@
 
 ---
 
+[4.3.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.0
+[4.2.7]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.7
+[4.2.6]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.6
 [4.2.5]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.5
 [4.2.4]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.4
 [4.2.3]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.3

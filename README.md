@@ -111,7 +111,7 @@ python run_gui.py
 | 📦**一键打包**           | PyInstaller + Inno Setup + 7-Zip SFX 生成 Windows 安装版与便携版                                                                               |
 | 📝**结构化日志**         | JSON Lines 格式，按日轮转，`request_id` 全链路追踪，30 天保留                                                                                |
 | 🛡️**深度安全防护**     | 路径遍历防护（含 URL 递归解码防双重编码）、外部域名白名单、图片格式/大小校验、配置字段类型强制转换、GuiApiInterface 类型安全桥接、原子配置保存 |
-| 🛡️**类型安全桥接**     | GuiApiInterface (36 方法签名) + TypeScript 严格类型，vue-tsc 零错误，前后端类型精确匹配                                                        |
+| 🛡️**类型安全桥接**     | GuiApiInterface (37 方法签名) + TypeScript 严格类型，vue-tsc 零错误，前后端类型精确匹配                                                        |
 | 🧪**完善测试**           | 后端 pytest 23 个测试文件 + 前端 Vitest 组件/Store 测试                                                                                        |
 
 ### 1.2 处理管线
@@ -437,6 +437,7 @@ cp config.example.json config.json
   "node_merge_tolerance": 0.01,
   "show_node_overlay": true,
   "node_label_mode": "type",
+  "parallel_workers": 0,
   "is_dev_mode": false
 }
 ```
@@ -465,6 +466,7 @@ cp config.example.json config.json
 | `node_merge_tolerance`    | `float`  | `0.01`          | 节点合并容差（m）                                              |
 | `show_node_overlay`       | `bool`   | `true`          | 是否在迹线图上绘制节点覆盖层                                   |
 | `node_label_mode`         | `string` | `"type"`        | 节点标注模式：`"none"` / `"type"` / `"id"`               |
+| `parallel_workers`        | `int`    | `0`             | 并行进程数（0=自动 CPU 数，1=串行，>1=指定进程数）              |
 | `is_dev_mode`             | `bool`   | `false`         | GUI 开发者模式（显示调试面板）                                 |
 
 > **CLI 覆盖**：命令行参数可覆盖配置文件中的对应字段（如 `--rose-bin 5` 覆盖 `rose_bin_width`）。
@@ -594,6 +596,7 @@ python run_trace_pipeline.py --rose-bin 5 --rose-dpi 1200
 | `--rose-bin W`        | —     | 玫瑰图分箱宽度（度）                                           |
 | `--rose-dpi DPI`      | —     | 玫瑰图分辨率                                                   |
 | `--window-strategy S` | —     | 圆窗策略：`auto` / `tangent` / `hybrid` / `concentric` |
+| `--force-parallel`    | —     | 强制并行处理（目标数 ≤2 时默认降级串行，此参数禁用该启发式）     |
 
 #### 性能参考
 
@@ -849,7 +852,7 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 ```
 TracePipeline/
 │
-├── trace_pipeline/                 # 🔧 核心计算包 (51 个 .py 文件)
+├── trace_pipeline/                 # 🔧 核心计算包 (50 个 .py 文件)
 │   ├── __init__.py                 #   包入口，惰性导入，__all__ 定义 (v4.2.5)
 │   ├── __main__.py                 #   python -m trace_pipeline 入口
 │   ├── models.py                   #   数据模型 (TraceData, RunConfig, RunResult)
@@ -912,7 +915,7 @@ TracePipeline/
 │
 ├── backend/                        # 🖥️ GUI 后端 (pywebview, 18 个 .py 文件)
 │   ├── main_gui.py                 #   pywebview 启动器、窗口管理、DPI 处理
-│   ├── gui_api.py                  #   JS Bridge API (38 个公开方法)
+│   ├── gui_api.py                  #   JS Bridge API (40 个公开方法)
 │   ├── webview2_checker.py         #   WebView2 Runtime 检测与引导
 │   ├── services/                   #   9 个后端服务模块
 │   │   ├── config_service.py       #   配置读写 (原子保存)
@@ -1219,6 +1222,9 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 | 版本   | 日期    | 里程碑                                                                  |
 | :----- | :------ | :---------------------------------------------------------------------- |
+| v4.3.0 | 2026-06 | 全面代码审计：6 项致命缺陷修复 + 12 项严重缺陷修复 + 前端性能优化      |
+| v4.2.7 | 2026-06 | 进度条平滑插值动画（requestAnimationFrame 驱动）                       |
+| v4.2.6 | 2026-06 | GUI/CLI 并行处理支持（ProcessPoolExecutor）、--force-parallel 参数     |
 | v4.2.5 | 2026-06 | 类型安全加固（25+ any→具体类型）、GuiApiInterface、shell=True 消除     |
 | v4.2.4 | 2026-06 | 安全重构：GuiApiInterface(36方法)、shell=True→shutil.which、异常精确化 |
 | v4.2.3 | 2026-06 | 前端类型安全：4 接口定义、14处 any 替换、catch(e:any)→unknown          |

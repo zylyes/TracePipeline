@@ -56,6 +56,11 @@
 
 ---
 
+<p align="center">
+  <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status">
+  <img src="https://img.shields.io/badge/coverage-90%25-success" alt="Coverage">
+</p>
+
 ## 🚀 快速开始
 
 ```bash
@@ -105,7 +110,8 @@ python run_gui.py
 | 🔍 **数据溯源** | P₁₀/P₂₀/P₂₁ 计算来源链追溯（实测/凸包/圆窗等效），审计友好 |
 | 📦 **一键打包** | PyInstaller + Inno Setup + 7-Zip SFX 生成 Windows 安装版与便携版 |
 | 📝 **结构化日志** | JSON Lines 格式，按日轮转，`request_id` 全链路追踪，30 天保留 |
-| 🛡️ **安全防护** | 路径遍历防护、外部域名白名单、图片格式校验、配置字段类型强制转换 |
+| 🛡️ **深度安全防护** | 路径遍历防护（含 URL 递归解码防双重编码）、外部域名白名单、图片格式/大小校验、配置字段类型强制转换、GuiApiInterface 类型安全桥接、原子配置保存 |
+| 🛡️ **类型安全桥接** | GuiApiInterface (36 方法签名) + TypeScript 严格类型，vue-tsc 零错误，前后端类型精确匹配 |
 | 🧪 **完善测试** | 后端 pytest 23 个测试文件 + 前端 Vitest 组件/Store 测试 |
 
 ### 1.2 处理管线
@@ -159,6 +165,33 @@ Excel 读取      坐标归一化+旋转        I/Y/X 拓扑识别    多工作�
 ---
 
 ## 🏗 2. 技术栈与系统架构
+
+```mermaid
+graph TB
+    subgraph 表示层
+        A[Vue 3 + TypeScript] --> B[Element Plus UI]
+        A --> C[ECharts 图表]
+        A --> D[Pinia 状态管理]
+    end
+    subgraph 服务层
+        E[pywebview JS Bridge] --> F[9 个 Python 服务]
+        F --> G[TTLCache 缓存体系]
+        F --> H[PathSecurityChecker]
+    end
+    subgraph 计算层
+        I[NumPy 向量化] --> J[端点计算]
+        I --> K[坐标变换]
+        I --> L[统计指标]
+        M[scipy KDTree] --> N[节点识别]
+    end
+    subgraph 数据层
+        O[pandas] --> P[Excel 读写]
+        Q[openpyxl/xlrd] --> P
+    end
+    表示层 -->|JS Bridge| 服务层
+    服务层 -->|Python API| 计算层
+    计算层 -->|DataFrame| 数据层
+```
 
 ### 2.1 四层架构
 
@@ -817,7 +850,7 @@ python scripts/package.py --skip-frontend   # 跳过前端构建（假设已构�
 TracePipeline/
 │
 ├── trace_pipeline/                 # 🔧 核心计算包 (51 个 .py 文件)
-│   ├── __init__.py                 #   包入口，惰性导入，__all__ 定义 (v4.2.1)
+│   ├── __init__.py                 #   包入口，惰性导入，__all__ 定义 (v4.2.5)
 │   ├── __main__.py                 #   python -m trace_pipeline 入口
 │   ├── models.py                   #   数据模型 (TraceData, RunConfig, RunResult)
 │   ├── config.py                   #   配置加载、路径解析、CLI 覆盖合并
@@ -1186,7 +1219,11 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 | 版本 | 日期 | 里程碑 |
 |:-----|:-----|:-------|
-| v4.2.1 | 2026-06 | 缓存性能优化、幂等样式配置、资源泄漏修复 |
+| v4.2.5 | 2026-06 | 类型安全加固（25+ any→具体类型）、GuiApiInterface、shell=True 消除 |
+| v4.2.4 | 2026-06 | 安全重构：GuiApiInterface(36方法)、shell=True→shutil.which、异常精确化 |
+| v4.2.3 | 2026-06 | 前端类型安全：4 接口定义、14处 any 替换、catch(e:any)→unknown |
+| v4.2.2 | 2026-06 | 错误处理强化：合并图片调用、清理调试残留、空 catch→错误日志 |
+| v4.2.1 | 2026-06 | 缓存性能优化（O(1)字符计数）、幂等样式配置、资源泄漏修复 |
 | v4.2.0 | 2026-06 | 报告实时进度、测试框架、绘图解耦、启动优化 |
 | v4.0.0 | 2026-06 | 公开发布：CLI + GUI 双模式，6 页面视图，一键打包 |
 | v3.2.0 | 2026-05 | 节点识别 (I/Y/X)，前端样式重构 |

@@ -1,3 +1,38 @@
+# v4.3.3
+
+**2026-06-20**
+
+> 死代码清理与接口精简 — 6 项清理，删除约 112 行代码，无功能变更。
+
+## 高亮
+
+- **日志兼容层移除** — 删除 `trace_pipeline/cli/logging_setup.py`，GUI 入口改为直接导入 `trace_pipeline.logging`
+- **绘图死代码清理** — 移除 `_add_north_arrow`、`_add_scale_bar` 及 3 个未导出辅助函数，同步清理 `__all__` 与 import
+- **样式辅助函数精简** — 删除未使用的 `text_font_kwargs`，降低公开接口噪音
+- **前端 API 接口收敛** — 移除未使用的 WebView2 检测接口、mock 实现及 api 导出
+- **打包配置同步** — 移除废弃 logging setup hidden import，避免保留无效依赖
+
+## 变更摘要
+
+### 后端日志模块清理（2 项）
+- `trace_pipeline/cli/logging_setup.py`：删除日志初始化兼容层
+- `TracePipeline.spec`：移除 `trace_pipeline.cli.logging_setup` hidden import
+
+### 绘图模块清理（3 项）
+- `plotting/_layout.py`：移除 `_add_north_arrow` 与 3 个未导出辅助函数
+- `plotting/style.py`：移除 `text_font_kwargs`
+- `plotting/trace_plot.py`：移除 `_add_scale_bar` 并清理 import
+
+### 前端 API 接口清理（1 项）
+- `pywebview.ts`：移除未使用的 WebView2 检测接口、方法声明、mock 实现及导出
+
+### 测试验证
+- 后端 pytest：148/149 通过（1 项 pre-existing failure 与本次变更无关）
+- 前端 vitest：21/21 通过
+- 前端构建：成功（1.30s）
+
+---
+
 # v4.3.2
 
 **2026-06-20**

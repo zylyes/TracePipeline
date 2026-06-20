@@ -6,6 +6,30 @@
 
 ---
 
+## [4.3.3] - 2026-06-20
+
+### 死代码清理与接口精简 — 代码清理（无功能变更）
+
+#### 后端日志模块清理
+- `trace_pipeline/cli/logging_setup.py`：删除日志初始化兼容层（仅 10 行委托代码），`backend/main_gui.py` 改为直接导入 `trace_pipeline.logging`
+- `TracePipeline.spec`：同步移除 `trace_pipeline.cli.logging_setup` hidden import 声明
+
+#### 绘图模块清理
+- `plotting/_layout.py`：移除未使用的 `_add_north_arrow` 函数及 `_split_statistics_line`、`_statistics_font_size`、`_style_trace_axes` 三个未导出函数，同步清理 `__all__`
+- `plotting/style.py`：移除未使用的 `text_font_kwargs` 函数，同步清理 `__all__`
+- `plotting/trace_plot.py`：移除未使用的 `_add_scale_bar` 函数，同步清理 import
+
+#### 前端 API 接口清理
+- `pywebview.ts`：移除未使用的 `WebView2CheckResult` 接口、`check_webview2` 方法声明、mock 实现及 api 导出
+
+#### 版本号同步
+- 文档版本号同步至 4.3.3
+
+#### 测试验证
+- 后端 pytest：148/149 通过（1 项 pre-existing failure 与本次变更无关）
+- 前端 vitest：21/21 通过
+- 前端生产构建：成功（1.30s）
+
 ## [4.3.2] - 2026-06-20
 
 ### 代码质量与防御性编程 — 一般缺陷修复

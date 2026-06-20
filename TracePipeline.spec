@@ -81,7 +81,6 @@ a = Analysis(
         "trace_pipeline.cli.args",
         "trace_pipeline.cli.dispatcher",
         "trace_pipeline.cli.interactive",
-        "trace_pipeline.cli.logging_setup",
         "trace_pipeline.logging.core",
         "trace_pipeline.logging.context",
         "trace_pipeline.models",

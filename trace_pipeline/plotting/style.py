@@ -73,7 +73,6 @@ CJK_SANS_CANDIDATES: list[str] = [
 
 __all__ = [
     "configure_style",
-    "text_font_kwargs",
     "heading_font_kwargs",
     "body_font_kwargs",
 ]
@@ -120,13 +119,6 @@ def _current_font_family() -> list[str]:
     if isinstance(family, str):
         return [family]
     return list(family)
-
-
-def text_font_kwargs(**kwargs: object) -> dict[str, Any]:
-    """返回绘图文本统一使用的字体参数（Times New Roman 优先，中文回退宋体）。"""
-    merged: dict[str, Any] = {"fontfamily": _current_font_family()}
-    merged.update(kwargs)
-    return merged
 
 
 def heading_font_kwargs(**kwargs: object) -> dict[str, Any]:

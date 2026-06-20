@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
 __all__ = [
-    "_add_north_arrow",
     "_add_outer_frame",
     "_add_scale_bar_band",
     "_add_statistics_box",
@@ -31,9 +30,6 @@ __all__ = [
     "_choose_scale_length",
     "_resolve_layout",
     "_resolve_node_style",
-    "_split_statistics_line",
-    "_statistics_font_size",
-    "_style_trace_axes",
     "_style_trace_data_axes",
 ]
 
@@ -443,60 +439,6 @@ def _style_trace_data_axes(ax: plt.Axes) -> None:
     _style_trace_axes(ax)
     for spine in ax.spines.values():
         spine.set_visible(False)
-
-
-# ── 指北针 ───────────────────────────────────────────────
-
-
-def _add_north_arrow(
-    ax: plt.Axes,
-    north_angle_deg: float,
-    *,
-    center: tuple[float, float] | None = None,
-    arrow_len: float | None = None,
-) -> None:
-    """在主图右上角绘制指北针（transAxes 坐标，不遮挡数据区）。"""
-    if not math.isfinite(north_angle_deg):
-        logger.warning("north_angle_deg 非有限值 (%s)，回退到 90.0°", north_angle_deg)
-        north_angle_deg = 90.0
-
-    arrow_len = _DEFAULT_ARROW_REL_LEN if arrow_len is None else arrow_len
-
-    if center is None:
-        center_x = _DEFAULT_ARROW_REL_X
-        center_y = _DEFAULT_ARROW_REL_Y
-    else:
-        center_x, center_y = center
-    (base_x, base_y), (tip_x, tip_y), (label_x, label_y), _dx, _dy = _north_arrow_geometry(
-        north_angle_deg, center_x, center_y, arrow_len
-    )
-
-    ax.annotate(
-        "",
-        xy=(tip_x, tip_y),
-        xytext=(base_x, base_y),
-        xycoords=ax.transAxes,
-        textcoords=ax.transAxes,
-        arrowprops=dict(
-            arrowstyle="->",
-            color="black",
-            lw=0.85,
-            mutation_scale=11,
-        ),
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-    )
-    ax.text(
-        label_x,
-        label_y,
-        "N",
-        ha="center",
-        va="center",
-        transform=ax.transAxes,
-        clip_on=True,
-        zorder=_ANNOTATION_ZORDER,
-        **heading_font_kwargs(fontsize=9.2, fontweight="bold", color="black"),
-    )
 
 
 # ── 比例尺带 ─────────────────────────────────────────────

@@ -62,11 +62,6 @@ interface WindowPosition {
   y: number
 }
 
-/** WebView2 检测结果 */
-interface WebView2CheckResult {
-  installed: boolean
-}
-
 /** 预览生成结果 */
 interface PreviewResult {
   status: string
@@ -136,7 +131,6 @@ interface GuiApiInterface {
   get_image(path: string): Promise<string>
   get_image_thumbnail(path: string, maxPx?: number): Promise<string>
   preload_fonts(): Promise<unknown>
-  check_webview2(): Promise<WebView2CheckResult>
   window_minimize(): Promise<boolean>
   window_maximize(): Promise<boolean>
   window_resize(w: number, h: number): Promise<boolean>
@@ -269,7 +263,6 @@ function mockApi(): GuiApiInterface {
     browse_folder: async () => 'C:\\mock\\folder',
     export_config_json: async (folder: string, content: string) => true,
     preload_fonts: async () => ({ status: 'ok' }),
-    check_webview2: async () => ({ installed: true }),
     get_image_meta: async (_path: string) => ({ path: _path, size: 0, mtime_ns: 0, ext: '' }),
     get_image_data: async (_path: string) => ({ data: '', mtime_ns: 0, size: 0 }),
     get_image: async (_path: string) => '',
@@ -332,7 +325,6 @@ export const api = {
   get_image: (path: string) => getApi().get_image(path),
   get_image_thumbnail: (path: string, maxPx?: number) => getApi().get_image_thumbnail(path, maxPx),
   preload_fonts: () => getApi().preload_fonts(),
-  check_webview2: () => getApi().check_webview2(),
   window_minimize: () => getApi().window_minimize(),
   window_maximize: () => getApi().window_maximize(),
   window_resize: (w: number, h: number) => getApi().window_resize(w, h),

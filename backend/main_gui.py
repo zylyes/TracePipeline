@@ -68,7 +68,7 @@ import webview  # noqa: E402
 from backend.gui_api import GuiApi  # noqa: E402
 from backend.webview2_checker import WebView2Checker  # noqa: E402
 from trace_pipeline import __version__  # noqa: E402
-from trace_pipeline.cli.logging_setup import setup_logging  # noqa: E402
+from trace_pipeline.logging import setup_logging  # noqa: E402
 
 PROJECT_ROOT = get_project_root()
 RESOURCE_ROOT = get_resource_root()

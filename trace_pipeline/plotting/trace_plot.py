@@ -21,7 +21,6 @@ from ._layout import (
     _add_statistics_box,
     _blank_panel_axes,
     _choose_scale_length,
-    _draw_scale_bar,
     _render_legend,
     _resolve_layout,
     _resolve_node_style,
@@ -279,31 +278,6 @@ def _decoration_limits(
         (layout.data_x_min - layout.left_pad, layout.data_x_max + layout.right_pad),
         (layout.data_y_min - layout.bottom_pad, layout.data_y_max + layout.top_pad),
     )
-
-
-def _add_scale_bar(
-    ax: plt.Axes,
-    layout: _DecorationLayout,
-    *,
-    data_x0: float | None = None,
-    data_y: float | None = None,
-) -> None:
-    """在主图区内绘制基于真实数据坐标的比例尺。
-
-    若未提供 ``data_x0`` / ``data_y``，则回退到原左下角硬编码位置。
-    """
-    x0 = layout.data_x_min + layout.base_span * 0.03 if data_x0 is None else data_x0
-    x1 = x0 + layout.scale_length
-    if data_y is None:
-        y = layout.data_y_min + layout.base_span * _DEFAULT_LAYOUT.scale_bar_y_offset_ratio
-    else:
-        y = data_y
-    tick = min(
-        layout.bottom_pad * _DEFAULT_LAYOUT.tick_pad_ratio,
-        layout.base_span * _DEFAULT_LAYOUT.tick_base_ratio,
-    )
-
-    _draw_scale_bar(ax, x0, x1, y, tick, layout.scale_length, label_offset_ratio=1.45)
 
 
 def _add_circle_window_overlays(

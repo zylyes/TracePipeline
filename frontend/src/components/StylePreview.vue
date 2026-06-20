@@ -151,7 +151,7 @@ async function doGenerate() {
         img.fullUrl = ''
       }
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     errorMsg.value = e?.message || '预览生成失败'
     for (const img of previewImages.value) {
       img.path = ''

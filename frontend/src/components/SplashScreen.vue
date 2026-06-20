@@ -136,7 +136,7 @@ async function runBootSequence() {
 
     try {
       await step.task()
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = err?.message || String(err) || '未知错误'
       errors.value.push({ step: step.label, error: message })
       console.warn(`[SplashScreen] 步骤失败: ${step.label} — ${message}`)

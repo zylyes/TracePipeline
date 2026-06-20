@@ -217,7 +217,7 @@ async function loadFiles(force = false) {
       status: f.status === 'completed' ? 'completed' : 'pending',
     })) as TraceFile[]
   } catch (e: unknown) {
-    const errMsg = e?.message || String(e) || '未知错误'
+    const errMsg = (e instanceof Error ? e.message : String(e)) || '未知错误'
     msg.error(`扫描文件失败: ${errMsg}`)
     console.error('[ProcessingView] loadFiles error:', e)
     // 失败后延迟 1s 自动重试一次

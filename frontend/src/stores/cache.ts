@@ -41,6 +41,43 @@ interface CachedItem<T> {
   timestamp: number
 }
 
+/** 文件扫描结果条目 */
+interface ScanEntry {
+  stem: string
+  outcrop: string
+  path: string
+  status: 'completed' | 'pending'
+}
+
+/** 统计数据（从后端返回的原始结构） */
+interface StatsResult {
+  outcrop: string
+  trace_count: number
+  p10: number | null
+  p20: number | null
+  p21: number | null
+  [key: string]: unknown
+}
+
+/** 对比数据条目 */
+interface ComparisonEntry {
+  outcrop: string
+  trace_count: number | string
+  p10: number | string
+  p20: number | string
+  p21: number | string
+  [key: string]: unknown
+}
+
+/** 处理结果条目 */
+interface ResultEntry {
+  outcrop: string
+  raw_plot: string
+  rotated_plot: string
+  rose_plot: string
+  [key: string]: unknown
+}
+
 const SCAN_STORE_KEY = 'tp_cache_scan'
 const COMPARISON_STORE_KEY = 'tp_cache_comparison'
 const RESULTS_STORE_KEY = 'tp_cache_results'
@@ -73,13 +110,13 @@ function storeItem<T>(key: string, item: CachedItem<T> | null) {
 
 export const useCacheStore = defineStore('cache', () => {
   // 扫描结果缓存（页面刷新后从 sessionStorage 恢复）
-  const scanResult = ref<CachedItem<any[]> | null>(loadStoredItem<any[]>(SCAN_STORE_KEY))
+  const scanResult = ref<CachedItem<ScanEntry[]> | null>(loadStoredItem<ScanEntry[]>(SCAN_STORE_KEY))
   // 统计数据缓存: outcrop -> data
-  const statsCache = ref<Map<string, CachedItem<any>>>(new Map())
+  const statsCache = ref<Map<string, CachedItem<StatsResult>>>(new Map())
   // 对比数据缓存
-  const comparisonCache = ref<CachedItem<any[]> | null>(loadStoredItem<any[]>(COMPARISON_STORE_KEY))
+  const comparisonCache = ref<CachedItem<ComparisonEntry[]> | null>(loadStoredItem<ComparisonEntry[]>(COMPARISON_STORE_KEY))
   // 结果列表缓存
-  const resultsCache = ref<CachedItem<any[]> | null>(loadStoredItem<any[]>(RESULTS_STORE_KEY))
+  const resultsCache = ref<CachedItem<ResultEntry[]> | null>(loadStoredItem<ResultEntry[]>(RESULTS_STORE_KEY))
   // 图片缓存: path -> base64
   const imageCache = ref<Map<string, CachedItem<string>>>(new Map())
   const thumbnailCache = ref<Map<string, CachedItem<string>>>(new Map())
@@ -106,17 +143,17 @@ export const useCacheStore = defineStore('cache', () => {
   })
 
   // --- 扫描结果 ---
-  function setScan(data: any[]) {
+  function setScan(data: ScanEntry[]) {
     scanResult.value = { data, timestamp: Date.now() }
     storeItem(SCAN_STORE_KEY, scanResult.value)
   }
 
-  function getScan(): any[] | null {
+  function getScan(): ScanEntry[] | null {
     return isScanValid.value ? scanResult.value!.data : null
   }
 
   // --- 统计数据 ---
-  function getStats(outcrop: string): any | null {
+  function getStats(outcrop: string): StatsResult | null {
     const item = statsCache.value.get(outcrop)
     if (!item) return null
     if (Date.now() - item.timestamp > STATS_TTL) {
@@ -129,7 +166,7 @@ export const useCacheStore = defineStore('cache', () => {
     return item.data
   }
 
-  function setStats(outcrop: string, data: any) {
+  function setStats(outcrop: string, data: StatsResult) {
     if (statsCache.value.size >= STATS_MAX_COUNT && !statsCache.value.has(outcrop)) {
       // Map 的 keys() 按插入顺序迭代，第一个即为最久未使用
       const firstKey = statsCache.value.keys().next().value
@@ -139,21 +176,21 @@ export const useCacheStore = defineStore('cache', () => {
   }
 
   // --- 对比数据 ---
-  function getComparison(): any[] | null {
+  function getComparison(): ComparisonEntry[] | null {
     return isComparisonValid.value ? comparisonCache.value!.data : null
   }
 
-  function setComparison(data: any[]) {
+  function setComparison(data: ComparisonEntry[]) {
     comparisonCache.value = { data, timestamp: Date.now() }
     storeItem(COMPARISON_STORE_KEY, comparisonCache.value)
   }
 
   // --- 结果列表 ---
-  function getResults(): any[] | null {
+  function getResults(): ResultEntry[] | null {
     return isResultsValid.value ? resultsCache.value!.data : null
   }
 
-  function setResults(data: any[]) {
+  function setResults(data: ResultEntry[]) {
     resultsCache.value = { data, timestamp: Date.now() }
     storeItem(RESULTS_STORE_KEY, resultsCache.value)
   }

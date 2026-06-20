@@ -26,7 +26,7 @@ export async function loadImageBase64(path: string): Promise<string> {
   try {
     const meta = await api.get_image_meta(cleanPath)
     version = imageVersion(meta)
-  } catch {
+  } catch (_err: unknown) {
     version = null
   }
 
@@ -44,7 +44,7 @@ export async function loadImageBase64(path: string): Promise<string> {
       return data
     }
     return ''
-  } catch {
+  } catch (_err: unknown) {
     return ''
   }
 }
@@ -60,7 +60,7 @@ export async function loadImageThumbnail(path: string, maxPx = 480): Promise<str
   try {
     const meta = await api.get_image_meta(cleanPath)
     version = imageVersion(meta)
-  } catch {
+  } catch (_err: unknown) {
     version = null
   }
 
@@ -73,7 +73,7 @@ export async function loadImageThumbnail(path: string, maxPx = 480): Promise<str
       cacheStore.setThumbnail(path, thumbnail, version, maxPx)
     }
     return thumbnail || ''
-  } catch {
+  } catch (_err: unknown) {
     return ''
   }
 }

@@ -116,12 +116,12 @@ export interface ConfigData {
   window_strategy?: string
   auto_density_threshold?: number
   tangent_window_count?: number
-  style?: Record<string, any>
-  [key: string]: any
+  style?: Record<string, unknown>
+  [key: string]: unknown
 }
 
 export interface DataPageResult {
-  data: any[]
+  data: Record<string, unknown>[]
   total: number
   columns: string[]
   error?: string

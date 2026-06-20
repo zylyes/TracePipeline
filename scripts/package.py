@@ -76,8 +76,14 @@ def error(msg: str) -> None:
 
 def run(cmd: list[str], *, desc: str = "", cwd: Path | None = None) -> int:
     """运行命令并实时打印输出。返回退出码。"""
+    import shutil
+
     label = f"  {desc}" if desc else ""
     info(f"执行: {' '.join(cmd)}{label}")
+    # 使用 shutil.which 解析裸命令名（如 npm）的全路径，已含路径分隔符的则保持原样
+    exe = shutil.which(cmd[0]) if "/" not in cmd[0] and "\\" not in cmd[0] else None
+    if exe:
+        cmd = [exe] + cmd[1:]
     proc = subprocess.run(
         cmd,
         cwd=str(cwd) if cwd else None,

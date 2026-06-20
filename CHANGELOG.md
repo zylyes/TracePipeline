@@ -16,6 +16,44 @@
 ### 修复
 - `get_image_thumbnail` BytesIO 未使用 context manager 导致的资源泄漏
 
+## [4.2.5] - 2026-06-20
+
+### 优化
+- Python 异常捕获精确化（`except Exception` → `except (ValueError, OSError, RuntimeError)`）
+- 前端 API 层类型断言补完，`vue-tsc --noEmit` 零错误
+
+## [4.2.4] - 2026-06-20
+
+### 新增
+- `GuiApiInterface` 接口定义（36 方法签名），收窄 API 返回类型
+
+### 变更
+- 移除 `scripts/package.py` 中 `shell=True` 模式，消除命令注入风险
+- 视图层 `any` 类型收窄，增强空安全与错误处理健壮性
+
+### 修复
+- `config_service._save()` 异常捕获精确化，增加写入失败日志
+
+## [4.2.3] - 2026-06-20
+
+### 变更
+- 前端类型安全加固：缓存 Store 新增 4 接口定义，替换 14 处 `any`
+- `ConfigData` / `DataPageResult` 接口 `any` → `unknown`
+- `catch (e: any)` → `catch (e: unknown)`（StylePreview / SplashScreen）
+- 4 处裸 `catch {}` 补充异常参数
+
+## [4.2.2] - 2026-06-19
+
+### 新增
+- `get_image_data` 方法：合并图片元数据与加载为单次 JS bridge 调用
+
+### 变更
+- 清理 5 处 `console.debug` 开发调试残留
+- 4 处空 `.catch(() => {})` 替换为 `console.error` 错误日志
+
+### 修复
+- `main_gui.py` 静默 `except:pass` 添加 `logger.debug` 降级日志
+
 ## [4.2.0] - 2026-06-18
 
 ### 新增
@@ -194,6 +232,10 @@
 
 ---
 
+[4.2.5]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.5
+[4.2.4]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.4
+[4.2.3]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.3
+[4.2.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.2
 [4.2.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.2.0
 [4.0.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.0.0
 [3.9.0]: https://github.com/zylyes/TracePipeline/releases/tag/v3.9.0

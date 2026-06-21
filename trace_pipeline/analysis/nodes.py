@@ -199,9 +199,7 @@ def recognize_trace_nodes(
     warnings_list: list[str] = []
     degenerate_count = 0
 
-    # ------------------------------------------------------------------
     # 预处理：计算迹线元数据
-    # ------------------------------------------------------------------
     x1 = endpoints[:, 0]
     y1 = endpoints[:, 1]
     x2 = endpoints[:, 2]
@@ -245,9 +243,7 @@ def recognize_trace_nodes(
     max_half_len = float(np.max(valid_half_lens))
     bbox_margin = max(tol, max_half_len * 0.5)
 
-    # ------------------------------------------------------------------
-    # Phase 1: 高效迹线对筛选 + 相交检测
-    # ------------------------------------------------------------------
+    # 阶段1：迹线对筛选与相交检测
     used_endpoints: set[tuple[int, int]] = set()
 
     # 对每条迹线，找出候选邻居（包围盒可能重叠）
@@ -321,9 +317,7 @@ def recognize_trace_nodes(
                 used_endpoints.add((i, t_end))
                 used_endpoints.add((j, u_end))
 
-    # ------------------------------------------------------------------
-    # Phase 2: 端点接近检测（向量化）
-    # ------------------------------------------------------------------
+    # 阶段2：端点接近检测（向量化）
     # 收集未使用端点
     unused_endpoints: list[tuple[int, int, float, float]] = []
     for i in range(n):
@@ -387,14 +381,10 @@ def recognize_trace_nodes(
                 )
                 used_endpoints.add((trace_idx, end_idx))
 
-    # ------------------------------------------------------------------
-    # Phase 3: 聚类合并
-    # ------------------------------------------------------------------
+    # 阶段3：聚类合并
     clusters = _merge_candidates(candidates, cluster_tol)
 
-    # ------------------------------------------------------------------
     # 节点生成
-    # ------------------------------------------------------------------
     nodes: list[TraceNode] = []
     for node_id, cluster in enumerate(clusters):
         cx = float(np.mean([c.x for c in cluster]))

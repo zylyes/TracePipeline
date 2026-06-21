@@ -363,9 +363,7 @@ class ReportService:
         )
         return results
 
-    # ------------------------------------------------------------------
     # 共享：提取报告数据上下文（消除 docx/pdf 之间的重复）
-    # ------------------------------------------------------------------
     def _build_report_context(
         self, outcrop: str, trace, statistics, report_type: str, config: dict[str, Any]
     ) -> dict[str, Any]:
@@ -414,9 +412,7 @@ class ReportService:
             "img_paths": img_names,
         }
 
-    # ------------------------------------------------------------------
     # Word
-    # ------------------------------------------------------------------
     def _gen_docx(self, outcrop: str, ctx: dict[str, Any]) -> dict[str, str]:
         try:
             from docx import Document
@@ -481,9 +477,7 @@ class ReportService:
             logger.exception("DOCX 生成失败: %s", exc)
             return {"error": f"DOCX 生成失败: {exc}"}
 
-    # ------------------------------------------------------------------
     # PDF
-    # ------------------------------------------------------------------
     def _gen_pdf(self, outcrop: str, ctx: dict[str, Any]) -> dict[str, str]:
         try:
             from reportlab.lib.enums import TA_CENTER

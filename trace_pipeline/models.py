@@ -35,9 +35,7 @@ __all__ = [
 ]
 
 
-# ===========================================================================
 # TraceData — 解析后的迹线数据
-# ===========================================================================
 
 
 @dataclass(frozen=True)
@@ -130,7 +128,7 @@ class TraceData:
             raise ValueError(f"{name} 必须为正的有限浮点数")
         return value
 
-    # ---- 派生属性 ----
+    # 派生属性
 
     @property
     def lengths(self) -> np.ndarray:
@@ -158,9 +156,7 @@ class TraceData:
         return float(self.lengths.mean()) if self.count else 0.0
 
 
-# ===========================================================================
 # RunConfig — 流水线运行参数
-# ===========================================================================
 
 
 @dataclass(frozen=True)
@@ -235,7 +231,7 @@ class RunConfig:
         if self.node_merge_tolerance <= 0.0:
             raise ValueError("node_merge_tolerance 必须大于 0")
 
-    # ---- 工厂方法 ----
+    # 工厂方法
 
     @classmethod
     def from_mapping(cls, cfg: Mapping[str, Any]) -> RunConfig:
@@ -276,9 +272,7 @@ class RunConfig:
         return self.style.get("node_style", "default")
 
 
-# ===========================================================================
 # RunResult — 流水线运行结果
-# ===========================================================================
 
 
 @dataclass(frozen=True)

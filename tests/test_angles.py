@@ -23,7 +23,7 @@ class TestAzimuthToCartesianDeg:
         assert azimuth_to_cartesian_deg(0.0) == 90.0
 
     def test_east(self) -> None:
-        # 90° 时走 else 分支: 450 - 90 = 360，与 0° 等价
+        # 90° 时走 else 分支：450 - 90 = 360，与 0° 等价
         assert azimuth_to_cartesian_deg(90.0) == pytest.approx(360.0)
 
     def test_south(self) -> None:

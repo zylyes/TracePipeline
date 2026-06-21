@@ -33,7 +33,7 @@ __all__ = [
     "_style_trace_data_axes",
 ]
 
-# ── 共享常量 ─────────────────────────────────────────────
+# 共享常量
 
 _ANNOTATION_LINE_WIDTH = 0.75
 _ANNOTATION_ZORDER = 12
@@ -63,7 +63,7 @@ _DEFAULT_ARROW_REL_LEN = 0.06
 _DEFAULT_ARROW_REL_X = 0.86
 _DEFAULT_ARROW_REL_Y = 0.86
 
-# ── 单位转换 ─────────────────────────────────────────────
+# 单位转换
 
 _UNIT_PLACEHOLDERS: tuple[tuple[str, str], ...] = (
     ("m⁻²", "__TRACE_UNIT_M2_INV__"),
@@ -87,7 +87,7 @@ _UNIT_MATH_TEXT: dict[str, str] = {
     "__TRACE_UNIT_M__": r"$\mathrm{m}$",
 }
 
-# ── 节点样式预设 ─────────────────────────────────────────
+# 节点样式预设
 
 _NODE_STYLE_PRESETS: dict[str, dict[str, dict[str, object]]] = {
     "default": {
@@ -173,7 +173,7 @@ _NODE_STYLE_PRESETS: dict[str, dict[str, dict[str, object]]] = {
 }
 
 
-# ── 比例尺 ───────────────────────────────────────────────
+# 比例尺
 
 
 def _choose_scale_length(base_span: float) -> float:
@@ -200,7 +200,7 @@ def _format_scale_label(length: float) -> str:
     return f"{length * 100:g} $\\mathrm{{cm}}$"
 
 
-# ── 统计框 ───────────────────────────────────────────────
+# 统计框
 
 
 def _statistics_font_size(row_count: int) -> float:
@@ -356,7 +356,7 @@ def _add_statistics_box(
         )
 
 
-# ── 布局解析 ─────────────────────────────────────────────
+# 布局解析
 
 
 def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
@@ -391,7 +391,7 @@ def _resolve_layout(title: str) -> dict[str, tuple[float, float, float, float]]:
     }
 
 
-# ── 外框与面板 ───────────────────────────────────────────
+# 外框与面板
 
 
 def _add_outer_frame(fig: plt.Figure, bounds: tuple[float, float, float, float]) -> plt.Axes:
@@ -419,7 +419,7 @@ def _blank_panel_axes(
     return ax
 
 
-# ── 坐标轴样式 ───────────────────────────────────────────
+# 坐标轴样式
 
 
 def _style_trace_axes(ax: plt.Axes) -> None:
@@ -441,7 +441,7 @@ def _style_trace_data_axes(ax: plt.Axes) -> None:
         spine.set_visible(False)
 
 
-# ── 比例尺带 ─────────────────────────────────────────────
+# 比例尺带
 
 
 def _render_legend(
@@ -641,7 +641,7 @@ def _add_scale_bar_band(
     _draw_scale_bar(ax, x0, x1, y, tick, scale_length, label_offset_ratio=0.85)
 
 
-# ── 节点样式 ─────────────────────────────────────────────
+# 节点样式
 
 
 def _resolve_node_style(style: dict[str, Any]) -> dict[str, dict[str, object]]:

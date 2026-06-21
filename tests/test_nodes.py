@@ -104,7 +104,7 @@ class TestNodeRecognition:
         """退化线段（长度 < tolerance）→ 被跳过且产生警告。"""
         endpoints = np.array(
             [
-                [0, 0, 1e-6, 1e-6],  # degenerate
+                [0, 0, 1e-6, 1e-6],  # 退化线段
                 [0, 0, 4, 0],
                 [2, -2, 2, 2],
             ],
@@ -137,7 +137,7 @@ class TestNodeModelIntegrity:
         assert result.node_count > 0
         assert result.intersection_count > 0
         assert result.merge_tolerance > 0
-        # density without area should be None
+        # 无面积时密度应为 None
         assert result.node_density(None) is None
 
     def test_node_density_with_area(self) -> None:

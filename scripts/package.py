@@ -24,10 +24,10 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
 # 常量和路径
-# ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 SPEC_FILE = PROJECT_ROOT / "TracePipeline.spec"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 STATIC_DIR = PROJECT_ROOT / "backend" / "static"
@@ -61,9 +61,7 @@ if not SFX_MODULE.is_file():
 # 输出目录名
 APP_NAME = "TracePipeline"
 
-# ---------------------------------------------------------------------------
 # 工具函数
-# ---------------------------------------------------------------------------
 CSI = "\033["
 RED, GREEN, YELLOW, CYAN, RESET = (
     f"{CSI}91m",
@@ -145,7 +143,7 @@ def dir_size(path: Path) -> int:
 def generate_requirements() -> Path:
     """从 pyproject.toml 的 [project.dependencies] 正则提取生成 requirements.txt。
 
-    零额外依赖，仅在内容变化时写入，避免无意义的文件戳变更。
+    零额外依赖，仅在依赖内容变化时写入，避免无意义的文件戳变更。
     """
     toml_path = PROJECT_ROOT / "pyproject.toml"
     req_path = PROJECT_ROOT / "requirements.txt"
@@ -171,7 +169,6 @@ def generate_requirements() -> Path:
             [
                 "# Core dependencies for trace-pipeline",
                 "# Auto-generated from pyproject.toml — DO NOT EDIT MANUALLY",
-                f"# Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}",
                 "# Install with: pip install -r requirements.txt",
                 "",
                 *deps,
@@ -190,9 +187,7 @@ def generate_requirements() -> Path:
     return req_path
 
 
-# ---------------------------------------------------------------------------
 # 前置检查
-# ---------------------------------------------------------------------------
 def check_prerequisites(
     skip_frontend: bool = False,
     skip_installer: bool = False,
@@ -256,9 +251,7 @@ def check_prerequisites(
     return ok
 
 
-# ---------------------------------------------------------------------------
 # 步骤 0: 构建前端
-# ---------------------------------------------------------------------------
 def build_frontend() -> bool:
     """执行 npm run build 构建 Vue 前端。"""
     package_json = FRONTEND_DIR / "package.json"
@@ -283,9 +276,7 @@ def build_frontend() -> bool:
     return True
 
 
-# ---------------------------------------------------------------------------
 # 步骤 1: PyInstaller 打包
-# ---------------------------------------------------------------------------
 def run_pyinstaller() -> bool:
     """使用 PyInstaller 将应用打包为独立文件夹。"""
     if not SPEC_FILE.exists():
@@ -331,9 +322,7 @@ def run_pyinstaller() -> bool:
     return True
 
 
-# ---------------------------------------------------------------------------
 # 步骤 2: Inno Setup 安装程序
-# ---------------------------------------------------------------------------
 def generate_iss(version: str) -> Path:
     """生成 Inno Setup 脚本，返回 .iss 文件路径。"""
     dist_dir_bs = str(DIST_DIR.resolve())
@@ -445,9 +434,7 @@ def run_inno_setup(iss_path: Path) -> bool:
     return True
 
 
-# ---------------------------------------------------------------------------
 # 步骤 3: 7-Zip 自解压便捷版
-# ---------------------------------------------------------------------------
 def generate_sfx_config(version: str) -> Path:
     """生成 7-Zip SFX 配置文件。"""
     config = f''';!@Install@!UTF-8!
@@ -529,9 +516,7 @@ def build_portable_sfx(version: str) -> bool:
     return True
 
 
-# ---------------------------------------------------------------------------
 # 主入口
-# ---------------------------------------------------------------------------
 def _setup_console() -> None:
     """确保控制台支持 Unicode 输出。"""
     with suppress(AttributeError, OSError):
@@ -591,7 +576,7 @@ def main() -> int:
     print(f"{CYAN}  项目: {PROJECT_ROOT}{RESET}")
     print(f"{CYAN}{'=' * 60}{RESET}\n")
 
-    # ---- 前置检查 ----
+# 前置检查
     info(">>> 前置检查")
     if not check_prerequisites(
         skip_frontend=args.skip_frontend,
@@ -603,7 +588,7 @@ def main() -> int:
     version = read_version()
     print()
 
-    # ---- 步骤 0.5: 生成 requirements.txt ----
+    # 步骤 0.5: 生成 requirements.txt
     info(">>> 步骤 0.5: 生成 requirements.txt")
     generate_requirements()
 
@@ -612,7 +597,7 @@ def main() -> int:
         return 0
 
     print()
-    # ---- 步骤 0: 前端构建 ----
+    # 步骤 0: 前端构建
     if not args.skip_frontend:
         info(">>> 步骤 0: 前端构建")
         if not build_frontend():
@@ -621,13 +606,13 @@ def main() -> int:
     else:
         info(">>> 步骤 0: 跳过前端构建（--skip-frontend）\n")
 
-    # ---- 步骤 1: PyInstaller ----
+    # 步骤 1: PyInstaller
     info(">>> 步骤 1: PyInstaller 打包")
     if not run_pyinstaller():
         return 1
     print()
 
-    # ---- 步骤 2: Inno Setup 安装版 ----
+    # 步骤 2: Inno Setup 安装版
     if not args.skip_installer:
         info(">>> 步骤 2: Inno Setup 安装程序")
         iss_path = generate_iss(version)
@@ -637,7 +622,7 @@ def main() -> int:
         info(">>> 步骤 2: 跳过安装程序（--skip-installer）")
     print()
 
-    # ---- 步骤 3: 7-Zip 自解压便捷版 ----
+    # 步骤 3: 7-Zip 自解压便捷版
     if not args.skip_portable:
         info(">>> 步骤 3: 7-Zip 自解压便捷版")
         if not build_portable_sfx(version):
@@ -645,7 +630,7 @@ def main() -> int:
     else:
         info(">>> 步骤 3: 跳过便捷版（--skip-portable）")
 
-    # ---- 完成 ----
+    # 完成
     print(f"\n{CYAN}{'=' * 60}{RESET}")
     print(f"{GREEN}  打包完成 ✓{RESET}")
     print(f"{CYAN}{'=' * 60}{RESET}\n")

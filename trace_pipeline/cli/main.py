@@ -32,7 +32,7 @@ def main() -> None:
     args = parse_args()
     logger = setup_logging()
 
-    # ---- 1. 加载与校验配置 ----
+    # 1. 加载与校验配置
     try:
         cfg = load_config(args.config)
         overrides = build_overrides(args)
@@ -42,7 +42,7 @@ def main() -> None:
         logger.critical("配置加载失败: %s", exc)
         sys.exit(1)
 
-    # ---- 2. 路径解析与文件发现 ----
+    # 2. 路径解析与文件发现
     base_dir = resolve_config_base_dir(args.config)
     input_dir, output_dir = resolve_io_paths(
         cfg["input_dir"],
@@ -55,7 +55,7 @@ def main() -> None:
 
     discovered = find_trace_tables(input_dir)
 
-    # ---- 3. --list 模式 ----
+    # 3. --list 模式
     if args.list:
         if discovered:
             print(f"\n在 {input_dir} 中发现 {len(discovered)} 个迹线表文件:\n")
@@ -65,7 +65,7 @@ def main() -> None:
             print(f"\n在 {input_dir} 中未发现匹配的迹线表文件。")
         return
 
-    # ---- 4. 目标决策 ----
+    # 4. 目标决策
     if args.interactive:
         if not sys.stdin.isatty():
             logger.error("--interactive 需要交互式终端，当前 stdin 不是 TTY")
@@ -80,7 +80,7 @@ def main() -> None:
         logger.warning("没有可处理的目标，退出。")
         return
 
-    # ---- 5. --dry-run 模式 ----
+    # 5. --dry-run 模式
     if args.dry_run:
         print(f"\n[试运行] 将处理 {len(targets)} 个目标:\n")
         for i, tf in enumerate(targets, start=1):
@@ -91,7 +91,7 @@ def main() -> None:
         print("（试运行模式，未执行任何操作）")
         return
 
-    # ---- 6. 执行 ----
+    # 6. 执行
     _init_plotting()
     results = execute_targets(
         targets,
@@ -103,7 +103,7 @@ def main() -> None:
         force_parallel=args.force_parallel,
     )
 
-    # ---- 7. 汇总 ----
+    # 7. 汇总
     print_pipeline_results(results)
     success_count = sum(1 for r in results if r.status is PipelineStatus.SUCCESS)
     logger.info("处理完成：成功 %d/%d", success_count, len(targets))

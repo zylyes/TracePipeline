@@ -5,7 +5,6 @@
     @mouseleave="onContainerMouseLeave"
     :style="resizeCursor ? { cursor: resizeCursor } : {}"
   >
-    <!-- 启动界面 -->
     <SplashScreen
       v-if="showSplash"
       :steps="bootSteps"
@@ -13,7 +12,6 @@
       @complete="onSplashComplete"
     />
 
-    <!-- 主应用界面 -->
     <template v-else>
       <!-- 自定义标题栏 -->
       <header class="title-bar" :style="{ '--sidebar-half': (sidebarCollapsed ? 28 : 76) + 'px' }" @mousedown="onTitleBarMouseDown">
@@ -243,7 +241,7 @@ async function copyPath(path: string) {
   }
 }
 
-// ── 窗口控制 ──
+// 窗口控制
 const isMaximized = ref(false)
 
 async function minimizeWindow() {
@@ -270,7 +268,7 @@ async function closeWindow() {
   await api.window_close()
 }
 
-// ── 标题栏拖动移动窗口 ──
+// 标题栏拖动移动窗口
 const isDragging = ref(false)
 
 function onTitleBarMouseDown(e: MouseEvent) {
@@ -312,7 +310,7 @@ function onTitleBarMouseDown(e: MouseEvent) {
   })
 }
 
-// ── 边缘拖拽调整窗口大小 ──
+// 边缘拖拽调整窗口大小
 type ResizeEdge = 'left' | 'right' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null
 
 const RESIZE_BORDER = 6
@@ -575,7 +573,7 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-/* ── 标题栏：标题相对内容区居中（排除侧边栏宽度）── */
+/* 标题栏：标题相对内容区居中（排除侧边栏宽度） */
 .title-bar {
   height: 36px;
   background:
@@ -663,7 +661,7 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* ── 主体布局 ── */
+/* 主体布局 */
 .app-body {
   display: flex;
   flex: 1;
@@ -671,7 +669,7 @@ onUnmounted(() => {
   position: relative;
 }
 
-/* ── 侧边栏 ── */
+/* 侧边栏 */
 .sidebar {
   width: 152px;
   background:
@@ -865,7 +863,7 @@ onUnmounted(() => {
   transition: all var(--tp-duration-normal) var(--tp-easing-expo);
 }
 
-/* ── 侧边栏底部 ── */
+/* 侧边栏底部 */
 .sidebar-footer {
   padding: 10px 8px;
   border-top: 1px solid rgba(125, 211, 252, 0.12);
@@ -938,7 +936,7 @@ onUnmounted(() => {
   font-size: 13px;
 }
 
-/* ── 主内容区 ── */
+/* 主内容区 */
 .main {
   flex: 1;
   display: flex;
@@ -964,7 +962,7 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-/* ── 状态栏 ── */
+/* 状态栏 */
 .status-bar {
   height: 36px;
   background: rgba(255, 255, 255, 0.82);
@@ -1075,7 +1073,7 @@ onUnmounted(() => {
   transform: translateY(-8px) scale(0.99);
 }
 
-/* ── 右下角 resize grip ── */
+/* 右下角 resize grip */
 .resize-grip {
   position: absolute;
   right: 0;
@@ -1100,7 +1098,7 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* ── 响应式适配 ──────────────────────────────────────── */
+/* 响应式适配 */
 
 @media (max-width: 768px) {
   .sidebar {
@@ -1191,7 +1189,7 @@ onUnmounted(() => {
   }
 }
 
-/* ── 侧边栏标签淡入/淡出 ── */
+/* 侧边栏标签淡入/淡出 */
 .sidebar-fade-enter-active {
   transition: opacity 0.18s 0.08s var(--tp-easing);
 }

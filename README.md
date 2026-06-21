@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/zylyes/TracePipeline/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.4.0-brightgreen" alt="Version"></a>
+  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.5.1-brightgreen" alt="Version"></a>
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/GUI-Vue_3_|_Element_Plus_|_ECharts-4FC08D?logo=vuedotframework" alt="GUI">
@@ -1222,8 +1222,11 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 | 版本   | 日期    | 里程碑                                                                  |
 | :----- | :------ | :---------------------------------------------------------------------- |
-| 未发布 | 2026-06 | 近期修复合集：XSS 安全消除、窗口状态轮询、Splash 异常捕获、watch 精确化、配置防并发持久化、JSON 导入上限 |
-| v4.4.0 | 2026-06 | 死代码清理与接口精简：6 项清理，删除约 112 行代码，无功能变更           |
+| v4.5.1 | 2026-06 | 代码注释规范化 + 启动页视觉增强：移除冗余注释框/中文化注释、SplashScreen 加载点动画/重试按钮/移动端优化、全项目版本同步 |
+| 未发布 | 2026-06 | 暂无 |
+| v4.5.0 | 2026-06 | 图标库统一与设计语言收敛：@lucide/vue 迁移、语义辉光工具类、启动页雷达环差速旋转、侧边栏标签淡出 |
+| v4.4.0 | 2026-06 | UI 动效性能优化 + 设计系统 Token 扩展：骨架屏 GPU 化、路由动画减负、Surface / glow / easing 变量新增 |
+| v4.3.3 | 2026-06 | 死代码清理与接口精简：移除日志兼容层、绘图未使用函数、前端废弃 WebView2 接口 |
 | v4.3.2 | 2026-06 | 代码质量与防御性编程：7 项一般缺陷修复（临时文件清理、锁一致性、哈希统一等） |
 | v4.3.1 | 2026-06 | 性能与安全优化：多进程日志竞态修复、图片缓存、节点批量绘制、启动并行化 |
 | v4.3.0 | 2026-06 | 全面代码审计：6 项致命缺陷修复 + 12 项严重缺陷修复 + 前端性能优化      |

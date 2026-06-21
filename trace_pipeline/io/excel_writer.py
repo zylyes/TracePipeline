@@ -394,7 +394,7 @@ def _build_node_sections(
     return sections
 
 
-# ── 多工作表写入（新格式：每个分区一个 sheet）─────────────────────────
+# 多工作表写入（每个分区一个 sheet）
 
 
 def _write_sheet_title(ws, title: str, column_count: int) -> None:

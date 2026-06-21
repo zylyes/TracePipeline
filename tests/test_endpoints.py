@@ -47,7 +47,7 @@ class TestComputeEndpoints:
             compute_endpoints(df)
 
     def test_single_left_trace(self) -> None:
-        """仅左侧有迹线 (r5≠0, r7=0)。"""
+        """仅左侧有迹线（r5≠0, r7=0）。"""
         # r1=0, r2=0, dip=90, r4=0, r5=10, r6=0, r7=0, ang0=0, n=1
         df = self._make_df([[0, 0, 90, 0, 10, 0, 0, 0, 1]])
         result = compute_endpoints(df)
@@ -60,13 +60,13 @@ class TestComputeEndpoints:
         assert result.segment_lengths[0] == 10.0
 
     def test_single_right_trace(self) -> None:
-        """仅右侧有迹线 (r5=0, r7≠0)。"""
+        """仅右侧有迹线（r5=0, r7≠0）。"""
         df = self._make_df([[0, 0, 90, 0, 0, 0, 10, 0, 1]])
         result = compute_endpoints(df)
         assert result.segment_lengths[0] == 10.0
 
     def test_bilateral_trace(self) -> None:
-        """双侧均有迹线 (r5≠0, r7≠0)。"""
+        """双侧均有迹线（r5≠0, r7≠0）。"""
         df = self._make_df([[0, 0, 90, 0, 10, 0, 20, 0, 1]])
         result = compute_endpoints(df)
         assert result.segment_lengths[0] == 30.0

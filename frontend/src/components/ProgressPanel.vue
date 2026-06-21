@@ -139,7 +139,7 @@ function getStepDesc(idx: number) {
   return '等待中'
 }
 
-// ── 平滑进度插值 ──────────────────────────────────────────────
+// 平滑进度插值
 const REAL_TO_DISPLAY_SPEED = 0.12
 const CREEP_SPEED = 0.015
 const CREEP_GAP = 0.8

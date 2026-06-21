@@ -211,7 +211,7 @@ onActivated(() => {
   flex-wrap: wrap;
 }
 
-/* ── 现代标签页 ── */
+/* 现代标签页 */
 .modern-tabs.compact {
   :deep(.el-tabs__header) {
     margin-bottom: 0;
@@ -251,7 +251,7 @@ onActivated(() => {
   }
 }
 
-/* ── 信息卡片 ── */
+/* 信息卡片 */
 .info-card {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-bottom: var(--tp-space-4);

@@ -261,7 +261,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
             extra={"stage": "pipeline_start", "config": cfg.__dict__},
         )
         try:
-            # ---- 1. 加载数据 ----
+            # 1. 加载数据
             t0 = time.perf_counter()
             trace = load_trace_data(cfg.input_dir, cfg.table_stem, cfg.outcrop)
             logger.info(
@@ -273,7 +273,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 extra={"stage": "load", "trace_count": trace.count},
             )
 
-            # ---- 2. 坐标变换 ----
+            # 2. 坐标变换
             t0 = time.perf_counter()
             logger.debug(
                 "  2.1 归一化坐标: %s",
@@ -342,7 +342,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 },
             )
 
-            # ---- 3. 节点识别 ----
+            # 3. 节点识别
             t0 = time.perf_counter()
             node_analysis = None
             raw_node_overlays = ()
@@ -372,7 +372,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                     },
                 )
 
-            # ---- 4. 导出 Excel ----
+            # 4. 导出 Excel
             t0 = time.perf_counter()
             output_dir = Path(cfg.output_dir)
             excel_path = output_dir / f"{cfg.output_prefix}_traces.xlsx"
@@ -386,7 +386,7 @@ def run_pipeline(cfg: RunConfig) -> RunResult:
                 (time.perf_counter() - t0) * 1000,
                 extra={"stage": "export_excel", "excel_path": str(excel_path)},
             )
-            # ---- 5. 绘制图片 ----
+            # 5. 绘制图片
             t0 = time.perf_counter()
             raw_plot, rot_plot, rose_plot = _run_plot_stage(
                 cfg, trace, rotated, rotated_north_angle,

@@ -49,9 +49,7 @@ from .angles import azimuth_to_cartesian_deg, dip_to_strike, fold_to_halfplane
 
 logger = logging.getLogger(__name__)
 
-# ===========================================================================
 # Excel 列索引常量
-# ===========================================================================
 
 COL_SHIFT_ALONG = 0  # r1 — 沿测线位移
 COL_SHIFT_ACROSS = 1  # r2 — 垂直测线位移
@@ -94,9 +92,7 @@ _FIELD_NAMES = {
 }
 
 
-# ===========================================================================
 # 表头解析
-# ===========================================================================
 
 
 def _parse_optional_positive_header(df: pd.DataFrame, col: int, label: str) -> float | None:
@@ -208,9 +204,7 @@ def _validate_numeric_block(data_block: np.ndarray) -> None:
         raise ValueError(f"第 {bad_row} 行 r5 与 r7 不能同时为 0")
 
 
-# ===========================================================================
 # 三种情形的端点计算
-# ===========================================================================
 
 
 def _compute_left_only(
@@ -295,9 +289,7 @@ def _compute_bilateral(
     x2[mask], y2[mask] = s_right.real, s_right.imag
 
 
-# ===========================================================================
 # 主入口
-# ===========================================================================
 
 
 def compute_endpoints(
@@ -332,26 +324,26 @@ def compute_endpoints(
 
     segment_lengths = r5 + r7
 
-    # ---- 基准角 ----
+    # 基准角
     ang_base_deg = azimuth_to_cartesian_deg(azimuth)
     rad_base = math.radians(ang_base_deg)
 
     # 节理方向角
     ang_joint = np.mod(270.0 - joint_strike, 360.0)
 
-    # ---- 侧向判定 ----
+    # 侧向判定
     # 用容差比较而非精确 != 0.0:避免浮点残留值(如 1e-16)被误判为"有迹线"
     has_left = np.abs(r5) > _EPS
     has_right = np.abs(r7) > _EPS
 
-    # ---- 复数向量 ----
+    # 复数向量
     z1_base = r1 * np.exp(1j * rad_base)
     vec_perp_left = np.exp(1j * (rad_base + math.pi / 2))
     vec_perp_right = np.exp(1j * (rad_base - math.pi / 2))
     vec_skew_left = np.exp(1j * fold_to_halfplane(ang_base_deg, ang_joint, invert=False))
     vec_skew_right = np.exp(1j * fold_to_halfplane(ang_base_deg, ang_joint, invert=True))
 
-    # ---- 分情况计算 ----
+    # 分情况计算
     x1, y1, x2, y2 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
 
     mask_only_left = has_left & (~has_right)

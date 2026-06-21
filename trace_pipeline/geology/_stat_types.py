@@ -112,7 +112,7 @@ class TraceStatistics:
     window_strategy: str
     trace_types: tuple[str, ...]
     diagnostics: tuple[CircleWindowDiagnostic, ...]
-    # ── 圆窗校验诊断字段 ──────────────────────────
+    # 圆窗校验诊断字段
     window_outcrop_area: float = 0.0
     area_disagreement_ratio: float = 0.0
     window_validation_warning: str = ""

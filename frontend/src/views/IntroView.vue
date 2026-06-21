@@ -144,7 +144,7 @@ const steps = [
   background: var(--tp-bg-base);
 }
 
-/* ── Hero ───────────────────────────────────────────── */
+/* Hero */
 .hero-section {
   position: relative;
   background: linear-gradient(145deg, var(--tp-brand-primary) 0%, var(--tp-bg-sidebar-hover) 60%, var(--tp-brand-primary) 100%);
@@ -299,7 +299,7 @@ const steps = [
   font-family: var(--tp-font-data);
 }
 
-/* ── 功能模块 ──────────────────────────── */
+/* 功能模块 */
 .modules-section {
   margin-bottom: var(--tp-space-5);
 }
@@ -427,7 +427,7 @@ const steps = [
   word-break: break-word;
 }
 
-/* ── 快速开始 ──────────────────────────────────────── */
+/* 快速开始 */
 .quickstart-section {
   padding: var(--tp-space-5) var(--tp-space-6);
   margin-bottom: var(--tp-space-5);
@@ -541,7 +541,7 @@ const steps = [
   opacity: 0.5;
 }
 
-/* ── 底部 ──────────────────────────────────────────── */
+/* 底部 */
 .intro-footer {
   text-align: center;
   padding: var(--tp-space-3) 0;
@@ -550,7 +550,7 @@ const steps = [
   font-family: var(--tp-font-body);
 }
 
-/* ── 响应式适配 ──────────────────────────────────────── */
+/* 响应式适配 */
 
 @media (max-width: 1024px) {
   .modules-row {

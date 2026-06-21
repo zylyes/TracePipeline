@@ -1,3 +1,77 @@
+# TracePipeline v4.5.1 发布说明
+
+**发布日期**：2026-06-21
+
+## 本版本亮点
+
+### 📝 全项目代码注释规范化
+
+本次版本对 40+ 源文件进行了系统性注释清理与规范化：
+
+- **删除冗余装饰性注释框**：移除 `# ---- ... ----`、`# ==== ... ====` 等长分隔线，统一为短标题分区风格
+- **中文化注释**：将英文及中英混杂注释改为中文（如 `# success should have None error` → `# 成功时应无错误`）
+- **保留高价值注释**：MATLAB 算法参考、安全校验逻辑（路径遍历防护/域名白名单）、跨版本兼容性说明、工具抑制标记（ruff/mypy/pylint）
+
+覆盖范围：`trace_pipeline/` 核心计算包（angles/endpoints/transforms/statistics/nodes/config/models/pipeline/reporting/validation 等）、`backend/` GUI 服务层（gui_api/main_gui/report_service/stats_service/cache）、`frontend/src/` 前端视图层（App.vue 及 6 个视图组件、3 个样式文件、DevPanel/ProgressPanel）、`tests/` 测试文件、`scripts/package.py` 打包脚本。
+
+### 🚀 SplashScreen 启动页视觉增强
+
+启动引导界面进行了用户体验改进（75+ 行变更）：
+
+- **加载点动画**：进度文本后增加动态 `...` 指示器（`loading-dots` CSS keyframe），缓解等待焦虑
+- **重试机制**：连接失败时显示「重试连接」按钮，点击触发 `retryBootSequence()` 重新执行引导序列
+- **错误状态展示**：错误消息区域化展示，背景/边框/文字颜色语义强化（半透明红色、`#fca5a5` 文字）
+- **移动端适配**：安全边距（40px→24px）、雷达图 `min(80vw, 280px)`、低价值装饰标签在窄屏隐藏
+- **进度条可读性提升**：轨道背景对比度增强（`rgba(255,255,255,0.08)`→`0.15`）、填充中心加亮（`#7dd3fc`）、发光效果增强（`0 0 12px rgba(56,189,248,0.8)`）、文字明度提升（`rgba(255,255,255,0.6)`→`0.85`）
+
+### 🔢 版本同步
+
+全项目版本号同步至 4.5.1，涉及 `trace_pipeline/__init__.py`、`frontend/package.json`、`frontend/package-lock.json`、`TracePipeline-setup.iss`。
+
+## 变更文件
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `trace_pipeline/*.py`（30+文件） | 改进 | 注释规范化：删除冗余框/中文化/统一短标题分区 |
+| `backend/gui_api.py` | 改进 | 注释规范化（11处分区标题） |
+| `backend/main_gui.py` | 改进 | 注释中文化 |
+| `backend/services/report_service.py` | 改进 | 注释规范化（4处分区标题） |
+| `backend/services/stats_service.py` | 改进 | 注释中文化 |
+| `backend/utils/cache.py` | 改进 | 注释中文化 |
+| `frontend/src/components/SplashScreen.vue` | 改进 | 加载点动画、重试按钮、错误状态、移动端优化、进度条可读性 |
+| `frontend/src/components/DevPanel.vue` | 改进 | 注释中文化 |
+| `frontend/src/components/ProgressPanel.vue` | 改进 | 注释规范化 |
+| `frontend/src/App.vue` | 改进 | 注释规范化（10处分区标题/冗余注释删除） |
+| `frontend/src/views/*.vue`（6文件） | 改进 | 注释规范化（CSS 分区标题统一） |
+| `frontend/src/styles/*.css`（3文件） | 改进 | 注释规范化（120+行头部/分区注释简化） |
+| `frontend/tests/stores/cache.test.ts` | 改进 | 注释中文化 |
+| `scripts/package.py` | 改进 | 注释规范化（所有分区标题） |
+| `tests/*.py`（6文件） | 改进 | 注释中文化/规范化 |
+| `trace_pipeline/__init__.py` | 版本 | 4.5.0 → 4.5.1 |
+| `frontend/package.json` | 版本 | 4.5.0 → 4.5.1 |
+| `frontend/package-lock.json` | 版本 | 4.5.0 → 4.5.1 |
+| `TracePipeline-setup.iss` | 版本 | 4.5.0 → 4.5.1 |
+| `README.md` | 文档 | 版本徽章与版本历史同步 |
+| `CHANGELOG.md` | 文档 | 新增 v4.5.1 条目 |
+| `RELEASE_NOTES.md` | 文档 | 同步至 v4.5.1 |
+
+## 验证状态
+
+- Python `compileall`：通过
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Python 快速测试：通过（`tests/test_packaging_metadata.py`、`test_angles.py`、`test_endpoints.py`、`test_nodes.py`、`test_statistics.py`，共 67 项）
+- Python `tests/test_pipeline.py`：`TestLoadTraceData` 2 项通过，`TestRunPipeline::test_successful_run` 本机执行 300s 超时
+- Windows 完整打包：通过
+- `ruff`：未安装，跳过
+
+## 发行版产物
+
+- 安装版：`dist/TracePipeline-Setup-v4.5.1.exe`（129.2 MB）
+- 便携版：`dist/TracePipeline-Portable-v4.5.1.exe`（123.4 MB）
+
+---
+
 # TracePipeline v4.5.0 发布说明
 
 **发布日期**：2026-06-21
@@ -57,55 +131,6 @@
 | `frontend/src/styles/tokens.css` | 改进+新增 | shimmer 性能修复；新增 Surface/glow/easing token 和3个 keyframe |
 | `frontend/src/styles/element-global.css` | 改进 | Element Plus 骨架屏样式更新为 ::after 伪元素方案 |
 | `frontend/src/App.vue` | 改进 | 页面切换动画去 blur；侧边栏添加 will-change |
-
----
-
-# Unreleased
-
-**2026-06-21**
-
-> 近期修复合集 — 事件泄漏与 RAF 空转修复、窗口状态轮询、Splash 异常捕获、watch 精确化、XSS 安全消除（dangerouslyUseHTMLString→h() VNode）、配置防并发持久化、JSON 导入 5 MiB 上限。
-
-## 高亮
-
-- **图片查看器事件泄漏修复** — `ImageViewer.vue` 在组件卸载时兜底移除全局 `keydown` 监听器，避免路由切换后残留键盘事件
-- **进度条 CPU 空转修复** — `ProgressPanel.vue` 在任务停止、完成和组件卸载时取消 `requestAnimationFrame`，避免后台空转
-- **窗口最大化轮询** — `App.vue` `toggleMaximize` 去掉硬编码 120ms setTimeout，改为每 50ms 最多 10 次轮询窗口状态，消除定时器不确定性
-- **启动异常安全兜底** — `SplashScreen.vue` 的 `runBootSequence()` 捕获 Promise rejection，记录错误并确保 splash 关闭
-- **响应式 watch 精确化** — `ProcessingView.vue` 深监听全 config 改为仅监听 6 个处理参数字段，减少不必要触发
-- **XSS 安全修复** — `ConfigView.vue` 和 `DevPanel.vue` 所有 `dangerouslyUseHTMLString` 改为 Vue `h()` VNode，消除 XSS 注入风险
-- **配置防并发持久化** — `ConfigForm.vue` 路径自动保存改为 debounce + last-write-wins + `pathSaveInFlight` 锁，失败时 payload 安全合并回待保存队列
-- **JSON 导入防御** — `gui_api.py` 的 `export_config_json` 在 `json.loads` 前增加 5 MiB UTF-8 字节大小检查，超限 warning 并返回 False
-- **报告进度回调清理** — `gui_api.py` 将批量报告进度回调工厂提取为私有方法，减少循环内重复定义并提升可维护性
-- **Pillow 兼容性增强** — 缩略图生成兼容新旧 Pillow 的 `Resampling.LANCZOS` 访问方式
-
-## 变更摘要
-
-### 前端运行时修复（5 项）
-- `ImageViewer.vue`：添加 `onUnmounted` 监听器清理
-- `ProgressPanel.vue`：新增 `stopAnimation()`，停止非运行状态下的 RAF 循环
-- `App.vue`：`toggleMaximize` 硬编码 setTimeout 替换为 50ms 轮询（最多 10 次）
-- `SplashScreen.vue`：`runBootSequence()` 添加 catch 兜底
-- `ProcessingView.vue`：watch 精确化，移除无意义 deep
-
-### GUI 后端维护（3 项）
-- `gui_api.py`：提取 `_make_report_progress_callback()`
-- `gui_api.py`：Pillow resampling fallback 兼容旧版本
-- `gui_api.py`：`export_config_json` 增加 5 MiB 字节大小限制
-
-### 前端安全修复（2 项）
-- `ConfigView.vue`：`dangerouslyUseHTMLString` → Vue `h()` VNode
-- `DevPanel.vue`：`dangerouslyUseHTMLString` → Vue `h()` VNode
-
-### 前端数据持久化（1 项）
-- `ConfigForm.vue`：debounce + last-write-wins + 防并发锁，失败合并回待保存对象
-
-### 测试验证
-- 后端语法检查：通过
-- 前端类型检查：通过
-- 前端构建：成功
-- 后端导入检查：通过
-- `dangerouslyUseHTMLString` 无残留
 
 ---
 

@@ -16,28 +16,28 @@ from trace_pipeline.pipeline import load_trace_data, run_pipeline
 def _create_test_excel(tmp_dir: Path, stem: str, sheet: str) -> Path:
     """在临时目录中创建一个最小迹线 Excel 文件。
 
-    格式：首行既是第一条迹线数据(cols 0-6)，也携带表头信息(cols 7-12)。
-    cols 0-6: r1-r7, col 7: 走向角, col 8: 迹线条数,
-    col 11: 实测测线长度(可选), col 12: 实测露头面积(可选).
+    格式：首行既是第一条迹线数据（第 0-6 列），也携带表头信息（第 7-12 列）。
+    第 0-6 列：r1-r7, 第 7 列：走向角, 第 8 列：迹线条数,
+    第 11 列：实测测线长度（可选）, 第 12 列：实测露头面积（可选）。
     """
     records = []
     for i in range(3):
         x_along = i * 2.0
         records.append(
             [
-                x_along,  # col 0: r1 (scanline position)
-                0.1,  # col 1: r2
-                30.0,  # col 2: r3 (dip)
-                x_along + 1.5,  # col 3: r4
-                0.8 + i * 0.1,  # col 4: r5 (left trace length)
-                0.0,  # col 5: r6 (right trace, 0 = no right)
-                1.0 + i * 0.1,  # col 6: r7 (must be >0 when r5 >0)
-                298.0 if i == 0 else None,  # col 7: 走向角
-                3 if i == 0 else None,  # col 8: 迹线条数
+                x_along,  # 第 0 列: r1（测线位置）
+                0.1,  # 第 1 列: r2
+                30.0,  # 第 2 列: r3（倾向）
+                x_along + 1.5,  # 第 3 列: r4
+                0.8 + i * 0.1,  # 第 4 列: r5（左侧迹长）
+                0.0,  # 第 5 列: r6（右侧迹长，0 表示无右侧）
+                1.0 + i * 0.1,  # 第 6 列: r7（r5>0 时必须 >0）
+                298.0 if i == 0 else None,  # 第 7 列: 走向角
+                3 if i == 0 else None,  # 第 8 列: 迹线条数
                 None,
-                None,  # col 9, 10
-                5.0 if i == 0 else None,  # col 11: 实测测线长度
-                10.0 if i == 0 else None,  # col 12: 实测露头面积
+                None,  # 第 9, 10 列
+                5.0 if i == 0 else None,  # 第 11 列: 实测测线长度
+                10.0 if i == 0 else None,  # 第 12 列: 实测露头面积
             ]
         )
     df = pd.DataFrame(records)
@@ -118,7 +118,7 @@ class TestRunPipeline:
             )
             result = run_pipeline(cfg)
             assert result.status is PipelineStatus.SUCCESS
-            assert result.error is None  # success should have None error
+            assert result.error is None  # 成功时应无错误
             assert result.trace_count == 3
             assert result.excel_path.endswith(".xlsx")
             assert result.window_strategy

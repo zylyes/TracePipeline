@@ -23,9 +23,7 @@ __all__ = [
 ]
 
 
-# ===========================================================================
 # 内部校验
-# ===========================================================================
 
 
 def _validate_lines(lines: np.ndarray, arg_name: str = "lines") -> np.ndarray:
@@ -82,9 +80,7 @@ def _rotate_lines(arr: np.ndarray, rot_mat: np.ndarray) -> np.ndarray:
     return (arr.reshape(-1, 2) @ rot_mat.T).reshape(arr.shape)
 
 
-# ===========================================================================
 # 平移
-# ===========================================================================
 
 
 def shift_to_positive(lines: np.ndarray, margin: float = 1.0) -> np.ndarray:
@@ -103,9 +99,7 @@ def shift_to_positive(lines: np.ndarray, margin: float = 1.0) -> np.ndarray:
     return _shift_to_nonnegative(arr, margin=margin)
 
 
-# ===========================================================================
 # 旋转 + 平移
-# ===========================================================================
 
 
 def rotate_and_shift(lines: np.ndarray, azimuth_deg: float) -> np.ndarray:
@@ -127,9 +121,7 @@ def rotate_and_shift(lines: np.ndarray, azimuth_deg: float) -> np.ndarray:
     return _shift_to_nonnegative(rotated, margin=0.0)
 
 
-# ===========================================================================
 # 规范化流水线
-# ===========================================================================
 
 
 def normalize_coordinates(lines: np.ndarray, azimuth_deg: float, margin: float = 1.0) -> np.ndarray:

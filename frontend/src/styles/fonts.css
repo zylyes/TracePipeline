@@ -1,5 +1,4 @@
-/* ================================================
-   TracePipeline — 全局字体系统 v2
+/* TracePipeline — 全局字体系统 v2
    离线系统字体策略（无外部 CDN 依赖）
    中英文混排字体渲染规范：
      - 中文标题 → 黑体 (SimHei)
@@ -11,10 +10,9 @@
      - 正文栈 = TNR + 宋体 → 英文走 TNR，中文走宋体
      - 数据栈 = TNR + 宋体 → 英文数字走 TNR，中文回退宋体
    降级策略：
-     Windows → macOS → Linux → 通用衬线/无衬线
-   ================================================ */
+     Windows → macOS → Linux → 通用衬线/无衬线 */
 
-/* ── 字体栈定义 ─────────────────────────────── */
+/* 字体栈定义 */
 :root {
   /* 西文与数字：Times New Roman 严格优先，跨平台完整降级 */
   --tp-font-latin: "Times New Roman", "Times NR", "Liberation Serif", "Georgia", "Noto Serif", "DejaVu Serif", serif;
@@ -34,7 +32,7 @@
   --tp-font-mono: var(--tp-font-data);
 }
 
-/* ── 全局基础排版 ───────────────────────────── */
+/* 全局基础排版 */
 html {
   /* Windows 下中文字体默认使用子像素抗锯齿（ClearType），
      全局强制 grayscale/antialiased 会导致字体发虚 */
@@ -58,7 +56,7 @@ body,
   -webkit-text-spacing: auto;
 }
 
-/* ── 标题层级：中文黑体 ─────────────────────── */
+/* 标题层级：中文黑体 */
 h1, h2, h3, h4, h5, h6,
 .tp-title, .tp-heading,
 .page-title, .section-title, .panel-title, .card-title,
@@ -78,7 +76,7 @@ h2 { font-size: 24px; }
 h3 { font-size: 19px; }
 h4 { font-size: 16px; }
 
-/* ── 正文：Times New Roman 优先，中文自动回退宋体 ────── */
+/* 正文：Times New Roman 优先，中文自动回退宋体 */
 p, span, div, li, td, label,
 .tp-body, .tp-text {
   font-family: var(--tp-font-body);
@@ -86,7 +84,7 @@ p, span, div, li, td, label,
 /* 注：.el-table .cell 使用 --tp-font-data（TNR 优先于宋体），
    已在下方统一定义，不在此处覆盖 */
 
-/* ── 数据、数字、英文强制 Times New Roman ─────── */
+/* 数据、数字、英文强制 Times New Roman */
 .tp-data, .tp-num, .tp-value,
 code, pre, kbd, samp,
 .el-statistic__number,
@@ -101,20 +99,20 @@ code, pre, kbd, samp,
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* ── 时间戳与日志：等宽字体 ──────────────────── */
+/* 时间戳与日志：等宽字体 */
 .tp-time, .tp-log, .tp-timestamp {
   font-family: var(--tp-font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 表单控件显式继承 ────────────────────────── */
+/* 表单控件显式继承 */
 button, input, select, textarea,
 .el-input__inner, .el-textarea__inner,
 .el-select .el-input__inner {
   font-family: var(--tp-font-body);
 }
 
-/* ── Element Plus 全局字体覆盖 ──────────────── */
+/* Element Plus 全局字体覆盖 */
 .el-table, .el-form, .el-button, .el-input,
 .el-select, .el-dialog, .el-tabs__item,
 .el-pagination, .el-dropdown, .el-menu,
@@ -199,7 +197,7 @@ button, input, select, textarea,
   font-family: var(--tp-font-data);
 }
 
-/* ── 自定义工具类 ─────────────────────────────── */
+/* 自定义工具类 */
 .tp-font-heading {
   font-family: var(--tp-font-heading);
   font-weight: 600;
@@ -220,12 +218,12 @@ button, input, select, textarea,
   font-variant-numeric: tabular-nums;
 }
 
-/* ── ECharts Canvas 字体覆盖 ──────────────────── */
+/* ECharts Canvas 字体覆盖 */
 canvas {
   font-family: var(--tp-font-data);
 }
 
-/* ── lang 属性分区辅助 ────────────────────────── */
+/* lang 属性分区辅助 */
 /* 对明确标注 lang 的内联元素应用对应字体，
    提升中英文混排时的渲染精度 */
 [lang="zh"],
@@ -240,7 +238,7 @@ canvas {
   font-family: var(--tp-font-latin);
 }
 
-/* ── 中英文混排间距优化 ──────────────────────── */
+/* 中英文混排间距优化 */
 /* CJK 字符与 Latin 字符之间的间距自动调整，
    避免中文与英文/数字紧贴时间距过窄或过宽 */
 .tp-cjk-spacing {

@@ -28,7 +28,7 @@ from trace_pipeline.geology.statistics import (
 )
 from trace_pipeline.models import TraceData
 
-# ── Fixtures ───────────────────────────────────────────────────────────
+# Fixtures
 
 
 def _make_trace(
@@ -57,7 +57,7 @@ def _make_trace(
     )
 
 
-# ── 测线长度估算 ────────────────────────────────────────────────────
+# 测线长度估算
 
 
 class TestScanlineLength:
@@ -94,7 +94,7 @@ class TestScanlineLength:
         assert source == "estimated"
 
 
-# ── 自适应阈值 ──────────────────────────────────────────────────────
+# 自适应阈值
 
 
 class TestAdaptiveThresholds:
@@ -110,12 +110,12 @@ class TestAdaptiveThresholds:
         assert t0 > t100
 
 
-# ── 迹线 I/II/III 分型 ─────────────────────────────────────────────
+# 迹线 I/II/III 分型
 
 
 class TestTraceTypeClassification:
     def test_type_i_crossing_scanline(self) -> None:
-        segs = np.array([[-1, 1, 1, -1]], dtype=float)  # crosses origin→L scanline
+        segs = np.array([[-1, 1, 1, -1]], dtype=float)  # 穿过原点→L 测线
         types = _classify_trace_types(segs, 5.0)
         assert types[0] == "I"
 
@@ -136,7 +136,7 @@ class TestTraceTypeClassification:
         assert types == ()
 
 
-# ── 圆窗计数 ────────────────────────────────────────────────────────
+# 圆窗计数
 
 
 class TestCircleWindowBatch:
@@ -162,7 +162,7 @@ class TestCircleWindowBatch:
 
     def test_window_no_intersections_invalid(self) -> None:
         segs = np.array([[0.0, 0.0, 4.0, 0.0]], dtype=float)
-        centers = np.array([[100.0, 100.0]], dtype=float)  # far away
+        centers = np.array([[100.0, 100.0]], dtype=float)  # 远离测线
         radii = np.array([1.0], dtype=float)
         results = _count_circle_windows_batch(
             segs,
@@ -191,7 +191,7 @@ class TestCircleWindowBatch:
         assert not results[0].valid
 
 
-# ── 凸包 ───────────────────────────────────────────────────────────
+# 凸包
 
 
 class TestConvexHull:
@@ -207,7 +207,7 @@ class TestConvexHull:
         assert verts.shape[0] >= 3
 
 
-# ── 策略选择 ────────────────────────────────────────────────────────
+# 策略选择
 
 
 class TestWindowStrategySelection:
@@ -250,7 +250,7 @@ class TestWindowStrategySelection:
         assert len(diagnostics) > 0
 
 
-# ── 主统计入口 ──────────────────────────────────────────────────────
+# 主统计入口
 
 
 class TestComputeTraceStatistics:

@@ -271,7 +271,7 @@ const reportType = ref('full')
       if (evt) {
 	        reportProgress.value = evt as unknown as ReportProgress
 	        if (evt.type === 'complete' || evt.type === 'error') {
-	          // Keep progress visible a bit longer to show completion state
+	          // 保持进度可见稍长时间以展示完成状态
 	          setTimeout(() => {
 	            reportProgressVisible.value = false
 	          }, 2000)

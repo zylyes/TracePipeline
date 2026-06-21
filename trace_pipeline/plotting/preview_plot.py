@@ -34,7 +34,7 @@ from .trace_plot import segments_to_xy
 
 logger = logging.getLogger(__name__)
 
-# ── 演示数据 ─────────────────────────────────────────────
+# 演示数据
 
 
 def _demo_endpoints():
@@ -150,7 +150,7 @@ _DEMO_STATS_LINES = (
     "P₂₁ 长度密度: 1.528 m⁻¹",
 )
 
-# ── 布局常量（与 trace_plot.py 一致）─────────────────────
+# 布局常量（与 trace_plot.py 一致）
 
 _PREVIEW_DPI = 300
 _COMPASS_AXES_BOUNDS = (0.76, 0.765, 0.12, 0.095)
@@ -159,7 +159,7 @@ _COMPASS_W = 0.12
 _COMPASS_H = 0.095
 _LEGEND_H = 0.20
 
-# ── 节点标记样式（与 trace_plot.py 共享，通过 _layout._resolve_node_style 使用）────────
+# 节点标记样式（与 trace_plot.py 共享，通过 _layout._resolve_node_style 使用）
 
 
 @dataclass(frozen=True)
@@ -183,7 +183,7 @@ class PreviewDemoData:
 _DEMO_DATA = PreviewDemoData()
 
 
-# ── 样式读取辅助 ─────────────────────────────────────────
+# 样式读取辅助
 
 
 def _style_val(style: dict[str, Any], key: str, default: Any) -> Any:
@@ -191,7 +191,7 @@ def _style_val(style: dict[str, Any], key: str, default: Any) -> Any:
     return style.get(key, default)
 
 
-# ── 几何辅助 ─────────────────────────────────────────────
+# 几何辅助
 
 
 def _extract_preview_extras(

@@ -395,7 +395,7 @@ async function exportReport() {
     console.error(e)
   } finally {
     exportLoading.value = false
-    // Progress complete/error events handled in polling (auto-hides after 2s)
+    // 进度完成/错误事件已在轮询中处理（2s 后自动隐藏）
   }
 }
 
@@ -477,7 +477,7 @@ onActivated(() => {
   inset: 8px;
 }
 
-/* ── 图片展示区 ── */
+/* 图片展示区 */
 .images-panel {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-bottom: var(--tp-space-4);

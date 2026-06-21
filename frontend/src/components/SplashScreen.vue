@@ -73,7 +73,10 @@
             <div class="progress-sweep" :style="{ left: progress > 5 ? (progress - 5) + '%' : '-10%' }"></div>
           </div>
           <div class="progress-info">
-            <span class="progress-text">{{ currentStep }}</span>
+            <span class="progress-text">
+              {{ currentStep }}
+              <span class="loading-dots" v-if="!hasErrors && progress < 100">...</span>
+            </span>
             <span class="progress-percent tp-data">{{ Math.round(progress) }}%</span>
           </div>
         </div>
@@ -81,8 +84,11 @@
         <!-- 错误提示 -->
         <Transition name="error-slide">
           <div v-if="hasErrors" class="error-hint">
-            <el-icon><Warning /></el-icon>
-            <span>部分初始化失败，将在页面中自动重试</span>
+            <div class="error-message">
+              <el-icon><Warning /></el-icon>
+              <span>连接超时或部分初始化失败</span>
+            </div>
+            <button class="retry-btn" @click="retryBootSequence">重试连接</button>
           </div>
         </Transition>
       </div>
@@ -118,13 +124,20 @@ const emit = defineEmits<{
 
 const visible = ref(true)
 const progress = ref(0)
-const currentStep = ref('正在初始化...')
+const currentStep = ref('正在初始化') // 移除硬编码的...
 const errors = ref<Array<{ step: string; error: string }>>([])
 
 const hasErrors = computed(() => errors.value.length > 0)
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function retryBootSequence() {
+  progress.value = 0;
+  errors.value = [];
+  currentStep.value = '重新连接中';
+  await runBootSequence();
 }
 
 async function runBootSequence() {
@@ -274,9 +287,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px;
+  padding: 40px 24px; /* 移动端安全边距 */
   position: relative;
   z-index: 1;
+  width: 100%; /* 确保在移动端占据全宽 */
+  box-sizing: border-box;
 }
 
 .splash-logo {
@@ -395,39 +410,40 @@ onMounted(() => {
 }
 
 .progress-container {
-  width: 340px;
+  width: 100%;
+  max-width: 340px; /* 改为 max-width，适应移动端 */
 }
 
 .progress-track-label {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px; /* 收紧间距 */
   font-family: var(--tp-font-data);
   font-size: 10px;
   letter-spacing: 0;
-  color: rgba(125, 211, 252, 0.62);
+  color: rgba(125, 211, 252, 0.85); /* 提升明度 */
 }
 
 .progress-bar {
   height: 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.15); /* 加强轨道背景 */
   border-radius: var(--tp-radius-full);
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 8px; /* 收紧间距 */
   position: relative;
-  border: 1px solid rgba(125, 211, 252, 0.14);
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.22), 0 0 18px rgba(56, 189, 248, 0.10);
+  border: 1px solid rgba(125, 211, 252, 0.25); /* 加强边框 */
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.22), 0 0 18px rgba(56, 189, 248, 0.15); /* 增强环境光 */
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--tp-brand-accent) 0%, var(--tp-brand-accent-light) 50%, var(--tp-brand-accent) 100%);
+  background: linear-gradient(90deg, var(--tp-brand-accent) 0%, #7dd3fc 50%, var(--tp-brand-accent) 100%); /* 加亮填充中心 */
   background-size: 200% 100%;
   border-radius: var(--tp-radius-full);
   transition: width var(--tp-duration-fast) var(--tp-easing);
   position: relative;
   animation: progressShimmer 2s linear infinite;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.65), 0 0 26px rgba(2, 132, 199, 0.24);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.8), 0 0 24px rgba(56, 189, 248, 0.4); /* 增强发光效果 */
 
   &.progress-error {
     background: linear-gradient(90deg, var(--tp-danger) 0%, var(--tp-warning) 100%);
@@ -467,7 +483,25 @@ onMounted(() => {
 .progress-text {
   font-family: var(--tp-font-body);
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.85); /* 提升明度 */
+  display: flex;
+  align-items: center;
+}
+
+.loading-dots {
+  display: inline-block;
+  width: 1em;
+  text-align: left;
+  animation: dots 1.5s infinite steps(4, end);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+@keyframes dots {
+  0%, 20% { content: ''; width: 0; }
+  40% { content: '.'; width: 0.33em; }
+  60% { content: '..'; width: 0.66em; }
+  80%, 100% { content: '...'; width: 1em; }
 }
 
 .progress-percent {
@@ -475,23 +509,48 @@ onMounted(() => {
   color: var(--tp-brand-accent);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); /* 增加轻微发光 */
 }
 
 .error-hint {
-  margin-top: 18px;
+  margin-top: 16px; /* 调整间距 */
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--tp-space-2);
-  padding: 10px 16px;
-  background: var(--tp-warning-bg);
-  border: 1px solid var(--tp-warning-border);
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(220, 38, 38, 0.15); /* 调整背景为更柔和的红色半透明 */
+  border: 1px solid rgba(220, 38, 38, 0.4);
   border-radius: var(--tp-radius-md);
   font-family: var(--tp-font-body);
   font-size: 13px;
-  color: var(--tp-warning);
+  color: #fca5a5; /* 调整文字颜色 */
+
+  .error-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
   .el-icon {
     font-size: 14px;
+    color: #ef4444;
+  }
+}
+
+.retry-btn {
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
+  padding: 4px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: #ef4444;
+    color: #fff;
   }
 }
 
@@ -499,7 +558,22 @@ onMounted(() => {
   position: absolute;
   bottom: 32px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.6); /* 提升明度 */
+}
+
+/* 媒体查询：移动端优化 */
+@media (max-width: 768px) {
+  .splash-radar {
+    width: min(80vw, 280px); /* 限制雷达图最大尺寸 */
+  }
+
+  .progress-track-label {
+    display: none; /* 隐藏低价值装饰标签 */
+  }
+
+  .splash-subtitle {
+    margin-bottom: 32px; /* 调整间距 */
+  }
 }
 
 /* 淡出动画 */

@@ -94,7 +94,7 @@ def main() -> None:
         },
     )
 
-    # P2: 先检查 WebView2 是否安装，避免在缺失时浪费 Service 初始化时间
+    # 先检查 WebView2 是否安装，避免在缺失时浪费 Service 初始化时间
     checker = WebView2Checker()
 
     if not checker.is_installed():

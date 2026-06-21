@@ -69,7 +69,7 @@ def coerce_window_strategy(value: Any) -> str:
 
 
 def coerce_node_label_mode(value: Any) -> str:
-    """Normalize node label display mode."""
+    """规范化节点标签显示模式。"""
     mode = str(value).strip().lower()
     if mode not in {"none", "type", "id"}:
         raise ValueError("node_label_mode must be one of none/type/id")

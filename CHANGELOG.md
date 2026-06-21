@@ -6,6 +6,40 @@
 
 ---
 
+## [Unreleased]
+
+- 暂无。
+
+---
+
+## [4.5.1] - 2026-06-21
+
+### 改进
+
+- **全项目代码注释规范化**：删除冗余注释框（`# ---- ... ----` / `# ==== ... ====`），统一为短标题分区风格；中文化英文及中英混杂注释；保留 MATLAB 算法参考、安全校验逻辑、跨版本兼容性说明、工具抑制（ruff/mypy/pylint）等高价值注释。涉及 `trace_pipeline/` 核心包（angles/endpoints/transforms/statistics/nodes/config/models/pipeline/reporting/validation 等 30+ 文件）、`backend/` 服务层（gui_api/main_gui/report_service/stats_service/cache）、`frontend/src/` 视图层（App.vue 及 6 个视图组件、3 个样式文件、DevPanel/ProgressPanel）、`tests/`（6 个测试文件）、`scripts/package.py`
+- **SplashScreen 启动页视觉增强**：
+  - 新增加载点动画（`loading-dots` CSS keyframe 动态 `...` 指示器）
+  - 新增连接失败重试按钮（`retryBootSequence()` 方法 + `.retry-btn` 样式）
+  - 错误状态展示优化：错误消息区域化展示、背景/边框/文字颜色调整
+  - 移动端安全边距（padding 40px→24px）、响应式媒体查询（768px 断点隐藏低价值装饰元素）
+  - 进度条可读性提升：轨道背景对比度增强、填充中心加亮（`#7dd3fc`）、发光效果增强、文字明度提升
+
+### 版本同步
+
+- 全项目版本号同步至 4.5.1
+
+### 验证状态
+
+- Python `compileall`：通过
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Python 快速测试：通过（`tests/test_packaging_metadata.py`、`test_angles.py`、`test_endpoints.py`、`test_nodes.py`、`test_statistics.py`，共 67 项）
+- Python `tests/test_pipeline.py`：`TestLoadTraceData` 2 项通过，`TestRunPipeline::test_successful_run` 本机执行 300s 超时
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- `ruff`：未安装，跳过
+
+---
+
 ## [4.5.0] - 2026-06-21
 
 ### 新增
@@ -42,41 +76,6 @@
 
 - **设计系统 Token 扩展**：新增 Surface 层次系统（`--tp-surface-0` ~ `--tp-surface-3`）、发光色 Token（`--tp-glow-primary/success/danger/warning`）、标准缓动曲线（`--ease-spring/decelerate/accelerate/standard`）
 - **新增动效 Keyframe**：`tp-success-burst`（成功爆发光效）、`tp-border-glow`（边框呼吸光）、`tp-scan-line`（扫描线动效）供后续组件复用
-
----
-
-## [Unreleased] - 2026-06-21
-
-### 近期修复合集
-
-#### 前端运行时修复
-- `ImageViewer.vue`：组件卸载时兜底移除全局 `keydown` 监听器，修复可见状态下路由切换导致的事件泄漏风险
-- `ProgressPanel.vue`：新增 `stopAnimation()` 并在任务停止/完成/组件卸载时取消 `requestAnimationFrame`，避免进度条完成后继续空转消耗 CPU
-- `App.vue`：`toggleMaximize` 去掉硬编码 120ms setTimeout，改为每 50ms 最多 10 次轮询窗口状态
-- `SplashScreen.vue`：`runBootSequence()` catch rejection，记录 error、加入 errors 并关闭 splash
-- `ProcessingView.vue`：深监听全 config 改为精确监听 6 个处理参数字段；移除目录 watcher 的无意义 deep
-
-#### GUI 后端维护
-- `gui_api.py`：批量报告进度回调工厂提取为 `_make_report_progress_callback()`，避免循环内重复定义闭包并提升代码可读性
-- `gui_api.py`：缩略图生成的 Pillow `Resampling.LANCZOS` 访问改为新旧版本兼容写法，避免旧版 Pillow 类型/属性兼容问题
-- `gui_api.py`：`export_config_json` 在 `json.loads` 前增加 5 MiB UTF-8 字节大小限制，超限 warning 并返回 False
-
-#### 前端安全修复
-- `ConfigView.vue`：所有 `dangerouslyUseHTMLString` 改为 Vue `h()` VNode
-- `DevPanel.vue`：`dangerouslyUseHTMLString` 改为 Vue `h()` VNode
-
-#### 前端数据持久化
-- `ConfigForm.vue`：路径自动保存改为 debounce + last-write-wins，并保留 `pathSaveInFlight` 防并发保存；失败时 payload 合并回待保存对象等待下次修改
-
-#### 开发工作流
-- `.gitignore` / `.ignore`：新增 `.slim/deepwork/` 本地审查记录规则，确保记录不进入版本库但可被本地检索
-
-#### 测试验证
-- 后端语法检查：`python -m py_compile backend\\gui_api.py` 通过
-- 前端类型检查：`npm.cmd --prefix frontend run typecheck` 通过
-- 前端生产构建：`npm.cmd --prefix frontend run build` 通过（仅有依赖注解警告和 chunk 体积提示）
-- 后端导入检查：`python -c "from backend.gui_api import GuiApi; print('import OK')"` 通过
-- `dangerouslyUseHTMLString` 关键词搜索无残留
 
 ## [4.3.3] - 2026-06-20
 
@@ -430,6 +429,10 @@
 
 ---
 
+[4.5.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.1
+[4.5.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.0
+[4.4.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.4.0
+[4.3.3]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.3
 [4.3.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.2
 [4.3.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.1
 [4.3.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.3.0

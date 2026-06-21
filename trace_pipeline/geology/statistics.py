@@ -45,7 +45,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# ── 测线长度与坐标变换 ────────────────────────────────────────────────
+# 测线长度与坐标变换
 
 
 def _estimate_scanline_length(scanline_positions: np.ndarray) -> float:
@@ -78,7 +78,7 @@ def _to_local_segments(trace: TraceData) -> np.ndarray:
     return local_points.reshape(trace.endpoints.shape)
 
 
-# ── 自适应阈值 ───────────────────────────────────────────────────────
+# 自适应阈值
 
 
 def _adaptive_disagreement_threshold(trace_count: int) -> float:
@@ -93,7 +93,7 @@ def _adaptive_consistency_threshold(trace_count: int) -> float:
     return 0.50 * (0.30 + 0.20 * math.exp(-n / 30.0))
 
 
-# ── 露头面积 ──────────────────────────────────────────────────────────
+# 露头面积
 
 
 def _compute_window_equivalent_area(trace_count: int, window_p20: float) -> float:
@@ -165,7 +165,7 @@ def _select_effective_area(
     return math.nan, "unavailable", math.nan, ""
 
 
-# ── 迹长 ──────────────────────────────────────────────────────────────
+# 迹长
 
 
 def _finite_positive_total(values: np.ndarray) -> float:
@@ -206,7 +206,7 @@ def _effective_trace_length_total(
     return math.nan, "unavailable"
 
 
-# ── 主入口 ────────────────────────────────────────────────────────────
+# 主入口
 
 
 def compute_trace_statistics(

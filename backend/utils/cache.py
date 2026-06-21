@@ -85,7 +85,7 @@ class TTLCache:
 
 
 class DirectoryChangeDetector:
-    """Detect external changes from a shallow directory content snapshot."""
+    """检测目录内容的浅层快照是否发生外部变更。"""
 
     def __init__(self, max_files: int = 5000) -> None:
         self._snapshot: tuple[Any, ...] | None = None

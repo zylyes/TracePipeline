@@ -596,7 +596,7 @@ onUnmounted(() => {
   margin-bottom: var(--tp-space-4);
 }
 
-/* ── 参数面板 ── */
+/* 参数面板 */
 .params-panel {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-bottom: var(--tp-space-4);
@@ -640,7 +640,7 @@ onUnmounted(() => {
   font-family: var(--tp-font-heading);
 }
 
-/* ── 处理过程面板 ── */
+/* 处理过程面板 */
 .process-panel {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-top: var(--tp-space-4);

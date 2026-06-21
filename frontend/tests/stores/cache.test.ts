@@ -11,7 +11,7 @@ describe('useCacheStore', () => {
     sessionStorage.clear()
   })
 
-  // ---- 扫描缓存 ----
+  // 扫描缓存
 
   it('扫描缓存初始为空', () => {
     const store = useCacheStore()
@@ -46,7 +46,7 @@ describe('useCacheStore', () => {
     expect(store.getScan()).toBeNull()
   })
 
-  // ---- 统计缓存 ----
+  // 统计缓存
 
   it('统计缓存支持多露头存取', () => {
     const store = useCacheStore()
@@ -110,7 +110,7 @@ describe('useCacheStore', () => {
     expect(store.getStats('O77')).toBeNull()
   })
 
-  // ---- 图片缓存 ----
+  // 图片缓存
 
   it('图片缓存未命中返回 null', () => {
     const store = useCacheStore()
@@ -148,7 +148,7 @@ describe('useCacheStore', () => {
     expect(refreshed.timestamp).toBeGreaterThanOrEqual(Date.now() - 1000)
   })
 
-  // ---- 结果缓存 ----
+  // 结果缓存
 
   it('结果缓存 TTL 为 5 秒', () => {
     const store = useCacheStore()
@@ -159,7 +159,7 @@ describe('useCacheStore', () => {
     expect(store.getResults()).toBeNull()
   })
 
-  // ---- 全局失效 ----
+  // 全局失效
 
   it('onPipelineComplete() 清除全部缓存', () => {
     const store = useCacheStore()
@@ -178,7 +178,7 @@ describe('useCacheStore', () => {
     expect(store.getImage('test.png')).toBeNull()
   })
 
-  // ---- 图片缓存统计 ----
+  // 图片缓存统计
 
   it('getImageCacheStats 返回命中/未命中计数', () => {
     const store = useCacheStore()

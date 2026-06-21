@@ -369,7 +369,6 @@ const barOption = computed(() => {
     }
   }
 
-  // metric === 'length'
   const series: any[] = [
     { name: '平均迹长', type: 'bar', data: tableData.value.map(d => safeFloat(d.mean_trace_length) ?? '-'), itemStyle: { color: GEO_C2, borderRadius: [3, 3, 0, 0] }, ...baseSeriesAnimation() },
   ]
@@ -510,7 +509,7 @@ onActivated(() => {
   margin-bottom: var(--tp-space-4);
 }
 
-/* ── 表格卡片 ── */
+/* 表格卡片 */
 .table-card {
   padding: var(--tp-space-4);
   margin-bottom: var(--tp-space-4);
@@ -521,7 +520,7 @@ onActivated(() => {
   box-shadow: var(--tp-shadow-md);
 }
 
-/* ── 原生表格样式（替代 el-table）── */
+/* 原生表格样式（替代 el-table） */
 .native-table {
   width: 100%;
   border-collapse: collapse;
@@ -608,7 +607,7 @@ onActivated(() => {
   width: 140px;
 }
 
-/* ── 图表区 ── */
+/* 图表区 */
 .chart-area {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-top: var(--tp-space-4);
@@ -666,7 +665,7 @@ onActivated(() => {
   filter: drop-shadow(0 12px 28px rgba(26, 54, 93, 0.06));
 }
 
-/* ── 图片网格 ── */
+/* 图片网格 */
 .images-panel {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-top: var(--tp-space-4);

@@ -65,7 +65,7 @@ def _classify_trace_types(local_segments: np.ndarray, scanline_length: float) ->
     return tuple(labels.tolist())
 
 
-# ── 圆窗计数 ─────────────────────────────────────────────────────────
+# 圆窗计数
 
 
 def _count_circle_windows_batch(
@@ -114,7 +114,6 @@ def _count_circle_windows_batch(
             for i in range(m_windows)
         ]
 
-    # p1: (N, 2), p2: (N, 2)
     p1 = local_segments[:, 0:2]
     p2 = local_segments[:, 2:4]
 
@@ -250,7 +249,7 @@ def _invalid_window(
     )
 
 
-# ── 辅助度量 ─────────────────────────────────────────────────────────
+# 辅助度量
 
 
 def _side_height(local_segments: np.ndarray, sign: float) -> float:

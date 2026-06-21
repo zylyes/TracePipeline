@@ -49,10 +49,10 @@ _TRACE_LINE_COLOR = (0, 0, 0)
 _TRACE_LINE_WIDTH = 0.85
 _EPS = 1e-9
 
-# ── 迹线置顶 ─────────────────────────────────────────────
+# 迹线置顶
 _TRACE_ZORDER = 10
 
-# ── 凸包 ─────────────────────────────────────────────────
+# 凸包
 _HULL_LINE_COLOR = "#1565C0"
 _HULL_FILL_COLOR = "#1565C0"
 _HULL_FILL_ALPHA = 0.08
@@ -60,7 +60,7 @@ _HULL_LINE_WIDTH = 0.8
 _HULL_LINE_STYLE = "--"
 _HULL_ZORDER = 2
 
-# ── 圆窗 ─────────────────────────────────────────────────
+# 圆窗
 _CIRCLE_WINDOW_LINE_COLOR = "#E65100"
 _CIRCLE_WINDOW_FILL_COLOR = "#E65100"
 _CIRCLE_WINDOW_FILL_ALPHA = 0.08

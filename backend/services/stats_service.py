@@ -57,7 +57,7 @@ class StatsService:
 
     @staticmethod
     def _input_fingerprint(input_dir: Any, table_stem: str) -> dict[str, Any]:
-        """Return a stable fingerprint for the source Excel file used by stats."""
+        """为统计所依赖的源 Excel 文件生成稳定指纹。"""
         try:
             base = Path(str(input_dir)).expanduser().resolve()
         except (OSError, RuntimeError):

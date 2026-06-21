@@ -23,9 +23,7 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = get_project_root()
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.json"
 
-# ===========================================================================
 # 默认配置
-# ===========================================================================
 
 
 class ConfigDict(TypedDict, total=False):
@@ -82,9 +80,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 _REQUIRED_KEYS = ("input_dir", "output_dir", "outcrop")
 
-# ===========================================================================
 # 配置加载
-# ===========================================================================
 
 
 def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
@@ -194,9 +190,7 @@ def validate_config(
     return merged
 
 
-# ===========================================================================
 # 路径解析
-# ===========================================================================
 
 
 def resolve_config_base_dir(config_path: str | Path | None = None) -> Path:
@@ -251,9 +245,7 @@ def resolve_io_paths(
     return str(in_path), str(out_path)
 
 
-# ===========================================================================
 # CLI 覆盖合并
-# ===========================================================================
 
 
 def apply_cli_overrides(cfg: dict[str, Any], **overrides: Any) -> dict[str, Any]:
@@ -266,9 +258,7 @@ def apply_cli_overrides(cfg: dict[str, Any], **overrides: Any) -> dict[str, Any]
     return validate_config(merged)
 
 
-# ===========================================================================
 # 工作目录保障
-# ===========================================================================
 
 
 def ensure_workspace_dirs(cfg: dict[str, Any] | None = None) -> None:

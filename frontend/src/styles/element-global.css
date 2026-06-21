@@ -1,10 +1,8 @@
-/* ================================================
-   TracePipeline — Element Plus 全局样式覆盖 v2
+/* TracePipeline — Element Plus 全局样式覆盖 v2
    现代化设计语言：柔和圆角、细腻阴影、克制动效
-   字体统一由 fonts.css 管理
-   ================================================ */
+   字体统一由 fonts.css 管理 */
 
-/* ── 按钮 ── */
+/* 按钮 */
 .el-button {
   border-radius: var(--tp-radius-md);
   font-weight: 500;
@@ -15,7 +13,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
-/* Subtle button ripple effect via after pseudo element */
+/* 按钮点击涟漪效果（通过 after 伪元素实现） */
 .el-button::after {
   content: '';
   position: absolute;
@@ -85,7 +83,7 @@
   color: var(--tp-brand-accent-dark);
 }
 
-/* ── 输入框 / 选择器 ── */
+/* 输入框 / 选择器 */
 .el-input__wrapper,
 .el-textarea__inner,
 .el-select .el-input__wrapper {
@@ -114,7 +112,7 @@
   color: var(--tp-text-muted);
 }
 
-/* ── 表格 ── */
+/* 表格 */
 .el-table {
   --el-table-header-bg-color: var(--tp-bg-sunken);
   --el-table-row-hover-bg-color: var(--tp-bg-hover);
@@ -149,7 +147,7 @@
   font-weight: 500;
 }
 
-/* ── 标签页 ── */
+/* 标签页 */
 .el-tabs__item {
   font-weight: 500;
   font-size: 14px;
@@ -174,7 +172,7 @@
   box-shadow: 0 0 6px var(--tp-brand-accent-glow);
 }
 
-/* ── 消息提示 ── */
+/* 消息提示 */
 .el-message {
   border-radius: var(--tp-radius-md);
   box-shadow: var(--tp-shadow-lg);
@@ -257,12 +255,12 @@
   box-shadow: var(--tp-shadow-lg), 0 0 20px -3px rgba(59, 130, 246, 0.3), 0 0 40px -8px rgba(59, 130, 246, 0.12);
 }
 
-/* ── 空状态 ── */
+/* 空状态 */
 .el-empty__description {
   color: var(--tp-text-tertiary);
 }
 
-/* ── 对话框 ── */
+/* 对话框 */
 .el-dialog {
   border-radius: var(--tp-radius-2xl, 24px);
   box-shadow: var(--tp-shadow-2xl, var(--tp-shadow-xl));
@@ -291,7 +289,7 @@
   border-top: 1px solid var(--tp-border-light);
 }
 
-/* ── Dialog 入场动画覆写 ── */
+/* Dialog 入场动画覆写 */
 .el-overlay-dialog .el-dialog {
   animation: dialogScaleIn 0.3s var(--tp-easing-expo);
 }
@@ -301,7 +299,7 @@
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* ── 下拉菜单 ── */
+/* 下拉菜单 */
 .el-dropdown-menu {
   border-radius: var(--tp-radius-lg);
   box-shadow: var(--tp-shadow-lg);
@@ -321,7 +319,7 @@
   color: var(--tp-brand-accent);
 }
 
-/* ── 开关 ── */
+/* 开关 */
 .el-switch__core {
   border-radius: var(--tp-radius-full);
 }
@@ -331,7 +329,7 @@
   border-color: var(--tp-success);
 }
 
-/* ── 滑块 ── */
+/* 滑块 */
 .el-slider__runway {
   height: 4px;
   background: var(--tp-bg-sunken);
@@ -357,7 +355,7 @@
   box-shadow: var(--tp-shadow-md), 0 0 0 4px rgba(2, 132, 199, 0.18);
 }
 
-/* ── 单选框 / 复选框 ── */
+/* 单选框 / 复选框 */
 .el-radio__input.is-checked .el-radio__inner {
   background: var(--tp-brand-accent);
   border-color: var(--tp-brand-accent);
@@ -376,13 +374,13 @@
   color: var(--tp-brand-accent);
 }
 
-/* ── 颜色选择器 ── */
+/* 颜色选择器 */
 .el-color-picker__trigger {
   border-radius: var(--tp-radius-sm);
   border-color: var(--tp-border);
 }
 
-/* ── 描述列表 ── */
+/* 描述列表 */
 .el-descriptions__label {
   font-weight: 500;
   color: var(--tp-text-secondary);
@@ -392,7 +390,7 @@
   color: var(--tp-text-primary);
 }
 
-/* ── 警告提示 ── */
+/* 警告提示 */
 .el-alert {
   border-radius: var(--tp-radius-md);
 }
@@ -401,7 +399,7 @@
   font-weight: 500;
 }
 
-/* ── 标签 ── */
+/* 标签 */
 .el-tag {
   font-weight: 500;
   border-radius: var(--tp-radius-full);
@@ -433,7 +431,7 @@
   color: var(--tp-danger);
 }
 
-/* ── 加载 ── */
+/* 加载 */
 .el-loading-mask {
   background:
     radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.12), transparent 32%),
@@ -458,28 +456,28 @@
   filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.45));
 }
 
-/* ── 分页 ── */
+/* 分页 */
 .el-pagination .el-input__wrapper {
   box-shadow: 0 0 0 1px var(--tp-border) inset;
 }
 
-/* ── 菜单 / 导航 ── */
+/* 菜单 / 导航 */
 .el-menu {
   border-right: none;
 }
 
-/* ── 表单 ── */
+/* 表单 */
 .el-form-item__label {
   font-weight: 500;
   color: var(--tp-text-secondary);
 }
 
-/* ── 弹出确认框 ── */
+/* 弹出确认框 */
 .el-popconfirm__main {
   color: var(--tp-text-primary);
 }
 
-/* ── MessageBox 确认弹窗 ── */
+/* MessageBox 确认弹窗 */
 .tp-confirm-box {
   border-radius: var(--tp-radius-lg) !important;
   box-shadow: var(--tp-shadow-xl), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
@@ -590,22 +588,22 @@
   }
 }
 
-/* ── Tooltip ── */
+/* Tooltip */
 .el-tooltip__popper {
   border-radius: var(--tp-radius-md);
   box-shadow: var(--tp-shadow-md);
 }
 
-/* ── Popover ── */
+/* Popover */
 .el-popover.el-popper {
   border-radius: var(--tp-radius-lg);
   box-shadow: var(--tp-shadow-lg);
 }
 
-/* ── 树形控件 ── */
+/* 树形控件 */
 /* 字体由 fonts.css 管理 */
 
-/* ── 时间线 ── */
+/* 时间线 */
 .el-timeline-item__node {
   background: var(--tp-brand-accent);
 }
@@ -614,12 +612,12 @@
   color: var(--tp-text-muted);
 }
 
-/* ── 图片预览遮罩 ── */
+/* 图片预览遮罩 */
 .el-image-viewer__wrapper {
   backdrop-filter: blur(4px);
 }
 
-/* ── 折叠面板 ── */
+/* 折叠面板 */
 .el-collapse {
   border-color: var(--tp-border-light);
 }
@@ -634,18 +632,18 @@
   color: var(--tp-text-secondary);
 }
 
-/* ── 分割线 ── */
+/* 分割线 */
 .el-divider__text {
   font-weight: 500;
   color: var(--tp-text-secondary);
 }
 
-/* ── 步骤条 ── */
+/* 步骤条 */
 .el-step__title {
   font-weight: 500;
 }
 
-/* ── 骨架屏（零 repaint，纯 Composite）── */
+/* 骨架屏 */
 .el-skeleton__item {
   position: relative;
   overflow: hidden;
@@ -667,7 +665,7 @@
   animation: tp-shimmer 1.4s linear infinite;
 }
 
-/* ── 结果页 ── */
+/* 结果页 */
 .el-result__title {
   font-weight: 600;
 }
@@ -676,25 +674,25 @@
   color: var(--tp-text-secondary);
 }
 
-/* ── 抽屉 ── */
+/* 抽屉 */
 .el-drawer {
   border-radius: var(--tp-radius-2xl, 24px) 0 0 var(--tp-radius-2xl, 24px);
   box-shadow: var(--tp-shadow-2xl, var(--tp-shadow-xl));
 }
 
-/* ── 返回顶部 ── */
+/* 返回顶部 */
 .el-backtop {
   border-radius: var(--tp-radius-sm);
   box-shadow: var(--tp-shadow-md);
   color: var(--tp-brand-accent);
 }
 
-/* ── 日历数字 ── */
+/* 日历数字 */
 .el-calendar-table .el-calendar-day {
   font-family: var(--tp-font-data);
 }
 
-/* ── 表格行左侧悬停指示器 ── */
+/* 表格行左侧悬停指示器 */
 .el-table .el-table__row td.el-table__cell:first-child {
   position: relative;
 }

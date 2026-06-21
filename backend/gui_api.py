@@ -1,4 +1,4 @@
-"""暴露给 JS 的 API 类。"""
+"""pywebview JS API 入口 — 前端可调用的后端方法集合。"""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ class GuiApi:
     使用运行锁，防止并发导致资源耗尽。
 
     服务采用分层初始化策略：
-    - 启动必需（饥饿加载）：PathSecurityChecker, ConfigService, FileService, LogService
+    - 启动时预加载：PathSecurityChecker, ConfigService, FileService, LogService
     - 按需懒加载（首次访问时创建）：PipelineService, PreviewService, StatsService,
       DataService, ReportService, AuditService
     """
@@ -62,13 +62,13 @@ class GuiApi:
         import time
 
         t0 = time.perf_counter()
-        # ---- 启动必需服务（饥饿加载） ----
+        # 启动时预加载：安全校验、配置、文件扫描、日志等服务
         self._path_checker = PathSecurityChecker(PROJECT_ROOT)
         self._config = ConfigService()
         self._file = FileService()
         self._log = LogService()
 
-        # ---- 按需懒加载服务 ----
+        # 按需懒加载：首次访问时创建
         self._pipeline: PipelineService | None = None
         self._preview: PreviewService | None = None
         self._stats: StatsService | None = None
@@ -105,7 +105,7 @@ class GuiApi:
             },
         )
 
-    # ---- 懒加载属性 ----
+    # 懒加载属性
     @property
     def _pipeline_svc(self) -> PipelineService:
         if self._pipeline is None:
@@ -146,9 +146,7 @@ class GuiApi:
         self._window = window
         self._window_maximized = False
 
-    # ------------------------------------------------------------------
-    # 内部辅助
-    # ------------------------------------------------------------------
+    # 内部辅助方法
     def _safe_path(self, path: str, base: Path | None = None) -> Path | None:
         """解析并校验路径在项目根目录内，防止路径遍历攻击。"""
         return self._path_checker.safe_path(path, base)
@@ -245,9 +243,7 @@ class GuiApi:
             self._stats_svc.invalidate_cache()
         return changed
 
-    # ------------------------------------------------------------------
     # 配置
-    # ------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         cfg = self._config.get()
         logger.debug(
@@ -319,9 +315,7 @@ class GuiApi:
         )
         return cfg
 
-    # ------------------------------------------------------------------
     # 文件
-    # ------------------------------------------------------------------
     def preload_fonts(self) -> dict[str, Any]:
         """预热 matplotlib 字体缓存与样式配置，减少首次绘图时的延迟。
 
@@ -373,9 +367,7 @@ class GuiApi:
         )
         return results
 
-    # ------------------------------------------------------------------
     # 流水线
-    # ------------------------------------------------------------------
     def run_pipeline(self, targets: list[str], config: dict[str, Any]) -> dict[str, Any]:
         req_id = f"api-run-{int(time.perf_counter() * 1000)}"
         with LogContext(request_id=req_id):
@@ -443,9 +435,7 @@ class GuiApi:
             )
         return event
 
-    # ------------------------------------------------------------------
     # 结果与统计
-    # ------------------------------------------------------------------
     def get_results(self) -> list[dict[str, Any]]:
         """获取已完成的处理结果列表（通过扫描 output 目录）。"""
         from trace_pipeline.utils.output_paths import find_output_images
@@ -542,9 +532,7 @@ class GuiApi:
         )
         return results
 
-    # ------------------------------------------------------------------
     # 数据页
-    # ------------------------------------------------------------------
     def get_data(
         self, outcrop: str, section: str, page: int = 1, page_size: int = 20, source: str = "output"
     ) -> dict[str, Any]:
@@ -590,9 +578,7 @@ class GuiApi:
             )
         return result
 
-    # ------------------------------------------------------------------
     # 预览
-    # ------------------------------------------------------------------
     def generate_preview(self, config: dict[str, Any]) -> dict[str, Any]:
         if not self._preview_lock.acquire(blocking=False):
             logger.warning(
@@ -620,15 +606,11 @@ class GuiApi:
         finally:
             self._preview_lock.release()
 
-    # ------------------------------------------------------------------
     # 日志
-    # ------------------------------------------------------------------
     def get_logs(self, tail: int = 100, level: str = "INFO") -> list[str]:
         return self._log.get_logs(tail, level)
 
-    # ------------------------------------------------------------------
     # 毕设功能（开发者选项）
-    # ------------------------------------------------------------------
     def poll_report_progress(self) -> dict[str, Any] | None:
         """前端轮询报告导出进度，非阻塞。"""
         with self._report_progress_lock:
@@ -869,9 +851,7 @@ class GuiApi:
         )
         return logs
 
-    # ------------------------------------------------------------------
     # 系统
-    # ------------------------------------------------------------------
     def open_external(self, url: str) -> bool:
         """Open a trusted external URL in the system browser."""
         parsed = urlparse(url)
@@ -1282,9 +1262,7 @@ class GuiApi:
         """应用关闭前调用，确保后台流水线优雅结束。"""
         self._pipeline_svc.shutdown(timeout=30.0)
 
-    # ------------------------------------------------------------------
     # 窗口控制（无边框窗口支持）
-    # ------------------------------------------------------------------
     def window_minimize(self) -> bool:
         """最小化窗口。"""
         if self._window is None:

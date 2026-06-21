@@ -139,12 +139,12 @@ function formatValue(v: number | null | undefined) {
 .stat-card {
   flex: 1;
   min-width: 200px;
-  background: var(--tp-surface-2);
+  background: #ffffff;
   border-radius: var(--tp-radius-lg);
   padding: 20px 18px;
-  border: 1px solid var(--tp-border-light);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-top: 3px solid var(--card-accent);
-  box-shadow: var(--tp-shadow-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all var(--tp-duration-slow) var(--tp-easing-expo);
   position: relative;
   overflow: hidden;
@@ -161,24 +161,27 @@ function formatValue(v: number | null | undefined) {
 }
 
 .stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px var(--card-accent);
-  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
-/* 内发光 */
+/* 顶部强调色的淡阴影 */
 .stat-card::after {
   content: '';
   position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 24px var(--card-accent);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(180deg, var(--card-accent) 0%, transparent 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--tp-duration-slow);
 }
 
 .stat-card:hover::after {
-  opacity: 0.15;
+  opacity: 0.08;
 }
 
 .stat-top {
@@ -193,7 +196,7 @@ function formatValue(v: number | null | undefined) {
 .stat-value {
   font-size: var(--tp-font-size-display);
   font-weight: 700;
-  color: #e6edf3;
+  color: var(--tp-text-primary);
   line-height: 1.2;
   font-feature-settings: "tnum" 1;
 }
@@ -201,14 +204,14 @@ function formatValue(v: number | null | undefined) {
 .stat-unit {
   font-family: var(--tp-font-body);
   font-size: 14px;
-  color: var(--tp-text-tertiary);
+  color: #6b7280;
   font-weight: 500;
 }
 
 .stat-label {
   font-family: var(--tp-font-heading);
   font-size: 13px;
-  color: var(--tp-text-muted);
+  color: #6b7280;
   font-weight: 500;
   position: relative;
   z-index: 1;

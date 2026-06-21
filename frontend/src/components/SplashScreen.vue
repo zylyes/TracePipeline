@@ -177,7 +177,11 @@ function onAfterLeave() {
 }
 
 onMounted(() => {
-  runBootSequence()
+  runBootSequence().catch((err) => {
+    console.error('[SplashScreen] 启动序列异常:', err)
+    errors.value.push({ step: 'boot', error: String(err) })
+    visible.value = false
+  })
 })
 </script>
 

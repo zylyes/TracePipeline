@@ -2,28 +2,48 @@
 
 **2026-06-21**
 
-> 即时性能与稳定性修复 — 修复前端事件泄漏与进度动画空转，清理报告进度回调并增强 Pillow 缩略图兼容性。
+> 近期修复合集 — 事件泄漏与 RAF 空转修复、窗口状态轮询、Splash 异常捕获、watch 精确化、XSS 安全消除（dangerouslyUseHTMLString→h() VNode）、配置防并发持久化、JSON 导入 5 MiB 上限。
 
 ## 高亮
 
 - **图片查看器事件泄漏修复** — `ImageViewer.vue` 在组件卸载时兜底移除全局 `keydown` 监听器，避免路由切换后残留键盘事件
 - **进度条 CPU 空转修复** — `ProgressPanel.vue` 在任务停止、完成和组件卸载时取消 `requestAnimationFrame`，避免后台空转
+- **窗口最大化轮询** — `App.vue` `toggleMaximize` 去掉硬编码 120ms setTimeout，改为每 50ms 最多 10 次轮询窗口状态，消除定时器不确定性
+- **启动异常安全兜底** — `SplashScreen.vue` 的 `runBootSequence()` 捕获 Promise rejection，记录错误并确保 splash 关闭
+- **响应式 watch 精确化** — `ProcessingView.vue` 深监听全 config 改为仅监听 6 个处理参数字段，减少不必要触发
+- **XSS 安全修复** — `ConfigView.vue` 和 `DevPanel.vue` 所有 `dangerouslyUseHTMLString` 改为 Vue `h()` VNode，消除 XSS 注入风险
+- **配置防并发持久化** — `ConfigForm.vue` 路径自动保存改为 debounce + last-write-wins + `pathSaveInFlight` 锁，失败时 payload 安全合并回待保存队列
+- **JSON 导入防御** — `gui_api.py` 的 `export_config_json` 在 `json.loads` 前增加 5 MiB UTF-8 字节大小检查，超限 warning 并返回 False
 - **报告进度回调清理** — `gui_api.py` 将批量报告进度回调工厂提取为私有方法，减少循环内重复定义并提升可维护性
 - **Pillow 兼容性增强** — 缩略图生成兼容新旧 Pillow 的 `Resampling.LANCZOS` 访问方式
 
 ## 变更摘要
 
-### 前端运行时修复（2 项）
+### 前端运行时修复（5 项）
 - `ImageViewer.vue`：添加 `onUnmounted` 监听器清理
 - `ProgressPanel.vue`：新增 `stopAnimation()`，停止非运行状态下的 RAF 循环
+- `App.vue`：`toggleMaximize` 硬编码 setTimeout 替换为 50ms 轮询（最多 10 次）
+- `SplashScreen.vue`：`runBootSequence()` 添加 catch 兜底
+- `ProcessingView.vue`：watch 精确化，移除无意义 deep
 
-### GUI 后端维护（2 项）
+### GUI 后端维护（3 项）
 - `gui_api.py`：提取 `_make_report_progress_callback()`
 - `gui_api.py`：Pillow resampling fallback 兼容旧版本
+- `gui_api.py`：`export_config_json` 增加 5 MiB 字节大小限制
+
+### 前端安全修复（2 项）
+- `ConfigView.vue`：`dangerouslyUseHTMLString` → Vue `h()` VNode
+- `DevPanel.vue`：`dangerouslyUseHTMLString` → Vue `h()` VNode
+
+### 前端数据持久化（1 项）
+- `ConfigForm.vue`：debounce + last-write-wins + 防并发锁，失败合并回待保存对象
 
 ### 测试验证
 - 后端语法检查：通过
+- 前端类型检查：通过
 - 前端构建：成功
+- 后端导入检查：通过
+- `dangerouslyUseHTMLString` 无残留
 
 ---
 

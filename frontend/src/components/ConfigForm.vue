@@ -169,12 +169,10 @@ watch(form, (val) => {
   emit('update:modelValue', { ...val })
 }, { deep: true })
 
-// 路径自动保存（带竞态保护）
+// 路径自动保存（简化版：debounce + last-write-wins）
 const PATH_SAVE_DEBOUNCE_MS = 400
 let pathSaveTimer: number | null = null
-let pathSaving = false
-let pathSaveDirty = false
-let pathSaveFailed = false
+let pathSaveInFlight = false
 let pendingPathPayload: Record<string, any> = {}
 
 function hasPendingPathPayload() {
@@ -194,27 +192,24 @@ function schedulePathSave(payload: Record<string, any>) {
 
 async function flushPathSave() {
   if (!hasPendingPathPayload()) return
-  if (pathSaving) {
-    pathSaveDirty = true
-    return
-  }
+  if (pathSaveInFlight) return
 
-  pathSaving = true
-  pathSaveFailed = false
+  pathSaveInFlight = true
+  let saveFailed = false
   const payload = { ...pendingPathPayload }
   pendingPathPayload = {}
   try {
     const saved = await configStore.saveConfig(payload)
     emit('update:modelValue', { ...saved })
   } catch (e) {
+    // 保存失败：合并回待保存对象，等待下次修改重试
     pendingPathPayload = { ...payload, ...pendingPathPayload }
-    pathSaveFailed = true
+    saveFailed = true
     console.warn('路径自动保存失败', e)
   } finally {
-    pathSaving = false
-    if (pathSaveDirty || (hasPendingPathPayload() && !pathSaveFailed)) {
-      pathSaveDirty = false
-      void flushPathSave()
+    pathSaveInFlight = false
+    if (!saveFailed && hasPendingPathPayload()) {
+      schedulePathSave({})
     }
   }
 }

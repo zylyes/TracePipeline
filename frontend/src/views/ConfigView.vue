@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { h, ref, onMounted, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { msg } from '@/utils/message'
 import { Refresh, Download, RefreshRight, Setting, Upload } from '@element-plus/icons-vue'
@@ -95,13 +95,15 @@ async function saveStyleConfig() {
 async function resetProcessingConfig() {
   try {
     await ElMessageBox.confirm(
-      '确定要将处理参数重置为默认值吗？<div class="tp-confirm-warning">此操作不可撤销</div>',
+      h('div', null, [
+        '确定要将处理参数重置为默认值吗？',
+        h('div', { class: 'tp-confirm-warning' }, '此操作不可撤销'),
+      ]),
       '重置处理设置',
       {
         confirmButtonText: '确认重置',
         cancelButtonText: '取消',
         type: 'warning',
-        dangerouslyUseHTMLString: true,
         showClose: false,
         confirmButtonClass: 'tp-confirm-danger-btn',
         customClass: 'tp-confirm-box',
@@ -124,13 +126,15 @@ async function resetProcessingConfig() {
 async function resetStyleConfig() {
   try {
     await ElMessageBox.confirm(
-      '确定要将样式设置重置为默认值吗？<div class="tp-confirm-warning">此操作不可撤销</div>',
+      h('div', null, [
+        '确定要将样式设置重置为默认值吗？',
+        h('div', { class: 'tp-confirm-warning' }, '此操作不可撤销'),
+      ]),
       '重置样式设置',
       {
         confirmButtonText: '确认重置',
         cancelButtonText: '取消',
         type: 'warning',
-        dangerouslyUseHTMLString: true,
         showClose: false,
         confirmButtonClass: 'tp-confirm-danger-btn',
         customClass: 'tp-confirm-box',
@@ -155,13 +159,15 @@ async function resetStyleConfig() {
 async function resetAllConfig() {
   try {
     await ElMessageBox.confirm(
-      '确定要恢复所有默认配置吗？此操作将重置全部设置。<div class="tp-confirm-warning">此操作不可撤销</div>',
+      h('div', null, [
+        '确定要恢复所有默认配置吗？此操作将重置全部设置。',
+        h('div', { class: 'tp-confirm-warning' }, '此操作不可撤销'),
+      ]),
       '重置所有设置',
       {
         confirmButtonText: '确认重置',
         cancelButtonText: '取消',
         type: 'error',
-        dangerouslyUseHTMLString: true,
         showClose: false,
         confirmButtonClass: 'tp-confirm-danger-btn',
         customClass: 'tp-confirm-box',

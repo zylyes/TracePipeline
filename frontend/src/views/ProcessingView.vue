@@ -197,17 +197,27 @@ function addLog(type: ProcessLog['type'], message: string) {
 
 // 监听全局配置变化，自动同步到处理参数（排除本地保存触发的更新）
 let syncingParams = false
-watch(() => configStore.config, (newCfg) => {
-  if (syncingParams || !newCfg || Object.keys(newCfg).length === 0) return
-  params.value = {
-    export_rose_plot: newCfg.export_rose_plot ?? false,
-    rose_dpi: newCfg.rose_dpi ?? 600,
-    rose_bin_width: newCfg.rose_bin_width ?? 10,
-    trace_dpi: newCfg.trace_dpi ?? 600,
-    rotated_trace_dpi: newCfg.rotated_trace_dpi ?? 600,
-    enable_node_recognition: newCfg.enable_node_recognition ?? false,
-  }
-}, { deep: true })
+watch(
+  () => [
+    configStore.config?.export_rose_plot,
+    configStore.config?.rose_dpi,
+    configStore.config?.rose_bin_width,
+    configStore.config?.trace_dpi,
+    configStore.config?.rotated_trace_dpi,
+    configStore.config?.enable_node_recognition,
+  ],
+  ([export_rose_plot, rose_dpi, rose_bin_width, trace_dpi, rotated_trace_dpi, enable_node_recognition]) => {
+    if (syncingParams) return
+    params.value = {
+      export_rose_plot: export_rose_plot ?? false,
+      rose_dpi: rose_dpi ?? 600,
+      rose_bin_width: rose_bin_width ?? 10,
+      trace_dpi: trace_dpi ?? 600,
+      rotated_trace_dpi: rotated_trace_dpi ?? 600,
+      enable_node_recognition: enable_node_recognition ?? false,
+    }
+  },
+)
 
 // 模态窗口状态
 const modalVisible = ref(false)
@@ -560,7 +570,6 @@ watch(
     cacheStore.invalidateScan()
     loadFiles(true).catch((e: unknown) => { console.error('[ProcessingView] 目录变更刷新失败:', e) })
   },
-  { deep: true }
 )
 
 onUnmounted(() => {

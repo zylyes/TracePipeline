@@ -204,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { h, ref, computed, onMounted, onActivated } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { CircleCheck, Loading, WarningFilled } from '@element-plus/icons-vue'
 import { msg } from '@/utils/message'
@@ -375,13 +375,15 @@ async function saveDevConfig() {
 async function resetDevConfig() {
   try {
     await ElMessageBox.confirm(
-      '确定要将高级配置重置为默认值吗？<div class="tp-confirm-warning">此操作不可撤销</div>',
+      h('div', null, [
+        '确定要将高级配置重置为默认值吗？',
+        h('div', { class: 'tp-confirm-warning' }, '此操作不可撤销'),
+      ]),
       '重置高级配置',
       {
         confirmButtonText: '确认重置',
         cancelButtonText: '取消',
         type: 'warning',
-        dangerouslyUseHTMLString: true,
         showClose: false,
         confirmButtonClass: 'tp-confirm-danger-btn',
         customClass: 'tp-confirm-box',

@@ -937,6 +937,8 @@ class GuiApi:
 
     # 图片读取上限：5MB，防止大图片导致内存溢出
     _MAX_IMAGE_SIZE = 5 * 1024 * 1024
+    # 导出 JSON 内容上限：5 MiB，防止超大 JSON 导致内存/CPU DoS
+    _MAX_EXPORT_JSON_SIZE = 5 * 1024 * 1024
     # 安全的图片扩展名白名单（禁止 SVG 防止 XSS；禁止 html/htm 等）
     _SAFE_IMAGE_EXTENSIONS: frozenset[str] = frozenset(
         {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
@@ -1236,6 +1238,20 @@ class GuiApi:
                 )
                 return False
             path = folder_path / "config.json"
+            content_bytes = len(content.encode("utf-8"))
+            if content_bytes > self._MAX_EXPORT_JSON_SIZE:
+                logger.warning(
+                    "export_config_json 拒绝: 内容过大 (%d bytes > %d limit)",
+                    content_bytes,
+                    self._MAX_EXPORT_JSON_SIZE,
+                    extra={
+                        "stage": "api_export_config",
+                        "folder": folder,
+                        "content_bytes": content_bytes,
+                        "limit": self._MAX_EXPORT_JSON_SIZE,
+                    },
+                )
+                return False
             parsed = json.loads(content)
             # 深度校验：复用 validate_config 确保字段合法
             from trace_pipeline.config import validate_config

@@ -247,10 +247,19 @@ async function minimizeWindow() {
 }
 
 async function toggleMaximize() {
+  const wasMaximized = isMaximized.value
   await api.window_maximize()
-  setTimeout(async () => {
-    isMaximized.value = await api.window_is_maximized()
-  }, 120)
+  // 轮询查询窗口状态，最多约 500ms，每 50ms 检查一次
+  for (let i = 0; i < 10; i++) {
+    await new Promise(r => setTimeout(r, 50))
+    const now = await api.window_is_maximized()
+    if (now !== wasMaximized) {
+      isMaximized.value = now
+      return
+    }
+  }
+  // 超时后备：最终查询
+  isMaximized.value = await api.window_is_maximized()
 }
 
 async function closeWindow() {

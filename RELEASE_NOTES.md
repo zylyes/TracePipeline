@@ -1,3 +1,41 @@
+# TracePipeline v4.5.0 发布说明
+
+**发布日期**：2026-06-21
+
+## 本版本亮点
+
+### 🎨 界面视觉全面升级（P0 → P2 三阶段重构）
+
+本版本完成了软件界面的系统性视觉重构：
+
+**P0 — 设计一致性基础**：统一图标库迁移至 `@lucide/vue`，移除混用的 Element Plus 图标；修复 ECharts 图表文字色（暗色主题灰 → 浅色语义变量）；规范化滑块、标签页、状态标签的 Element Plus 组件样式。
+
+**P1 — 体验提升**：统计卡片强调色从顶部边框改为左侧竖线，与现代数据卡片设计规范对齐；表格行悬停新增品牌色左侧指示器动效。
+
+**P2 — 品牌感与沉浸感**：启动页三层同心圆差速旋转（16 s / 10 s反向 / 6 s）营造层次感；新增卡片语义辉光工具类；侧边栏折叠时标签淡出过渡。
+
+### 🗺️ 地质语义色系统统一
+
+侧边栏导航图标颜色与首页模块卡片完全对齐，使用同一套地质语义配色：深蓝（处理）/ 青碧（统计）/ 赭石（对比）/ 蓝紫（数据）/ 鲜红（配置）。对比视图、饼图、直方图的图表系列色同步统一，视觉沉稳不晃眼。
+
+## 变更文件
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/components/icons/*.vue` | 重构 | 6 个图标组件迁移至 @lucide/vue |
+| `frontend/src/App.vue` | 改进 | 图标颜色传值、侧边栏标签过渡、dev-toggle 居中 |
+| `frontend/src/components/StatCards.vue` | 改进 | border-top → border-left，光晕方向调整 |
+| `frontend/src/components/SplashScreen.vue` | 改进 | 雷达环差速旋转动画 |
+| `frontend/src/utils/echarts-theme.ts` | 修复+改进 | 图表文字色、系列色统一为地质语义色 |
+| `frontend/src/components/PieChart.vue` | 修复 | 图表文字色修复 |
+| `frontend/src/components/HistogramChart.vue` | 修复 | 图表文字色修复 |
+| `frontend/src/styles/element-global.css` | 改进 | 滑块/标签页/标签/表格行微交互规范化 |
+| `frontend/src/styles/tokens.css` | 新增 | 卡片语义辉光工具类 |
+| `frontend/package.json` | 版本 | 4.4.0 → 4.5.0 |
+| `trace_pipeline/__init__.py` | 版本 | 4.4.0 → 4.5.0 |
+
+---
+
 # TracePipeline v4.4.0 发布说明
 
 **发布日期**：2026-06-21

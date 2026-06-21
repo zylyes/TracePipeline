@@ -6,6 +6,30 @@
 
 ---
 
+## [4.5.0] - 2026-06-21
+
+### 新增
+
+- **图标库统一**：迁移至 `@lucide/vue`，6 个导航图标（Compass / Workflow / BarChart3 / Layers2 / Table2 / SlidersHorizontal）替换原自定义 SVG；侧边栏工具按钮同步迁移，移除对 `@element-plus/icons-vue` 的依赖
+- **设计语言统一**：侧边栏导航图标颜色与首页模块卡片地质语义色一致（深蓝 / 青碧 / 赭石 / 蓝紫 / 鲜红 / 品牌蓝）
+- **卡片语义辉光工具类**：新增 `.tp-glow-success / warning / danger / info`，配合 `border-left` 卡片使用
+- **启动页雷达环差速旋转**：三层同心圆差速旋转（16 s / 10 s 反向 / 6 s），带高光弧位点增强层次感
+- **侧边栏折叠标签淡出**：使用 `<Transition>` 为 logo 文字与菜单标签添加 opacity 淡入淡出过渡
+
+### 改进
+
+- **统计卡片重设计**：强调色从顶部边框（`border-top`）改为左侧竖线（`border-left`），hover 光晕方向同步调整
+- **表格行微交互**：首列 `::before` 伪元素，悬停时品牌色竖线从 0 → 3 px 过渡
+- **ECharts 图表色修复**：图表文字色由暗模式灰 `#8b949e` 改为运行时读取 CSS 变量 `--tp-text-tertiary`（浅色主题可读）
+- **图表颜色统一**：`CHART_COLOR_PRIMARY/SECONDARY/TERTIARY/DANGER` 改为地质语义色，与对比视图保持一致，视觉沉稳不晃眼
+- **Element Plus 组件规范化**：
+  - 滑块：轨道高度 4 px、手柄 16 × 16 px、hover 缩放 1.2×
+  - 标签页：选中态文字色 `--tp-brand-accent` + 加粗
+  - 状态标签：`border-radius` 改为 pill 形（`--tp-radius-full`）
+- **开发者模式开关**：侧边栏底部开关居中对齐，展开/折叠状态一致
+
+---
+
 ## [4.4.0] - 2026-06-21
 
 ### 改进

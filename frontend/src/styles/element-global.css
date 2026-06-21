@@ -154,11 +154,17 @@
   font-weight: 500;
   font-size: 14px;
   transition: all var(--tp-duration-normal);
+  color: var(--tp-text-tertiary);
 }
 
 .el-tabs__item:hover {
   color: var(--tp-brand-accent);
   text-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
+}
+
+.el-tabs__item.is-active {
+  color: var(--tp-brand-accent);
+  font-weight: 600;
 }
 
 .el-tabs__active-bar {
@@ -327,18 +333,28 @@
 
 /* ── 滑块 ── */
 .el-slider__runway {
+  height: 4px;
   background: var(--tp-bg-sunken);
   border-radius: var(--tp-radius-full);
 }
 
 .el-slider__bar {
-  background: var(--tp-brand-accent);
+  height: 4px;
+  background: linear-gradient(90deg, var(--tp-brand-accent-dark), var(--tp-brand-accent));
   border-radius: var(--tp-radius-full);
 }
 
 .el-slider__button {
+  width: 16px;
+  height: 16px;
   border-color: var(--tp-brand-accent);
-  box-shadow: var(--tp-shadow-sm);
+  box-shadow: var(--tp-shadow-sm), 0 0 0 3px rgba(2, 132, 199, 0.12);
+  transition: transform 0.15s var(--tp-easing-smooth), box-shadow 0.15s var(--tp-easing-smooth);
+}
+
+.el-slider__button:hover {
+  transform: scale(1.2);
+  box-shadow: var(--tp-shadow-md), 0 0 0 4px rgba(2, 132, 199, 0.18);
 }
 
 /* ── 单选框 / 复选框 ── */
@@ -388,8 +404,9 @@
 /* ── 标签 ── */
 .el-tag {
   font-weight: 500;
-  border-radius: var(--tp-radius-md);
+  border-radius: var(--tp-radius-full);
   padding: 0 10px;
+  font-size: 12px;
 }
 
 .el-tag--success {
@@ -675,4 +692,26 @@
 /* ── 日历数字 ── */
 .el-calendar-table .el-calendar-day {
   font-family: var(--tp-font-data);
+}
+
+/* ── 表格行左侧悬停指示器 ── */
+.el-table .el-table__row td.el-table__cell:first-child {
+  position: relative;
+}
+
+.el-table .el-table__row td.el-table__cell:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: var(--tp-brand-accent);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.15s var(--tp-easing-smooth);
+  pointer-events: none;
+}
+
+.el-table--enable-row-hover .el-table__body tr:hover td.el-table__cell:first-child::before {
+  width: 3px;
 }

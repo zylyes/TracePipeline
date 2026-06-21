@@ -141,9 +141,9 @@ function formatValue(v: number | null | undefined) {
   min-width: 200px;
   background: #ffffff;
   border-radius: var(--tp-radius-lg);
-  padding: 20px 18px;
+  padding: 20px 18px 20px 16px;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-top: 3px solid var(--card-accent);
+  border-left: 3px solid var(--card-accent);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all var(--tp-duration-slow) var(--tp-easing-expo);
   position: relative;
@@ -162,19 +162,18 @@ function formatValue(v: number | null | undefined) {
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10);
 }
 
-/* 顶部强调色的淡阴影 */
+/* 左侧强调色的淡光晕 */
 .stat-card::after {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  height: 20px;
-  background: linear-gradient(180deg, var(--card-accent) 0%, transparent 100%);
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(90deg, var(--card-accent) 0%, transparent 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--tp-duration-slow);

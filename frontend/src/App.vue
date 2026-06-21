@@ -39,10 +39,12 @@
         <aside :class="['sidebar', { collapsed: sidebarCollapsed }]">
           <div class="sidebar-header" @click.stop="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? '展开' : '收起'">
             <GeoIcon class="logo-icon" :size="20" color="#0F766E" />
-            <div v-if="!sidebarCollapsed" class="logo-text-group">
-              <span class="logo-text">TracePipeline</span>
-              <span class="logo-version">v{{ appVersion }}</span>
-            </div>
+            <Transition name="sidebar-fade">
+              <div v-if="!sidebarCollapsed" class="logo-text-group">
+                <span class="logo-text">TracePipeline</span>
+                <span class="logo-version">v{{ appVersion }}</span>
+              </div>
+            </Transition>
           </div>
 
           <nav class="menu">
@@ -53,8 +55,10 @@
               :class="['menu-item', { active: route.path === item.path }]"
             >
               <div class="menu-item-inner">
-                <component :is="item.icon" :size="18" class="menu-icon" />
-                <span v-if="!sidebarCollapsed" class="menu-label">{{ item.label }}</span>
+                <component :is="item.icon" :size="18" :color="item.color" class="menu-icon" />
+                <Transition name="sidebar-fade">
+                  <span v-if="!sidebarCollapsed" class="menu-label">{{ item.label }}</span>
+                </Transition>
               </div>
               <div v-if="route.path === item.path" class="menu-active-indicator"></div>
             </router-link>
@@ -63,15 +67,15 @@
           <div class="sidebar-footer">
             <div class="footer-section">
               <div class="footer-btn" @click="openInputDir" :title="sidebarCollapsed ? '打开输入目录' : ''">
-                <el-icon :size="14"><FolderOpened /></el-icon>
+                <FolderOpen :size="14" />
                 <span v-if="!sidebarCollapsed">打开输入目录</span>
               </div>
               <div class="footer-btn" @click="openOutputDir" :title="sidebarCollapsed ? '打开输出目录' : ''">
-                <el-icon :size="14"><FolderOpened /></el-icon>
+                <FolderOpen :size="14" />
                 <span v-if="!sidebarCollapsed">打开输出目录</span>
               </div>
               <div class="footer-btn" @click="openLogsDir" :title="sidebarCollapsed ? '打开日志目录' : ''">
-                <el-icon :size="14"><Document /></el-icon>
+                <FileText :size="14" />
                 <span v-if="!sidebarCollapsed">打开日志目录</span>
               </div>
             </div>
@@ -96,29 +100,29 @@
               <span class="status-item" :class="{ 'status-running': appStore.pipelineStatus === 'running' }">
                 <span class="status-indicator">
                   <span v-if="appStore.pipelineStatus === 'running'" class="status-pulse"></span>
-                  <el-icon v-else :size="12"><Timer /></el-icon>
+                  <Clock v-else :size="12" />
                 </span>
                 <span class="status-text">{{ statusText }}</span>
               </span>
               <span class="status-divider"></span>
               <span class="status-item">
-                <el-icon :size="12"><Files /></el-icon>
+                <Files :size="12" />
                 <span>已选 {{ appStore.selectedFileCount }} 个文件</span>
               </span>
             </div>
             <div class="status-group status-center">
               <span class="status-item status-path" @click="copyPath(appStore.inputDir)" title="点击复制输入目录路径">
-                <el-icon :size="12"><Folder /></el-icon>
+                <Folder :size="12" />
                 <span class="path-text">输入: {{ appStore.inputDir }}</span>
               </span>
               <span class="status-item status-path" @click="copyPath(appStore.outputDir)" title="点击复制输出目录路径">
-                <el-icon :size="12"><FolderOpened /></el-icon>
+                <FolderOpen :size="12" />
                 <span class="path-text">输出: {{ appStore.outputDir }}</span>
               </span>
             </div>
             <div class="status-group">
               <span v-if="appStore.lastOperationTime" class="status-item time">
-                <el-icon :size="12"><Clock /></el-icon>
+                <Clock :size="12" />
                 <span>{{ appStore.lastOperationTime }}</span>
               </span>
             </div>
@@ -142,7 +146,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { msg } from '@/utils/message'
-import { FolderOpened, Document, Timer, Files, Folder, Clock } from '@element-plus/icons-vue'
+import { FolderOpen, FileText, Clock, Files, Folder } from '@lucide/vue'
 import GeoIcon from '@/components/GeoIcon.vue'
 import SplashScreen from '@/components/SplashScreen.vue'
 import type { BootStep } from '@/components/SplashScreen.vue'
@@ -196,12 +200,12 @@ const appStore = useAppStore()
 const configStore = useConfigStore()
 
 const menuItems = [
-  { path: '/', label: '首页', icon: HomeIcon },
-  { path: '/processing', label: '处理', icon: ProcessIcon },
-  { path: '/statistics', label: '统计', icon: StatsIcon },
-  { path: '/comparison', label: '对比', icon: CompareIcon },
-  { path: '/data', label: '数据', icon: DataIcon },
-  { path: '/config', label: '配置', icon: ConfigIcon },
+  { path: '/', label: '首页', icon: HomeIcon, color: '#0284C7' },
+  { path: '/processing', label: '处理', icon: ProcessIcon, color: '#0369A1' },
+  { path: '/statistics', label: '统计', icon: StatsIcon, color: '#0D9488' },
+  { path: '/comparison', label: '对比', icon: CompareIcon, color: '#C2703A' },
+  { path: '/data', label: '数据', icon: DataIcon, color: '#7C3AED' },
+  { path: '/config', label: '配置', icon: ConfigIcon, color: '#DC2626' },
 ]
 
 const pageTitle = computed(() => {
@@ -920,13 +924,9 @@ onUnmounted(() => {
 .dev-toggle {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 8px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.dev-toggle.collapsed {
   justify-content: center;
+  padding: 8px 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .dev-toggle.collapsed :deep(.el-switch__label) {
@@ -1189,5 +1189,19 @@ onUnmounted(() => {
   .status-group {
     gap: 6px;
   }
+}
+
+/* ── 侧边栏标签淡入/淡出 ── */
+.sidebar-fade-enter-active {
+  transition: opacity 0.18s 0.08s var(--tp-easing);
+}
+
+.sidebar-fade-leave-active {
+  transition: opacity 0.12s var(--tp-easing);
+}
+
+.sidebar-fade-enter-from,
+.sidebar-fade-leave-to {
+  opacity: 0;
 }
 </style>

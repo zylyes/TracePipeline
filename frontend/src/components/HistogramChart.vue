@@ -42,7 +42,7 @@ const option = computed(() => {
       name: '迹长(m)',
       nameLocation: 'middle',
       nameGap: 38,
-      nameTextStyle: { fontFamily: font, color: '#8b949e' },
+      nameTextStyle: { fontFamily: font, color: cssVar('--tp-text-tertiary') || '#718096' },
       axisLabel: { 
         rotate: 0, 
         interval: 'auto',
@@ -50,13 +50,13 @@ const option = computed(() => {
         width: 60,
         fontSize: 10, 
         fontFamily: font, 
-        color: '#8b949e' 
+        color: cssVar('--tp-text-tertiary') || '#718096'
       },
     },
     yAxis: {
       type: 'value',
       name: '频数',
-      nameTextStyle: { fontFamily: font, color: '#8b949e' },
+      nameTextStyle: { fontFamily: font, color: cssVar('--tp-text-tertiary') || '#718096' },
       axisLabel: { ...baseAxisLabelStyle() },
     },
     series: [{

@@ -233,9 +233,28 @@ onMounted(() => {
   box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.05);
 }
 
-.ring-1 { --ring-inset: 7%; }
-.ring-2 { --ring-inset: 23%; }
-.ring-3 { --ring-inset: 39%; }
+.ring-1 {
+  --ring-inset: 7%;
+  border-top-color: rgba(125, 211, 252, 0.50);
+  animation: ringRotate 16s linear infinite;
+  will-change: transform;
+}
+.ring-2 {
+  --ring-inset: 23%;
+  border-right-color: rgba(125, 211, 252, 0.40);
+  animation: ringRotate 10s linear infinite reverse;
+  will-change: transform;
+}
+.ring-3 {
+  --ring-inset: 39%;
+  border-bottom-color: rgba(125, 211, 252, 0.32);
+  animation: ringRotate 6s linear infinite;
+  will-change: transform;
+}
+
+@keyframes ringRotate {
+  to { transform: rotate(360deg); }
+}
 
 .radar-sweep {
   position: absolute;

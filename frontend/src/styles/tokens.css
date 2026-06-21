@@ -735,3 +735,9 @@ a:focus-visible,
   from { transform: translateY(-100%); opacity: 0.6; }
   to   { transform: translateY(100%);  opacity: 0; }
 }
+
+/* ── 卡片语义辉光（配合 border-left 的 stat-card 使用） ── */
+.tp-glow-success { box-shadow: var(--tp-shadow-sm), -4px 0 14px rgba(16, 185, 129, 0.30); }
+.tp-glow-warning { box-shadow: var(--tp-shadow-sm), -4px 0 14px rgba(245, 158, 11, 0.35); }
+.tp-glow-danger  { box-shadow: var(--tp-shadow-sm), -4px 0 14px rgba(239, 68, 68, 0.35); }
+.tp-glow-info    { box-shadow: var(--tp-shadow-sm), -4px 0 14px rgba(59, 130, 246, 0.28); }

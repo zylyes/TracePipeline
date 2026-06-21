@@ -89,24 +89,27 @@ export function cssVar(name: string): string | undefined {
   }
 }
 
-export const CHART_COLOR_PRIMARY = '#38bdf8' // 主色（蓝）
-export const CHART_COLOR_SECONDARY = '#22c55e' // 成功（绿）
-export const CHART_COLOR_TERTIARY = '#f59e0b' // 警告（黄）
-export const CHART_COLOR_DANGER = '#f87171' // 危险（红）
+export const CHART_COLOR_PRIMARY = '#0369A1'   // 深蓝——深度/水体
+export const CHART_COLOR_SECONDARY = '#0D9488' // 青碧——矿物/岩体
+export const CHART_COLOR_TERTIARY = '#C2703A'  // 赭石——砂岩/沉积
+export const CHART_COLOR_DANGER = '#DC2626'    // 深红——断层/危险
 
 export function baseTextStyle() {
   const font = getEchartsFontFamily()
-  return { fontFamily: font, fontSize: 12, color: '#8b949e' }
+  const color = cssVar('--tp-text-tertiary') || '#718096'
+  return { fontFamily: font, fontSize: 12, color }
 }
 
 export function baseTitleStyle() {
   const font = getEchartsHeadingFont()
-  return { fontFamily: font, fontSize: 16, fontWeight: 600 as const, color: '#8b949e' }
+  const color = cssVar('--tp-text-secondary') || '#4A5568'
+  return { fontFamily: font, fontSize: 16, fontWeight: 600 as const, color }
 }
 
 export function baseAxisLabelStyle() {
   const font = getEchartsFontFamily()
-  return { fontFamily: font, fontSize: 11, color: '#8b949e' }
+  const color = cssVar('--tp-text-tertiary') || '#718096'
+  return { fontFamily: font, fontSize: 11, color }
 }
 
 export function baseTooltipStyle() {

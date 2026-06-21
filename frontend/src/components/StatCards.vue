@@ -129,26 +129,30 @@ function formatValue(v: number | null | undefined) {
 
 <style scoped lang="scss">
 .stat-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  align-items: stretch;
   gap: var(--tp-space-4);
   margin-bottom: var(--tp-space-4);
+  flex-wrap: wrap;
 }
 
 .stat-card {
-  background: rgba(22, 27, 34, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  flex: 1;
+  min-width: 200px;
+  background: var(--tp-surface-1);
   border-radius: var(--tp-radius-lg);
   padding: 20px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top: 2px solid var(--card-accent);
+  border: 1px solid var(--tp-border-light);
+  border-top: 3px solid var(--card-accent);
   box-shadow: var(--tp-shadow-md);
   transition: all var(--tp-duration-slow) var(--tp-easing-expo);
   position: relative;
   overflow: hidden;
   opacity: 0;
   animation: cardFadeIn 0.5s var(--tp-easing-expo) forwards;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 @keyframes cardFadeIn {
@@ -189,7 +193,7 @@ function formatValue(v: number | null | undefined) {
 .stat-value {
   font-size: var(--tp-font-size-display);
   font-weight: 700;
-  color: var(--tp-text-inverse);
+  color: var(--tp-text-primary);
   line-height: 1.2;
   font-feature-settings: "tnum" 1;
 }

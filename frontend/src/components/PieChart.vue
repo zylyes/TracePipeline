@@ -32,7 +32,7 @@ const option = computed(() => {
     ...baseAnimationConfig(),
     title: { text: 'I/II/III 型分类', left: 'center', textStyle: { ...baseTitleStyle(), fontSize: 14 } },
     tooltip: { trigger: 'item', ...baseTooltipStyle() },
-    legend: { bottom: '0%', left: 'center', textStyle: { fontFamily: font, fontSize: 12, color: cssVar('--tp-text-secondary') || '#5a5a6e' } },
+    legend: { bottom: '0%', left: 'center', textStyle: { fontFamily: font, fontSize: 12, color: '#8b949e' } },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
@@ -42,11 +42,11 @@ const option = computed(() => {
         itemStyle: { shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.12)' },
         scaleSize: 8,
       },
-      label: { show: true, formatter: '{b}: {c}', fontFamily: font, color: cssVar('--tp-text-primary') || '#1a1a2e' },
+      label: { show: true, formatter: '{b}: {c}', fontFamily: font, color: '#8b949e' },
       data: [
-        { value: props.typeCounts.type_i, name: 'I型', itemStyle: { color: CHART_COLOR_TERTIARY } },
+        { value: props.typeCounts.type_i, name: 'I型', itemStyle: { color: CHART_COLOR_PRIMARY } },
         { value: props.typeCounts.type_ii, name: 'II型', itemStyle: { color: CHART_COLOR_SECONDARY } },
-        { value: props.typeCounts.type_iii, name: 'III型', itemStyle: { color: CHART_COLOR_PRIMARY } },
+        { value: props.typeCounts.type_iii, name: 'III型', itemStyle: { color: CHART_COLOR_TERTIARY } },
       ],
     }],
   }

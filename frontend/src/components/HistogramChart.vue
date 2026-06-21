@@ -11,7 +11,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, TitleComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { getEchartsFontFamily, baseTitleStyle, baseAxisLabelStyle, baseTooltipStyle, baseAnimationConfig, baseSeriesAnimation, CHART_COLOR_SECONDARY } from '@/utils/echarts-theme'
+import { getEchartsFontFamily, baseTitleStyle, baseAxisLabelStyle, baseTooltipStyle, baseAnimationConfig, baseSeriesAnimation, CHART_COLOR_PRIMARY, CHART_COLOR_SECONDARY } from '@/utils/echarts-theme'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, TitleComponent])
 
@@ -42,19 +42,27 @@ const option = computed(() => {
       name: '迹长(m)',
       nameLocation: 'middle',
       nameGap: 38,
-      nameTextStyle: { fontFamily: font },
-      axisLabel: { rotate: 40, fontSize: 10, fontFamily: font, color: cssVar('--tp-text-secondary') || '#5a5a6e' },
+      nameTextStyle: { fontFamily: font, color: '#8b949e' },
+      axisLabel: { 
+        rotate: 0, 
+        interval: 'auto',
+        overflow: 'truncate',
+        width: 60,
+        fontSize: 10, 
+        fontFamily: font, 
+        color: '#8b949e' 
+      },
     },
     yAxis: {
       type: 'value',
       name: '频数',
-      nameTextStyle: { fontFamily: font },
+      nameTextStyle: { fontFamily: font, color: '#8b949e' },
       axisLabel: { ...baseAxisLabelStyle() },
     },
     series: [{
       data: bins,
       type: 'bar',
-      itemStyle: { color: CHART_COLOR_SECONDARY, borderRadius: [4, 4, 0, 0] },
+      itemStyle: { color: CHART_COLOR_PRIMARY, borderRadius: [4, 4, 0, 0] },
       barWidth: '60%',
       ...baseSeriesAnimation(),
     }],

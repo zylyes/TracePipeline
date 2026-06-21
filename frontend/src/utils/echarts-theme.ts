@@ -89,23 +89,24 @@ export function cssVar(name: string): string | undefined {
   }
 }
 
-export const CHART_COLOR_PRIMARY = CHART_COLORS[0]
-export const CHART_COLOR_SECONDARY = CHART_COLORS[1]
-export const CHART_COLOR_TERTIARY = CHART_COLORS[2]
+export const CHART_COLOR_PRIMARY = '#38bdf8' // 主色（蓝）
+export const CHART_COLOR_SECONDARY = '#22c55e' // 成功（绿）
+export const CHART_COLOR_TERTIARY = '#f59e0b' // 警告（黄）
+export const CHART_COLOR_DANGER = '#f87171' // 危险（红）
 
 export function baseTextStyle() {
   const font = getEchartsFontFamily()
-  return { fontFamily: font, fontSize: 12, color: '#4B5563' /* = --tp-text-secondary */ }
+  return { fontFamily: font, fontSize: 12, color: '#8b949e' }
 }
 
 export function baseTitleStyle() {
   const font = getEchartsHeadingFont()
-  return { fontFamily: font, fontSize: 16, fontWeight: 600 as const, color: '#111827' /* = --tp-text-primary */ }
+  return { fontFamily: font, fontSize: 16, fontWeight: 600 as const, color: '#8b949e' }
 }
 
 export function baseAxisLabelStyle() {
   const font = getEchartsFontFamily()
-  return { fontFamily: font, fontSize: 11, color: '#4B5563' /* = --tp-text-secondary */ }
+  return { fontFamily: font, fontSize: 11, color: '#8b949e' }
 }
 
 export function baseTooltipStyle() {

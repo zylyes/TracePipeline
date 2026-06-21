@@ -63,7 +63,7 @@
     />
 
     <!-- 处理过程栏 -->
-    <div class="process-panel tp-card tp-neon-edge" :class="{ 'is-live': pipelineStore.running }">
+    <div class="process-panel tp-card tp-neon-edge" :class="{ 'is-live': pipelineStore.running, 'is-error': appStore.pipelineStatus === 'error' }">
       <div class="process-header">
         <div class="process-header-left">
           <div class="process-icon">
@@ -82,7 +82,10 @@
           v-for="(log, idx) in processingLogs"
           :key="idx"
           class="log-item"
-          :class="`log-${log.type}`"
+          :class="[
+            `log-${log.type}`,
+            { 'is-final': log.isFinal }
+          ]"
         >
           <div class="log-stripe" :class="`stripe-${log.type}`"></div>
           <span class="log-time tp-time">[{{ log.time }}]</span>
@@ -154,6 +157,7 @@ interface ProcessLog {
   type: 'info' | 'success' | 'error'
   time: string
   message: string
+  isFinal?: boolean
 }
 const processingLogs = ref<ProcessLog[]>([])
 const currentStatus = ref('')
@@ -181,10 +185,10 @@ watch(parallelWorkers, (val) => {
   }
 })
 
-function addLog(type: ProcessLog['type'], message: string) {
+function addLog(type: ProcessLog['type'], message: string, isFinal = false) {
   const now = new Date()
   const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
-  processingLogs.value.push({ type, time, message })
+  processingLogs.value.push({ type, time, message, isFinal })
   if (processingLogs.value.length > MAX_LOGS) {
     processingLogs.value = processingLogs.value.slice(-MAX_LOGS)
   }
@@ -490,7 +494,7 @@ function handlePollEvent(evt: any) {
       pipelineStore.running = false
       appStore.pipelineStatus = 'completed'
       stopPolling()
-      addLog('success', `全部处理完成 — 总耗时 ${duration}s`)
+      addLog('success', `全部处理完成 — 总耗时 ${duration}s`, true)
       currentStatus.value = ''
       msg.success(`处理完成（${duration}s）`)
       appStore.updateLastOperation('处理完成')
@@ -640,10 +644,20 @@ onUnmounted(() => {
 .process-panel {
   padding: var(--tp-space-4) var(--tp-space-5);
   margin-top: var(--tp-space-4);
+  transition: box-shadow 0.3s ease;
 }
 
 .process-panel.is-live {
   box-shadow: var(--tp-shadow-md), var(--tp-glow-emerald-sm);
+}
+
+.process-panel.is-error {
+  animation: tp-border-glow-danger 1s infinite alternate;
+}
+
+@keyframes tp-border-glow-danger {
+  0% { box-shadow: 0 0 0 1px var(--tp-danger-border); }
+  100% { box-shadow: 0 0 12px var(--tp-glow-danger), 0 0 0 1px rgba(239, 68, 68, 0.4); }
 }
 
 .process-header {
@@ -723,6 +737,10 @@ onUnmounted(() => {
   gap: 8px;
   overflow: hidden;
   animation: logItemIn 0.28s var(--tp-easing-expo) both;
+}
+
+.log-item.log-success.is-final {
+  animation: logItemIn 0.28s var(--tp-easing-expo) both, tp-success-burst 0.6s ease-out forwards;
 }
 
 @keyframes logItemIn {

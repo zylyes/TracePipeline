@@ -202,6 +202,7 @@ onMounted(() => {
   justify-content: center;
   z-index: 9999;
   overflow: hidden;
+  contain: strict;
 }
 
 .splash-grid {
@@ -243,6 +244,7 @@ onMounted(() => {
   background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.26) 18deg, transparent 48deg);
   animation: radarSweep 4s linear infinite;
   filter: blur(0.2px);
+  will-change: transform;
 }
 
 @keyframes radarSweep {
@@ -262,6 +264,7 @@ onMounted(() => {
   margin-bottom: 24px;
   animation: logoFloat 4s ease-in-out infinite, logoEntry 1.2s var(--tp-easing-smooth) forwards;
   position: relative;
+  will-change: transform, filter;
 }
 
 .splash-logo::before {
@@ -279,33 +282,39 @@ onMounted(() => {
   stroke-dasharray: 200; /* 周长为 2 * PI * r = 2 * 3.14 * 31 = 194.68，略微改大以确保闭合 */
   stroke-dashoffset: 200;
   animation: drawStroke 1.5s var(--tp-easing-smooth) forwards;
+  will-change: stroke-dashoffset;
 }
 
 .draw-lines {
   stroke-dasharray: 20;
   stroke-dashoffset: 20;
   animation: drawStroke 1s 0.3s var(--tp-easing-smooth) forwards;
+  will-change: stroke-dashoffset;
 }
 
 .draw-path {
   opacity: 0;
   animation: fadeIn 1.2s 0.5s var(--tp-easing-smooth) forwards;
+  will-change: opacity;
 }
 
 .draw-poly-1, .draw-poly-2 {
   opacity: 0;
   animation: fadeIn 0.8s 1s forwards;
+  will-change: opacity;
 }
 
 .draw-text {
   opacity: 0;
   animation: fadeIn 0.8s 0.8s forwards;
+  will-change: opacity;
 }
 
 .draw-point-1, .draw-point-2 {
   opacity: 0;
   transform-origin: center;
   animation: popIn 0.5s 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes drawStroke {

@@ -681,6 +681,7 @@ onUnmounted(() => {
   flex-shrink: 0;
   position: relative;
   transition: width 0.25s var(--tp-easing);
+  will-change: width;
   overflow: hidden;
   box-shadow: inset -1px 0 0 rgba(125, 211, 252, 0.12), 10px 0 34px rgba(26, 54, 93, 0.14);
 }
@@ -1061,19 +1062,17 @@ onUnmounted(() => {
 /* 页面切换动画 */
 .page-slide-enter-active,
 .page-slide-leave-active {
-  transition: opacity 0.36s var(--tp-easing-expo), transform 0.36s var(--tp-easing-expo), filter 0.36s var(--tp-easing-expo);
+  transition: opacity 0.36s var(--tp-easing-expo), transform 0.36s var(--tp-easing-expo);
 }
 
 .page-slide-enter-from {
   opacity: 0;
   transform: translateY(14px) scale(0.985);
-  filter: blur(4px);
 }
 
 .page-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px) scale(0.99);
-  filter: blur(2px);
 }
 
 /* ── 右下角 resize grip ── */

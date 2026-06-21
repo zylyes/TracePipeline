@@ -6,6 +6,25 @@
 
 ---
 
+## [Unreleased] - 2026-06-21
+
+### 即时性能与稳定性修复
+
+#### 前端运行时修复
+- `ImageViewer.vue`：组件卸载时兜底移除全局 `keydown` 监听器，修复可见状态下路由切换导致的事件泄漏风险
+- `ProgressPanel.vue`：新增 `stopAnimation()` 并在任务停止/完成/组件卸载时取消 `requestAnimationFrame`，避免进度条完成后继续空转消耗 CPU
+
+#### GUI 后端维护
+- `gui_api.py`：批量报告进度回调工厂提取为 `_make_report_progress_callback()`，避免循环内重复定义闭包并提升代码可读性
+- `gui_api.py`：缩略图生成的 Pillow `Resampling.LANCZOS` 访问改为新旧版本兼容写法，避免旧版 Pillow 类型/属性兼容问题
+
+#### 开发工作流
+- `.gitignore` / `.ignore`：新增 `.slim/deepwork/` 本地审查记录规则，确保记录不进入版本库但可被本地检索
+
+#### 测试验证
+- 后端语法检查：`python -m py_compile backend\\gui_api.py` 通过
+- 前端生产构建：`npm.cmd --prefix frontend run build` 通过（仅有依赖注解警告和 chunk 体积提示）
+
 ## [4.3.3] - 2026-06-20
 
 ### 死代码清理与接口精简 — 代码清理（无功能变更）

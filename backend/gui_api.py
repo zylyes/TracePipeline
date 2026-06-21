@@ -14,7 +14,7 @@ import time
 from collections import deque
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import webview
@@ -212,6 +212,19 @@ class GuiApi:
         self._stats_svc.invalidate_cache()
         self._output_detector.invalidate()
         self._image_cache.invalidate()
+
+    def _make_report_progress_callback(self, outcrop_name: str, current: int, total: int) -> Any:
+        def _cb(step: str, message: str) -> None:
+            with self._report_progress_lock:
+                self._report_progress_queue.append({
+                    "type": "progress",
+                    "step": step,
+                    "message": message,
+                    "outcrop": outcrop_name,
+                    "current": current,
+                    "total": total,
+                })
+        return _cb
 
     def _resolve_output_dir(self) -> Path:
         out_dir = Path(self._config.get().get("output_dir", "output"))
@@ -744,21 +757,7 @@ class GuiApi:
             errors = []
 
             for idx, oc in enumerate(targets, 1):
-                # 为每个露头创建进度闭包
-                def _make_progress(outcrop_name: str, current: int) -> Any:
-                    def _cb(step: str, message: str) -> None:
-                        with self._report_progress_lock:
-                            self._report_progress_queue.append({
-                                "type": "progress",
-                                "step": step,
-                                "message": message,
-                                "outcrop": outcrop_name,
-                                "current": current,
-                                "total": total,
-                            })
-                    return _cb
-
-                progress_cb = _make_progress(oc, idx)
+                progress_cb = self._make_report_progress_callback(oc, idx, total)
                 res = self._report_svc.generate(oc, report_type, fmt, cfg, progress_callback=progress_cb)
                 if "error" in res:
                     errors.append(f"{oc}: {res['error']}")
@@ -1100,7 +1099,9 @@ class GuiApi:
                 self._MIN_THUMBNAIL_PX,
                 min(requested_max_px, self._MAX_THUMBNAIL_PX),
             )
-            resampling = getattr(Image, "Resampling", Image).LANCZOS
+            resampling_owner = getattr(Image, "Resampling", Image)
+            # Pillow < 9 没有 Resampling 枚举；fallback 1 对应 NEAREST，保证旧版本可用。
+            resampling = cast(Any, getattr(resampling_owner, "LANCZOS", 1))
             with Image.open(p) as img:
                 img.thumbnail((safe_max_px, safe_max_px), resampling)
                 has_alpha = img.mode in {"RGBA", "LA"} or "transparency" in img.info

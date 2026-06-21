@@ -97,6 +97,13 @@ const targetPercentage = computed(() => {
 const displayPercentage = ref(0)
 let rafId: number | null = null
 
+function stopAnimation() {
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+}
+
 function tickAnimation() {
   const target = targetPercentage.value
   const current = displayPercentage.value
@@ -117,7 +124,11 @@ function tickAnimation() {
     }
   }
 
-  rafId = requestAnimationFrame(tickAnimation)
+  if (props.running || displayPercentage.value < targetPercentage.value) {
+    rafId = requestAnimationFrame(tickAnimation)
+  } else {
+    rafId = null
+  }
 }
 
 // 运行状态变化时启动/停止动画
@@ -129,6 +140,9 @@ watch(
       if (rafId === null) {
         rafId = requestAnimationFrame(tickAnimation)
       }
+    } else {
+      displayPercentage.value = targetPercentage.value >= 100 ? 100 : targetPercentage.value
+      stopAnimation()
     }
   },
   { immediate: true }
@@ -138,14 +152,12 @@ watch(
 watch(targetPercentage, (val) => {
   if (val >= 100 && !props.running) {
     displayPercentage.value = 100
+    stopAnimation()
   }
 })
 
 onUnmounted(() => {
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId)
-    rafId = null
-  }
+  stopAnimation()
 })
 
 const percentage = computed(() => Math.round(displayPercentage.value))

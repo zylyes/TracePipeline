@@ -1,3 +1,32 @@
+# Unreleased
+
+**2026-06-21**
+
+> 即时性能与稳定性修复 — 修复前端事件泄漏与进度动画空转，清理报告进度回调并增强 Pillow 缩略图兼容性。
+
+## 高亮
+
+- **图片查看器事件泄漏修复** — `ImageViewer.vue` 在组件卸载时兜底移除全局 `keydown` 监听器，避免路由切换后残留键盘事件
+- **进度条 CPU 空转修复** — `ProgressPanel.vue` 在任务停止、完成和组件卸载时取消 `requestAnimationFrame`，避免后台空转
+- **报告进度回调清理** — `gui_api.py` 将批量报告进度回调工厂提取为私有方法，减少循环内重复定义并提升可维护性
+- **Pillow 兼容性增强** — 缩略图生成兼容新旧 Pillow 的 `Resampling.LANCZOS` 访问方式
+
+## 变更摘要
+
+### 前端运行时修复（2 项）
+- `ImageViewer.vue`：添加 `onUnmounted` 监听器清理
+- `ProgressPanel.vue`：新增 `stopAnimation()`，停止非运行状态下的 RAF 循环
+
+### GUI 后端维护（2 项）
+- `gui_api.py`：提取 `_make_report_progress_callback()`
+- `gui_api.py`：Pillow resampling fallback 兼容旧版本
+
+### 测试验证
+- 后端语法检查：通过
+- 前端构建：成功
+
+---
+
 # v4.3.3
 
 **2026-06-20**

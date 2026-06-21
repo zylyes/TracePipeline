@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { Close, ZoomIn, ZoomOut, RefreshRight, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 
 interface ImageItem {
@@ -129,6 +129,10 @@ watch(() => props.visible, (val) => {
   } else {
     window.removeEventListener('keydown', onKeydown)
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 
 function onKeydown(e: KeyboardEvent) {

@@ -75,3 +75,6 @@ reference/*
 !reference/*.md
 .codeartsdoer/
 .arts/
+
+# Local deepwork session notes
+.slim/deepwork/

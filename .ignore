@@ -1,0 +1,3 @@
+# Allow local deepwork notes to remain searchable while git ignores them.
+!.slim/deepwork/
+!.slim/deepwork/**

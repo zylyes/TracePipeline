@@ -1,3 +1,27 @@
+# TracePipeline v4.4.0 发布说明
+
+**发布日期**：2026-06-21
+
+## 本版本亮点
+
+### 🎨 UI 动效性能全面提升
+
+本版本对前端动画渲染层进行了系统性优化，所有骨架屏闪光动画改用 GPU Composite-only 方案（`transform: translateX`），消除了 Paint 阶段的帧间重绘；页面路由切换动画移除了开销较高的 `filter: blur()` 效果。
+
+### 🎯 设计系统 Token 扩展
+
+新增 Surface 层次色彩系统、发光色 Token 和标准缓动曲线变量，为后续组件视觉升级奠定基础。同时预置了三类可复用动效 Keyframe，供下阶段 UI 改造直接引用。
+
+## 变更文件
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/styles/tokens.css` | 改进+新增 | shimmer 性能修复；新增 Surface/glow/easing token 和3个 keyframe |
+| `frontend/src/styles/element-global.css` | 改进 | Element Plus 骨架屏样式更新为 ::after 伪元素方案 |
+| `frontend/src/App.vue` | 改进 | 页面切换动画去 blur；侧边栏添加 will-change |
+
+---
+
 # Unreleased
 
 **2026-06-21**

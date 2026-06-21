@@ -6,6 +6,21 @@
 
 ---
 
+## [4.4.0] - 2026-06-21
+
+### 改进
+
+- **动画性能优化**：骨架屏 shimmer 动画从 `background-position` 改为 `transform: translateX` + `::after` 伪元素方案，消除每帧 Paint 重绘，降低 GPU 合成负载
+- **页面切换优化**：移除路由切换过渡动画中的 `filter: blur()` 效果，减少合成层开销
+- **侧边栏动画**：为侧边栏宽度过渡添加 `will-change: width` GPU 提示，降低 reflow 成本
+
+### 新增
+
+- **设计系统 Token 扩展**：新增 Surface 层次系统（`--tp-surface-0` ~ `--tp-surface-3`）、发光色 Token（`--tp-glow-primary/success/danger/warning`）、标准缓动曲线（`--ease-spring/decelerate/accelerate/standard`）
+- **新增动效 Keyframe**：`tp-success-burst`（成功爆发光效）、`tp-border-glow`（边框呼吸光）、`tp-scan-line`（扫描线动效）供后续组件复用
+
+---
+
 ## [Unreleased] - 2026-06-21
 
 ### 近期修复合集

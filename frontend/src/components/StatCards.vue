@@ -139,7 +139,7 @@ function formatValue(v: number | null | undefined) {
 .stat-card {
   flex: 1;
   min-width: 200px;
-  background: var(--tp-surface-1);
+  background: var(--tp-surface-2);
   border-radius: var(--tp-radius-lg);
   padding: 20px 18px;
   border: 1px solid var(--tp-border-light);
@@ -193,7 +193,7 @@ function formatValue(v: number | null | undefined) {
 .stat-value {
   font-size: var(--tp-font-size-display);
   font-weight: 700;
-  color: var(--tp-text-primary);
+  color: #e6edf3;
   line-height: 1.2;
   font-feature-settings: "tnum" 1;
 }

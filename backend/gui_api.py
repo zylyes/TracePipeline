@@ -21,7 +21,7 @@ import webview
 from PIL import Image
 
 from backend.services.audit_service import AuditService
-from backend.services.config_service import ConfigService
+from backend.services.config_service import ConfigService, PROCESSING_KEYS
 from backend.services.data_service import DataService
 from backend.services.file_service import FileService
 from backend.services.log_service import LogService
@@ -44,6 +44,9 @@ _ALLOWED_EXTERNAL_HOSTS = frozenset(
         "aka.ms",
     }
 )
+
+# run_pipeline 前端覆盖白名单：仅允许覆盖处理参数和样式/并行度，禁止路径/目标字段
+_RUN_OVERRIDE_KEYS: frozenset[str] = frozenset(PROCESSING_KEYS) | {"style", "parallel_workers"}
 
 
 class GuiApi:
@@ -78,12 +81,13 @@ class GuiApi:
 
         self._window: Any = None
         self._user_selected_paths: set[Path] = set()
+        self._user_selected_paths_lock = threading.Lock()
         self._window_maximized = False
         # 重资源操作的运行锁（线程安全）
         self._preview_lock = threading.Lock()
         self._report_lock = threading.Lock()
         # 报告导出进度队列（线程安全，前端轮询）
-        self._report_progress_queue: deque[dict[str, Any]] = deque()
+        self._report_progress_queue: deque[dict[str, Any]] = deque(maxlen=500)
         self._report_progress_lock = threading.Lock()
         # output 目录变更检测器
         self._output_detector = DirectoryChangeDetector()
@@ -185,15 +189,17 @@ class GuiApi:
         except (OSError, RuntimeError) as exc:
             logger.warning("用户选择路径解析失败 %s: %s", path, exc)
             return None
-        if resolved not in self._user_selected_paths:
-            logger.warning("拒绝未通过系统对话框登记的外部路径: %s", path)
-            return None
+        with self._user_selected_paths_lock:
+            if resolved not in self._user_selected_paths:
+                logger.warning("拒绝未通过系统对话框登记的外部路径: %s", path)
+                return None
         base = raw if expect_dir else raw.parent
         return self._safe_path_in_base(path, base)
 
     def _remember_user_selected_path(self, path: str) -> str:
         try:
-            self._user_selected_paths.add(Path(path).resolve().absolute())
+            with self._user_selected_paths_lock:
+                self._user_selected_paths.add(Path(path).resolve().absolute())
         except (OSError, RuntimeError) as exc:
             logger.warning("登记用户选择路径失败 %s: %s", path, exc)
         return path
@@ -377,9 +383,12 @@ class GuiApi:
                 params={"targets": targets, "input_dir": config.get("input_dir", "")},
             )
             try:
-                # 刷新配置，确保 read parallel_workers 等外部设置的最新值
+                # 刷新配置，确保读取磁盘最新值
                 self._config.reload()
-                merged = {**self._config.get(), **config}
+                disk_cfg = self._config.get()
+                # 仅取白名单内的字段覆盖磁盘配置，禁止前端覆盖路径/目标字段
+                override = {k: v for k, v in config.items() if k in _RUN_OVERRIDE_KEYS}
+                merged = {**disk_cfg, **override}
                 saved = self._config.set(merged)
                 self._sync_services_from_config(saved)
                 # 流水线启动前使缓存失效，确保使用最新数据
@@ -608,6 +617,11 @@ class GuiApi:
 
     # 日志
     def get_logs(self, tail: int = 100, level: str = "INFO") -> list[str]:
+        try:
+            tail = int(tail)
+        except (TypeError, ValueError):
+            tail = 100
+        tail = max(1, min(tail, 2000))
         return self._log.get_logs(tail, level)
 
     # 毕设功能（开发者选项）
@@ -843,6 +857,11 @@ class GuiApi:
         }
 
     def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 500))
         logs = self._audit_svc.get(limit)
         logger.debug(
             "get_audit_log → %d 条记录",

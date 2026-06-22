@@ -12,6 +12,53 @@
 
 ---
 
+## [4.5.2] - 2026-06-22
+
+### 修复
+
+- **运行配置覆盖白名单**：`GuiApi.run_pipeline()` 仅允许前端覆盖处理参数、`style` 和 `parallel_workers`，禁止通过运行请求覆盖 `input_dir`、`output_dir`、`table_stem`、`outcrop` 等路径/目标字段。
+- **审计与日志参数限流**：`get_logs()` 的 `tail` 限制在 1–2000，`get_audit_log()` / `AuditService.get()` 的 `limit` 限制在 1–500，避免异常参数触发过量读取。
+- **审计 zip 读取防护**：扫描归档日志时跳过超过 10 MiB 的 `.jsonl` member，降低恶意或异常归档造成的内存压力。
+- **分页参数规范化**：数据分页统一限制 `page >= 1`、`1 <= page_size <= 500`，输入/输出数据读取路径保持一致行为。
+- **绘图样式覆盖死锁修复**：`_STYLE_LOCK` 改为 `RLock`，`apply_style_overrides()` 在嵌套调用 `configure_style()` 时不再死锁。
+
+### 改进
+
+- **并发安全增强**：用户选择路径登记增加锁保护；`DirectoryChangeDetector` 的快照与失效操作加锁，超大目录截断快照额外记录总条目数。
+- **Excel 读取优化**：命名 sheet 不存在时预先解析为首个工作表，避免先失败再回退的噪声路径。
+- **缓存接口收敛**：`TTLCache` 新增 `__len__()`，统计缓存失效不再访问内部 `_store`。
+- **前端产物拆分**：Element Plus 改为按需注册；Vite manual chunks 细分 Vue、ECharts、Element Plus 组件组，降低单个 vendor chunk 体积。
+- **进度面板精简**：移除推断式步骤指示器，保留真实进度条、当前任务和并行度控制，避免步骤推断与后端实际状态不一致。
+- **绘图字体噪声降低**：CJK 标题和 mathtext 不再请求缺失的 bold 字重，减少 matplotlib `findfont` 警告；标题视觉由粗体改为常规字重。
+
+### 测试
+
+- 新增 `test_gui_api.py` 覆盖运行配置白名单、日志/审计 limit clamp。
+- 新增 `test_data_service_pagination.py` 覆盖输入/输出分页参数规范化。
+- 新增 `test_audit_service.py` 覆盖审计 limit clamp 与 zip member 大小限制。
+- 新增 `test_cache.py` 覆盖目录变更检测并发与截断目录变更识别。
+- 新增 `test_excel_reader.py` 覆盖命名 sheet 缺失时读取首表。
+- `tests/test_security.py` 增加用户选择路径并发读写测试；`tests/test_plotting.py` 增加样式覆盖反死锁测试。
+
+### 版本同步
+
+- 全项目版本号同步至 4.5.2。
+
+### 验证状态
+
+- Python 发布相关测试：通过（57 项）
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- 发行产物：安装版 128.9 MB，便携版 123.1 MB，程序目录 258.2 MB
+
+### 发布注意
+
+- 前端 chunk 文件名会变化，部署时需清理旧静态资源缓存。
+- 图表标题不再强制 bold，论文图表模板如依赖粗体标题需重新预览。
+
+---
+
 ## [4.5.1] - 2026-06-21
 
 ### 改进
@@ -429,6 +476,7 @@
 
 ---
 
+[4.5.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.2
 [4.5.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.1
 [4.5.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.0
 [4.4.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.4.0

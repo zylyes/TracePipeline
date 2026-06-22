@@ -1,3 +1,76 @@
+# TracePipeline v4.5.2 发布说明
+
+**发布日期**：2026-06-22
+
+## 本版本亮点
+
+### 🛡️ 运行配置与日志读取边界加固
+
+本版本收紧 GUI 运行入口与日志/审计读取参数：
+
+- `GuiApi.run_pipeline()` 增加前端覆盖白名单，仅允许处理参数、`style` 和 `parallel_workers` 覆盖磁盘配置，禁止运行请求覆盖输入/输出目录、目标名等路径字段
+- `get_logs()` 将 `tail` 限制在 1–2000；`get_audit_log()` 与 `AuditService.get()` 将 `limit` 限制在 1–500
+- 审计归档扫描跳过超过 10 MiB 的 `.jsonl` zip member，避免异常归档造成内存压力
+- 报告进度队列改为 `deque(maxlen=500)`，避免长期运行时进度消息无界增长
+
+### 🔒 并发与缓存可靠性修复
+
+- 用户通过系统对话框选择的外部路径集合增加锁保护，避免路径登记和校验并发读写风险
+- `DirectoryChangeDetector` 的快照检测与失效操作加锁，并在超大目录截断时记录总条目数，新增/删除文件仍可触发变更检测
+- `PipelineService.shutdown()` 对 `_running` 状态读取加锁，减少关闭期间状态竞争
+- `TTLCache` 新增 `__len__()`，统计缓存失效不再直接访问内部 `_store`
+
+### 📊 Excel 与绘图稳定性改进
+
+- 命名工作表不存在时预先解析为首个 sheet，减少 `read_excel` 失败后再回退的噪声路径
+- `read_trace_excel()` 的类型标注收敛为 `ExcelEngine` / `SheetArg`，并修复 pandas 数值检测的类型兼容性
+- `apply_style_overrides()` 使用 `RLock`，修复样式覆盖期间再次配置 matplotlib 样式可能死锁的问题
+- CJK 标题和 mathtext 不再请求缺失的 bold 字重，减少 `findfont` 警告；图表标题视觉由粗体改为常规字重
+
+### ⚡ 前端打包与进度面板调整
+
+- Element Plus 从全量 `app.use(ElementPlus)` 改为按需注册常用组件，降低运行时注册面
+- Vite `manualChunks` 细分 Vue、ECharts、Element Plus 表单/数据/反馈组件等 chunk，并过滤 `@vueuse/core` 的无效注解警告
+- `ProgressPanel` 移除推断式步骤指示器，保留真实进度条、当前文件/消息和并行度控制，避免前端推断步骤与后端实际阶段不一致
+
+## 变更文件
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `backend/gui_api.py` | 修复 | 运行配置覆盖白名单、路径登记锁、日志/审计 limit clamp、报告进度队列上限 |
+| `backend/services/audit_service.py` | 修复 | 审计 limit clamp、zip member 10 MiB 大小限制 |
+| `backend/services/data_service.py` | 修复 | 分页参数统一规范化 |
+| `backend/services/pipeline_service.py` | 修复 | shutdown 状态读取加锁 |
+| `backend/services/stats_service.py` | 改进 | 通过 `len(TTLCache)` 获取缓存条数 |
+| `backend/utils/cache.py` | 修复 | `TTLCache.__len__()`、目录变更检测并发锁、截断目录总数快照 |
+| `trace_pipeline/io/excel_reader.py` | 改进 | sheet 缺失预解析回退首表、类型标注收敛 |
+| `trace_pipeline/plotting/style.py` | 修复 | RLock 反死锁、CJK/mathtext 字重降噪 |
+| `frontend/src/main.ts` | 改进 | Element Plus 按需注册 |
+| `frontend/vite.config.ts` | 改进 | 细分 manual chunks、过滤 @vueuse 注解警告 |
+| `frontend/src/components/ProgressPanel.vue` | 变更 | 移除推断式步骤指示器 |
+| `tests/*.py` | 测试 | 新增安全、分页、缓存、Excel、绘图并发/回归测试 |
+| `README.md` / `CHANGELOG.md` / `RELEASE_NOTES.md` | 文档 | 同步 v4.5.2 发布内容 |
+
+## 验证状态
+
+- Python 发布相关测试：通过（57 项，覆盖 GUI API、审计、缓存、分页、Excel、路径安全、绘图与打包元数据）
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- 程序目录：258.2 MB
+
+## 发布注意
+
+- 前端 chunk 文件名已调整，部署或试运行时需清理旧静态资源缓存。
+- 图表标题不再强制 bold，若论文排版模板依赖粗体标题，请重新预览导出图。
+
+## 发行版产物
+
+- 安装版：`dist/TracePipeline-Setup-v4.5.2.exe`（128.9 MB）
+- 便携版：`dist/TracePipeline-Portable-v4.5.2.exe`（123.1 MB）
+
+---
+
 # TracePipeline v4.5.1 发布说明
 
 **发布日期**：2026-06-21

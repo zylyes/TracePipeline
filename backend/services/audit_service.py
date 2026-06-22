@@ -48,6 +48,11 @@ class AuditService:
 
     def get(self, limit: int = 50) -> list[dict[str, Any]]:
         """从内存缓冲区读取最近 N 条审计记录，回退到文件扫描。"""
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 500))
         if self._buffer:
             return list(self._buffer)[:limit]
 
@@ -108,12 +113,20 @@ class AuditService:
     ) -> None:
         """扫描 zip 归档中的审计记录。"""
         import zipfile
+        _MAX_ZIP_MEMBER_SIZE = 10 * 1024 * 1024  # 10 MiB
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
                 for name in zf.namelist():
                     if not name.endswith(".jsonl"):
                         continue
                     try:
+                        info = zf.getinfo(name)
+                        if info.file_size > _MAX_ZIP_MEMBER_SIZE:
+                            logger.warning(
+                                "跳过超大 zip member %s (%d bytes > %d limit)",
+                                name, info.file_size, _MAX_ZIP_MEMBER_SIZE,
+                            )
+                            continue
                         content = zf.read(name).decode("utf-8", errors="replace")
                     except (OSError, zipfile.BadZipFile):
                         continue

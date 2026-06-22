@@ -70,8 +70,9 @@ class PipelineService:
         当前文件/Excel 写入完成后主进程才退出；若超时仍未完成则
         记录警告并继续关闭流程。
         """
-        if not self._running:
-            return
+        with self._lock:
+            if not self._running:
+                return
         logger.info("正在等待后台流水线完成 (timeout=%.1fs)...", timeout)
         self._shutdown_event.set()
         if self._worker_thread is not None and self._worker_thread.is_alive():

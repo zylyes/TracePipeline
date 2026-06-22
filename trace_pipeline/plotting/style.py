@@ -37,12 +37,13 @@ _STYLE_CONSTANTS: dict[str, tuple[str, str]] = {
 # 字号相关配置键（向后兼容：global_font_size 映射到 label_font_size）
 _FONT_SIZE_KEYS = ("title_font_size", "heading_font_size", "label_font_size", "tick_font_size")
 
-_STYLE_LOCK = threading.Lock()
+_STYLE_LOCK = threading.RLock()
 _STYLE_CONFIGURED = False
 
 WESTERN_PRIMARY_FONT = "Times New Roman"
 CJK_PRIMARY_FONT = "SimSun"
 CJK_HEADING_FONT = "SimHei"
+_HEADING_FONT_WEIGHT = "normal"
 
 # 论文常用西文字体（优先 Times New Roman）
 WESTERN_FONT_CANDIDATES: list[str] = [
@@ -82,10 +83,20 @@ __all__ = [
 def _get_font_cache() -> dict[str, list[str]]:
     """返回系统字体检测缓存（惰性创建、仅扫描一次）。"""
     available = {f.name for f in fm.fontManager.ttflist}
+
+    def prefer_regular_weight(fonts: list[str]) -> list[str]:
+        regular = [
+            font
+            for font in fonts
+            if any(f.name == font and f.style == "normal" and int(f.weight) == 400 for f in fm.fontManager.ttflist)
+        ]
+        fallback = [font for font in fonts if font in available and font not in regular]
+        return regular or fallback
+
     return {
-        "cjk_serif": [f for f in CJK_SERIF_CANDIDATES if f in available],
-        "cjk_sans": [f for f in CJK_SANS_CANDIDATES if f in available],
-        "western": [f for f in WESTERN_FONT_CANDIDATES if f in available],
+        "cjk_serif": prefer_regular_weight(CJK_SERIF_CANDIDATES),
+        "cjk_sans": prefer_regular_weight(CJK_SANS_CANDIDATES),
+        "western": prefer_regular_weight(WESTERN_FONT_CANDIDATES),
     }
 
 
@@ -136,6 +147,10 @@ def heading_font_kwargs(**kwargs: object) -> dict[str, Any]:
     )
     merged: dict[str, Any] = {"fontfamily": heading_stack}
     merged.update(kwargs)
+    # SimHei/SimSun 等常见 CJK 字体通常没有独立 bold face；请求 bold 会触发
+    # matplotlib findfont 反复 fallback 警告。标题仍用黑体字形，但不请求缺失字重。
+    if str(merged.get("fontweight", "")).lower() in {"bold", "semibold", "heavy", "black"}:
+        merged["fontweight"] = _HEADING_FONT_WEIGHT
     return merged
 
 
@@ -203,13 +218,18 @@ def configure_style() -> None:
         if CJK_PRIMARY_FONT not in available_cjk_serif:
             logger.warning("未检测到 %s，中文将使用可用 CJK 字体回退。", CJK_PRIMARY_FONT)
 
-        # 数学文本中的英文、数字和单位显式使用 Times New Roman。
+        math_font = available_western[0] if available_western else "DejaVu Serif"
+
+        # 数学文本中的英文、数字和单位使用可用西文字体；不请求额外 bold face。
         matplotlib.rcParams["mathtext.fontset"] = "custom"
-        matplotlib.rcParams["mathtext.rm"] = WESTERN_PRIMARY_FONT
-        matplotlib.rcParams["mathtext.it"] = f"{WESTERN_PRIMARY_FONT}:italic"
-        matplotlib.rcParams["mathtext.bf"] = f"{WESTERN_PRIMARY_FONT}:bold"
-        matplotlib.rcParams["mathtext.sf"] = WESTERN_PRIMARY_FONT
-        matplotlib.rcParams["mathtext.default"] = "regular"
+        matplotlib.rcParams["mathtext.rm"] = math_font
+        matplotlib.rcParams["mathtext.it"] = f"{math_font}:italic"
+        matplotlib.rcParams["mathtext.bf"] = math_font
+        matplotlib.rcParams["mathtext.bfit"] = math_font
+        matplotlib.rcParams["mathtext.sf"] = math_font
+        matplotlib.rcParams["mathtext.cal"] = math_font
+        matplotlib.rcParams["mathtext.tt"] = math_font
+        matplotlib.rcParams["mathtext.default"] = "rm"
 
         # 论文常用全局设置
         matplotlib.rcParams["axes.unicode_minus"] = False
@@ -227,9 +247,9 @@ def configure_style() -> None:
         matplotlib.rcParams["savefig.dpi"] = 300
         matplotlib.rcParams["savefig.facecolor"] = "white"
 
-        # 标题默认使用黑体（与前端字体规范一致）
-        matplotlib.rcParams["axes.titleweight"] = "bold"
-        matplotlib.rcParams["figure.titleweight"] = "bold"
+        # 标题默认使用黑体字形；不请求 bold，避免 CJK 字体缺少字重导致 findfont 噪声。
+        matplotlib.rcParams["axes.titleweight"] = _HEADING_FONT_WEIGHT
+        matplotlib.rcParams["figure.titleweight"] = _HEADING_FONT_WEIGHT
 
         logger.debug("matplotlib 全局样式已配置（论文风格）")
         _STYLE_CONFIGURED = True
@@ -246,9 +266,8 @@ def apply_style_overrides(style: dict[str, Any]) -> Generator[None, None, None]:
     from trace_pipeline.plotting import rose_plot as rp  # noqa: PLC0415
     from trace_pipeline.plotting import trace_plot as tp  # noqa: PLC0415
 
-    _STYLE_LOCK.acquire()
     orig: dict[str, Any] = {}
-    try:
+    with _STYLE_LOCK:
         # 保存与覆盖
         for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
             mod = tp if mod_name == "trace_plot" else rp
@@ -265,14 +284,12 @@ def apply_style_overrides(style: dict[str, Any]) -> Generator[None, None, None]:
             orig["_rc_font_size"] = matplotlib.rcParams.get("font.size")
             matplotlib.rcParams["font.size"] = float(_font_size)
 
-        yield
-    finally:
         try:
+            yield
+        finally:
             for key, (mod_name, attr) in _STYLE_CONSTANTS.items():
                 mod = tp if mod_name == "trace_plot" else rp
                 if key in orig:
                     setattr(mod, attr, orig[key])
             if "_rc_font_size" in orig:
                 matplotlib.rcParams["font.size"] = orig["_rc_font_size"]
-        finally:
-            _STYLE_LOCK.release()

@@ -30,33 +30,6 @@
       </div>
     </div>
 
-    <!-- 步骤指示器 -->
-    <div class="steps-indicator">
-      <div 
-        v-for="(step, idx) in steps" 
-        :key="idx"
-        class="step-item"
-        :class="{
-          'is-active': currentStepIndex === idx && running,
-          'is-complete': currentStepIndex > idx || (isComplete && idx === steps.length - 1),
-          'is-pending': currentStepIndex < idx || (!running && !isComplete && currentStepIndex === 0)
-        }"
-      >
-        <div class="step-card">
-          <div class="step-icon">
-            <el-icon v-if="currentStepIndex > idx || (isComplete && idx === steps.length - 1)"><Check /></el-icon>
-            <span v-else>{{ idx + 1 }}</span>
-          </div>
-          <div class="step-content">
-            <div class="step-title">{{ step.title }}</div>
-            <div class="step-desc">{{ getStepDesc(idx) }}</div>
-          </div>
-          <div class="scan-line" v-if="currentStepIndex === idx && running"></div>
-        </div>
-        <div class="step-connector" v-if="idx < steps.length - 1"></div>
-      </div>
-    </div>
-
     <div class="progress-area">
       <div class="progress-meta">
         <span class="progress-chip">任务 {{ progress.current || 0 }} / {{ progress.total || 0 }}</span>
@@ -86,7 +59,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { VideoPlay, CircleCheck, Loading, Check } from '@element-plus/icons-vue'
+import { VideoPlay, CircleCheck, Loading } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   running: boolean
@@ -105,39 +78,7 @@ const emit = defineEmits<{
 const maxParallel = Math.max(4, Math.min((navigator.hardwareConcurrency || 4) * 2, 32))
 const parallel = defineModel<number>('parallel', { default: 0 })
 
-// 步骤定义
-const steps = [
-  { title: '读取', id: 'read' },
-  { title: '分析', id: 'analyze' },
-  { title: '计算', id: 'compute' },
-  { title: '导出', id: 'export' }
-]
-
 const isComplete = computed(() => !props.running && props.progress.total > 0 && props.progress.current >= props.progress.total)
-
-// 简单的步骤推断逻辑，根据消息内容或进度百分比
-const currentStepIndex = computed(() => {
-  if (isComplete.value) return steps.length - 1
-  if (!props.running && props.progress.current === 0) return 0
-  
-  const msg = props.progress.message.toLowerCase()
-  if (msg.includes('export') || msg.includes('导出')) return 3
-  if (msg.includes('calc') || msg.includes('计算') || msg.includes('compute')) return 2
-  if (msg.includes('analy') || msg.includes('分析')) return 1
-  
-  // 如果消息推断不出来，按进度百分比估算
-  const pct = targetPercentage.value
-  if (pct > 90) return 3
-  if (pct > 50) return 2
-  if (pct > 10) return 1
-  return 0
-})
-
-function getStepDesc(idx: number) {
-  if (currentStepIndex.value > idx || (isComplete.value && idx === steps.length - 1)) return '已完成'
-  if (currentStepIndex.value === idx && props.running) return '处理中...'
-  return '等待中'
-}
 
 // 平滑进度插值
 const REAL_TO_DISPLAY_SPEED = 0.12
@@ -337,132 +278,6 @@ const progressColor = computed(() => {
 .parallel-limit {
   font-size: 13px;
   color: var(--tp-text-secondary);
-}
-
-/* 步骤指示器样式 */
-.steps-indicator {
-  display: flex;
-  align-items: stretch;
-  margin-bottom: var(--tp-space-5);
-  padding: 4px;
-}
-
-.step-item {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.step-item:last-child {
-  flex: 0;
-}
-
-.step-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  border-radius: var(--tp-radius-md);
-  background: var(--tp-surface-1);
-  border: 1px solid var(--tp-border-light);
-  position: relative;
-  overflow: hidden;
-  transition: all var(--tp-duration-normal);
-  min-width: 120px;
-}
-
-.step-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all var(--tp-duration-normal);
-}
-
-.step-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.step-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tp-text-primary);
-}
-
-.step-desc {
-  font-size: 12px;
-  color: var(--tp-text-tertiary);
-}
-
-.step-connector {
-  flex: 1;
-  height: 2px;
-  background: var(--tp-border-light);
-  margin: 0 12px;
-  transition: background var(--tp-duration-normal);
-}
-
-/* 步骤状态样式 */
-.step-item.is-pending .step-card {
-  background: var(--tp-bg-sunken);
-  opacity: 0.7;
-}
-
-.step-item.is-pending .step-icon {
-  background: var(--tp-border-medium);
-  color: var(--tp-text-inverse);
-}
-
-.step-item.is-active .step-card {
-  background: rgba(2, 132, 199, 0.05);
-  border-color: var(--tp-brand-accent);
-  box-shadow: 0 0 12px var(--tp-glow-primary);
-}
-
-.step-item.is-active .step-icon {
-  background: var(--tp-brand-accent);
-  color: var(--tp-text-inverse);
-  box-shadow: 0 0 8px var(--tp-glow-primary);
-}
-
-.step-item.is-active .step-title {
-  color: var(--tp-brand-accent);
-}
-
-.step-item.is-complete .step-card {
-  background: rgba(16, 185, 129, 0.05);
-  border-left: 3px solid var(--tp-success);
-  border-color: var(--tp-success-border);
-}
-
-.step-item.is-complete .step-icon {
-  background: var(--tp-success);
-  color: var(--tp-text-inverse);
-}
-
-.step-item.is-complete .step-connector {
-  background: var(--tp-success);
-}
-
-/* 扫描线动画 */
-.scan-line {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    var(--tp-glow-primary),
-    transparent
-  );
-  height: 100%;
-  animation: tp-scan-line 2s linear infinite;
-  pointer-events: none;
-  opacity: 0.5;
 }
 
 .current-file {

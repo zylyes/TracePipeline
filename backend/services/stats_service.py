@@ -363,7 +363,7 @@ class StatsService:
     def invalidate_cache(self, outcrop: str | None = None) -> None:
         """使统计缓存失效。"""
         if outcrop is None:
-            count = len(self._cache._store)
+            count = len(self._cache)
             self._cache.invalidate()
             logger.debug(
                 "stats 缓存已全部清空: %d 条",

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Literal, TypeAlias
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-EXCEL_ENGINES: tuple[tuple[str, str], ...] = (
+ExcelEngine: TypeAlias = Literal["openpyxl", "xlrd"]
+SheetArg: TypeAlias = str | int
+
+EXCEL_ENGINES: tuple[tuple[str, ExcelEngine], ...] = (
     (".xlsx", "openpyxl"),
     (".xls", "xlrd"),
 )
@@ -48,8 +52,8 @@ def read_trace_excel(
         ValueError: 文件存在但无法读取。
     """
     base = Path(base_path)
-    # 候选：(path, engine, sheet_arg)，每个文件尝试两次（指定 sheet / 第一个 sheet）
-    attempts: list[tuple[Path, str, object]] = []
+    # 候选：(path, engine, sheet_arg)，每个存在的文件只读一次；缺失 sheet 会预先解析为首表。
+    attempts: list[tuple[Path, ExcelEngine, SheetArg]] = []
     found_paths: list[Path] = []
     for ext, engine in EXCEL_ENGINES:
         path = base / f"{table_stem}{ext}"
@@ -57,8 +61,6 @@ def read_trace_excel(
             continue
         found_paths.append(path)
         attempts.append((path, engine, sheet if sheet else 0))
-        if sheet:
-            attempts.append((path, engine, 0))
 
     if not found_paths:
         raise FileNotFoundError(f"在 {base_path} 下未找到 {table_stem}.xlsx 或 {table_stem}.xls")
@@ -66,9 +68,10 @@ def read_trace_excel(
     last_error: Exception | None = None
     errors: list[str] = []
     for path, engine, sheet_arg in attempts:
-        logger.debug("读取文件: %s (引擎=%s, sheet=%r)", path, engine, sheet_arg)
+        resolved_sheet = _resolve_sheet_arg(path, engine, sheet_arg)
+        logger.debug("读取文件: %s (引擎=%s, sheet=%r)", path, engine, resolved_sheet)
         try:
-            df = pd.read_excel(path, engine=engine, sheet_name=sheet_arg, header=None)
+            df = pd.read_excel(path, engine=engine, sheet_name=resolved_sheet, header=None)
             _validate_trace_dataframe(df, path)
             return df
         except TraceValidationError:
@@ -78,17 +81,36 @@ def read_trace_excel(
             # 工作表名不存在 → 会被下一个 attempt (sheet_arg=0) 覆盖
             logger.debug("读取 %s 失败（将尝试回退）: %s", path, exc)
             last_error = exc
-            errors.append(f"{path.name} sheet={sheet_arg!r}: {exc}")
+            errors.append(f"{path.name} sheet={resolved_sheet!r}: {exc}")
         except Exception as exc:
             logger.warning("读取 %s 失败 (%s)", path, exc)
             last_error = exc
-            errors.append(f"{path.name} sheet={sheet_arg!r}: {exc}")
+            errors.append(f"{path.name} sheet={resolved_sheet!r}: {exc}")
 
     found = ", ".join(p.name for p in found_paths)
     detail = "; ".join(errors[-3:])
     raise ValueError(
         f"找到 {found}，但读取失败" + (f": {detail}" if detail else "")
     ) from last_error
+
+
+def _resolve_sheet_arg(path: Path, engine: ExcelEngine, sheet_arg: SheetArg) -> SheetArg:
+    """解析实际读取的 sheet；目标 sheet 不存在时直接回退首表，避免失败读取。"""
+    if not isinstance(sheet_arg, str) or not sheet_arg:
+        return sheet_arg
+    try:
+        with pd.ExcelFile(path, engine=engine) as workbook:
+            if sheet_arg in workbook.sheet_names:
+                return sheet_arg
+            logger.debug(
+                "工作表 %r 不存在，直接读取首个 sheet: %s",
+                sheet_arg,
+                path,
+            )
+            return 0
+    except Exception as exc:
+        logger.debug("检查 %s 工作表失败，保留原 sheet 回退逻辑: %s", path, exc)
+        return sheet_arg
 
 
 def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
@@ -111,8 +133,8 @@ def _validate_trace_dataframe(df: pd.DataFrame, path: Path) -> None:
     numeric_count = 0
     for col in range(min(_MIN_COLUMNS, df.shape[1])):
         try:
-            vals = pd.to_numeric(first_rows.iloc[:, col], errors="coerce")
-            numeric_count += vals.notna().sum()
+            vals = pd.Series(pd.to_numeric(first_rows.iloc[:, col], errors="coerce"))
+            numeric_count += int(vals.notna().sum())
         except (ValueError, TypeError) as exc:
             logger.debug(
                 "迹线表 %s 第%d列数值检测跳过: %s", path.name, col, exc

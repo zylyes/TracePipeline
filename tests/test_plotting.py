@@ -7,6 +7,7 @@ import os
 import pytest
 
 from trace_pipeline.plotting.rose_plot import render_rose_plot
+from trace_pipeline.plotting.style import apply_style_overrides
 from trace_pipeline.plotting.trace_plot import render_trace_plot
 from trace_pipeline.utils.mpl_init import force_noninteractive_backend
 
@@ -81,4 +82,16 @@ class TestRenderTracePlot:
             statistics_lines=["P10 = 1.23 m⁻¹", "P20 = 0.45 m⁻²", "P21 = 0.89 m⁻²"],
             area_source="measured",
         )
+        assert os.path.isfile(path)
+
+    def test_render_inside_style_overrides_does_not_deadlock(self, sample_endpoints, tmp_output_dir):
+        with apply_style_overrides({"trace_line_width": 1.2}):
+            path = render_trace_plot(
+                sample_endpoints,
+                "样式覆盖",
+                str(tmp_output_dir),
+                "test_trace_style_override.png",
+                dpi=72,
+            )
+
         assert os.path.isfile(path)

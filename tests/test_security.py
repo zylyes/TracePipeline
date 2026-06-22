@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import sys
+import threading
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -44,6 +46,7 @@ def test_gui_api_rejects_unregistered_external_selected_path(tmp_path) -> None:
     api = object.__new__(GuiApi)
     api._path_checker = PathSecurityChecker(tmp_path / "project")
     api._user_selected_paths = set()
+    api._user_selected_paths_lock = threading.Lock()
     target = tmp_path / "external" / "reports.zip"
 
     assert api._safe_user_selected_path(str(target)) is None
@@ -52,6 +55,7 @@ def test_gui_api_rejects_unregistered_external_selected_path(tmp_path) -> None:
 def test_gui_api_allows_registered_external_selected_path(tmp_path) -> None:
     api = object.__new__(GuiApi)
     api._path_checker = PathSecurityChecker(tmp_path / "project")
+    api._user_selected_paths_lock = threading.Lock()
     target = tmp_path / "external" / "reports.zip"
     api._user_selected_paths = {target.resolve().absolute()}
 
@@ -61,10 +65,43 @@ def test_gui_api_allows_registered_external_selected_path(tmp_path) -> None:
 def test_gui_api_allows_registered_external_selected_folder(tmp_path) -> None:
     api = object.__new__(GuiApi)
     api._path_checker = PathSecurityChecker(tmp_path / "project")
+    api._user_selected_paths_lock = threading.Lock()
     target = tmp_path / "external"
     api._user_selected_paths = {target.resolve().absolute()}
 
     assert api._safe_user_selected_path(str(target), expect_dir=True) == target.resolve().absolute()
+
+
+def test_gui_api_selected_paths_concurrent_read_write(tmp_path) -> None:
+    api = object.__new__(GuiApi)
+    api._path_checker = PathSecurityChecker(tmp_path / "project")
+    api._user_selected_paths = set()
+    api._user_selected_paths_lock = threading.Lock()
+    target = tmp_path / "external" / "reports.zip"
+    api._remember_user_selected_path(str(target))
+
+    errors: list[Exception] = []
+
+    def remember_worker() -> None:
+        try:
+            for _ in range(100):
+                api._remember_user_selected_path(str(target))
+        except Exception as exc:  # pragma: no cover - reported by assertion below
+            errors.append(exc)
+
+    def check_worker() -> None:
+        try:
+            for _ in range(100):
+                assert api._safe_user_selected_path(str(target)) == target.resolve().absolute()
+        except Exception as exc:  # pragma: no cover - reported by assertion below
+            errors.append(exc)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(remember_worker) for _ in range(4)]
+        futures.extend(pool.submit(check_worker) for _ in range(4))
+        concurrent.futures.wait(futures)
+
+    assert not errors
 
 
 def _write_png(path, size=(320, 180), color=(40, 80, 120)) -> None:

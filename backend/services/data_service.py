@@ -57,6 +57,20 @@ class DataService:
         return data[start : start + page_size], total
 
     @staticmethod
+    def _normalize_pagination(page: int, page_size: int) -> tuple[int, int]:
+        """规范化分页参数，限制前端传入的极端值。"""
+        try:
+            page = int(page)
+        except (TypeError, ValueError):
+            page = 1
+        page = max(1, page)
+        try:
+            page_size = int(page_size)
+        except (TypeError, ValueError):
+            page_size = 20
+        return page, max(1, min(page_size, 500))
+
+    @staticmethod
     def _file_signature(path: Path) -> tuple[int, int]:
         stat = path.stat()
         return stat.st_mtime_ns, stat.st_size
@@ -74,6 +88,9 @@ class DataService:
             validate_outcrop_name(outcrop)
         except ValueError as exc:
             return error_response(str(exc))
+
+        page, page_size = self._normalize_pagination(page, page_size)
+
         if source == "input":
             return self._get_input_data(outcrop, page, page_size)
 
@@ -172,6 +189,8 @@ class DataService:
 
     def _get_input_data(self, outcrop: str, page: int, page_size: int) -> dict[str, Any]:
         """读取 input 目录下的原始输入 Excel。"""
+        page, page_size = self._normalize_pagination(page, page_size)
+
         table_stem = f"{outcrop}_process"
         path = self._input_dir / f"{table_stem}.xls"
         if not path.exists():

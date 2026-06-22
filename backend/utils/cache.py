@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from collections import OrderedDict
@@ -31,6 +32,10 @@ class TTLCache:
         self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
         self._lock = threading.RLock()
         self._evict_counter = 0
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._store)
 
     def get(self, key: str) -> Any | None:
         """获取缓存值，过期或不存在返回 None。"""
@@ -90,6 +95,7 @@ class DirectoryChangeDetector:
     def __init__(self, max_files: int = 5000) -> None:
         self._snapshot: tuple[Any, ...] | None = None
         self._max_files = max(1, max_files)
+        self._lock = threading.Lock()
 
     def has_changed(self, directory: Path) -> bool:
         """检测目录是否发生了外部变更。
@@ -100,16 +106,20 @@ class DirectoryChangeDetector:
         Returns:
             True 表示检测到变更（且已更新内部快照），False 表示无变更。
         """
+        with self._lock:
+            return self._has_changed_locked(directory)
+
+    def _has_changed_locked(self, directory: Path) -> bool:
         if not directory.exists():
             current_snapshot = ("missing",)
         else:
             try:
                 dir_stat = directory.stat()
                 children: list[tuple[str, bool, int, int]] = []
+                truncated = False
                 for i, child in enumerate(directory.iterdir()):
                     if i >= self._max_files:
-                        # 超大目录仅采样前 N 个文件，避免 I/O 瓶颈
-                        children.append(("__truncated__", False, 0, 0))
+                        truncated = True
                         break
                     try:
                         stat = child.stat()
@@ -117,6 +127,13 @@ class DirectoryChangeDetector:
                         children.append((child.name, False, -1, -1))
                         continue
                     children.append((child.name, child.is_dir(), stat.st_size, stat.st_mtime_ns))
+                if truncated:
+                    # 记录总条目数作为新增/删除的信号，避免截断后快照永远不变
+                    try:
+                        total_count = len(os.listdir(directory))
+                    except OSError:
+                        total_count = -1
+                    children.append(("__truncated__", False, total_count, 0))
                 current_snapshot = (dir_stat.st_mtime_ns, tuple(sorted(children)))
             except OSError:
                 current_snapshot = ("error",)
@@ -133,4 +150,5 @@ class DirectoryChangeDetector:
 
     def invalidate(self) -> None:
         """手动使缓存失效，下次调用 has_changed 时将重新建立快照。"""
-        self._snapshot = None
+        with self._lock:
+            self._snapshot = None

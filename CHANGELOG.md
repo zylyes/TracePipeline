@@ -12,6 +12,34 @@
 
 ---
 
+## [4.5.3] - 2026-06-22
+
+### 修复
+
+- **Element Plus 单选按钮兼容性**：开发者面板与对比视图中的 `el-radio-button` 改用 `value` 绑定，并按需注册 `ElRadio`，避免新版 Element Plus 下单选组取值异常。
+- **对比页空态与加载态**：无露头数据时提供“去处理数据”入口；加载状态与表格渲染分离，避免空数据和加载中状态互相覆盖。
+- **图片筛选反馈**：对比页图片筛选无结果时在图片区域内展示空态，处理完成但无结果图时展示明确提示。
+
+### 改进
+
+- **折叠侧栏提示**：导航与目录按钮始终保留 `title`，折叠状态下仍可识别入口含义。
+- **透明度输入可读性**：配置面板透明度数值输入框改为百分比宽度，并显式显示 `%` 单位。
+- **对比表格窄屏表现**：对比表格增加最小宽度与横向滚动，减少列内容挤压。
+
+### 版本同步
+
+- 全项目版本号同步至 4.5.3。
+
+### 验证状态
+
+- Python `tests/test_packaging_metadata.py`：通过（3 项）
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- 发行产物：安装版 128.9 MB，便携版 123.1 MB，程序目录 258.2 MB
+
+---
+
 ## [4.5.2] - 2026-06-22
 
 ### 修复
@@ -476,6 +504,7 @@
 
 ---
 
+[4.5.3]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.3
 [4.5.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.2
 [4.5.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.1
 [4.5.0]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.0

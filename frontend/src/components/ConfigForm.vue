@@ -64,13 +64,15 @@
         <el-form-item label="凸包透明度">
           <div class="slider-input-combo">
             <el-slider v-model="style.hull_fill_alpha" :min="0" :max="1" :step="0.01" :format-tooltip="(v: number) => Math.round(v * 100) + '%'" @change="emitStyle" />
-            <el-input-number :model-value="Math.round((style.hull_fill_alpha ?? 0) * 100)" :min="0" :max="100" :step="1" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @update:model-value="(val: number) => { style.hull_fill_alpha = val / 100; emitStyle() }" />
+            <el-input-number :model-value="Math.round((style.hull_fill_alpha ?? 0) * 100)" :min="0" :max="100" :step="1" :controls="false" size="small" style="width: 60px; flex-shrink: 0;" @update:model-value="(val: number) => { style.hull_fill_alpha = val / 100; emitStyle() }" />
+            <span style="margin-left: 4px; color: var(--tp-text-secondary); font-size: 13px;">%</span>
           </div>
         </el-form-item>
         <el-form-item label="圆窗透明度">
           <div class="slider-input-combo">
             <el-slider v-model="style.circle_window_fill_alpha" :min="0" :max="1" :step="0.01" :format-tooltip="(v: number) => Math.round(v * 100) + '%'" @change="emitStyle" />
-            <el-input-number :model-value="Math.round((style.circle_window_fill_alpha ?? 0) * 100)" :min="0" :max="100" :step="1" :controls="false" size="small" style="width: 80px; flex-shrink: 0;" @update:model-value="(val: number) => { style.circle_window_fill_alpha = val / 100; emitStyle() }" />
+            <el-input-number :model-value="Math.round((style.circle_window_fill_alpha ?? 0) * 100)" :min="0" :max="100" :step="1" :controls="false" size="small" style="width: 60px; flex-shrink: 0;" @update:model-value="(val: number) => { style.circle_window_fill_alpha = val / 100; emitStyle() }" />
+            <span style="margin-left: 4px; color: var(--tp-text-secondary); font-size: 13px;">%</span>
           </div>
         </el-form-item>
         <el-form-item label="标题字号">

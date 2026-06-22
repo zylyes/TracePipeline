@@ -2,10 +2,23 @@
   <div class="comparison-view">
     <h2 class="page-title">对比</h2>
 
-    <el-empty v-if="!loading && tableData.length === 0" description="暂无露头数据" />
+    <el-empty v-if="!loading && tableData.length === 0" description="暂无露头数据，请先处理数据">
+      <el-button type="primary" @click="goToProcessing">去处理数据</el-button>
+    </el-empty>
 
-    <div v-else class="table-card tp-card tp-neon-edge">
-      <table class="native-table" v-if="!loading && tableData.length">
+    <div v-if="loading" class="table-card tp-card tp-neon-edge">
+      <div class="table-loading">
+        <span class="tp-loading-orbit"></span>
+        <div class="loading-copy">
+          <span>正在汇总多露头参数</span>
+          <span class="tp-skeleton-line"></span>
+          <span class="tp-skeleton-line short"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card tp-card tp-neon-edge" v-if="!loading && tableData.length > 0">
+      <table class="native-table">
         <thead>
           <tr>
             <th>露头</th>
@@ -37,14 +50,6 @@
           </tr>
         </tbody>
       </table>
-      <div v-if="loading" class="table-loading">
-        <span class="tp-loading-orbit"></span>
-        <div class="loading-copy">
-          <span>正在汇总多露头参数</span>
-          <span class="tp-skeleton-line"></span>
-          <span class="tp-skeleton-line short"></span>
-        </div>
-      </div>
     </div>
 
     <div class="chart-area tp-card tp-neon-edge" v-if="tableData.length > 0">
@@ -59,10 +64,10 @@
       </div>
       <div class="chart-toolbar">
         <el-radio-group v-model="chartMetric" size="small">
-          <el-radio-button label="density">密度指标</el-radio-button>
-          <el-radio-button label="type">裂隙类型</el-radio-button>
-          <el-radio-button v-if="pipelineStore.lastEnableNodeRecognition" label="node">节点指标</el-radio-button>
-          <el-radio-button label="length">面积/长度</el-radio-button>
+          <el-radio-button value="density">密度指标</el-radio-button>
+          <el-radio-button value="type">裂隙类型</el-radio-button>
+          <el-radio-button v-if="pipelineStore.lastEnableNodeRecognition" value="node">节点指标</el-radio-button>
+          <el-radio-button value="length">面积/长度</el-radio-button>
         </el-radio-group>
       </div>
       <v-chart class="chart" :option="barOption" :init-options="chartInitOpts" autoresize />
@@ -79,15 +84,16 @@
         </div>
         <div class="image-filter-bar">
           <el-radio-group v-model="imageFilter" size="small">
-            <el-radio-button label="all">全部</el-radio-button>
-            <el-radio-button label="原始迹线">原始迹线</el-radio-button>
-            <el-radio-button label="旋转迹线">旋转迹线</el-radio-button>
-            <el-radio-button v-if="pipelineStore.lastExportRosePlot" label="走向玫瑰">走向玫瑰</el-radio-button>
+            <el-radio-button value="all">全部</el-radio-button>
+            <el-radio-button value="原始迹线">原始迹线</el-radio-button>
+            <el-radio-button value="旋转迹线">旋转迹线</el-radio-button>
+            <el-radio-button v-if="pipelineStore.lastExportRosePlot" value="走向玫瑰">走向玫瑰</el-radio-button>
           </el-radio-group>
           <el-input v-model="imageSearch" placeholder="搜索露头..." size="small" style="width:160px" clearable />
         </div>
       </div>
-      <div class="image-grid">
+      <el-empty v-if="filteredImages.length === 0" class="images-empty" description="无匹配图片" />
+      <div v-else class="image-grid">
         <div
           class="image-card"
           v-for="img in filteredImages"
@@ -106,8 +112,7 @@
         </div>
       </div>
     </div>
-    <el-empty v-else-if="!loading && filteredImages.length === 0 && allImages.length > 0" description="无匹配图片" style="margin-top:16px" />
-    <el-empty v-else-if="!loading" description="暂无图片" style="margin-top:16px" />
+    <el-empty v-else-if="!loading && tableData.length > 0" description="暂无处理结果图" style="margin-top:16px" />
 
     <ImageViewer
       v-model:visible="viewerVisible"
@@ -120,6 +125,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onActivated, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { msg } from '@/utils/message'
 import { TrendCharts, Picture } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
@@ -139,6 +145,7 @@ use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent,
 
 defineOptions({ name: 'Comparison' })
 
+const router = useRouter()
 const pipelineStore = usePipelineStore()
 const cacheStore = useCacheStore()
 const INITIAL_IMAGE_PREFETCH_COUNT = 4
@@ -190,6 +197,10 @@ const allImages = ref<GridImage[]>([])
 const viewerVisible = ref(false)
 const viewerImages = ref<Array<{ title: string; src: string }>>([])
 const viewerInitialIndex = ref(0)
+
+function goToProcessing() {
+  router.push('/processing')
+}
 
 function syncViewerImages() {
   viewerImages.value = allImages.value.map(item => ({
@@ -513,6 +524,7 @@ onActivated(() => {
 .table-card {
   padding: var(--tp-space-4);
   margin-bottom: var(--tp-space-4);
+  overflow-x: auto;
 }
 
 .table-card:hover {
@@ -523,6 +535,7 @@ onActivated(() => {
 /* 原生表格样式（替代 el-table） */
 .native-table {
   width: 100%;
+  min-width: 840px;
   border-collapse: collapse;
   font-family: var(--tp-font-body);
   font-size: 13px;
@@ -717,6 +730,10 @@ onActivated(() => {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: var(--tp-space-3);
+}
+
+.images-empty {
+  padding: var(--tp-space-5) 0;
 }
 
 .image-card {

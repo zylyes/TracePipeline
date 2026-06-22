@@ -50,9 +50,10 @@
               v-for="item in menuItems"
               :key="item.path"
               :to="item.path"
+              :title="sidebarCollapsed ? item.label : ''"
               :class="['menu-item', { active: route.path === item.path }]"
             >
-              <div class="menu-item-inner">
+              <div class="menu-item-inner" :title="item.label">
                 <component :is="item.icon" :size="18" :color="item.color" class="menu-icon" />
                 <Transition name="sidebar-fade">
                   <span v-if="!sidebarCollapsed" class="menu-label">{{ item.label }}</span>
@@ -64,15 +65,15 @@
 
           <div class="sidebar-footer">
             <div class="footer-section">
-              <div class="footer-btn" @click="openInputDir" :title="sidebarCollapsed ? '打开输入目录' : ''">
+              <div class="footer-btn" @click="openInputDir" title="打开输入目录">
                 <FolderOpen :size="14" />
                 <span v-if="!sidebarCollapsed">打开输入目录</span>
               </div>
-              <div class="footer-btn" @click="openOutputDir" :title="sidebarCollapsed ? '打开输出目录' : ''">
+              <div class="footer-btn" @click="openOutputDir" title="打开输出目录">
                 <FolderOpen :size="14" />
                 <span v-if="!sidebarCollapsed">打开输出目录</span>
               </div>
-              <div class="footer-btn" @click="openLogsDir" :title="sidebarCollapsed ? '打开日志目录' : ''">
+              <div class="footer-btn" @click="openLogsDir" title="打开日志目录">
                 <FileText :size="14" />
                 <span v-if="!sidebarCollapsed">打开日志目录</span>
               </div>

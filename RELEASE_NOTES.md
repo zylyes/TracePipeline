@@ -1,3 +1,60 @@
+# TracePipeline v4.5.3 发布说明
+
+**发布日期**：2026-06-22
+
+## 本版本亮点
+
+### 🧭 GUI 交互稳定性修复
+
+本版本聚焦桌面 GUI 的交互一致性与空态反馈：
+
+- 开发者面板与对比视图中的 `el-radio-button` 改用 `value` 绑定，匹配新版 Element Plus 组件 API
+- 前端按需注册补充 `ElRadio`，确保单选组组件依赖完整
+- 折叠侧栏的导航项与目录快捷入口保留 tooltip，窄侧栏状态下也能识别功能入口
+
+### 📊 对比视图体验补丁
+
+- 无露头数据时展示“去处理数据”操作入口，减少空页面停顿
+- 加载态与表格渲染拆分，避免加载中、空表格和数据表格状态混杂
+- 图片筛选无结果时在图片区域内展示空态；处理完成但无结果图时展示明确提示
+- 对比表格增加最小宽度与横向滚动，提升窄窗口下的可读性
+
+### ⚙️ 配置表单单位显示优化
+
+- 凸包透明度、圆窗透明度输入框以百分比形式展示并显式补充 `%` 单位
+- 输入框宽度收敛，滑块与数值输入组合更紧凑
+
+## 变更文件
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/App.vue` | 改进 | 折叠侧栏导航与目录按钮 tooltip 优化 |
+| `frontend/src/components/ConfigForm.vue` | 改进 | 透明度输入框百分比单位显示优化 |
+| `frontend/src/components/DevPanel.vue` | 修复 | 单选按钮改用 `value` 绑定 |
+| `frontend/src/main.ts` | 修复 | Element Plus 按需注册补充 `ElRadio` |
+| `frontend/src/views/ComparisonView.vue` | 修复/改进 | 对比页空态、加载态、图片筛选空态、表格横向滚动优化 |
+| `trace_pipeline/__init__.py` / `frontend/package*.json` / `TracePipeline-setup.iss` | 版本 | 同步至 v4.5.3 |
+| `README.md` / `CHANGELOG.md` / `RELEASE_NOTES.md` | 文档 | 同步 v4.5.3 发布内容 |
+
+## 验证状态
+
+- Python `tests/test_packaging_metadata.py`：通过（3 项）
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- 程序目录：258.2 MB
+
+## 发布注意
+
+- 本版本为 GUI patch 版本，重点验证对比视图、开发者面板单选项和配置面板透明度输入。
+
+## 发行版产物
+
+- 安装版：`dist/TracePipeline-Setup-v4.5.3.exe`（128.9 MB）
+- 便携版：`dist/TracePipeline-Portable-v4.5.3.exe`（123.1 MB）
+
+---
+
 # TracePipeline v4.5.2 发布说明
 
 **发布日期**：2026-06-22

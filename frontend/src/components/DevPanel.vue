@@ -8,8 +8,8 @@
               <el-col :span="12">
                 <el-form-item label="导出范围">
                   <el-radio-group v-model="reportScope">
-                    <el-radio-button label="selected">指定露头</el-radio-button>
-                    <el-radio-button label="all">全部已处理</el-radio-button>
+                    <el-radio-button value="selected">指定露头</el-radio-button>
+                    <el-radio-button value="all">全部已处理</el-radio-button>
                   </el-radio-group>
                 </el-form-item>
               </el-col>
@@ -43,18 +43,18 @@
               <el-col :span="12">
                 <el-form-item label="报告类型">
                   <el-radio-group v-model="reportType">
-                    <el-radio-button label="full">完整报告</el-radio-button>
-                    <el-radio-button label="stats">仅统计</el-radio-button>
-                    <el-radio-button label="plots">仅图表</el-radio-button>
+                    <el-radio-button value="full">完整报告</el-radio-button>
+                    <el-radio-button value="stats">仅统计</el-radio-button>
+                    <el-radio-button value="plots">仅图表</el-radio-button>
                   </el-radio-group>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="格式">
                   <el-radio-group v-model="reportFmt">
-                    <el-radio-button label="docx">Word</el-radio-button>
-                    <el-radio-button label="pdf">PDF</el-radio-button>
-                    <el-radio-button label="both">两者</el-radio-button>
+                    <el-radio-button value="docx">Word</el-radio-button>
+                    <el-radio-button value="pdf">PDF</el-radio-button>
+                    <el-radio-button value="both">两者</el-radio-button>
                   </el-radio-group>
                 </el-form-item>
               </el-col>

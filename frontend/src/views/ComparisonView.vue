@@ -18,38 +18,25 @@
     </div>
 
     <div class="table-card tp-card tp-neon-edge" v-if="!loading && tableData.length > 0">
-      <table class="native-table">
-        <thead>
-          <tr>
-            <th>露头</th>
-            <th>迹线数</th>
-            <th>P10</th>
-            <th>P20</th>
-            <th>P21</th>
-            <th>平均迹长(m)</th>
-            <th>走向</th>
-            <th>I:II:III</th>
-            <th v-if="pipelineStore.lastEnableNodeRecognition">节点总数</th>
-            <th v-if="pipelineStore.lastEnableNodeRecognition">X:Y:I</th>
-            <th v-if="pipelineStore.lastEnableNodeRecognition">节点密度</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in tableData" :key="row.outcrop">
-            <td :title="row.outcrop">{{ row.outcrop }}</td>
-            <td :title="row.trace_count">{{ row.trace_count }}</td>
-            <td :title="row.p10">{{ row.p10 }}</td>
-            <td :title="row.p20">{{ row.p20 }}</td>
-            <td :title="row.p21">{{ row.p21 }}</td>
-            <td :title="row.mean_trace_length">{{ row.mean_trace_length }}</td>
-            <td :title="row.scanline_azimuth">{{ row.scanline_azimuth }}</td>
-            <td :title="row.type_ratio">{{ row.type_ratio }}</td>
-            <td v-if="pipelineStore.lastEnableNodeRecognition" :title="row.node_count">{{ row.node_count }}</td>
-            <td v-if="pipelineStore.lastEnableNodeRecognition" :title="row.node_ratio">{{ row.node_ratio }}</td>
-            <td v-if="pipelineStore.lastEnableNodeRecognition" :title="row.node_density">{{ row.node_density }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <el-table
+        :data="tableData"
+        class="comparison-table"
+        style="width: 100%"
+        stripe
+        border
+      >
+        <el-table-column prop="outcrop" label="露头" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="trace_count" label="迹线数" min-width="90" />
+        <el-table-column prop="p10" label="P10" min-width="80" />
+        <el-table-column prop="p20" label="P20" min-width="80" />
+        <el-table-column prop="p21" label="P21" min-width="80" />
+        <el-table-column prop="mean_trace_length" label="平均迹长(m)" min-width="110" />
+        <el-table-column prop="scanline_azimuth" label="走向" min-width="80" />
+        <el-table-column prop="type_ratio" label="I:II:III" min-width="100" show-overflow-tooltip />
+        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_count" label="节点总数" min-width="90" />
+        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_ratio" label="X:Y:I" min-width="100" show-overflow-tooltip />
+        <el-table-column v-if="pipelineStore.lastEnableNodeRecognition" prop="node_density" label="节点密度" min-width="90" />
+      </el-table>
     </div>
 
     <div class="chart-area tp-card tp-neon-edge" v-if="tableData.length > 0">
@@ -524,7 +511,6 @@ onActivated(() => {
 .table-card {
   padding: var(--tp-space-4);
   margin-bottom: var(--tp-space-4);
-  overflow-x: auto;
 }
 
 .table-card:hover {
@@ -532,62 +518,23 @@ onActivated(() => {
   box-shadow: var(--tp-shadow-md);
 }
 
-/* 原生表格样式（替代 el-table） */
-.native-table {
-  width: 100%;
-  min-width: 840px;
-  border-collapse: collapse;
+/* Element Plus 表格定制 */
+.comparison-table {
+  --el-table-border-color: var(--tp-border-light);
+  --el-table-header-bg-color: var(--tp-bg-sunken);
+  --el-table-header-text-color: var(--tp-text-primary);
+  --el-table-text-color: var(--tp-text-primary);
+  --el-table-row-hover-bg-color: var(--tp-bg-hover);
+  border-radius: var(--tp-radius-md);
+  overflow: hidden;
   font-family: var(--tp-font-body);
   font-size: 13px;
-  color: var(--tp-text-primary);
-  border: 1px solid var(--tp-border-light);
-  table-layout: fixed;
 }
 
-.native-table thead {
-  background: var(--tp-bg-sunken);
-}
-
-.native-table th {
+:deep(.comparison-table th.el-table__cell) {
   font-family: var(--tp-font-heading);
   font-weight: 600;
-  color: var(--tp-text-primary);
-  padding: 6px 8px;
-  text-align: left;
-  border-bottom: 1px solid var(--tp-border-light);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-
-.native-table td {
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--tp-border-light);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.native-table tbody tr:hover {
-  background: var(--tp-bg-hover);
-}
-
-.native-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* 列宽分配 */
-.native-table th:nth-child(1), .native-table td:nth-child(1) { width: 7%; }   /* 露头 */
-.native-table th:nth-child(2), .native-table td:nth-child(2) { width: 8%; }   /* 迹线数 */
-.native-table th:nth-child(3), .native-table td:nth-child(3) { width: 8%; }   /* P10 */
-.native-table th:nth-child(4), .native-table td:nth-child(4) { width: 8%; }   /* P20 */
-.native-table th:nth-child(5), .native-table td:nth-child(5) { width: 8%; }   /* P21 */
-.native-table th:nth-child(6), .native-table td:nth-child(6) { width: 11%; }  /* 平均迹长 */
-.native-table th:nth-child(7), .native-table td:nth-child(7) { width: 7%; }   /* 走向 */
-.native-table th:nth-child(8), .native-table td:nth-child(8) { width: 10%; }  /* I:II:III */
-.native-table th:nth-child(9), .native-table td:nth-child(9) { width: 9%; }   /* 节点总数 */
-.native-table th:nth-child(10), .native-table td:nth-child(10) { width: 9%; }  /* X:Y:I */
-.native-table th:nth-child(11), .native-table td:nth-child(11) { width: 10%; } /* 节点密度 */
 
 .table-loading {
   min-height: 168px;

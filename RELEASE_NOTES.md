@@ -1,3 +1,56 @@
+# TracePipeline v4.5.5 发布说明
+
+**发布日期**：2026-06-23
+
+## 变更内容
+
+### 修复
+
+- **对比视图表格回归 Element Plus**：对比页多露头表格从原生 `<table>` 回退至 Element Plus `<el-table>` 组件，恢复斑马纹（stripe）、边框（border）、列宽自适应（min-width）和悬浮提示（show-overflow-tooltip）。
+- **移除手动横向滚动样式**：取消 `.table-card` 的 `overflow-x: auto`，改由 el-table 原生处理横向内容溢出。
+
+### 改进
+
+- **行悬停高亮**：`--el-table-row-hover-bg-color` 对接全局 CSS 变量 `--tp-bg-hover`，UI 一致性提升。
+- **列宽弹性适配**：不再依赖手动百分比固定列宽，使用 `min-width` 实现内容变化时弹性适配。
+- **对比表格视觉统一**：使对比表格与其他页面（数据浏览、配置面板）的 Element Plus 表格组件风格一致。
+
+### 版本同步
+
+- Python 后端：`trace_pipeline/__init__.py` 版本号更新至 4.5.5
+- 前端：`frontend/package.json` 与 `frontend/package-lock.json` 版本号更新至 4.5.5
+
+### 文档
+
+- `README.md`：版本徽章与维护状态说明同步至 v4.5.5
+- `CHANGELOG.md`：新增 v4.5.5 变更日志
+- `RELEASE_NOTES.md`：本文件同步
+
+## 验证状态
+
+| 测试项 | 状态 |
+|--------|------|
+| Python `pytest` | ✅ 通过 |
+| 前端 `npm.cmd run typecheck` | ✅ 通过 |
+| 前端 `npm.cmd run test` | ✅ 通过 |
+| Windows 完整打包（PyInstaller + Inno Setup + 7-Zip SFX） | ✅ 通过 |
+
+## 维护状态
+
+这是 TracePipeline 的**最后一个计划内维护版本**。项目仍保留开源代码与所有发行产物。后续问题或功能需求请通过以下渠道联系作者：
+
+- **GitHub Issue**：https://github.com/zylyes/TracePipeline/issues
+- **邮箱**：2965090785@qq.com
+
+## 发行版产物
+
+| 类型 | 文件路径 |
+|------|----------|
+| 安装版 | `dist/TracePipeline-Setup-v4.5.5.exe` |
+| 便携版 | `dist/TracePipeline-Portable-v4.5.5.exe` |
+
+---
+
 # TracePipeline v4.5.4 发布说明
 
 **发布日期**：2026-06-23

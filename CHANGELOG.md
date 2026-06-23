@@ -12,6 +12,34 @@
 
 ---
 
+## [4.5.5] - 2026-06-23
+
+### 修复
+
+- **对比视图回归 Element Plus 表格**：对比页多露头表格从原生 `<table>` 回退至 Element Plus `<el-table>` 组件，恢复斑马纹、边框、列宽自适应和悬浮提示；取消手动 overflow-x 横向滚动样式，改由 el-table 原生处理。
+
+### 改进
+
+- 恢复 Element Plus 表格的 stripe/border `show-overflow-tooltip` 特性，改善跨列数据和长内容的可读性。
+- 表格行悬停高亮（`--el-table-row-hover-bg-color`）与全局 CSS 变量对接，UI 一致性提升。
+
+### 版本同步
+
+- 全项目版本号同步至 4.5.5。
+
+### 维护说明
+
+- 本版本作为最后一个计划内维护版本发布。之后作者预计不会继续专心维护该项目；若后续有问题反馈或功能需求，可通过 GitHub Issue 或邮箱（2965090785@qq.com）联系作者。
+
+### 验证状态
+
+- Python `pytest`：通过
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+
+---
+
 ## [4.5.4] - 2026-06-23
 
 ### 修复
@@ -542,6 +570,7 @@
 
 ---
 
+[4.5.5]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.5
 [4.5.4]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.4
 [4.5.3]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.3
 [4.5.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.2

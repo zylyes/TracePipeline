@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/zylyes/TracePipeline/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.5.4-brightgreen" alt="Version"></a>
+  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.5.5-brightgreen" alt="Version"></a>
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/GUI-Vue_3_|_Element_Plus_|_ECharts-4FC08D?logo=vuedotframework" alt="GUI">
@@ -83,7 +83,7 @@ python run_gui.py
 
 > 📖 更详细的安装说明见 [第 4 节](#-4-安装与运行)，输入数据格式见 [第 6.1 节](#61-输入数据格式)。
 
-> **维护状态**：v4.5.4 是本项目最后一个计划内维护版本。后续我预计不会再持续投入这个项目；如果遇到问题或有功能需求，可以通过 GitHub Issue 或邮箱（2965090785@qq.com）联系作者。
+> **维护状态**：v4.5.5 是本项目最后一个计划内维护版本。后续我预计不会再持续投入这个项目；如果遇到问题或有功能需求，可以通过 GitHub Issue 或邮箱（2965090785@qq.com）联系作者。
 
 ---
 

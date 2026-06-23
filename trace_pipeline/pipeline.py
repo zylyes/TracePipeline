@@ -58,7 +58,7 @@ def _input_file_signature(input_dir: str, table_stem: str) -> tuple[Path, int, i
     raise FileNotFoundError(f"未找到输入文件: {base / table_stem}.xls/.xlsx")
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=16)
 def _load_trace_data_cached(
     input_dir: str, table_stem: str, outcrop: str, mtime_ns: int, size: int
 ) -> TraceData:

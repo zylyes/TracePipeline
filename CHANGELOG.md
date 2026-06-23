@@ -12,6 +12,44 @@
 
 ---
 
+## [4.5.4] - 2026-06-23
+
+### 修复
+
+- **报告 ZIP 进度状态**：批量报告打包失败时推送明确 `error` 事件；仅成功生成 ZIP 后推送 `complete`，避免前端在失败路径误判完成。
+- **GUI 懒加载线程安全**：`GuiApi` 懒加载服务增加双检锁，避免并发访问时重复创建服务实例。
+- **并行 worker 上限**：`parallel_workers` 显式配置大于 CPU 核心数时自动裁剪；CPU 核心数不可识别时保守退回 1，减少过度创建进程导致的资源压力。
+- **Excel 大文件防护**：读取输入 Excel 前增加 50 MiB 上限校验，防止异常大文件被 pandas 直接加载。
+
+### 改进
+
+- **后台进度队列收敛**：流水线进度队列设置最大长度，降低长时间运行时的内存增长风险。
+- **TraceData 缓存收敛**：输入数据缓存容量从 64 调整为 16，降低多露头/多文件反复处理时的内存占用。
+
+### 测试
+
+- 新增报告 ZIP 失败路径、业务错误路径和懒加载并发访问回归测试。
+- 新增并行 worker CPU 上限裁剪与 CPU 不可识别兜底测试。
+- 新增 Excel 超大文件拒绝读取测试。
+
+### 版本同步
+
+- 全项目版本号同步至 4.5.4。
+
+### 维护说明
+
+- 本版本作为最后一个计划内维护版本发布。之后作者预计不会继续专心维护该项目；若后续有问题反馈或功能需求，可通过 GitHub Issue 或项目联系方式联系作者。
+
+### 验证状态
+
+- Python `pytest`：通过（200 项）
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- 发行产物：安装版 128.9 MB，便携版 123.1 MB，程序目录 258.2 MB
+
+---
+
 ## [4.5.3] - 2026-06-22
 
 ### 修复
@@ -504,6 +542,7 @@
 
 ---
 
+[4.5.4]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.4
 [4.5.3]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.3
 [4.5.2]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.2
 [4.5.1]: https://github.com/zylyes/TracePipeline/releases/tag/v4.5.1

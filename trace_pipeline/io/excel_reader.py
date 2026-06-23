@@ -20,6 +20,7 @@ EXCEL_ENGINES: tuple[tuple[str, ExcelEngine], ...] = (
 
 _MIN_COLUMNS = 4
 _MAX_SKIP_ROWS = 2
+_MAX_EXCEL_SIZE = 50 * 1024 * 1024  # 50 MiB
 
 __all__ = ["read_trace_excel", "TraceValidationError"]
 
@@ -64,6 +65,17 @@ def read_trace_excel(
 
     if not found_paths:
         raise FileNotFoundError(f"在 {base_path} 下未找到 {table_stem}.xlsx 或 {table_stem}.xls")
+
+    # 文件大小上限检查（避免 pandas 加载超大文件）
+    for p in found_paths:
+        size_bytes = p.stat().st_size
+        if size_bytes > _MAX_EXCEL_SIZE:
+            size_mb = size_bytes / (1024 * 1024)
+            limit_mb = _MAX_EXCEL_SIZE / (1024 * 1024)
+            raise TraceValidationError(
+                f"Excel 文件 {p.name} 过大 ({size_mb:.1f} MiB)，"
+                f"超过上限 {limit_mb:.0f} MiB"
+            )
 
     last_error: Exception | None = None
     errors: list[str] = []

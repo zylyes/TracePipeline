@@ -21,7 +21,7 @@ import webview
 from PIL import Image
 
 from backend.services.audit_service import AuditService
-from backend.services.config_service import ConfigService, PROCESSING_KEYS
+from backend.services.config_service import PROCESSING_KEYS, ConfigService
 from backend.services.data_service import DataService
 from backend.services.file_service import FileService
 from backend.services.log_service import LogService
@@ -62,8 +62,6 @@ class GuiApi:
     """
 
     def __init__(self) -> None:
-        import time
-
         t0 = time.perf_counter()
         # 启动时预加载：安全校验、配置、文件扫描、日志等服务
         self._path_checker = PathSecurityChecker(PROJECT_ROOT)
@@ -86,6 +84,7 @@ class GuiApi:
         # 重资源操作的运行锁（线程安全）
         self._preview_lock = threading.Lock()
         self._report_lock = threading.Lock()
+        self._service_lock = threading.RLock()
         # 报告导出进度队列（线程安全，前端轮询）
         self._report_progress_queue: deque[dict[str, Any]] = deque(maxlen=500)
         self._report_progress_lock = threading.Lock()
@@ -109,41 +108,53 @@ class GuiApi:
             },
         )
 
-    # 懒加载属性
+    # 懒加载属性（线程安全，双检锁）
     @property
     def _pipeline_svc(self) -> PipelineService:
         if self._pipeline is None:
-            self._pipeline = PipelineService()
+            with self._service_lock:
+                if self._pipeline is None:
+                    self._pipeline = PipelineService()
         return self._pipeline
 
     @property
     def _preview_svc(self) -> PreviewService:
         if self._preview is None:
-            self._preview = PreviewService()
+            with self._service_lock:
+                if self._preview is None:
+                    self._preview = PreviewService()
         return self._preview
 
     @property
     def _stats_svc(self) -> StatsService:
         if self._stats is None:
-            self._stats = StatsService()
+            with self._service_lock:
+                if self._stats is None:
+                    self._stats = StatsService()
         return self._stats
 
     @property
     def _data_svc(self) -> DataService:
         if self._data is None:
-            self._data = DataService()
+            with self._service_lock:
+                if self._data is None:
+                    self._data = DataService()
         return self._data
 
     @property
     def _report_svc(self) -> ReportService:
         if self._report is None:
-            self._report = ReportService()
+            with self._service_lock:
+                if self._report is None:
+                    self._report = ReportService()
         return self._report
 
     @property
     def _audit_svc(self) -> AuditService:
         if self._audit is None:
-            self._audit = AuditService()
+            with self._service_lock:
+                if self._audit is None:
+                    self._audit = AuditService()
         return self._audit
 
     def set_window(self, window: Any) -> None:
@@ -747,6 +758,10 @@ class GuiApi:
             with self._report_progress_lock:
                 self._report_progress_queue.clear()
 
+            def _push_error(message: str) -> None:
+                with self._report_progress_lock:
+                    self._report_progress_queue.append({"type": "error", "message": message})
+
             total = len(targets)
             cfg = self._config.get()
             files = []
@@ -754,7 +769,13 @@ class GuiApi:
 
             for idx, oc in enumerate(targets, 1):
                 progress_cb = self._make_report_progress_callback(oc, idx, total)
-                res = self._report_svc.generate(oc, report_type, fmt, cfg, progress_callback=progress_cb)
+                res = self._report_svc.generate(
+                    oc,
+                    report_type,
+                    fmt,
+                    cfg,
+                    progress_callback=progress_cb,
+                )
                 if "error" in res:
                     errors.append(f"{oc}: {res['error']}")
                     continue
@@ -765,7 +786,9 @@ class GuiApi:
 
             if not files:
                 detail = "; ".join(errors)
-                return {"error": f"没有生成任何报告{( ': ' + detail) if detail else ''}"}
+                message = f"没有生成任何报告{( ': ' + detail) if detail else ''}"
+                _push_error(message)
+                return {"error": message}
 
             # 打包 ZIP
             with self._report_progress_lock:
@@ -780,7 +803,9 @@ class GuiApi:
                 safe = self._safe_user_selected_path(save_path)
                 if safe is None:
                     logger.warning("generate_reports_zip 拒绝越权保存路径: %s", save_path)
-                    return {"error": "保存路径越权"}
+                    message = "保存路径越权"
+                    _push_error(message)
+                    return {"error": message}
                 zip_path = safe
                 zip_path.parent.mkdir(parents=True, exist_ok=True)
             else:
@@ -801,7 +826,9 @@ class GuiApi:
                         zf.write(str(fp_safe), arcname=fp_safe.name)
             except Exception as exc:
                 logger.warning("ZIP 创建失败: %s", exc)
-                return {"error": f"ZIP 创建失败: {exc}"}
+                message = f"ZIP 创建失败: {exc}"
+                _push_error(message)
+                return {"error": message}
 
             for f in files:
                 # 安全校验后再删除，仅允许删除安全基准内的文件
@@ -814,6 +841,8 @@ class GuiApi:
                 except Exception as exc:
                     logger.debug("清理中间文件失败: %s → %s", f, exc)
 
+            with self._report_progress_lock:
+                self._report_progress_queue.append({"type": "complete"})
             return {"zip_path": str(zip_path.resolve()), "count": len(files), "errors": errors}
         except Exception as exc:
             logger.exception("generate_reports_zip 异常: %s", exc)
@@ -821,8 +850,6 @@ class GuiApi:
                 self._report_progress_queue.append({"type": "error", "message": str(exc)})
             return {"error": f"生成报告压缩包失败: {exc}"}
         finally:
-            with self._report_progress_lock:
-                self._report_progress_queue.append({"type": "complete"})
             self._report_lock.release()
 
     def get_provenance(self, outcrop: str) -> dict[str, Any]:

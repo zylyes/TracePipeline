@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing as mp
 import threading
 import time
 from collections import deque
-from typing import Any
-
-import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Any
 
 from backend.utils.path_utils import validate_outcrop_name
 from trace_pipeline.config import resolve_io_paths
@@ -20,11 +19,21 @@ from trace_pipeline.pipeline import run_pipeline
 logger = logging.getLogger(__name__)
 
 
+def _available_cpu_count() -> int:
+    """返回可用 CPU 核心数；平台无法识别时保守退回 1。"""
+    try:
+        count = int(mp.cpu_count())
+    except (NotImplementedError, TypeError, ValueError):
+        logger.warning("无法识别 CPU 核心数，parallel_workers 将退回 1")
+        return 1
+    return max(count, 1)
+
+
 class PipelineService:
     """后台线程执行流水线，前端通过轮询获取进度。"""
 
     def __init__(self) -> None:
-        self._queue: deque[dict[str, Any]] = deque()
+        self._queue: deque[dict[str, Any]] = deque(maxlen=2000)
         self._lock = threading.Lock()
         self._running = False
         self._shutdown_event = threading.Event()
@@ -137,19 +146,32 @@ class PipelineService:
                 # 使用 multiprocessing 并行执行
                 # parallel_workers: 0=自动(cpu_count), 1=单进程串行, >1=指定进程数
                 requested = int(config.get("parallel_workers", 0) or 0)
+                cpu_count = _available_cpu_count()
                 if requested <= 0:
-                    workers = min(len(task_configs), mp.cpu_count())
+                    workers = min(len(task_configs), cpu_count)
                 elif requested == 1:
                     workers = 1  # 1 个进程 = 串行（但仍在独立进程中）
                 else:
-                    workers = min(len(task_configs), requested)
+                    workers = min(len(task_configs), requested, cpu_count)
+                    if workers < requested:
+                        logger.debug(
+                            "parallel_workers 请求 %d 被 CPU 核心数 %d 裁剪为 %d",
+                            requested, cpu_count, workers,
+                        )
                 ctx = mp.get_context("spawn")
                 logger.info(
-                    "并行执行: %d 个工作进程，%d 个目标 (配置=%d)",
+                    "并行执行: %d 个工作进程，%d 个目标 (请求=%d, CPU=%d)",
                     workers,
                     total,
                     requested,
-                    extra={"stage": "parallel_start", "workers": workers, "total": total, "requested": requested},
+                    cpu_count,
+                    extra={
+                        "stage": "parallel_start",
+                        "workers": workers,
+                        "total": total,
+                        "requested": requested,
+                        "cpu_count": cpu_count,
+                    },
                 )
                 self._emit(
                     {

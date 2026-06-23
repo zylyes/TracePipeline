@@ -1,3 +1,66 @@
+# TracePipeline v4.5.4 发布说明
+
+**发布日期**：2026-06-23
+
+## 本版本亮点
+
+### 🧩 最终维护版稳定性收尾
+
+v4.5.4 是 TracePipeline 最后一个计划内维护版本。本版本集中处理几个会影响长时间运行、批量导出和异常输入的边界问题，让当前功能集以更稳定的状态收尾。
+
+后续我预计不会再持续投入这个项目；如果遇到问题或有功能需求，可以通过 GitHub Issue 或项目联系方式联系我。
+
+### 📄 报告导出进度状态修复
+
+- 批量报告 ZIP 打包失败时推送明确 `error` 事件
+- 仅成功生成 ZIP 后推送 `complete` 事件，避免失败路径被前端误判为完成
+- 报告服务返回业务错误时也会进入错误进度态，方便前端展示失败原因
+
+### 🔒 并发与资源边界收敛
+
+- `GuiApi` 懒加载服务增加线程安全双检锁，避免并发访问时重复创建服务实例
+- `parallel_workers` 显式配置超过 CPU 核心数时自动裁剪；CPU 核心数不可识别时保守退回 1
+- 流水线进度队列设置上限，避免长时间运行时消息无限积累
+- TraceData 缓存容量从 64 调整为 16，降低批量处理时内存占用
+
+### 📊 Excel 输入防护
+
+- `read_trace_excel()` 在调用 pandas 前拒绝超过 50 MiB 的 Excel 文件
+- 新增回归测试确认超大文件不会进入实际解析流程
+
+## 变更文件
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `backend/gui_api.py` | 修复 | 报告 ZIP 错误/完成进度事件、懒加载服务线程安全 |
+| `backend/services/pipeline_service.py` | 改进 | 进度队列上限、parallel_workers CPU 上限裁剪与兜底 |
+| `trace_pipeline/io/excel_reader.py` | 修复 | Excel 文件 50 MiB 读取上限 |
+| `trace_pipeline/pipeline.py` | 改进 | TraceData 缓存容量收敛 |
+| `tests/test_gui_api.py` | 测试 | 报告 ZIP 失败路径和懒加载并发回归测试 |
+| `tests/test_pipeline_service.py` | 测试 | 并行 worker 上限裁剪与 CPU 不可识别兜底测试 |
+| `tests/test_excel_reader.py` | 测试 | Excel 大文件拒绝读取测试 |
+| `trace_pipeline/__init__.py` / `frontend/package*.json` / `TracePipeline-setup.iss` | 版本 | 同步至 v4.5.4 |
+| `README.md` / `CHANGELOG.md` / `RELEASE_NOTES.md` | 文档 | 同步 v4.5.4 最终维护版发布内容 |
+
+## 验证状态
+
+- Python `pytest`：通过（200 项）
+- 前端 `npm.cmd run typecheck`：通过
+- 前端 `npm.cmd run test`：通过（2 files / 21 tests）
+- Windows 完整打包：通过（PyInstaller + Inno Setup + 7-Zip SFX）
+- 程序目录：258.2 MB
+
+## 发布注意
+
+- 这是最后一个计划内维护版本。项目仍保留开源代码与发行产物，后续问题或功能需求请通过 GitHub Issue 或项目联系方式反馈。
+
+## 发行版产物
+
+- 安装版：`dist/TracePipeline-Setup-v4.5.4.exe`（128.9 MB）
+- 便携版：`dist/TracePipeline-Portable-v4.5.4.exe`（123.1 MB）
+
+---
+
 # TracePipeline v4.5.3 发布说明
 
 **发布日期**：2026-06-22

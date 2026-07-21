@@ -1,0 +1,23 @@
+schema_version: 1
+module_path: ""
+title: TracePipeline 项目根与打包配置
+scope:
+    - .gitattributes
+    - .gitignore
+    - .ignore
+    - CHANGELOG.md
+    - CODE_OF_CONDUCT.md
+    - CONTRIBUTING.md
+    - LICENSE
+    - README.md
+    - RELEASE_NOTES.md
+    - THIRD_PARTY_NOTICES.txt
+    - TracePipeline.spec
+    - config.example.json
+    - pyproject.toml
+    - requirements.txt
+    - run_gui.py
+    - run_trace_pipeline.py
+source_files: []
+depends_on: []
+related_to: []

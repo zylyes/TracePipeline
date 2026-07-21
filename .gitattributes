@@ -26,3 +26,6 @@
 
 # Batch — always CRLF
 *.bat text eol=crlf
+
+# Historical MATLAB reference files have pending provenance; exclude from git archives.
+reference/matlab/** export-ignore

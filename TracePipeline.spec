@@ -28,6 +28,9 @@ if Path("backend/static").exists():
     _datas.append(("backend/static", "backend/static"))
 if Path("reference/favicon.ico").exists():
     _datas.append(("reference/favicon.ico", "reference"))
+for _legal_file in ("LICENSE", "THIRD_PARTY_NOTICES.txt"):
+    if Path(_legal_file).exists():
+        _datas.append((_legal_file, "."))
 _icon = "reference/favicon.ico" if Path("reference/favicon.ico").exists() else None
 
 

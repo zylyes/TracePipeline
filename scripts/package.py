@@ -34,6 +34,10 @@ STATIC_DIR = PROJECT_ROOT / "backend" / "static"
 DIST_DIR = PROJECT_ROOT / "dist"
 BUILD_DIR = PROJECT_ROOT / "build"
 ICON_FILE = PROJECT_ROOT / "reference" / "favicon.ico"
+LEGAL_FILES = [
+    PROJECT_ROOT / "LICENSE",
+    PROJECT_ROOT / "THIRD_PARTY_NOTICES.txt",
+]
 VENV_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
 _iscc = os.environ.get("ISCC_EXE", "")
 _7z = os.environ.get("SEVEN_ZIP", "")
@@ -140,6 +144,21 @@ def dir_size(path: Path) -> int:
     return total
 
 
+def copy_legal_files(target_dir: Path) -> bool:
+    """将许可证和第三方声明复制到分发目录。"""
+    ok = True
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for src in LEGAL_FILES:
+        if not src.exists():
+            error(f"法律声明文件缺失: {src}")
+            ok = False
+            continue
+        dst = target_dir / src.name
+        shutil.copy2(src, dst)
+        info(f"已随附法律声明: {dst}")
+    return ok
+
+
 def generate_requirements() -> Path:
     """从 pyproject.toml 的 [project.dependencies] 正则提取生成 requirements.txt。
 
@@ -230,6 +249,14 @@ def check_prerequisites(
     else:
         info(f"图标: {ICON_FILE} ({format_size(ICON_FILE.stat().st_size)})")
 
+    # 许可证和第三方声明
+    for legal_file in LEGAL_FILES:
+        if not legal_file.exists():
+            error(f"法律声明文件不存在: {legal_file}")
+            ok = False
+        else:
+            info(f"法律声明: {legal_file}")
+
     # Inno Setup 6
     _iscc = iscc_path or ISCC_EXE
     if not skip_installer:
@@ -316,6 +343,9 @@ def run_pyinstaller() -> bool:
         error(f"打包产物缺失: {exe}")
         return False
 
+    if not copy_legal_files(DIST_DIR / APP_NAME):
+        return False
+
     size = dir_size(DIST_DIR / APP_NAME)
     info(f"PyInstaller 打包完成 → {DIST_DIR / APP_NAME}")
     info(f"程序文件夹大小: {format_size(size)}")
@@ -327,6 +357,8 @@ def generate_iss(version: str) -> Path:
     """生成 Inno Setup 脚本，返回 .iss 文件路径。"""
     dist_dir_bs = str(DIST_DIR.resolve())
     icon_bs = str(ICON_FILE.resolve())
+    license_bs = str((PROJECT_ROOT / "LICENSE").resolve())
+    notices_bs = str((PROJECT_ROOT / "THIRD_PARTY_NOTICES.txt").resolve())
     bundled_icon = f"reference\\{ICON_FILE.name}"
     # Windows 反斜杠转义给 Inno Setup
     lang_bs = str(ISS_LANG_DIR.resolve())
@@ -347,6 +379,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"''' if lang_cn else 'Name: 
     files_line = (
         f'Source: "{dist_dir_bs}\\{APP_NAME}\\*"; DestDir: "{{app}}"; '
         "Flags: ignoreversion recursesubdirs createallsubdirs"
+    )
+    legal_files_block = "\n".join(
+        f'Source: "{src.resolve()}"; DestDir: "{{app}}"; Flags: ignoreversion'
+        for src in LEGAL_FILES
+        if src.exists()
     )
     app_icon_line = (
         f'Name: "{{group}}\\{APP_NAME}"; Filename: "{{app}}\\{APP_NAME}.exe"; '
@@ -383,12 +420,15 @@ SetupIconFile={icon_bs}
 UninstallDisplayIcon={{app}}\\{bundled_icon}
 UninstallDisplayName=TracePipeline v{version}
 VersionInfoVersion={version}
+LicenseFile={license_bs}
+InfoAfterFile={notices_bs}
 
 [Languages]
 {languages_block}
 
 [Files]
 {files_line}
+{legal_files_block}
 
 [Icons]
 {app_icon_line}
@@ -513,6 +553,13 @@ def build_portable_sfx(version: str) -> bool:
     portable_size = portable_exe.stat().st_size
     info(f"便捷版已生成: {portable_exe}")
     info(f"便捷版大小: {format_size(portable_size)}")
+
+    # 便捷版是单文件自解压程序，额外在 dist 旁放一份第三方声明，方便发布页随附。
+    notices = PROJECT_ROOT / "THIRD_PARTY_NOTICES.txt"
+    if notices.exists():
+        sidecar = DIST_DIR / f"{APP_NAME}-Portable-v{version}-THIRD_PARTY_NOTICES.txt"
+        shutil.copy2(notices, sidecar)
+        info(f"便捷版第三方声明旁路文件: {sidecar}")
     return True
 
 
@@ -520,7 +567,9 @@ def build_portable_sfx(version: str) -> bool:
 def _setup_console() -> None:
     """确保控制台支持 Unicode 输出。"""
     with suppress(AttributeError, OSError):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        reconfigure = getattr(sys.stdout, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
 
 
 def main() -> int:

@@ -1,0 +1,31 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: main
+nodes_managed: true
+exported_at: "2026-07-21T10:36:09Z"
+modules:
+    "":
+        dir_name: TracePipeline 项目根与打包配置
+        title: TracePipeline 项目根与打包配置
+        scope:
+            - .gitattributes
+            - .gitignore
+            - .ignore
+            - CHANGELOG.md
+            - CODE_OF_CONDUCT.md
+            - CONTRIBUTING.md
+            - LICENSE
+            - README.md
+            - RELEASE_NOTES.md
+            - THIRD_PARTY_NOTICES.txt
+            - TracePipeline.spec
+            - config.example.json
+            - pyproject.toml
+            - requirements.txt
+            - run_gui.py
+            - run_trace_pipeline.py
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

@@ -1,7 +1,12 @@
 # Orchestrator 专属记忆
 
-## 2026-08-07 系统性清理任务记录
-- **用户决策**（后续同类任务直接引用）：
+## 2026-08-07 v4.5.6 发布任务记录
+- **版本判断**：patch 级小版本更新（4.5.5 → 4.5.6），因变更仅含打包脚本构建修复、gitignore 整理与文档，无功能/API 变更
+- **执行**：自己完成版本号同步（5 文件 10 处）+ 文档更新（README/CHANGELOG/RELEASE_NOTES），委派 @fast-generic 提交推送（commit e2e9df0，21 文件 +279/-58，含 .qoder 重命名与 docs/memory/ 新文件）
+- **经验**：package-lock.json 顶部有两处独立缩进的 version 字段（2 空格 + 6 空格），replaceAll 需分别处理；README 版本历史表 v4.5.5 漏更新，本次一并补齐
+- **注意**：TracePipeline-setup.iss 被 git 忽略未跟踪，但需手动同步版本号（发行流程约定）
+
+## 2026-08-07 系统性清理任务记录- **用户决策**（后续同类任务直接引用）：
   - `.venv/` 保留；历史发行版 exe 移入 `dist/archive/` 而非删除
   - `.qoder/` 完全保留（含 git 跟踪状态，不加入 .gitignore）
   - 删除：`output/`、`logs/2026-06-23/`、`.slim/deepwork/`、全部 cache/preview 预览图、全部 __pycache__、.pytest_cache/.ruff_cache、build/、egg-info、backend/static（重建）、.codeartsdoer 冗余

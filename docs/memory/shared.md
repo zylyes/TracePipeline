@@ -1,9 +1,16 @@
 # TracePipeline 项目共享记忆
 
 ## 项目概况
-- TracePipeline v4.5.5（最终维护版）：Windows 桌面应用，Python（PyInstaller 打包）+ Vue 3（Vite）前端 + Python.NET 桌面壳
+- TracePipeline v4.5.6（2026-08-07 维护补丁）：Windows 桌面应用，Python（PyInstaller 打包）+ Vue 3（Vite）前端 + Python.NET 桌面壳
 - 版本号唯一来源：`trace_pipeline/__init__.py` 的 `__version__`
 - 测试：`pytest tests/`（当前 200 个用例全部通过）；前端测试：vitest（frontend/tests/）
+
+## 版本发布同步清单（v4.5.6 确认）
+- 版本号同步文件：`trace_pipeline/__init__.py`、`frontend/package.json`、`frontend/package-lock.json`（2 处）、`TracePipeline-setup.iss`（4 处：AppVersion/OutputBaseFilename/UninstallDisplayName/VersionInfoVersion）、`README.md`（徽章/维护状态/版本历史表）
+- **`TracePipeline-setup.iss` 被 .gitignore 忽略且未被 git 跟踪**，但磁盘上仍手动同步版本号（历史一致）
+- 文档同步：README.md、CHANGELOG.md（Keep a Changelog）、RELEASE_NOTES.md（顶部插入新段）
+- 提交风格：`🔖 release: vX.Y.Z ...`；发行版发布流程：版本同步 → 文档 → git add -A + commit + push（git 写操作走 @fast-generic）
+- 历史坑：README 版本历史表最高行曾在 v4.5.5 发布时漏更新，v4.5.6 时补上（更新时注意检查表头是否含最新版）
 
 ## 构建与产物布局（2026-08-07 清理后确认的约定）
 - **构建链路**：`frontend npm run build` → `backend/static/`（vite outDir）→ `scripts/package.py` PyInstaller → `dist/TracePipeline/` → Inno Setup（`TracePipeline-Setup-vX.Y.Z.exe`）/ 7-Zip SFX（`TracePipeline-Portable-vX.Y.Z.exe`）

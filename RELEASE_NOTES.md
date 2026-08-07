@@ -1,3 +1,46 @@
+# TracePipeline v4.5.6 发布说明
+
+**发布日期**：2026-08-07
+
+## 变更内容
+
+### 修复
+
+- **打包构建收尾修复**：`scripts/package.py` 在打包流程结束后自动清理 PyInstaller EXE 阶段残留的 `dist/TracePipeline.exe` 根目录副本（无版本号中间产物），保证 dist 目录只保留最终发行产物。
+
+### 改进
+
+- **仓库配置整理**：`.gitignore` 新增 `frontend/dist/` 忽略与临时/备份文件模式（`*.tmp`、`*.bak`、`*.orig`、`*~`、`~$*`），并将 `.slim/deepwork/` 忽略范围扩展为 `.slim/`。
+
+### 版本同步
+
+- Python 后端：`trace_pipeline/__init__.py` 版本号更新至 4.5.6
+- 前端：`frontend/package.json` 与 `frontend/package-lock.json` 版本号更新至 4.5.6
+- Inno Setup：`TracePipeline-setup.iss` 版本信息同步至 4.5.6
+
+### 文档
+
+- `README.md`：版本徽章、维护状态与版本历史同步至 v4.5.6
+- `CHANGELOG.md`：新增 v4.5.6 变更日志
+- `RELEASE_NOTES.md`：本文件同步
+
+## 验证状态
+
+| 测试项 | 状态 |
+|--------|------|
+| Python `pytest` | ✅ 通过 |
+
+> 本次发布仅涉及版本号、文档与仓库配置变更，无业务代码逻辑改动，故未重新执行前端测试与完整打包；发行产物仍为 v4.5.5 版本，下次打包时自动生成 v4.5.6。
+
+## 维护状态
+
+v4.5.6 是 v4.5.5 之后发布的维护补丁版本。项目仍保留开源代码与所有发行产物。后续问题或功能需求请通过以下渠道联系作者：
+
+- **GitHub Issue**：https://github.com/zylyes/TracePipeline/issues
+- **邮箱**：2965090785@qq.com
+
+---
+
 # TracePipeline v4.5.5 发布说明
 
 **发布日期**：2026-06-23

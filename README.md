@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/zylyes/TracePipeline/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.5.5-brightgreen" alt="Version"></a>
+  <a href="https://github.com/zylyes/TracePipeline/releases"><img src="https://img.shields.io/badge/version-4.5.6-brightgreen" alt="Version"></a>
   <img src="https://img.shields.io/badge/python-3.10_|_3.11_|_3.12-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows-blue?logo=windows" alt="Platform">
   <img src="https://img.shields.io/badge/GUI-Vue_3_|_Element_Plus_|_ECharts-4FC08D?logo=vuedotframework" alt="GUI">
@@ -83,7 +83,7 @@ python run_gui.py
 
 > 📖 更详细的安装说明见 [第 4 节](#-4-安装与运行)，输入数据格式见 [第 6.1 节](#61-输入数据格式)。
 
-> **维护状态**：v4.5.5 是本项目最后一个计划内维护版本。后续我预计不会再持续投入这个项目；如果遇到问题或有功能需求，可以通过 GitHub Issue 或邮箱（2965090785@qq.com）联系作者。
+> **维护状态**：v4.5.6 是当前最新维护版本。若后续有问题反馈或功能需求，可通过 GitHub Issue 或邮箱（2965090785@qq.com）联系作者。
 
 ---
 
@@ -1224,6 +1224,8 @@ PyInstaller 不会打包系统字体。确保目标系统已安装宋体或微�
 
 | 版本   | 日期    | 里程碑                                                                  |
 | :----- | :------ | :---------------------------------------------------------------------- |
+| v4.5.6 | 2026-08 | 维护补丁：打包流程清理 PyInstaller EXE 中间产物、仓库配置整理（gitignore 扩展） |
+| v4.5.5 | 2026-06 | 最终维护版：对比视图表格回归 Element Plus、行悬停高亮对接全局变量、全项目版本同步 |
 | v4.5.4 | 2026-06 | 最终维护版：报告 ZIP 进度状态修复、懒加载服务线程安全、并行 worker 上限裁剪、Excel 大文件防护、TraceData 缓存收敛 |
 | v4.5.3 | 2026-06 | GUI 交互稳定性补丁：Element Plus 单选按钮兼容修复、对比页空态引导、加载态隔离、图片筛选空态与表格横向滚动优化 |
 | v4.5.2 | 2026-06 | 安全与稳定性补丁：运行配置覆盖白名单、审计/日志分页限流、缓存与路径并发安全、Excel sheet 回退优化、前端按需注册与 chunk 拆分 |

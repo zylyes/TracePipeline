@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: TracePipeline 项目根与打包配置
+title: TracePipeline 项目根与打包入口
 scope:
     - .gitattributes
     - .gitignore

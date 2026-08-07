@@ -12,6 +12,26 @@
 
 ---
 
+## [4.5.6] - 2026-08-07
+
+### 修复
+
+- **打包清理 PyInstaller EXE 中间产物**：`scripts/package.py` 在打包流程结束后自动删除 onedir 模式残留的 `dist/TracePipeline.exe` 根目录副本（无版本号中间产物），保证 dist 目录只保留最终产物。
+
+### 改进
+
+- **仓库配置整理**：`.gitignore` 新增 `frontend/dist/` 与临时/备份文件模式（`*.tmp`、`*.bak`、`*.orig`、`*~`、`~$*`），`.slim/` 忽略范围由 `.slim/deepwork/` 扩展至整个目录。
+
+### 版本同步
+
+- 全项目版本号同步至 4.5.6（Python 后端、前端 package.json、Inno Setup 脚本）。
+
+### 验证状态
+
+- Python `pytest`：通过
+
+---
+
 ## [4.5.5] - 2026-06-23
 
 ### 修复

@@ -343,6 +343,12 @@ def run_pyinstaller() -> bool:
         error(f"打包产物缺失: {exe}")
         return False
 
+    # 清理 PyInstaller EXE 阶段的中间产物（dist/TracePipeline.exe 根目录副本）
+    stray_exe = DIST_DIR / f"{APP_NAME}.exe"
+    if stray_exe.is_file() and stray_exe != exe:
+        stray_exe.unlink()
+        info(f"已清理 EXE 中间产物: {stray_exe}")
+
     if not copy_legal_files(DIST_DIR / APP_NAME):
         return False
 

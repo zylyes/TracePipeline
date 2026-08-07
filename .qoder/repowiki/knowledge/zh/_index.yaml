@@ -3,11 +3,11 @@ schema_version: 1
 locale: zh-CN
 branch: main
 nodes_managed: true
-exported_at: "2026-07-21T10:36:09Z"
+exported_at: "2026-07-21T11:21:36Z"
 modules:
     "":
-        dir_name: TracePipeline 项目根与打包配置
-        title: TracePipeline 项目根与打包配置
+        dir_name: TracePipeline 项目根与打包入口
+        title: TracePipeline 项目根与打包入口
         scope:
             - .gitattributes
             - .gitignore

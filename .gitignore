@@ -40,11 +40,19 @@ frontend/.env*.local
 
 # Build output
 backend/static/
+frontend/dist/
 
 # System files
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Temporary / backup files
+*.tmp
+*.bak
+*.orig
+*~
+~$*
 
 # IDE
 .idea/
@@ -77,4 +85,4 @@ reference/*
 .arts/
 
 # Local deepwork session notes
-.slim/deepwork/
+.slim/
